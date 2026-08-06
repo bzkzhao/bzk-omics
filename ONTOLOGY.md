@@ -134,6 +134,8 @@ Measured on PXD018299: resolving `P09914-2` position 376 against the *canonical*
 
 **Resolution must therefore fetch isoform sequences directly** (`rest.uniprot.org/uniprotkb/P09914-2.fasta`), never strip the suffix to the canonical accession.
 
+**An isoform's `sequence_version` is taken from its parent entry's `entryAudit.sequenceVersion`.** UniProt versions the canonical entry; the isoform FASTA carries no independent version. The `sv` in a key such as `P09914-2#sv2#K376` is therefore the canonical entry's sequence version at resolution time. This is correct in the common case but has a known limitation — see §11 Q5.
+
 ---
 
 ## 5. Evidence nodes
@@ -653,6 +655,7 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
 2. Are transcript-level nodes needed in v0.1, or does RNA-seq enter at v0.2 with `TranscriptObservation` mirroring `ProteinObservation`?
 3. Should historical UniProt sequence retrieval be supported, or only current? Measured: 1 of 20 sampled sequences was amended after the original search, implying roughly 5% of sites are at risk of silent position drift. Current-only resolution flags these; historical retrieval would let them be reconciled.
 4. Multi-modified peptides: a peptide bearing two K-GG sites currently yields two `SiteObservation` nodes sharing a `peptide_sequence`. Is a `PeptidoformObservation` parent needed to preserve co-occurrence?
+5. **Does an isoform's `sequence_version`, inherited from the parent entry's `entryAudit` (§4), track edits confined to the isoform?** An isoform is the canonical sequence with its splice-variant (VSP / `VAR_SEQ`) features applied. If UniProt amends only those isoform-defining features — changing the isoform's spliced sequence while leaving the canonical sequence untouched — it is unconfirmed whether `entryAudit.sequenceVersion` bumps. If it does not, an isoform key such as `P09914-2#sv2` could silently denote two different sequences over time: drift specific to isoforms, invisible to the version number. **Mitigation:** `rebuild.py` refetches each resolved sequence and compares it to the stored `Protein.sequence`, so drift is caught by content, independent of the version number. To confirm: UniProt's versioning behaviour for isoform-only edits, and whether the rebuild comparison suffices or historical isoform retrieval (cf. Q3) becomes necessary.
 
 **Resolved**
 
