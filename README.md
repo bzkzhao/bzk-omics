@@ -62,7 +62,7 @@ Three notebooks, run in Google Colab against public PRIDE data. Each produced fi
 | [`colab_reproducefigure.ipynb`](colab_reproducefigure.ipynb) | Can a published result be reproduced from the deposited table? |
 | [`colab_identityresolution.ipynb`](colab_identityresolution.ipynb) | Do reported site positions validate against UniProt sequences? |
 
-Their JSON outputs are the first artifacts of the intended data model:
+Their JSON outputs are the first artifacts of the intended data model, version-controlled under [`data/curation/`](data/curation/) (`OPERATIONS.md` §2):
 
 | Record | Captures |
 |---|---|

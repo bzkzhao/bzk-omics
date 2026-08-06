@@ -70,7 +70,7 @@ Follow `ROADMAP.md` § Milestones. This adds the granularity that document delib
 
 **`bzk/adapters/base.py`** then **`perseus.py`**. Signature is `(file, SampleMapping) -> ParsedObservations`, never a directory convention. `Analysis.kind = 'external'`, `parameters_observed = false`.
 
-**Curation ingestion** — `curation_PXD018299.json` is the fixture and the format. It was written by hand; the loader should accept exactly that shape.
+**Curation ingestion** — `data/curation/curation_PXD018299.json` is the fixture and the format. It was written by hand; the loader should accept exactly that shape.
 
 *Done when:* a Perseus table is ingested, resolved, stored, and cross-queried against a second dataset.
 
@@ -93,7 +93,7 @@ Follow `ROADMAP.md` § Milestones. This adds the granularity that document delib
 | `colab_seethedata.ipynb` | 2 | `bzk/adapters/pride.py` | The `ftp://` → `https://` conversion is permanent behaviour, not a workaround |
 | `colab_reproducefigure.ipynb` | 4 | `bzk/stats/imputation.py` | Downshifted normal; seed mandatory per I15 |
 | `colab_reproducefigure.ipynb` | 5 | `bzk/stats/` BH correction | Straightforward |
-| `curation_PXD018299.json` | — | Fixture and format spec | The shape the loader must accept |
+| `data/curation/curation_PXD018299.json` | — | Fixture and format spec | The shape the loader must accept |
 
 ---
 
@@ -147,9 +147,10 @@ All three cost time during exploration. All three are the same class: code that 
 
 | Item | Where | Blocking? |
 |---|---|---|
-| Kùzu version number not recorded | `ARCHITECTURE.md` §1 | No — fill on install |
+| ~~Kùzu version number not recorded~~ — recorded `==0.11.3` | `ARCHITECTURE.md` §1 | Resolved |
 | `Contrast` reference-vs-evidence ambiguity | `ONTOLOGY.md` §11 Q1 | No — settle before v0.2 |
 | Multi-modified peptides | `ONTOLOGY.md` §11 Q3 | Possibly — will surface on first MaxQuant ingestion |
+| **I17 `reviewed_preferred` promotion is unowned** | resolver surfaces `reviewed`; nothing consumes it | No — decide with the first adapter. The promotion of a reviewed Swiss-Prot entry over a TrEMBL razor pick belongs to the **adapter** (which assembles the candidate set) or to **`ProteinAssignment` construction** (`ONTOLOGY.md` §6.3, I17), recorded as `basis = 'reviewed_preferred'` — never to the resolver, which only reports review status |
 | ADRs 0004–0014 unwritten | `decisions/` | No — write during weeks 7–8 |
 | Search engine for the new USP18 dataset | Assumption A2 | Yes for that dataset only |
 | Where in his pipeline the handover belongs | `ROADMAP.md` § Open questions | No — ask at the meeting |

@@ -136,4 +136,15 @@ def test_two_tier_cache_avoids_refetch(tmp_path: Any) -> None:
     assert len(sess.calls) == 2  # both tiers served from cache
     resolve("P09914-2", cache_dir=tmp_path, session=sess, refresh=True)
     assert len(sess.calls) == 3  # refresh refetches the entry; immutable sequence still cached
-    assert any("P09914#2#sv2" in p.name for p in (tmp_path / "seq").glob("*.txt"))
+    # tier-2 file is named with the full accession, never collapsed to canonical (ARCHITECTURE §2)
+    assert any(p.name == "P09914-2#sv2.txt" for p in (tmp_path / "seq").glob("*.txt"))
+
+
+def test_canonical_empty_sequence_is_no_sequence(tmp_path: Any) -> None:
+    # A resolved canonical entry with an empty sequence gets its own status, not 'isoform_unavailable'.
+    sess = _FakeSession({"P00000.json": _Resp(200, json_data=_canon_json(""))})
+    res = resolve("P00000", cache_dir=tmp_path, session=sess)
+    assert res.status == "ok"
+    assert res.sequence is None
+    assert res.sequence_source == "canonical"
+    assert validate_position(res, 1) == "no_sequence"

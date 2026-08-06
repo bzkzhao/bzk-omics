@@ -36,14 +36,20 @@ This document is expected to change weekly during v0.1. Decisions recorded here 
 The boundary is defined normatively in `ONTOLOGY.md` §2. Concretely:
 
 ```
-~/.bzk-omics/
+~/.bzk-omics/            # per-machine runtime state — rebuildable, not committed
   graph.kuzu/            # identity, relationships, provenance
   quant.duckdb           # site × sample and protein × sample matrices
   raw/                   # ingested source files, content-addressed by SHA-256
-  cache/uniprot/         # sequence + version cache, keyed by accession#sv
+  cache/uniprot/         # sequence + version cache; entry/ by accession, seq/ by accession#sv
+
+<repo>/
+  data/curation/         # curation, analysis and resolution records (JSON) — the non-derivable
+                         # human-authored inputs, version-controlled (OPERATIONS.md §2, §1)
 ```
 
 `SiteObservation.quant_ref` is the join key into `quant.duckdb`. Nothing per-sample enters the graph.
+
+The split is deliberate: everything under `~/.bzk-omics/` is derived and rebuildable (I9), so it is per-machine and gitignored; `data/curation/` holds the one class of content that cannot be recomputed — human judgement — so it lives in the repository and survives a disk failure independently (OPERATIONS.md §1). `rebuild.py` reads the curation export from here.
 
 Isoform accessions are cached under their full form (`P09914-2`), never collapsed to canonical. Fetching `rest.uniprot.org/uniprotkb/P09914-2.fasta` returns the isoform sequence; stripping the suffix returns a different protein of different length, and positions resolved against it are wrong without erroring.
 
@@ -204,4 +210,4 @@ To be written as numbered, immutable records in `decisions/`:
 1. Does the UniProt cache need historical sequence versions, or only current? Measured: 1 of 20 sampled PXD018299 sequences was amended after the search, so roughly 5% of sites are at risk of drift. Current-only resolution flags them; historical retrieval would reconcile them. Flagging is cheaper and satisfies I2 — resolve in favour of flagging unless the rate rises.
 2. Where does normalisation live — in `quant/` as a storage-time transform, or in `stats/` as an analysis-time one? Storage-time is faster; analysis-time is more auditable and better matches the provenance model.
 3. ~~Does the front end query the graph directly, or only through typed API routes?~~ **Resolved 2026-08-06: typed API routes only.** The front end never touches Kùzu. Direct access would place invariant enforcement — I3, I14, I15, I18, I19 — in two places, and I18 in particular must sit at a single export boundary or it is not enforceable at all. The cost is one indirection; the benefit is that honesty guarantees have exactly one implementation.
-4. Where does the curation export live relative to the graph, and what triggers a re-export? I9 requires it to survive a rebuild, so it cannot live only inside `graph.kuzu/`.
+4. ~~Where does the curation export live relative to the graph~~, and what triggers a re-export? **Location resolved 2026-08-06: `data/curation/` in the repository, version-controlled** — see §2 and `OPERATIONS.md` §2. I9 requires it to survive a rebuild, so it cannot live only inside `graph.kuzu/`; the human-authored records are the one non-derivable input and are committed. **The re-export trigger remains open** — a daemon is heavier than this product should be; a check on startup and shutdown may suffice. This is also `OPERATIONS.md` open Q1.
