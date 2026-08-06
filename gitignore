@@ -1,0 +1,62 @@
+# Source data — never committed.
+# Deposits are fetched from PRIDE by the notebooks and the ingestion adapters.
+# Under invariant I9 the graph is derived from these, so committing them adds
+# weight without adding recoverability. Curation records ARE committed, because
+# they are the one thing that cannot be regenerated.
+*.raw
+*.mzML
+*.mzTab
+*.fasta
+*.fa
+*GlyGlyKSites.txt
+*proteinGroups.txt
+*evidence.txt
+report.tsv
+report.parquet
+*.pg_matrix.tsv
+data/raw/
+data/downloads/
+
+# Local stores — rebuildable from raw plus curation (I9)
+*.kuzu/
+*.duckdb
+*.parquet
+.bzk/
+~/.bzk-omics/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.uv/
+build/
+dist/
+
+# Notebooks — strip outputs before committing; they bloat diffs and can
+# contain data snippets that were never meant to leave the machine
+.ipynb_checkpoints/
+
+# Testing and tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.*
+*.key
+credentials.json
+
+# Archives — usually accidental browser downloads
+*.zip
+*.tar.gz
