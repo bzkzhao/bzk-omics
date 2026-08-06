@@ -1,0 +1,28 @@
+{
+  "dataset": "PXD018299",
+  "file": "HAP1_USP18KO_GlyGlyKSites.txt",
+  "contrast": "KO_IFN_vs_WT_IFN",
+  "quantity": "Intensity",
+  "localization_threshold": 0.75,
+  "filters_applied": [
+    "reverse",
+    "potential_contaminant"
+  ],
+  "presence_rule": ">=2 replicates in either group",
+  "imputation": {
+    "method": "downshifted_normal",
+    "downshift_sd": 1.8,
+    "width_sd": 0.3,
+    "seed": 0,
+    "scope": "whole_matrix",
+    "n_values_imputed": 4038,
+    "n_values_total": 8250
+  },
+  "test": "welch_t",
+  "fdr_method": "BH",
+  "protein_adjusted": "not_applied",
+  "n_sites_tested": 1375,
+  "n_significant_up": 561,
+  "n_expected_recovered": 12,
+  "n_expected_total": 14
+}
