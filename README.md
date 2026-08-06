@@ -43,6 +43,7 @@ Each fact has exactly one home. This file links; it does not restate. If a numbe
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Stack, storage layout, module boundaries |
 | [`ROADMAP.md`](ROADMAP.md) | Scope, milestones, measured findings, recorded assumptions |
 | [`GLOSSARY.md`](GLOSSARY.md) | Terminology |
+| [`decisions/`](decisions/) | Architecture decision records — append-only, never edited |
 
 `ONTOLOGY.md` is normative: its DDL is a contract, and code that diverges from it is a defect — or the document is wrong and must be amended *before* the code changes.
 
@@ -54,9 +55,9 @@ Three notebooks, run in Google Colab against public PRIDE data. Each produced fi
 
 | Notebook | Question |
 |---|---|
-| `week_a_see_the_data.ipynb` | Can the experimental design be reconstructed from a public deposit? |
-| `week_b_reproduce_a_figure.ipynb` | Can a published result be reproduced from the deposited table? |
-| `week_c_resolve_identities.ipynb` | Do reported site positions validate against UniProt sequences? |
+| [`colab_seethedata.ipynb`](colab_seethedata.ipynb) | Can the experimental design be reconstructed from a public deposit? |
+| [`colab_reproducefigure.ipynb`](colab_reproducefigure.ipynb) | Can a published result be reproduced from the deposited table? |
+| [`colab_identityresolution.ipynb`](colab_identityresolution.ipynb) | Do reported site positions validate against UniProt sequences? |
 
 Their JSON outputs are the first artifacts of the intended data model:
 
@@ -67,6 +68,8 @@ Their JSON outputs are the first artifacts of the intended data model:
 | `resolution_*.json` | What identity resolution found and where it was uncertain |
 
 Under invariant I9 the graph is regenerable from raw files and the schema. The curation records are the exception — they are human judgement and cannot be recomputed.
+
+Source data is not committed. The notebooks download it from PRIDE; see `.gitignore`.
 
 ---
 
@@ -107,4 +110,4 @@ Six-document set created with router, normative ontology, and separated concerns
 
 ## Licence
 
-Not yet chosen. See [`ROADMAP.md`](ROADMAP.md) § Open questions.
+Not yet chosen; until one is added, default copyright applies and the contents are not licensed for reuse. See [`ROADMAP.md`](ROADMAP.md) § Open questions.
