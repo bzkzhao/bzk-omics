@@ -1,0 +1,21 @@
+{
+  "dataset": "PXD018299",
+  "file": "HAP1_USP18KO_GlyGlyKSites.txt",
+  "n_sampled": 20,
+  "n_validated": 20,
+  "validation_rate": 1.0,
+  "n_isoform_sites": 6,
+  "n_reviewed": 15,
+  "sequence_versions": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "razor_pick_unreviewed_despite_alternative": 4,
+  "razor_pick_sampled": 8,
+  "resolver_notes": [
+    "Isoform accessions resolved via the FASTA endpoint at full accession; never stripped to canonical.",
+    "Review status is inherited from the canonical entry; isoforms are not independently reviewed."
+  ]
+}
