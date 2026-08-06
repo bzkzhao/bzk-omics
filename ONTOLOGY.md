@@ -11,7 +11,7 @@
 
 This document is the single source of truth for the data model. No other document may define a node type, edge type, or field. Where another document needs one, it references this file.
 
-DDL is given in Kùzu syntax (v0.6+). It is normative: an implementation that diverges is wrong, or this document is wrong and must be amended before the code is.
+DDL is given in Kùzu syntax and targets **v0.11.3**, the pinned version (see `ARCHITECTURE.md` §1). It formerly cited v0.6+; the complete DDL of §4–§7 was executed against 0.11.3 on 2026-08-06 and every statement runs unchanged — including `ALTER TABLE … ADD`, `STRING[]` array columns, and `MANY_MANY` on `SITE_ON`, with the array round-trip and the many-to-many mapping confirmed functionally rather than only parsed. It is normative: an implementation that diverges is wrong, or this document is wrong and must be amended before the code is.
 
 ---
 
