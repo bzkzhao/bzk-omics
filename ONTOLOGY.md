@@ -1,0 +1,648 @@
+# ONTOLOGY.md
+
+| Field | Value |
+|---|---|
+| Status | Draft |
+| Version | 0.8 |
+| Last reviewed | 2026-08-06 |
+| Depends on | `VISION.md` |
+| Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
+| Authoritative for | Node types, edge types, field semantics, invariants |
+
+This document is the single source of truth for the data model. No other document may define a node type, edge type, or field. Where another document needs one, it references this file.
+
+DDL is given in Kùzu syntax (v0.6+). It is normative: an implementation that diverges is wrong, or this document is wrong and must be amended before the code is.
+
+---
+
+## 1. The central distinction
+
+The graph is partitioned into two disjoint node sets.
+
+**Reference nodes** describe entities that exist independently of any measurement. A lysine at position 42 of a given protein sequence exists whether or not it was ever observed. Reference nodes are imported from external authorities and are never authored locally.
+
+**Evidence nodes** describe what this laboratory did and found. They are authored locally and carry provenance.
+
+The two sets are joined only through observation nodes. This is the load-bearing constraint of the entire model: it is what allows the system to distinguish *"we measured this"* from *"the literature says this"*, and to answer either question without contaminating the other.
+
+```
+REFERENCE                          EVIDENCE
+─────────                          ────────
+Gene                               Project
+Protein ──────┐                    Experiment
+ModificationSite ◄──[MEASURED_AT]── SiteObservation
+Modifier ◄────[ASSIGNS]──────────── ModifierAssignment
+Pathway                            Dataset
+Disease                            Analysis
+Drug                               DifferentialResult
+Publication                        Person, Software
+```
+
+---
+
+## 2. Storage boundary
+
+The graph stores **identity, relationships, and provenance**. It does not store per-sample quantitative matrices.
+
+A diGly experiment produces a site × sample matrix that reaches millions of cells across a handful of datasets. Property graphs handle this badly. Quantitative values live in columnar storage (DuckDB / Parquet), keyed by `SiteObservation.id`, and are joined at query time.
+
+Rule: if a value is one-per-entity, it is a graph property. If it is one-per-entity-per-sample, it is columnar.
+
+---
+
+## 3. Identifiers
+
+All external identifiers are **CURIEs** — `prefix:local_id` — resolved against a prefix map maintained in `ARCHITECTURE.md`.
+
+| Prefix | Authority | Example |
+|---|---|---|
+| `uniprot` | UniProtKB | `uniprot:P05161` |
+| `hgnc` | HGNC | `hgnc:4053` |
+| `ensembl` | Ensembl | `ensembl:ENSG00000187608` |
+| `unimod` | Unimod | `unimod:121` |
+| `mod` | PSI-MOD | `mod:00492` |
+| `reactome` | Reactome | `reactome:R-HSA-1169408` |
+| `go` | Gene Ontology | `go:GO:0032020` |
+| `mondo` | MONDO | `mondo:MONDO_0004992` |
+| `chebi` | ChEBI | `chebi:CHEBI:15377` |
+| `doi` / `pmid` | Publications | `pmid:21139048` |
+
+Locally generated nodes use `bzk:` with a ULID: `bzk:01J9X2...`. Local IDs are never reused, including after deletion.
+
+> **To verify before implementation:** the PSI-MOD accession for the GlyGly remnant. Unimod 121 (GlyGly) is the identifier used by MaxQuant and FragPipe and should be treated as primary; the PSI-MOD cross-reference above is unconfirmed and must be checked against the current PSI-MOD release.
+
+---
+
+## 4. Reference nodes
+
+```cypher
+CREATE NODE TABLE Gene(
+  id STRING,                    -- CURIE, hgnc:
+  symbol STRING,                -- HGNC approved symbol
+  ensembl_id STRING,
+  name STRING,
+  PRIMARY KEY (id));
+
+CREATE NODE TABLE Protein(
+  id STRING,                    -- CURIE, uniprot:ACCESSION
+  accession STRING,
+  isoform STRING,               -- e.g. 'P05161-1'; NULL means canonical
+  sequence_version INT64,       -- REQUIRED. See invariant I2.
+  sequence STRING,
+  name STRING,
+  organism_taxid INT64,
+  PRIMARY KEY (id));
+
+CREATE NODE TABLE ModificationSite(
+  id STRING,                    -- deterministic; see key template below
+  residue STRING,               -- single-letter, e.g. 'K'
+  position INT64,               -- 1-based, against Protein.sequence_version
+  modification_type STRING,     -- CURIE, unimod:
+  PRIMARY KEY (id));
+
+CREATE NODE TABLE Modifier(
+  id STRING,                    -- CURIE, uniprot: of the modifier protein
+  name STRING,                  -- 'ubiquitin' | 'NEDD8' | 'ISG15' | 'FAT10'
+  c_terminal_motif STRING,      -- 'LRGG' etc.
+  leaves_gg_remnant BOOLEAN,    -- tryptic K-ε-GG remnant. See §6.
+  PRIMARY KEY (id));
+
+CREATE NODE TABLE Pathway(id STRING, name STRING, source STRING, PRIMARY KEY (id));
+CREATE NODE TABLE Disease(id STRING, label STRING, PRIMARY KEY (id));
+CREATE NODE TABLE Drug(id STRING, label STRING, PRIMARY KEY (id));
+CREATE NODE TABLE Publication(id STRING, title STRING, year INT64, PRIMARY KEY (id));
+
+CREATE REL TABLE ENCODES(FROM Gene TO Protein, ONE_MANY);
+CREATE REL TABLE SITE_ON(FROM ModificationSite TO Protein, MANY_MANY);  -- see §6.3
+CREATE REL TABLE ANNOTATED_IN(FROM Protein TO Pathway, source STRING, evidence_code STRING);
+```
+
+**Key template:**
+
+```
+uniprot:{accession}[-{isoform}]#sv{sequence_version}#{residue}{position}#{modification_curie}
+
+  uniprot:P05161#sv1#K42#unimod:121        canonical
+  uniprot:P09914-2#sv2#K376#unimod:121     isoform 2
+```
+
+`ModificationSite.id` is deterministic and content-derived, so the same site ingested from two datasets resolves to one node.
+
+**Both the sequence version and the isoform are part of the key**, and for the same reason: position numbering is only meaningful relative to a specific sequence. `P05161#sv1#K42` and `P05161#sv2#K42` may be different lysines because the sequence was amended; `P09914#K376` and `P09914-2#K376` are different lysines because the isoforms differ in length and numbering.
+
+Measured on PXD018299: resolving `P09914-2` position 376 against the *canonical* IFIT1 sequence returns threonine, and `P62195-2` position 47 returns alanine. Both validate correctly against their own isoform sequences. A schema that treated isoform as a property rather than part of the key would silently merge these with their canonical counterparts and place modifications on the wrong residues.
+
+**Resolution must therefore fetch isoform sequences directly** (`rest.uniprot.org/uniprotkb/P09914-2.fasta`), never strip the suffix to the canonical accession.
+
+---
+
+## 5. Evidence nodes
+
+```cypher
+CREATE NODE TABLE Project(id STRING, title STRING, created_at TIMESTAMP, PRIMARY KEY (id));
+
+CREATE NODE TABLE Experiment(
+  id STRING, title STRING,
+  modality STRING,              -- 'digly_proteomics' | 'proteomics' | 'rnaseq'
+  organism_taxid INT64,
+  PRIMARY KEY (id));
+
+CREATE NODE TABLE Sample(
+  id STRING, label STRING,
+  source_type STRING,           -- 'cell_line' | 'tumour_tissue' | 'primary_cell'
+  cell_line STRING,             -- NULL for tissue
+  organism_taxid INT64,         -- REQUIRED. Mouse and human coexist in one graph.
+  model_system STRING,          -- e.g. '4T1 BALB/c subcutaneous'; NULL in vitro
+  genotype STRING,              -- e.g. 'USP18-/-', 'USP18 C64R/C65R'
+  treatment STRING,             -- e.g. 'IFN-alpha2b 10 U/mL'
+  timepoint_h DOUBLE,
+  replicate INT64,
+  replicate_type STRING,        -- 'biological' | 'technical'
+  PRIMARY KEY (id));
+
+CREATE NODE TABLE Dataset(
+  id STRING, label STRING,
+  source STRING,                -- 'local' | 'pride' | 'embargoed'
+                                -- 'embargoed' = unpublished, shared under
+                                -- collaboration. See §5.2 and I18.
+  external_accession STRING,    -- e.g. 'PXD018299'; NULL if local
+  acquisition_mode STRING,      -- 'dda' | 'dia' | 'prm' | 'srm'
+  instrument STRING,            -- e.g. 'Orbitrap Fusion Lumos'
+  search_engine STRING,         -- 'diann' | 'maxquant' | 'fragpipe' | 'spectronaut'
+  search_engine_version STRING,
+  library_type STRING,          -- 'predicted' | 'experimental' | 'hybrid' | NULL for DDA
+  library_prediction_model STRING,  -- REQUIRED if library_type = 'predicted'
+  fasta_release STRING,         -- UniProt release used for the search
+  content_hash STRING,          -- SHA-256 of the ingested source file
+  PRIMARY KEY (id));
+
+CREATE NODE TABLE SiteObservation(
+  id STRING,
+  peptide_sequence STRING,
+  localization_prob DOUBLE,     -- 0–1
+  score DOUBLE,
+  is_decoy BOOLEAN,
+  n_imputed INT64,              -- values generated rather than measured; see §6.5
+  quant_ref STRING,             -- key into columnar store; see §2
+  PRIMARY KEY (id));
+
+CREATE NODE TABLE ProteinObservation(
+  id STRING, quant_ref STRING, n_peptides INT64, PRIMARY KEY (id));
+
+
+CREATE NODE TABLE Contrast(
+  id STRING, label STRING,      -- e.g. 'IFNb_8h vs mock'
+  numerator STRING, denominator STRING,
+  PRIMARY KEY (id));
+
+CREATE NODE TABLE DifferentialResult(
+  id STRING,
+  log2fc DOUBLE,
+  p_value DOUBLE,
+  adj_p_value DOUBLE,
+  fdr_method STRING,            -- 'BH'
+  test STRING,                  -- 'moderated_t_ebayes'
+  protein_adjusted STRING,      -- REQUIRED. 'applied' | 'not_applied' | 'native'
+                                -- 'native' = source already ratiometric. See I4.
+  adjustment_method STRING,     -- NULL if 'not_applied'
+                                -- 'residual_vs_protein_lfc' | 'maxquant_mod_base_ratio'
+  PRIMARY KEY (id));
+
+CREATE NODE TABLE Analysis(
+  id STRING, label STRING,
+  kind STRING,                  -- 'processing' | 'curation' | 'external'
+                                -- 'external' = run outside the platform;
+                                -- parameters recorded, not observed. §5.4
+  basis STRING,                 -- curation only; enum in §5.3
+  confidence STRING,            -- curation only; 'authoritative' | 'inferred'
+  rationale STRING,
+  quantity STRING,              -- 'intensity' | 'ratio_mod_base' | 'lfq' | 'ibaq'
+  localization_threshold DOUBLE,-- recorded, never hard-coded; see §6.4
+  filters_applied STRING[],     -- e.g. ['reverse','potential_contaminant']
+  workflow_id STRING, workflow_revision STRING,
+  parameters_json STRING,
+  started_at TIMESTAMP, ended_at TIMESTAMP,
+  PRIMARY KEY (id));
+
+CREATE NODE TABLE Person(id STRING, name STRING, orcid STRING, PRIMARY KEY (id));
+CREATE NODE TABLE Software(id STRING, name STRING, version STRING, container_digest STRING, PRIMARY KEY (id));
+
+CREATE REL TABLE CONTAINS(FROM Project TO Experiment, ONE_MANY);
+CREATE REL TABLE PERFORMED_ON(FROM Experiment TO Sample, ONE_MANY);
+CREATE REL TABLE PRODUCED(FROM Sample TO Dataset);
+CREATE REL TABLE REPORTS_SITE(FROM Dataset TO SiteObservation, ONE_MANY);
+CREATE REL TABLE REPORTS_PROTEIN(FROM Dataset TO ProteinObservation, ONE_MANY);
+CREATE REL TABLE RESULT_FOR_SITE(FROM DifferentialResult TO SiteObservation, MANY_ONE);
+CREATE REL TABLE RESULT_IN_CONTRAST(FROM DifferentialResult TO Contrast, MANY_ONE);
+CREATE REL TABLE ADJUSTED_BY(FROM DifferentialResult TO DifferentialResult, MANY_ONE);
+CREATE REL TABLE SAMPLE_GENERATED_BY(FROM Sample TO Analysis, MANY_ONE);
+CREATE REL TABLE CURATION_CITES(FROM Analysis TO Publication);
+```
+
+### 5.1 The `Observation` supertype
+
+Kùzu has no inheritance, so the supertype is a **contract**, not a table. Every observation type MUST provide:
+
+| Field / edge | Meaning |
+|---|---|
+| `id` | `bzk:` ULID |
+| `quant_ref` | Key into the columnar store (§2) |
+| `REPORTED_BY → Dataset` | Which dataset reported it |
+| `RESOLVES_TO → <reference node>` | The external entity it measures |
+| `WAS_DERIVED_FROM` reachability | Provenance path to an `Analysis` (I5) |
+
+Any code operating on these five things works for every modality without modification. Domain logic lives in the subtype, never in code that consumes the contract.
+
+| Subtype | Resolves to | Status |
+|---|---|---|
+| `SiteObservation` | `ModificationSite` | v0.1 |
+| `ProteinObservation` | `Protein` | v0.1 |
+| `EnrichmentObservation` | `Protein` | v0.2 — IP-MS, ABPP; enrichment vs control, not abundance |
+| `PeptideObservation` | `Protein` + `HlaAllele` | v0.3 — immunopeptidomics; non-tryptic, no modification site |
+| `AnalyteObservation` | `Analyte` (LIPID MAPS, ChEBI, HMDB) | v0.3 — lipidomics; no UniProt identity |
+
+`EnrichmentObservation` is not optional flavour. Anti-ISG15 IP-MS and ISG15-ABPP are how this laboratory validates site-level calls, and concordance between an enrichment hit and a diGly site is an evidence basis in §6.
+
+```cypher
+CREATE REL TABLE REPORTED_BY(FROM SiteObservation TO Dataset, MANY_ONE);
+CREATE REL TABLE RESOLVES_TO_SITE(FROM SiteObservation TO ModificationSite, MANY_ONE);
+CREATE REL TABLE RESOLVES_TO_PROTEIN(FROM ProteinObservation TO Protein, MANY_ONE);
+```
+
+---
+
+### 5.2 Embargoed datasets
+
+Unpublished data shared by a collaborator is neither `local` nor `pride`. It must be ingestible, queryable and analysable, but must not leave the machine in any export, report or figure until released.
+
+```cypher
+ALTER TABLE Dataset ADD embargo_holder STRING;      -- who controls release
+ALTER TABLE Dataset ADD embargo_reference STRING;   -- manuscript or agreement
+ALTER TABLE Dataset ADD embargo_released_at TIMESTAMP;  -- NULL while embargoed
+```
+
+Release is an event, not an edit: setting `embargo_released_at` and changing `source` to `pride` records that the data became public, and the prior state remains visible in the graph's history.
+
+This state exists because the platform's first real user is expected to supply unpublished data, and a system that cannot hold it safely cannot be used at all. It is also the point at which local-first stops being a design preference and becomes a condition of the collaboration.
+
+### 5.3 Curation as an activity
+
+To compute anything from a dataset, the platform must know which raw files correspond to which experimental conditions — the **sample-to-condition mapping**. Where SDRF-Proteomics accompanies a submission this is machine-readable. Most PRIDE submissions do not include it, so the mapping is inferred from filenames, submission metadata, or the methods section of the associated paper.
+
+That inference is an assertion about an experiment this laboratory did not perform, and it is frequently wrong. Treated as configuration, an error is invisible in the graph and its correction is destructive: the file is edited, results are recomputed, and nothing records that the design was ever inferred or ever different. Treated as an activity, the provenance chain from `DifferentialResult` through `Contrast` to `Sample` terminates in a recorded curation event with an author, a basis, and a supersession path.
+
+Invariant I5 already requires it. `Sample` is an entity node; a `Sample` conjured from a configuration file reaches no `prov:Activity` and is therefore permanently and correctly flagged `unprovenanced`. Configuration is not an available option.
+
+This is structurally the same problem as modifier ambiguity (§6): an inference the primary measurement does not support, which the field habitually reports as fact. Both receive the same treatment.
+
+**Model.** No separate node type. `Analysis` carries `kind = 'curation'` and gains PROV-O provenance for free.
+
+`basis` is a closed enum:
+
+| Value | Meaning | Confidence |
+|---|---|---|
+| `sdrf` | SDRF-Proteomics accompanying the submission | `authoritative` |
+| `author_correspondence` | Design confirmed directly by the submitters | `authoritative` |
+| `submitter_metadata` | Locally generated data, or structured PRIDE metadata | `inferred` |
+| `publication_methods` | Read from the methods section of the associated paper | `inferred` |
+| `filename_inference` | Deduced from raw file naming conventions | `inferred` |
+
+For locally generated data the curation node is created automatically at ingestion with `basis = 'submitter_metadata'`, so the mechanism costs nothing where the design is already known.
+
+Curation nodes are immutable under I6. A corrected mapping supersedes rather than overwrites, and the retraction propagates to every derived result and figure.
+
+`ADJUSTED_BY` points a site-level result at the protein-level result used to correct it. Its presence is what makes `protein_adjusted = 'applied'` auditable rather than asserted.
+
+---
+
+### 5.4 External analyses
+
+Perseus has been the standard downstream tool in this field for over a decade and is the collaborating group's workflow. Researchers will not stop using it, and there is no reason they should.
+
+The platform therefore ingests **analysis outputs as well as search-engine outputs**, and an `Analysis` may describe work performed elsewhere.
+
+```cypher
+ALTER TABLE Analysis ADD external_tool STRING;      -- 'perseus' | 'r' | 'graphpad'
+ALTER TABLE Analysis ADD external_version STRING;
+ALTER TABLE Analysis ADD parameters_observed BOOLEAN;  -- REQUIRED
+```
+
+**The distinction `parameters_observed` records is the important one.** When the platform computes a result, it knows the test, the seed, the thresholds and the filtered rows because it performed them. When a result arrives from Perseus, those are *stated by the user* — accurate or not, complete or not. Both are usable; conflating them is not.
+
+`parameters_observed = false` therefore propagates: any `DifferentialResult` generated by an external analysis is labelled as carrying reported rather than observed provenance, wherever it appears.
+
+**Both paths are kept.** Where the underlying quantitative matrix has also been ingested (I11), an externally computed result can be recomputed under a different test and the two compared. Divergence between a Perseus result and a recomputed one is a finding about analytical sensitivity, not a defect — and reporting it is something no existing tool does.
+
+Where only the analysis output exists, the result stands with reported provenance. That is worth less than observed provenance and much more than nothing.
+
+---
+
+## 6. Evidenced inference
+
+Three distinct questions about a modification site share one structure: none is measured directly, each is inferred from perturbation or concordance, and the field routinely reports all three as fact.
+
+| Inference | Question | Evidence |
+|---|---|---|
+| `ModifierAssignment` | Which UBL produced this remnant? | Knockout, mutant, pulldown, concordance |
+| `EnzymeAssociation` | Which enzyme wrote or erased it? | Perturbation of the enzyme |
+| `ProteinAssignment` | Which protein does this peptide come from? | Unique peptides, isoform-specific evidence |
+| `ImputedValue` | What was the abundance where nothing was detected? | A distributional assumption, nothing more |
+| Pathway annotation | What process is the protein in? | Curated external annotation |
+
+**`EvidencedInference` is an abstract supertype.** Kùzu has no inheritance, so it is a contract every subtype MUST satisfy: `basis` (closed enum), `confidence` (`ambiguous` | `probable` | `confirmed`), `rationale`, `asserted_at` / `retracted_at` (immutable, superseded per I6), and an evidence edge to `Analysis` or `Publication`.
+
+Absence of a live non-ambiguous inference is a first-class state, never a default assumption. Adding a fourth layer — site-to-domain, site-to-phenotype, site-to-drug-response — means defining a `basis` enum and a target node. Nothing else changes.
+
+### 6.1 Modifier ambiguity
+
+Ubiquitin, NEDD8, ISG15 and FAT10 all terminate in a diglycine motif. Tryptic digestion leaves an identical K-ε-GG remnant (+114.0429 Da) on the acceptor lysine in every case. Neither the precursor mass nor the MS² fragmentation distinguishes them.
+
+The field's default assumption — that a K-GG site is ubiquitin — holds at baseline because ubiquitin conjugation dominates. Under type I interferon stimulation it does not: *ISG15* and *UBA7* are among the most strongly induced genes, and the ISGylated share of the K-GG population rises substantially. This is the exact condition the platform exists to analyse.
+
+A `SiteObservation` is modifier-agnostic. It records a diGly remnant. The identity of the modifier is a **separate, defeasible inference** carrying its own evidence.
+
+```cypher
+CREATE NODE TABLE ModifierAssignment(
+  id STRING,
+  candidate_modifiers STRING[],   -- e.g. ['uniprot:P0CG48','uniprot:Q15843','uniprot:P05161']
+  basis STRING,                   -- enum, below
+  confidence STRING,              -- 'ambiguous' | 'probable' | 'confirmed'
+  rationale STRING,
+  asserted_at TIMESTAMP,
+  retracted_at TIMESTAMP,         -- NULL if live; see invariant I6
+  PRIMARY KEY (id));
+
+CREATE REL TABLE MEASURED_AT(FROM SiteObservation TO ModificationSite, MANY_ONE);
+CREATE REL TABLE ASSIGNMENT_FOR(FROM ModifierAssignment TO SiteObservation, MANY_ONE);
+CREATE REL TABLE ASSIGNS(FROM ModifierAssignment TO Modifier, MANY_ONE);
+CREATE REL TABLE ASSIGNMENT_SUPPORTED_BY(FROM ModifierAssignment TO Analysis);
+CREATE REL TABLE ASSIGNMENT_CITES(FROM ModifierAssignment TO Publication);
+```
+
+`basis` is a closed enum. Values marked † are drawn from the disambiguation strategy used in the USP18-dependent ISGylome study (PXD018299), and are directly automatable.
+
+| Value | Meaning | Permitted confidence |
+|---|---|---|
+| `inferred_default` | No orthogonal evidence; abundance prior only | `ambiguous` |
+| `usp18_ko_ifn_enrichment` † | Site enriched in deISGylase-KO cells under IFN | `probable` |
+| `isg15_interactome_concordance` † | Parent protein also enriched in anti-ISG15 IP-MS | `probable` |
+| `isg15_sirna` † | Site or modified species lost on *ISG15* knockdown | `probable`, `confirmed` |
+| `ub_nedd8_negative_control` † | Ub and NEDD8 conjugation shown unchanged | `probable` |
+| `uba7_knockout` | Site lost on *UBA7*/*UBE1L* knockout | `probable`, `confirmed` |
+| `gg_aa_mutant` | Site lost with ISG15 C-terminal GG→AA | `confirmed` |
+| `tagged_pulldown` | Recovered by tagged-modifier affinity purification | `confirmed` |
+| `nedd8_inhibitor` | NEDD8 excluded pharmacologically (pevonedistat) | `probable` |
+| `orthogonal_ms` | Intact/middle-down or modifier-specific enrichment | `confirmed` |
+| `literature` | Reported elsewhere; not measured here | `probable` |
+
+**Every `SiteObservation` has at least one `ModifierAssignment`.** On ingestion the default is created automatically with `basis = 'inferred_default'`, `confidence = 'ambiguous'`, and `candidate_modifiers` populated from all `Modifier` nodes where `leaves_gg_remnant = true`. Assignments are never edited; a new one supersedes and the old is retracted (I6).
+
+`isg15_interactome_concordance` requires an `EnrichmentObservation` (§5.1) and is the differentiating capability: computed continuously across every dataset rather than by hand, once, per publication.
+
+This is what permits the query the platform exists for: *which sites across all datasets are lost on ISG15 knockdown, and which are not?*
+
+### 6.2 Enzyme attribution
+
+Mass spectrometry cannot identify which enzyme wrote or erased a mark. The human ISGylation cascade runs through UBA7, UBE2L6, and E3 ligases including HERC5, TRIM25 and ARIH1; removal runs through USP18 and cross-reactive DUBs including USP5, USP14, USP16, USP24 and USP36. No spectrum distinguishes their products.
+
+Attribution requires perturbation. A "USP18-dependent ISGylome" is, structurally, a catalogue of site-to-eraser associations established by knockout — which is exactly the output this laboratory generates, and which the schema must therefore represent.
+
+```cypher
+CREATE NODE TABLE EnzymeAssociation(
+  id STRING,
+  direction STRING,        -- 'conjugates' | 'deconjugates'
+  basis STRING,            -- enum below
+  effect_size DOUBLE,      -- site log2FC on perturbation
+  adj_p_value DOUBLE,
+  confidence STRING,
+  rationale STRING,
+  asserted_at TIMESTAMP, retracted_at TIMESTAMP,
+  PRIMARY KEY (id));
+
+CREATE REL TABLE ASSOCIATION_FOR(FROM EnzymeAssociation TO SiteObservation, MANY_ONE);
+CREATE REL TABLE ASSOCIATION_ENZYME(FROM EnzymeAssociation TO Protein, MANY_ONE);
+CREATE REL TABLE ASSOCIATION_SUPPORTED_BY(FROM EnzymeAssociation TO Analysis);
+CREATE REL TABLE ASSOCIATION_CITES(FROM EnzymeAssociation TO Publication);
+```
+
+`basis`: `knockout` · `knockdown` · `catalytic_mutant` · `inhibitor` · `in_vitro_reconstitution` · `literature`.
+
+A site with no association is **unattributed**. It is never assumed to belong to the canonical enzyme for its modifier.
+
+### 6.3 Protein assignment
+
+**Measured, not assumed:** in PXD018299, 1,896 of 2,298 filtered GlyGly sites (82%) map to more than one protein.
+
+Tryptic peptides are frequently shared between isoforms, paralogues and family members, and the search engine reports every protein a peptide could have come from. So "K48 of P20591" often means "K48 of whichever of these proteins this peptide actually came from". This is a third ambiguity sitting beneath modifier identity and enzyme attribution, and at 82% prevalence it is the common case rather than an edge case.
+
+`SITE_ON` is therefore `MANY_MANY`. MaxQuant's `Leading proteins` and `Protein` columns are its own razor-rule inference, not ground truth, and are recorded as such.
+
+```cypher
+CREATE NODE TABLE ProteinAssignment(
+  id STRING,
+  candidate_proteins STRING[],   -- every accession the peptide could derive from
+  basis STRING,                  -- enum below
+  confidence STRING,
+  rationale STRING,
+  asserted_at TIMESTAMP, retracted_at TIMESTAMP,
+  PRIMARY KEY (id));
+
+CREATE REL TABLE PROTEIN_ASSIGNMENT_FOR(FROM ProteinAssignment TO SiteObservation, MANY_ONE);
+CREATE REL TABLE ASSIGNS_PROTEIN(FROM ProteinAssignment TO Protein, MANY_ONE);
+```
+
+| `basis` | Meaning | Confidence |
+|---|---|---|
+| `unambiguous` | Peptide maps to exactly one protein | `confirmed` |
+| `unique_peptide` | Distinguishing peptide observed elsewhere in the dataset | `confirmed` |
+| `leading` | Search engine's leading-protein subset | `probable` |
+| `razor` | Search engine's razor-rule pick | `ambiguous` |
+| `reviewed_preferred` | Reviewed Swiss-Prot entry chosen over TrEMBL in the same candidate set | `probable` |
+| `orthogonal_evidence` | Isoform-specific knockdown, transcript evidence | `confirmed` |
+
+**Reviewed entries are preferred, and the preference is recorded.** Measured on PXD018299: in 4 of 8 sampled sites the search engine's razor pick was an unreviewed TrEMBL accession while a reviewed Swiss-Prot entry sat in the same candidate set — `A0A087WXQ8` over `P49720`, `H0YKK0` over `P09661`, `J3KTA4` over `P17844`, `F8VNX8` over `O14545`. Half of protein assignments therefore land on entries with no curator annotation when a well-annotated alternative exists. Resolution promotes the reviewed entry and records `basis = 'reviewed_preferred'`; it never does so silently.
+
+**Consequence for the headline query.** *Which sites are lost on ISG15 knockdown* is answerable per-protein only where assignment is `confirmed`. Elsewhere the honest answer names a candidate set. Existing tools silently adopt the razor pick; reporting the set instead is a differentiator, not a limitation.
+
+### 6.4 Site localisation
+
+`localization_prob` is retained on every `SiteObservation` and is not a modelling problem — but it is a filtering decision that must be recorded rather than silently inherited. Field convention treats ≥ 0.75 as class I. In PXD018299 the median is 1.00 and the minimum 0.35, so a threshold materially changes the set. The threshold applied is recorded on the `Analysis`, never hard-coded.
+
+### 6.5 Imputation
+
+**Measured, not assumed.** In PXD018299, using `Intensity` columns for the KO+IFN vs WT+IFN contrast, a large fraction of the matrix has no detected value. Absence in mass spectrometry is ambiguous: the analyte may be genuinely absent, or present below the detection limit, and the instrument cannot distinguish these.
+
+Field practice — Perseus' default, and therefore the basis of the published figure this dataset supports — replaces missing values with draws from a normal distribution downshifted below the observed mean. That is a **generated number, not a measurement**, and it materially determines the result.
+
+The two quantities available in this dataset diverge by two orders of magnitude in usability:
+
+| Quantity | Testable sites (≥2 replicates both groups) | Notes |
+|---|---|---|
+| `Ratio mod/base` | 23 of 2,056 | Stoichiometrically correct; requires modified and unmodified peptide co-quantified |
+| `Intensity` + imputation | thousands | Confounded by protein abundance; recovers 12 of 14 published targets |
+
+The stoichiometrically correct quantity is unusable for low-stoichiometry modifications. `protein_adjusted = 'native'` remains right where the ratio exists, but must never be the default path.
+
+```cypher
+CREATE NODE TABLE Imputation(
+  id STRING,
+  method STRING,              -- 'downshifted_normal' | 'knn' | 'min_per_sample' | 'none'
+  downshift_sd DOUBLE,        -- Perseus default 1.8
+  width_sd DOUBLE,            -- Perseus default 0.3
+  seed INT64,                 -- REQUIRED where the method is stochastic
+  scope STRING,               -- 'whole_matrix' | 'per_sample'
+  n_values_imputed INT64,
+  n_values_total INT64,
+  asserted_at TIMESTAMP, retracted_at TIMESTAMP,
+  PRIMARY KEY (id));
+
+CREATE REL TABLE IMPUTATION_FOR(FROM Imputation TO Analysis, MANY_ONE);
+```
+
+`SiteObservation` gains `n_imputed INT64` — how many of that site's values were generated rather than measured.
+
+A `DifferentialResult` whose underlying values are more than half imputed is flagged **substantially imputed** in every view and export. A seed is mandatory for stochastic methods: without it, the analysis is not reproducible even from the same inputs, which defeats I9.
+
+---
+
+## 7. Provenance
+
+Provenance is a PROV-O mapping, not a log.
+
+| bzk type | PROV-O class |
+|---|---|
+| `Analysis` | `prov:Activity` |
+| `Dataset`, `SiteObservation`, `DifferentialResult`, `Figure` | `prov:Entity` |
+| `Person`, `Software` | `prov:Agent` |
+
+```cypher
+CREATE REL TABLE WAS_GENERATED_BY(FROM DifferentialResult TO Analysis, MANY_ONE);
+CREATE REL TABLE USED(FROM Analysis TO Dataset);
+CREATE REL TABLE WAS_ASSOCIATED_WITH(FROM Analysis TO Person, MANY_ONE);
+CREATE REL TABLE WAS_EXECUTED_BY(FROM Analysis TO Software, MANY_ONE);
+CREATE REL TABLE WAS_DERIVED_FROM(FROM DifferentialResult TO SiteObservation);
+```
+
+An entity with no path to a `prov:Activity` is flagged `unprovenanced` at query time. It is never hidden and never silently trusted.
+
+---
+
+## 8. Invariants
+
+Normative. Violations are ingestion errors, not warnings.
+
+- **I1 — Disjointness.** No edge may connect two reference nodes with locally-authored semantics. Reference-to-reference edges carry a `source` field naming the external authority.
+- **I2 — Sequence pinning.** Every `Protein` carries `sequence_version`; every `ModificationSite` key includes both the sequence version and the isoform. A site whose parent protein lacks a sequence version cannot be created, and a site on an isoform is never keyed against the canonical accession. Residue numbering without a fully specified sequence is meaningless: measured on PXD018299, isoform positions resolved against canonical sequences return the wrong residue, and 5% of sequences were amended after the original search.
+- **I3 — No bare modifier claims.** No `SiteObservation` may assert a modifier except through a `ModifierAssignment`. No UI or export may render a K-GG site as "ubiquitination" unless a live assignment has `confidence != 'ambiguous'`.
+- **I4 — Declared adjustment.** Every `DifferentialResult` on a site sets `protein_adjusted` to one of three states. `applied` requires an `ADJUSTED_BY` edge. `native` means the source quantity is already ratiometric — MaxQuant `Ratio mod/base` divides modified-peptide intensity by unmodified protein signal, so stoichiometry is measured rather than inferred; `adjustment_method` records which. `not_applied` is labelled *stoichiometry-uncorrected* in every view and export. Most DIA outputs, including DIA-NN, provide no native ratio.
+- **I5 — Provenance reachability.** Every entity node reaches at least one `Analysis`, or is flagged `unprovenanced`.
+- **I6 — Append-only assertions.** `ModifierAssignment` and `DifferentialResult` nodes are immutable. Revision creates a new node and sets `retracted_at` on the old. Retraction propagates to every downstream figure and report.
+- **I7 — Deterministic reference keys.** Reference node IDs are derived from their content, so identical entities from different sources converge on one node without a merge step.
+- **I8 — Curated design.** Every `Sample` reaches an `Analysis` with `kind = 'curation'` via `SAMPLE_GENERATED_BY`. Any result derived from a curation with `confidence = 'inferred'` is labelled as such in every view and export, naming the `basis`. Experimental design inferred from filenames is never presented as though it came from the submitters.
+- **I9 — Reproducible rebuild.** The graph is a derived artifact, never authoritative. Given `raw/` (content-addressed), the curation export, and this DDL, the entire graph must be regenerable from scratch. Curation records and manual inferences are the only non-derivable content; they serialise to a plain JSON export alongside the graph and are versioned independently. This is what converts schema change from a migration problem into a compute-time problem — see §10.
+- **I10 — Unattributed enzymes.** No `SiteObservation` may be presented as the product of a named enzyme except through a live `EnzymeAssociation`. A site whose modifier is assigned but whose enzyme is not is displayed as *unattributed*, never as the canonical writer or eraser for that modifier.
+- **I11 — Quantitative retention.** Every observation persists its per-sample quantitative values in the columnar store, not merely the statistics derived from them. No pipeline stage may discard the matrix after computing a `DifferentialResult`. This is what makes the statistical layer genuinely pluggable: any test — moderated *t*, permutation with s0, or something not yet written — is recomputable from stored values without re-ingestion. A platform retaining only log₂FC and adjusted *p* is married to whichever test produced them.
+- **I12 — No tryptic assumptions.** Core code makes no assumption that peptides terminate in K or R, that a peptide carries at most one modification, or that a peptide maps to exactly one protein. Immunopeptidomics violates the first, multi-modified peptides the second, shared peptides the third. These are free to accommodate now and expensive to retrofit.
+- **I13 — Pipeline metadata is data.** `acquisition_mode`, `search_engine`, `library_type` and `test` are recorded fields, never branch conditions. Any conditional on their value outside `adapters/` or the statistics registry is a defect — it is how the abstraction leaks and how the next pipeline change becomes a rewrite.
+- **I14 — No false singletons.** A `SiteObservation` whose peptide maps to several proteins is never rendered against one protein without a `ProteinAssignment` of confidence `confirmed`. Where assignment is `razor` or `leading`, views and exports name the candidate set. Measured prevalence in PXD018299 is 82%, so this is the default path, not an exception.
+- **I15 — Imputation is declared.** Every `Analysis` producing differential results links to an `Imputation`, including `method = 'none'`. Stochastic methods record a seed; without one the analysis is irreproducible from its own inputs and I9 fails. Results whose underlying values are more than half generated are labelled *substantially imputed* wherever they appear.
+- **I17 — Reviewed preferred, never silently.** Where a candidate protein set contains both reviewed (Swiss-Prot) and unreviewed (TrEMBL) entries, resolution promotes the reviewed entry and records `ProteinAssignment.basis = 'reviewed_preferred'`. Measured on PXD018299, the search engine's razor pick was unreviewed in 4 of 8 sampled sites despite a reviewed alternative being present. The promotion is an inference and is recorded as one.
+- **I18 — Embargo is enforced at the boundary.** No `Dataset` with `source = 'embargoed'` and `embargo_released_at IS NULL` may contribute to any export, report, figure file or shared artifact. Queries and views within the local instance are unrestricted. The check sits at the export boundary, not at query time, so the data remains fully usable to its holder while being incapable of leaking.
+- **I19 — Observed and reported provenance are distinguished.** Every `Analysis` sets `parameters_observed`. Where `false`, the analysis was run outside the platform and its parameters are as stated by the user rather than as executed; every derived `DifferentialResult` is labelled accordingly in views and exports. An externally computed result is never presented with the same provenance standing as one the platform produced.
+- **I16 — Quantity is declared.** Every `Analysis` records which quantity it consumed and the filters applied, including the localisation threshold. Two defensible quantities on the same dataset differed by a factor of ~90 in usable sites; neither choice is recoverable from a published methods section, and that gap is what this platform exists to close.
+
+---
+
+## 9. Worked example
+
+*Identifiers are real; quantitative values and the site position are illustrative, not measured.*
+
+```
+Reference
+  Gene           hgnc:5699  (MX1)
+  Protein        uniprot:P20591, sequence_version 3
+  ModificationSite  uniprot:P20591#sv3#K48#unimod:121
+  Modifier       uniprot:P0CG48 (ubiquitin,  leaves_gg_remnant true)
+                 uniprot:Q15843 (NEDD8,      leaves_gg_remnant true)
+                 uniprot:P05161 (ISG15,      leaves_gg_remnant true)
+                 uniprot:O15205 (FAT10,      leaves_gg_remnant true)
+
+Evidence
+  Project        bzk:01J9X2A  "ISGylation in colorectal carcinoma"
+  Experiment     bzk:01J9X2B  modality digly_proteomics
+  Sample         bzk:01J9X2C  HCT116, IFN-β 1000 U/mL, 8 h, biological rep 1
+  Dataset        bzk:01J9X2D  source local, search_engine fragpipe 21.1,
+                              fasta_release 2026_02, content_hash sha256:9f3c…
+  SiteObservation bzk:01J9X2E peptide LLQFIDK(gg)ELVR, localization_prob 0.98
+                              -[MEASURED_AT]-> uniprot:P20591#sv3#K48#unimod:121
+
+  ModifierAssignment bzk:01J9X2F
+      candidate_modifiers [P0CG48, Q15843, P05161, O15205]
+      basis inferred_default   confidence ambiguous
+      asserted_at 2026-08-01   retracted_at NULL
+
+  ── after the UBA7 knockout arm is ingested ──
+
+  ModifierAssignment bzk:01J9X2F  retracted_at 2026-08-14
+  ModifierAssignment bzk:01J9X3A
+      candidate_modifiers [P05161]
+      basis uba7_knockout      confidence confirmed
+      rationale "site absent in UBA7-/- across 3/3 replicates, adj.p 2.1e-4"
+      -[ASSIGNS]-> uniprot:P05161
+      -[ASSIGNMENT_SUPPORTED_BY]-> Analysis bzk:01J9X39
+
+  DifferentialResult bzk:01J9X2G
+      log2fc 3.4, p 1.2e-5, adj_p 8.0e-4, test moderated_t_ebayes, fdr_method BH
+      protein_adjusted "applied", adjustment_method "residual_vs_protein_lfc"
+      -[ADJUSTED_BY]-> DifferentialResult bzk:01J9X2H  (MX1 protein level)
+      -[WAS_GENERATED_BY]-> Analysis bzk:01J9X2I
+```
+
+Before the knockout arm exists, the platform reports a diGly site with an ambiguous modifier. It does not report an ISGylation site. That distinction is the product.
+
+---
+
+## 10. Extension pattern
+
+### What is domain-neutral
+
+The reference/evidence split, PROV-O provenance, immutable append-only assertions, deterministic content-derived keys, curation-as-activity, the `Observation` and `EvidencedInference` contracts, and I9. None of this mentions biology. It is a general pattern for evidence with contested interpretation, from instruments the user does not control, that must survive method change.
+
+### What is domain-specific
+
+Three things, and they are the reason the schema is good enough to generalise rather than accidents of it:
+
+1. `ModificationSite` keyed on sequence version — only meaningful for sequence-indexed PTMs.
+2. `ModifierAssignment` — exists because four UBLs leave an indistinguishable tryptic remnant.
+3. Protein-level stoichiometry adjustment — specific to PTM-versus-abundance confounding.
+
+### Cost of extension
+
+| Change | Cost |
+|---|---|
+| New search engine, new statistical test | Hours — adapter or registry entry |
+| New `basis` value, new CURIE prefix | Minutes |
+| New `Observation` subtype (e.g. `EnrichmentObservation`) | Days — purely additive |
+| New `EvidencedInference` subtype | Days — enum plus target node |
+| New reference authority (LIPID MAPS, Ensembl) | ~2 weeks — new resolver module |
+| Change to a primary key composition | Afternoon **if I9 holds**; weeks otherwise |
+| Abandoning the two-graph split or immutability | Months — these are the architectural bets |
+
+Phosphoproteomics is nearly free: same `ModificationSite`, different Unimod term, and the localisation-ambiguity problem is structurally identical to modifier ambiguity. Single-cell and spatial are not — they add dimensions (cell, coordinate) the schema does not have, and need real design work rather than a plugin.
+
+### The rule
+
+Domain logic lives in subtypes, never in code that consumes a contract. Any function operating on the five `Observation` contract fields must work for every modality without modification. A `if isinstance(obs, SiteObservation)` branch outside the subtype module is a defect.
+
+---
+
+## 11. Open questions
+
+1. Should `Contrast` be reference or evidence? Currently evidence, since it encodes a local design decision — but it is reused across datasets, which argues the other way.
+2. Are transcript-level nodes needed in v0.1, or does RNA-seq enter at v0.2 with `TranscriptObservation` mirroring `ProteinObservation`?
+3. Should historical UniProt sequence retrieval be supported, or only current? Measured: 1 of 20 sampled sequences was amended after the original search, implying roughly 5% of sites are at risk of silent position drift. Current-only resolution flags these; historical retrieval would let them be reconciled.
+4. Multi-modified peptides: a peptide bearing two K-GG sites currently yields two `SiteObservation` nodes sharing a `peptide_sequence`. Is a `PeptidoformObservation` parent needed to preserve co-occurrence?
+
+**Resolved**
+
+- ~~Q4: How are PRIDE datasets without SDRF handled?~~ Settled 2026-08-06 in favour of curation-as-activity. See §5.3 and invariant I8. Rationale: the configuration alternative violates I5. To be recorded as ADR-0009.
