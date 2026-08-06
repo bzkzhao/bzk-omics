@@ -1,0 +1,41 @@
+[project]
+name = "bzk-omics"
+version = "0.1.0"
+description = "Local-first evidence graph for post-translational modification proteomics"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "kuzu==0.11.3",       # exact pin mandatory — pre-1.0, minor releases change behaviour (OPERATIONS.md §4)
+    "duckdb==1.5.5",
+    "polars==1.43.2",
+    "requests==2.34.2",
+    "scipy==1.18.0",
+    "numpy==2.5.1",
+    "streamlit==1.61.1",  # v0.1 output interface (weeks 7–8); no SvelteKit
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
+    "ruff==0.16.1",
+    "mypy==2.3.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["bzk"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
