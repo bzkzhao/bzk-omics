@@ -5,9 +5,9 @@ field rename is a regeneration here rather than a search across the codebase (HA
 §3). `tests/test_schema.py` asserts this module and ONTOLOGY.md agree — that check is what
 keeps the mirror honest, per CLAUDE.md ("code that diverges from the DDL is wrong").
 
-The `ALTER TABLE … ADD` columns of §5.2 (embargo) and §5.4 (external analysis) are folded
-into their `Dataset` / `Analysis` definitions here — the same end state Kùzu reaches, made
-explicit rather than sequenced. Validated against Kùzu 0.11.3 (ONTOLOGY.md § preamble).
+Every column is declared in its table's `CREATE`, matching ONTOLOGY.md §5 — the §5.2 embargo
+and §5.4 external-analysis columns are defined directly on `Dataset` / `Analysis` there, not
+in separate `ALTER`s. Validated against Kùzu 0.11.3 (ONTOLOGY.md § preamble).
 """
 
 from __future__ import annotations
@@ -121,12 +121,12 @@ NODE_TABLES: list[NodeTable] = [
             ("library_prediction_model", "STRING"),
             ("fasta_release", "STRING"),
             ("content_hash", "STRING"),
-            # §5.2 embargo columns (ALTER TABLE … ADD)
+            # §5.2 embargo columns
             ("embargo_holder", "STRING"),
             ("embargo_reference", "STRING"),
             ("embargo_released_at", "TIMESTAMP"),
         ],
-        note="embargo_* columns from §5.2 ALTER TABLE",
+        note="embargo_* columns (§5.2)",
     ),
     NodeTable(
         "SiteObservation",
@@ -177,12 +177,12 @@ NODE_TABLES: list[NodeTable] = [
             ("parameters_json", "STRING"),
             ("started_at", "TIMESTAMP"),
             ("ended_at", "TIMESTAMP"),
-            # §5.4 external-analysis columns (ALTER TABLE … ADD)
+            # §5.4 external-analysis columns
             ("external_tool", "STRING"),
             ("external_version", "STRING"),
             ("parameters_observed", "BOOLEAN"),
         ],
-        note="external_* / parameters_observed columns from §5.4 ALTER TABLE",
+        note="external_* / parameters_observed columns (§5.4)",
     ),
     NodeTable("Person", [("id", "STRING"), ("name", "STRING"), ("orcid", "STRING")]),
     NodeTable(

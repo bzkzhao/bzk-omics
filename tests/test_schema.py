@@ -26,7 +26,12 @@ def _ontology_ddl() -> str:
 
 
 def _parse_ontology() -> tuple[dict[str, set[str]], dict[str, tuple[str, str, str | None]]]:
-    """Extract {node table -> columns} and {rel table -> (src, dst, multiplicity)} from the DDL."""
+    """Extract {node table -> columns} and {rel table -> (src, dst, multiplicity)} from the DDL.
+
+    The document guarantees every column is declared in its table's CREATE (§ preamble), so
+    there is no ALTER TABLE to account for; a re-introduced ALTER would surface here as a
+    column the emitter appears to add on its own, which is the divergence we want to catch.
+    """
     nodes: dict[str, set[str]] = {}
     rels: dict[str, tuple[str, str, str | None]] = {}
     for stmt in (s.strip() for s in _ontology_ddl().split(";") if s.strip()):
@@ -42,10 +47,6 @@ def _parse_ontology() -> tuple[dict[str, set[str]], dict[str, tuple[str, str, st
             tokens = rel.group(2).replace(",", " ").split()
             mult = next((t for t in tokens if t in MULTIPLICITIES), None)
             rels[rel.group(1)] = (src_dst.group(1), src_dst.group(2), mult)
-            continue
-        alter = re.match(r"ALTER TABLE (\w+) ADD (\w+)", stmt)
-        if alter:
-            nodes.setdefault(alter.group(1), set()).add(alter.group(2))
     return nodes, rels
 
 
