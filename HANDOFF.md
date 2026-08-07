@@ -4,7 +4,7 @@
 |---|---|
 | Status | Active until week 2 is complete, then delete |
 | Version | 1.0 |
-| Last reviewed | 2026-08-06 |
+| Last reviewed | 2026-08-07 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
 
@@ -53,6 +53,26 @@ Record the resolved Kùzu version in `ARCHITECTURE.md` §1 the moment you have i
 ## 3. Build order, with acceptance criteria
 
 Follow `ROADMAP.md` § Milestones. This adds the granularity that document deliberately omits.
+
+### Status, 2026-08-07 — read this first
+
+**Weeks 1–2 are complete.** On disk and committed:
+
+- `bzk/ontology/schema.py` — structured DDL emitter, 56 tables, mirrors `ONTOLOGY.md` §4–6; guarded by `tests/test_schema.py` (parses the normative DDL, asserts agreement, builds on Kùzu 0.11.3).
+- `bzk/ontology/invariants.py` — write-time checks I2, I3, I4, I10, I14, I15, I16, I19 plus change-set **structural validation (ADR-0019, incl. multiplicity)**, derived from `schema.py`.
+- `bzk/resolve/uniprot.py` — isoform-aware resolver, two-tier immutable cache, 20/20 on PXD018299 offline.
+- `bzk/rebuild.py` — drop / create-schema / replay / drift-check. I9 met **vacuously** only (no ingested content yet — see the Weeks 1–2 *Done when* note below).
+- `bzk/adapters/base.py` — the `ObservationAdapter` contract, `SampleMapping`, `ParsedObservations`; `tests/test_adapters_base.py` pins it against `tests/fixtures/valid_changeset.json`.
+
+`perseus.py` is **not** written. Do not start it first.
+
+**The next action is documents, in this exact order — three separate turns:**
+
+1. **ONTOLOGY v1.3 — add `RESULT_FOR_PROTEIN`.** One line in §5/§7 DDL (`DifferentialResult → ProteinObservation`, `MANY_ONE`, mirroring `RESULT_FOR_SITE`), one line in `schema.py` `REL_TABLES`, rerun `tests/test_schema.py`. Close it in that turn — it is already recorded in §8, do not record it again. Rationale and the two consequences (critical-path for the Perseus adapter; §3's "protein-level" spec is *incomplete*, not unconfirmed) are in §8.
+2. **ADR-0020 + `ONTOLOGY.md` §3/§9 id amendment** — deterministic, content-derived evidence-node ids (decision (a); §8).
+3. **The curation loader** — reads `data/curation/*.json` in the shape those files already have; loader defaults and the `content_hash` / `Contrast` items are in §8.
+
+*Only then* `bzk/adapters/perseus.py` (Weeks 3–4 below). The empty `raw/` (§8) bounds what can be validated end to end until it is populated.
 
 ### Weeks 1–2
 
@@ -149,9 +169,16 @@ All three cost time during exploration. All three are the same class: code that 
 |---|---|---|
 | ~~Kùzu version number not recorded~~ — recorded `==0.11.3` | `ARCHITECTURE.md` §1 | Resolved |
 | `Contrast` reference-vs-evidence ambiguity | `ONTOLOGY.md` §11 Q1 | No — settle before v0.2 |
-| **`RESULT_FOR_PROTEIN` edge missing** | `ONTOLOGY.md` §5/§7 DDL | **Blocks** protein-level results and protein adjustment. A `DifferentialResult` has no edge to a `ProteinObservation` — only `RESULT_FOR_SITE` exists — so a protein-level Perseus result, and the matched-proteome result a site result is adjusted against (`ADJUSTED_BY` target), cannot link to the protein they measure. ONTOLOGY amendment needed (add `DifferentialResult → ProteinObservation`, `MANY_ONE`, mirroring `RESULT_FOR_SITE`) before either lands. Surfaced writing the adapter contract 2026-08-07 |
+| **`RESULT_FOR_PROTEIN` edge missing — now urgent** | `ONTOLOGY.md` §5/§7 DDL | **Blocks** protein-level results and protein adjustment. A `DifferentialResult` has no edge to a `ProteinObservation` — only `RESULT_FOR_SITE` exists — so a protein-level result, and the matched-proteome result a site result is adjusted against (`ADJUSTED_BY` target), cannot link to the protein they measure. The 2026-08-07 survey (`ROADMAP.md` § Deposit and supplementary survey) upgrades this from latent to blocking: BJC supplementary Tables 2–3 are Perseus exports at *protein* grain, so protein-level results are a known-real adapter input, not a hypothetical. Two consequences to note, not one: (a) the edge is on the critical path for the first Perseus adapter, and (b) `ARCHITECTURE.md` §3's "protein-level" Perseus specification is **incomplete** — it names the grain but not the target node or edge — rather than *unconfirmed*; the grain is now confirmed from disk. Fix is one line in ONTOLOGY §5/§7 DDL (add `DifferentialResult → ProteinObservation`, `MANY_ONE`, mirroring `RESULT_FOR_SITE`), one line in `schema.py` `REL_TABLES`, and a rerun of the consistency test — **ONTOLOGY v1.3, the next turn.** Close it, do not re-record it. Surfaced writing the adapter contract 2026-08-07 |
+| **Deterministic evidence-node ids — decision (a), pending ADR-0020** | `ONTOLOGY.md` §3/§9 | Direction settled 2026-08-07, ADR not yet written. Evidence nodes (`SiteObservation`, `DifferentialResult`, `Analysis`, …) get **deterministic, content-derived ids** — decision (a) — not ULIDs. This makes re-ingestion idempotent: replaying the same input under I9 produces the same node ids rather than duplicates, which is what lets `rebuild.py` verify reproduction. It resolves the I7 / §3 / I9 tension noted during the resolver work in favour of I7's key discipline. The change is ADR-0020 plus a §3/§9 id-scheme amendment; sequence it **after** ONTOLOGY v1.3 (`RESULT_FOR_PROTEIN`) and **before** the curation loader |
+| **Curation record carries no `content_hash`** | `data/curation/*.json`, `OPERATIONS.md` §2 | Every record under `data/curation/` identifies its input by bare filename, no checksum, so I9 replay cannot confirm it is running against the bytes the curation was written for. Format gap now recorded in `OPERATIONS.md` §2 (add SHA-256 `content_hash`); existing records back-filled when their input is next in hand. No — not blocking, but it lands with the curation loader |
+| **`colab_reproducefigure.ipynb` cell 16 is a second test → a second `Analysis` (I16)** | statistics layer, weeks 5–6 | Cell 16 adds an `adj_p_moderated` column: a *second* significance test (moderated *t*) computed on the same matrix as the primary welch_t. Under I16 each declared quantity/test is its own `Analysis`, so `res` carries the outputs of **two** analyses, not one — the per-site table does not end at `n_candidate_proteins` as an earlier note implied. The adapter (or the notebook reconstruction) must emit two `Analysis` nodes and route each result column to its own. No — surfaces when that table is ingested |
+| **Statistics-registry default vs on-disk baseline — ordering question** | `HANDOFF.md` §5, statistics layer | ADR-0015 makes `perseus_s0` the **default and required** registry entry (from author correspondence). But the 12-of-14 regression on disk was measured under `welch_t` + BH, and the only per-site result the group has produced (`colab_reproducefigure.ipynb`) is also welch_t. So the *validated-on-disk* method and the *default* method differ. §5 already fixes the build order (welch_t first, reproduce 12-of-14, then `perseus_s0` as a second baseline); the open question is which becomes the registry default the first adapter writes, and whether the two baselines are recorded side by side before that is decided. Keep measured (welch_t, on disk) and reasoned (perseus_s0, from correspondence) distinct — ADR-0015's own discipline. No — settle when the statistics layer lands |
 | Multi-modified peptides | `ONTOLOGY.md` §11 Q3 | Possibly — will surface on first MaxQuant ingestion |
 | **I17 `reviewed_preferred` promotion — owned by the search-output adapters** (decided 2026-08-07) | `ProteinAssignment` construction in `adapters/` | No — the Perseus (analysis-output) adapter has no candidate sets or razor picks (`ARCHITECTURE.md` §3), so I17 does not apply there. The promotion of a reviewed Swiss-Prot entry over a TrEMBL razor pick belongs to the **search-output adapters** (MaxQuant first), in **`ProteinAssignment` construction** (`ONTOLOGY.md` §6.3, I17), recorded as `basis = 'reviewed_preferred'`; it lands with the MaxQuant adapter (weeks 5-6). The resolver only reports review status |
+| **Curation-loader default: `parameters_observed = true`** | curation loader, weeks 3–4 | Recorded default for the loader that reads `data/curation/analysis_*.json`. Those records describe the group's *own* re-computed analysis (e.g. `colab_reproducefigure.ipynb`), where the parameters were executed, not reported — so `parameters_observed = true` under I19. This is the asymmetry to keep straight: the **external Perseus adapter** defaults the opposite way, `parameters_observed = false` (ADR-0017), because a deposited Perseus table's parameters are stated, not observed. I16 is orthogonal to both — quantity and filters are required and recordable regardless of who ran the analysis, so declaring them never settles the I19 flag. Same field, opposite default, by source. No — a loader default, applied when the loader is written |
+| **`Contrast` deferred to the adapter** | `ONTOLOGY.md` §11 Q1, curation loader | The curation records name their contrasts (`contrasts_of_interest`) but the `Contrast` node's reference-vs-evidence placement is unsettled (§11 Q1, v0.2). Default: the loader does not materialise `Contrast` nodes yet; the adapter constructs the contrast inline when it emits `DifferentialResult`s. Revisit with §11 Q1 before v0.2. No |
+| **`raw/` is empty — blocks end-to-end ingestion** | `raw/`, `ROADMAP.md` § Deposit survey | No source tables are on disk. The first Perseus adapter fixture, the first `DifferentialResult` ingestion, and any non-vacuous I9 rebuild all depend on either re-downloading PXD018299 / the BJC supplementary from PRIDE and nature.com, or reconstructing `colab_reproducefigure.ipynb`'s `res` (which is never persisted — see the survey). Until `raw/` has content, the adapter can be *written* against the shared valid change-set but not *validated* against real input. **Yes** — for the first adapter's end-to-end test, not for writing the adapter |
 | ADRs 0004–0014 unwritten | `decisions/` | No — write during weeks 7–8 |
 | Search engine for the new USP18 dataset | Assumption A2 | Yes for that dataset only |
 | Where in his pipeline the handover belongs | `ROADMAP.md` § Open questions | No — ask at the meeting |

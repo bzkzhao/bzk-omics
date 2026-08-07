@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft |
 | Version | 0.2 |
-| Last reviewed | 2026-08-06 |
+| Last reviewed | 2026-08-07 |
 | Depends on | `ARCHITECTURE.md`, `ONTOLOGY.md` |
 | Authoritative for | Backup, cache policy, dependency pinning, rebuild discipline |
 
@@ -35,6 +35,8 @@ Not everything. Invariant I9 states that the graph is derived, so most of it is 
 ## 2. Backup policy
 
 **Human-authored content — continuous.** Curation records, analysis records and manual inferences serialise to JSON under `data/curation/` and live in the git repository. They are versioned, diffable, and survive independently of any machine.
+
+Each record identifies its input file by a `content_hash` — the SHA-256 of the raw table — alongside the bare filename it carries today. The filename is not an identity: two deposits, or a re-download after a deposit is revised, can share a name and differ in content. I9 replay reconstructs the graph from `raw/` plus these records, so the hash is what lets a rebuild confirm it is replaying against the same bytes the curation was written for, rather than a file that merely matches by name. Existing records under `data/curation/` predate this field and must be back-filled when their input is next in hand.
 
 This requires a nightly export of manual assertions from the graph to JSON, since the graph itself is not committed. Without it, an assignment made in the UI exists only inside `graph.kuzu/` and violates I9.
 
