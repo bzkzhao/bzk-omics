@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.5 |
+| Version | 1.6 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -140,6 +140,59 @@ Fetched with `python -m bzk.sources.pride` (2,759,052 bytes, digest as cited by 
 The per-site rows now exist on disk for the first time — `tests/fixtures/pxd018299_welch_baseline.json`, regenerable with `bzk/sources/pxd018299_baseline.py`. This closes the gap the survey below records for `res`, for the fourteen targets only: three integers cannot distinguish "12 of 14" from "12 of 14, a different twelve", and the fixture pins which twelve, at which site, on which razor pick. ADAR and PSMB9 are pinned as *not* recovered, so a change that raises the count must also be explained.
 
 **Caveat, and the reason the fixture exists.** The re-derivation transcribes `colab_reproducefigure.ipynb` in **pandas** — now pinned at `3.0.5` in the dev dependency group, having until this date been an unpinned transitive arrival via streamlit. So the reproduction is controlled as of today and was not before. Whether the same pipeline yields the same rows under **polars and numpy**, which is what `ARCHITECTURE.md` §4 specifies for the platform's own quantitative layer, is **untested**. That difference is precisely what the fixture is for, and it stays open until the statistics layer lands.
+
+### Protein-group ambiguity at protein grain, 2026-08-07
+
+**§6.3's 82% has a protein-grain counterpart, and it is the same order of magnitude.** The site
+figure — 1,896 of 2,298 filtered GlyGly sites map to more than one protein — is what settled
+`SITE_ON` and produced `ProteinAssignment`. The protein grain had no such number, so
+`bzk/adapters/perseus.py` refusing a multi-accession row was a decision taken against an unmeasured
+frequency. Measured over three real artefacts, regenerable with
+`python -m bzk.sources.protein_groups`, pinned in `tests/fixtures/pxd018299_protein_groups.json`.
+
+| Artefact | Rows | `Majority protein IDs` multi | median / max | isoform-only | distinct-gene |
+|---|---|---|---|---|---|
+| BJC **Supplementary Data 2** — Perseus export | 25 | **18 (72.0%)** | 2 / 6 | 9 | 9 |
+| BJC **Supplementary Data 3** — Perseus export | 323 | **250 (77.4%)** | 2 / 18 | 84 | **166 (51.4% of rows)** |
+| `HAP1_USP18KO_proteinGroups.txt` — MaxQuant | 4,797 | **3,698 (77.1%)** | 3 / 33 | 991 | **2,707 (56.4% of rows)** |
+
+On the wider `Protein IDs` column the same three read 88.0%, 91.0% and 86.2%.
+
+**The two BJC tables are the exact artefact in question** — real Perseus protein-level exports,
+identifiable by the `C:` / `N:` / `T:` column-type prefixes Perseus writes into an Excel export, and
+they are the published supplementary data of the paper this whole reproduction is anchored to. The
+MaxQuant table gives *n* = 4,797 upstream of Perseus and shows that Perseus' selection does not
+change the picture: 77.4% and 77.1% agree to within a third of a point.
+
+**The number that decides the modelling is not the headline but the split.** An isoform-only group
+names one gene whose isoform is unresolved, and "resolve to the gene" is at least available. A
+distinct-gene group names different proteins and has no fallback at all — and distinct-gene groups
+are the majority of the multi-accession rows in every artefact, **51.4% and 56.4% of all rows** in
+the two larger ones. So the cheap answer is unavailable for roughly half of every protein-level
+table this group produces.
+
+| Consequence | |
+|---|---|
+| `perseus.py` on a real export | refuses ~72–77% of rows, so it is unusable until the schema can hold a group |
+| The site/protein asymmetry | not a Perseus quirk: the protein grain was modelled less completely than the site grain, and 77% is not an edge case |
+| §6.3's open question | *"either the key gains a way to name several parents, or the relationship narrows"* — posed for sites, unresolved, and now posed identically one grain up |
+
+**Two findings from the measurement itself, both of the ran-cleanly-and-was-wrong class.**
+
+**Six lines of `HAP1_USP18KO_proteinGroups.txt` are not protein groups.** MaxQuant writes long
+semicolon-separated numeric lists in its `*_IDs` columns and six spill onto their own physical
+lines, each carrying exactly 147 tabs — so the field count matches the header, every structural
+check passes, and `pandas` reads them as data with numbers like `6215;8153;8154` in the accession
+column. Excluding them moves the headline by 0.1 of a point and the largest apparent group from
+**5,090 members to 33**. The file states its own row count (`id` is a contiguous 0-based sequence,
+0..4,981 for 4,988 physical lines), so a line without one is not a row; that is the test used,
+rather than anything heuristic. Any future MaxQuant adapter must apply it.
+
+**Supplementary Data 3 contains 12 rows flagged `C: Potential contaminant`.** A published table of
+significantly-changed proteins carries contaminants the reader is expected to filter. Not a defect
+in the paper — the column is right there — but it settles a design question: an analysis-output
+adapter cannot assume an export has been filtered, and `Analysis.filters_applied` describing what
+the *user says* they applied is exactly the `parameters_observed = false` distinction doing its job.
 
 ### Deposit and supplementary survey, 2026-08-07
 

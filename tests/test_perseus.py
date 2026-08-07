@@ -32,6 +32,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import cast
 
+import kuzu
 import pytest
 
 from bzk.adapters.base import ObservationAdapter, SampleMapping
@@ -293,3 +294,66 @@ def test_refuses_an_empty_sample_mapping(adapter: PerseusAdapter) -> None:
     `unprovenanced` — a state to refuse at ingest, not to write and label afterwards."""
     with pytest.raises(PerseusError):
         adapter.parse(TABLE, SampleMapping(curation_analysis_id="bzk:x", samples=[]))
+
+
+# ── The write path ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_the_change_set_stores(
+    adapter: PerseusAdapter, mapping: SampleMapping, tmp_path: Path
+) -> None:
+    """The adapter's output through `store.write_change_set`, into the real DDL.
+
+    `invariants.validate` is plain data and never touches Kùzu, so a type or column mistake passes
+    it — and the loader's own column check was removed on 2026-08-07 precisely because the store
+    now guards that for every producer. That left this adapter's output guarded by nothing, since
+    no test stored it. This is that gap closed: the same end-to-end path the curation loader gets
+    from `tests/test_rebuild.py`.
+    """
+    from bzk.ontology import schema, store
+
+    parsed = adapter.parse(TABLE, mapping)
+    conn = kuzu.Connection(kuzu.Database(str(tmp_path / "g.kuzu")))
+    schema.create_schema(conn)
+    report = store.write_change_set(conn, parsed.nodes, parsed.edges)
+
+    assert report.nodes_written == len(parsed.nodes)
+    assert store.count_nodes(conn) == {
+        "Protein": 4,
+        "ProteinObservation": 4,
+        "DifferentialResult": 4,
+        "Contrast": 1,
+        "Analysis": 1,
+        "Imputation": 1,
+        "Dataset": 1,
+        "Sample": 2,
+    }
+    assert store.count_edges(conn) == {
+        "PRODUCED": 2,
+        "USED": 1,
+        "IMPUTATION_FOR": 1,
+        "REPORTS_PROTEIN": 4,
+        "RESOLVES_TO_PROTEIN": 4,
+        "WAS_GENERATED_BY": 4,
+        "RESULT_FOR_PROTEIN": 4,
+        "RESULT_IN_CONTRAST": 4,
+    }
+
+
+def test_re_ingesting_the_same_export_converges(
+    adapter: PerseusAdapter, mapping: SampleMapping, tmp_path: Path
+) -> None:
+    """Idempotent replay (I9, ADR-0020): the same file twice is one graph, not two.
+
+    The `Dataset` keys on the file's digest and every downstream id anchors on it, so nothing here
+    depends on the store being empty — which is what makes a re-run of an ingestion safe.
+    """
+    from bzk.ontology import schema, store
+
+    parsed = adapter.parse(TABLE, mapping)
+    conn = kuzu.Connection(kuzu.Database(str(tmp_path / "g.kuzu")))
+    schema.create_schema(conn)
+    store.write_change_set(conn, parsed.nodes, parsed.edges)
+    before = store.ids_by_label(conn)
+    store.write_change_set(conn, adapter.parse(TABLE, mapping).nodes, parsed.edges)
+    assert store.ids_by_label(conn) == before

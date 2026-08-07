@@ -1,0 +1,71 @@
+{
+  "note": "Measured protein-group ambiguity at protein grain \u2014 the counterpart to ONTOLOGY.md \u00a76.3's 82% for sites, recorded in ROADMAP.md \u00a7 Measured findings. Regenerate with `python -m bzk.sources.protein_groups`. A change here means the measurement code moved or an artefact was revised; both need explaining, neither is fixed by regenerating.",
+  "measurements": [
+    {
+      "artefact": "BJC Supplementary Data 2 (proteins up in USP18-/- +IFN)",
+      "column": "T: Majority protein IDs",
+      "rows": 25,
+      "multi_accession": 18,
+      "multi_fraction": 0.72,
+      "median_size": 2,
+      "max_size": 6,
+      "isoform_only": 9,
+      "distinct_gene_multi": 9
+    },
+    {
+      "artefact": "BJC Supplementary Data 2 (proteins up in USP18-/- +IFN)",
+      "column": "T: Protein IDs",
+      "rows": 25,
+      "multi_accession": 22,
+      "multi_fraction": 0.88,
+      "median_size": 4,
+      "max_size": 28,
+      "isoform_only": 3,
+      "distinct_gene_multi": 19
+    },
+    {
+      "artefact": "BJC Supplementary Data 3 (proteins up in WT +IFN)",
+      "column": "T: Majority protein IDs",
+      "rows": 323,
+      "multi_accession": 250,
+      "multi_fraction": 0.774,
+      "median_size": 2,
+      "max_size": 18,
+      "isoform_only": 84,
+      "distinct_gene_multi": 166
+    },
+    {
+      "artefact": "BJC Supplementary Data 3 (proteins up in WT +IFN)",
+      "column": "T: Protein IDs",
+      "rows": 323,
+      "multi_accession": 294,
+      "multi_fraction": 0.9102,
+      "median_size": 4,
+      "max_size": 27,
+      "isoform_only": 39,
+      "distinct_gene_multi": 255
+    },
+    {
+      "artefact": "PXD018299 HAP1_USP18KO_proteinGroups.txt (MaxQuant)",
+      "column": "Majority protein IDs",
+      "rows": 4797,
+      "multi_accession": 3698,
+      "multi_fraction": 0.7709,
+      "median_size": 3,
+      "max_size": 33,
+      "isoform_only": 991,
+      "distinct_gene_multi": 2707
+    },
+    {
+      "artefact": "PXD018299 HAP1_USP18KO_proteinGroups.txt (MaxQuant)",
+      "column": "Protein IDs",
+      "rows": 4797,
+      "multi_accession": 4133,
+      "multi_fraction": 0.8616,
+      "median_size": 4,
+      "max_size": 57,
+      "isoform_only": 549,
+      "distinct_gene_multi": 3584
+    }
+  ]
+}

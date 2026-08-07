@@ -65,6 +65,20 @@ PXD018299_SITES = DepositFile(
 )
 
 
+# The protein-level table from the same deposit. Used to measure protein-group ambiguity at a
+# larger n than the two BJC supplementary exports give (bzk/sources/protein_groups.py); the
+# GlyGly site table above is the site-grain artefact, this is the protein-grain one.
+PXD018299_PROTEIN_GROUPS = DepositFile(
+    accession="PXD018299",
+    year=2022,
+    month=2,
+    filename="HAP1_USP18KO_proteinGroups.txt",
+    expected_content_hash=(
+        "sha256:669ded1d95285c8f9cc47df7705d85b792609a866ab35a6930afacf83abc9708"
+    ),
+)
+
+
 def fetch_bytes(url: str, *, session: BytesSession | None = None, timeout: int = 600) -> bytes:
     sess = session or requests.Session()
     response = sess.get(to_https(url), timeout=timeout)

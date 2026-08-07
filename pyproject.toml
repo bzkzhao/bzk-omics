@@ -27,6 +27,7 @@ dev = [
     "ruff==0.16.1",
     "mypy==2.3.0",
     "types-requests==2.33.0.20260712",
+    "openpyxl==3.1.5",
 ]
 
 [build-system]
@@ -48,10 +49,10 @@ python_version = "3.12"
 strict = true
 
 [[tool.mypy.overrides]]
-# None of these three ship type information. `pandas` and `scipy` join `kuzu` here when
+# None of these four ship type information. `pandas` and `scipy` join `kuzu` here when
 # `bzk/sources/pxd018299_baseline.py` imports them; the alternative — pinning `pandas-stubs` and
 # `scipy-stubs` — adds two more version-coupled pins to type-check one transcription module.
-module = ["kuzu.*", "pandas.*", "scipy.*"]
+module = ["kuzu.*", "pandas.*", "scipy.*", "openpyxl.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
