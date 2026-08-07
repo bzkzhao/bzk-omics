@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.7 |
+| Version | 1.8 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -85,7 +85,7 @@ Locally generated (evidence) nodes use `bzk:` with a **deterministic, content-de
 | `ModifierAssignment` | `basis`, `candidate_modifiers`, `confidence` | `SiteObservation` (`ASSIGNMENT_FOR`), `Analysis` (`ASSIGNMENT_SUPPORTED_BY`) / `Publication` (`ASSIGNMENT_CITES`) | `rationale`, `asserted_at`, `retracted_at` |
 | `EnzymeAssociation` | `direction`, `basis`, `confidence` | `SiteObservation` (`ASSOCIATION_FOR`), `Protein` (`ASSOCIATION_ENZYME`), `Analysis` (`ASSOCIATION_SUPPORTED_BY`) / `Publication` (`ASSOCIATION_CITES`) | `effect_size`, `adj_p_value`, `rationale`, `asserted_at`, `retracted_at` |
 | `ProteinAssignment` | `basis`, `candidate_proteins`, `confidence` | `SiteObservation` (`PROTEIN_ASSIGNMENT_FOR`), `Protein` (`ASSIGNS_PROTEIN`) | `rationale`, `asserted_at`, `retracted_at` |
-| `DifferentialResult` | — (the statistics are outputs, not identity) | `Analysis` (`WAS_GENERATED_BY`), the observation (`RESULT_FOR_SITE` / `RESULT_FOR_PROTEIN`), `Contrast` (`RESULT_IN_CONTRAST`) | `log2fc`, `p_value`, `adj_p_value`, `protein_adjusted`, `adjustment_method` |
+| `DifferentialResult` | `protein_adjusted`, `adjustment_method` (I4's required declaration of result *kind*; a corrected and a stoichiometry-uncorrected result over the same analysis, observation and contrast are distinct results, not one — ARCHITECTURE §4's "store both" differentiator) | `Analysis` (`WAS_GENERATED_BY`), the observation (`RESULT_FOR_SITE` / `RESULT_FOR_PROTEIN`), `Contrast` (`RESULT_IN_CONTRAST`) | `log2fc`, `p_value`, `adj_p_value` |
 
 Provenance agents key on their natural external identifiers, not a digest: `Person` on `orcid` (falling back to `name`), `Software` on `name` + `version` + `container_digest`. Anchor edge directions are as declared in the §5–§7 DDL.
 
