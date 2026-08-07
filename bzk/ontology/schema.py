@@ -36,6 +36,32 @@ CURATION_BASIS: dict[str, str] = {
 }
 CURATION_CONFIDENCE: frozenset[str] = frozenset(CURATION_BASIS.values())
 
+# The modifiers a tryptic K-GG remnant cannot distinguish (§6.1). This is `candidate_modifiers`'
+# one home: the field is identifying on `ModifierAssignment`, so populating it by querying whichever
+# `Modifier` nodes the graph happens to hold would make every assignment id a function of when the
+# graph was seeded — ADR-0021's contingent shape. A closed set in version control is inside I9's
+# input list; graph state is not.
+#
+# **Membership is "leaves GG after trypsin", not "ends in GG".** SUMO1/2/3 and FAT10 all end in GG,
+# but trypsin cuts C-terminal to K/R, so the remnant is everything after the modifier's last K or R
+# — and only a modifier with K or R at position -3 of its mature chain leaves the +114.0429 Da
+# diglycine. Verified against UniProt mature chains 2026-08-07:
+#
+#   ubiquitin P0CG48  LRLRGG  -3=R  remnant GG                  114.04 Da
+#   NEDD8     Q15843  LALRGG  -3=R  remnant GG                  114.04 Da
+#   ISG15     P05161  LRLRGG  -3=R  remnant GG                  114.04 Da
+#   FAT10     O15205  CYCIGG  -3=I  remnant GNLLFLACYCIGG      1324.63 Da  -> excluded
+#   SUMO1     P63165  QEQTGG  -3=T  remnant ELGMEE…QEQTGG      2135.92 Da  -> excluded
+#   UFM1      P61960  PRDRVG  -3=R  remnant VG (no GG at all)             -> excluded
+#
+# So the set is three, not four. §6.1's prose named four and its DDL example three; the example was
+# right. Guarded against §6.1 by tests/test_schema.py.
+GG_REMNANT_MODIFIERS: dict[str, str] = {
+    "uniprot:P0CG48": "ubiquitin",
+    "uniprot:Q15843": "NEDD8",
+    "uniprot:P05161": "ISG15",
+}
+
 # §3's absence classification, mirrored for code that must decide whether a null is legal.
 # ADR-0021: an identifying field may be null only where something *outside the moment of ingest*
 # fixes that null — `determined` by another recorded field or a stated structural fact, or
@@ -158,7 +184,10 @@ IDENTITY: dict[str, Identity] = {
     ),
     "Dataset": Identity(fields=("content_hash",)),
     "SiteObservation": Identity(
-        fields=("peptide_sequence", "candidate_proteins"),
+        # `peptide_sequence` is recorded but NOT identifying (§3, 2026-08-07): a site table is one
+        # row per site, so the peptide separates nothing the anchors do not, and the deposit has no
+        # peptide-level file to supply it from. Peptidoform discrimination is §11 Q4's.
+        fields=("candidate_proteins",),
         anchors=(("Dataset", "REPORTED_BY"), ("ModificationSite", "RESOLVES_TO_SITE")),
     ),
     "ProteinObservation": Identity(

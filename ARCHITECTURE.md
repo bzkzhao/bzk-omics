@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.8 |
+| Version | 1.9 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -74,6 +74,7 @@ bzk/
   sources/       # retrieval of public deposits (PRIDE); not a search-engine adapter
     pride.py
   resolve/       # UniProt resolution, sequence-version pinning, position validation
+    nodes.py     # accession -> Protein + ProteinSequence (ADR-0005); injected, offline-testable
   quant/         # DuckDB layer, normalisation
   stats/         # moderated t-test, BH, protein-level adjustment
   provenance/    # PROV-O mapping, content hashing; raw_store.py is the content-addressed raw/
@@ -88,6 +89,17 @@ contract. A curation record is not an engine's output and carries no measurement
 judgement about which raw file corresponds to which condition, which §5.3 models as an *activity*.
 It also runs first and produces the `SampleMapping` an adapter then consumes, so making it an
 adapter would make the contract circular.
+
+**The resolver reaches an adapter by injection, never by import.** `bzk/resolve/nodes.py` projects
+an accession onto the two nodes ADR-0005 splits it into — `Protein` for stable identity,
+`ProteinSequence` for the version a residue position is meaningless without — and an adapter takes
+it as a constructor argument, so `parse(file, mapping)` keeps the signature this section fixes.
+Two alternatives were rejected: threading a session through `parse` breaks the protocol and makes
+every adapter test need a network stub; resolving *after* the adapter leaves it unable to key a
+`ModificationSite`, which needs `ProteinSequence.id`, so it could not emit a valid change-set at
+all. Unresolved accessions are **reported, not raised** — at the site table's 4,815 distinct
+accessions a dead one is expected, and whether it sinks a site is the adapter's call, not the
+resolver's.
 
 **`ontology/store.py` is the only module that writes.** `invariants.py` is deliberately
 storage-free — a change-set is plain data, which is what lets every invariant be a pure function

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.6 |
+| Version | 1.7 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -193,6 +193,33 @@ significantly-changed proteins carries contaminants the reader is expected to fi
 in the paper — the column is right there — but it settles a design question: an analysis-output
 adapter cannot assume an export has been filtered, and `Analysis.filters_applied` describing what
 the *user says* they applied is exactly the `parameters_observed = false` distinction doing its job.
+
+### The K-GG remnant set is three, not four, 2026-08-07
+
+`ONTOLOGY.md` §6.1 stated that *"Ubiquitin, NEDD8, ISG15 and FAT10 all terminate in a diglycine
+motif"* and that tryptic digestion *"leaves an identical K-ε-GG remnant (+114.0429 Da) ... in every
+case"*. Verified against UniProt **mature chains** — the canonical sequences are precursors, and
+checking those first gave the wrong answer for every modifier, which is why this is recorded as a
+measurement rather than a reading.
+
+Terminating in GG is not the criterion. Trypsin cuts C-terminal to K/R, so the remnant is everything
+after the modifier's **last K or R**, and a diglycine remnant requires K or R at position −3.
+
+| Modifier | Mature C-term | −3 | Tryptic remnant | Mass |
+|---|---|---|---|---|
+| ubiquitin `P0CG48` | LRLR**GG** | R | `GG` | **114.04 Da** |
+| NEDD8 `Q15843` | LALR**GG** | R | `GG` | **114.04 Da** |
+| ISG15 `P05161` | LRLR**GG** | R | `GG` | **114.04 Da** |
+| FAT10 `O15205` | CYCI**GG** | I | `GNLLFLACYCIGG` | 1,324.63 Da |
+| SUMO1 `P63165` | QEQT**GG** | T | `ELGMEEEDVIEVYQEQTGG` | 2,135.92 Da |
+| UFM1 `P61960` | PRDR**VG** | R | `VG` | — (no GG) |
+
+**Consequence.** `candidate_modifiers` on the default `ModifierAssignment` is the three, not four —
+FAT10 ends in GG but is excluded by the same argument that excludes SUMO, and would not be
+co-isolated by anti-K-GG enrichment. §6.1's DDL example always said three and its prose said four;
+the prose was corrected. The set is now `schema.GG_REMNANT_MODIFIERS`, one home, guarded against
+§6.1, and a closed enum rather than a query over `Modifier` nodes — which would have made an
+identifying field depend on graph state (ADR-0021).
 
 ### Deposit and supplementary survey, 2026-08-07
 

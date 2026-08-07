@@ -497,6 +497,49 @@ def test_curation_basis_enum_matches_ontology_5_3() -> None:
     )
 
 
+def test_gg_remnant_modifiers_match_ontology_6_1() -> None:
+    """`schema.GG_REMNANT_MODIFIERS` is `candidate_modifiers`' one home, mirrored from §6.1.
+
+    The field is identifying on `ModifierAssignment`, so the set cannot come from graph state
+    (ADR-0021) and cannot quietly diverge from the section that justifies it either. Both the DDL
+    comment and the corrected prose name the same three accessions; this checks the code against
+    them, and that no fourth has crept into one place only.
+
+    It cannot check the biology. That was verified against UniProt mature chains on 2026-08-07 and
+    the reasoning — GG remnant requires K or R at position -3, which FAT10 and SUMO lack — is
+    recorded in §6.1 and beside the enum, because a set of three accessions is not self-explaining.
+    """
+    text = ONTOLOGY.read_text()
+    section = text[text.index("### 6.1 Modifier ambiguity") : text.index("### 6.2")]
+    cited = set(re.findall(r"`?(P0CG48|Q15843|P05161|O15205|P63165|P61960)`?", section))
+    included = {a.removeprefix("uniprot:") for a in schema.GG_REMNANT_MODIFIERS}
+    assert included == {"P0CG48", "Q15843", "P05161"}, schema.GG_REMNANT_MODIFIERS
+    assert included <= cited, f"§6.1 does not mention {included - cited}"
+    # The excluded ones must be named too — an enum of three with no stated exclusions reads as an
+    # oversight, which is how the four-item prose survived in the first place.
+    assert {"O15205", "P63165"} <= cited, "§6.1 must say why FAT10 and SUMO are excluded"
+    for accession, name in schema.GG_REMNANT_MODIFIERS.items():
+        assert accession.startswith("uniprot:"), accession
+        assert name.lower() in section.lower(), f"§6.1 does not name {name}"
+
+    # Beyond §6.1, because §6.1 was not where the stale four-item set survived. The worked example
+    # in §9 carried `O15205 (FAT10, leaves_gg_remnant true)` and a four-item candidate list through
+    # the correction, and a guard scoped to the section that was fixed would have reported clean.
+    # The class is "anywhere in this document that enumerates the remnant set", so check the
+    # document: no accession outside the enum may be asserted to leave a remnant, and no worked
+    # candidate list may name one.
+    outside = {"O15205", "P63165", "P61960"}
+    for line in text.splitlines():
+        if "leaves_gg_remnant true" in line:
+            named = set(re.findall(r"uniprot:(\w+)", line))
+            assert not named & outside, (
+                f"asserts a remnant for an excluded modifier: {line.strip()}"
+            )
+        if "candidate_modifiers [" in line:
+            listed = set(re.findall(r"\b([OPQ]\d\w{4})\b", line))
+            assert listed <= included, f"candidate list names a non-member: {line.strip()}"
+
+
 def test_schema_builds_on_kuzu() -> None:
     tmp = tempfile.mkdtemp(prefix="schema_test_")
     try:
