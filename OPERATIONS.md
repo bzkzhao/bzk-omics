@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.2 |
+| Version | 0.3 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ARCHITECTURE.md`, `ONTOLOGY.md` |
 | Authoritative for | Backup, cache policy, dependency pinning, rebuild discipline |
@@ -39,6 +39,8 @@ Not everything. Invariant I9 states that the graph is derived, so most of it is 
 Each record identifies its input file by a `content_hash` — the SHA-256 of the raw table — alongside the bare filename it carries today. The filename is not an identity: two deposits, or a re-download after a deposit is revised, can share a name and differ in content. I9 replay reconstructs the graph from `raw/` plus these records, so the hash is what lets a rebuild confirm it is replaying against the same bytes the curation was written for, rather than a file that merely matches by name. Existing records under `data/curation/` predate this field and must be back-filled when their input is next in hand.
 
 This requires a nightly export of manual assertions from the graph to JSON, since the graph itself is not committed. Without it, an assignment made in the UI exists only inside `graph.kuzu/` and violates I9.
+
+**Retractions travel as their own records.** `retracted_at` is deliberately outside evidence-node identity (ADR-0020), so a rebuild reconstructs the node but not the fact that it was retracted — and nothing in `raw/` supplies that field. I6 requires a retraction to propagate to every downstream figure and report, so the curation export carries a **retraction record** for each retracted assertion: the retracted node's `id`, its `retracted_at`, and a `reason`. Replay reconstructs the nodes, then applies these records — setting `retracted_at` on the named node and propagating the retraction. Omit them and every retraction is silently lost on the next rebuild: the append-only model survives in the live graph but not across regeneration, which is I6 failing exactly where I9 is supposed to make it cheap.
 
 **Embargoed source data — mirrored, never committed.** Unpublished collaborator data cannot go in a public repository (I18) and cannot be re-downloaded from PRIDE. It needs a second copy on separate physical media, and that is a manual responsibility with no software answer.
 

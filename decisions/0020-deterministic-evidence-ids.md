@@ -39,6 +39,10 @@ Identity **excludes** mutable and provenance-timestamp fields — `asserted_at`,
 `created_at` — and the quantitative matrix, which is referenced by `quant_ref`, not hashed into
 identity.
 
+The identifying fields and anchors for each evidence node type are enumerated in the **per-label
+identity table in `ONTOLOGY.md` §3**. That table — not this ADR, and not the builder — is the source
+of truth for identity; the key builder mirrors it, guarded by a test against it when it lands.
+
 One key builder serves both reference and evidence nodes. This discharges the "single key builder"
 that I7 was recorded as waiting on (`HANDOFF.md` §8, CON class).
 
@@ -54,6 +58,14 @@ content — `basis`, candidate set, `rationale`, the supporting `Analysis` — s
 and because that field is outside identity it does **not** change the id — so every inbound edge
 survives the retraction. An id that folded in `retracted_at` would mutate under retraction and orphan
 those edges; excluding it is what makes the append-only model and content-addressing coexist.
+
+**Excluding `retracted_at` from identity makes the export responsible for carrying retraction.** The
+same exclusion that keeps an id stable under retraction means a rebuild reconstructs a node *without*
+its retraction — nothing in `raw/` supplies the field. Retraction therefore lives in the curation
+export as its own record (retracted node id, `retracted_at`, reason), which replay re-applies after
+reconstruction; see `OPERATIONS.md` §2. Omit it and every retraction is lost on the next rebuild,
+silently violating I6 — the field being out of identity is precisely why the export, not the digest,
+must carry it.
 
 **"Local ids are never reused" is deliberately inverted.** Under ULIDs each allocation was unique;
 under content-derivation, identical content yields the same id *by design*. That is reuse, and it is

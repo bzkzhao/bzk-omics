@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active |
-| Version | 1.3 |
+| Version | 1.4 |
 | Last reviewed | 2026-08-07 |
 | Authoritative for | Document routing, working conventions |
 
@@ -92,10 +92,11 @@ Duplicating a fact into a second document is a defect, not redundancy. The copie
 - Open questions live in a numbered `Open questions` section at the end of the relevant file, not in comments or issues.
 - Real external identifiers only. Never invent a UniProt accession, PXD accession, or ontology term to fill an example — mark it synthetic or leave it blank.
 - Commit to `main`. This is a single-developer repository with linear history; development lands directly on `main`, not on long-lived feature branches. A session handed a different working branch by its harness should fast-forward the change onto `main` when it is complete, and continue there.
-- **Verify at every critical node before starting the next thing.** A critical node is any `ONTOLOGY.md` amendment, any new ADR, the key builder, each adapter, and anything touching the export boundary (I18). Verification means four things, each reported explicitly:
+- **Verify at every critical node — as the closing act of the turn that reaches it.** A critical node is any `ONTOLOGY.md` amendment, any new ADR, the key builder, each adapter, and anything touching the export boundary (I18). The four-point report **closes** such a turn; it cannot open one. A session starting a turn — and especially one resumed after a compaction — does not hold the previous turn's instructions, so point 4 is unrecoverable at the open; that is how the `RESULT_FOR_PROTEIN` fixture fix was lost. Points 1 and 2 are also cheapest while the context that produced the change is still fresh. Before ending the turn, report all four explicitly:
   1. Full suite green, and `tests/test_schema.py` confirmed specifically.
   2. The change did what it claimed, checked directly rather than inferred from a passing suite. Green tests have twice been consistent with a real defect here: four invariant checks passed vacuously while fully tested (ADR-0019), and `test_rebuild` asserted a table count against its own source.
   3. What the change did **not** cover, stated plainly. Most defects found on this project surfaced from that question, not from a test run.
   4. Any instruction from the turn that was dropped or partially done.
 
-  Do not begin the next item until those four are reported. A turn spent verifying is cheaper than an ADR that supersedes another.
+  A turn spent verifying is cheaper than an ADR that supersedes another.
+- **At the open of a turn, verify only what the open can support:** that the suite is green on the state you inherited, and that any items left outstanding by the previous turn are picked up. The full four-point report — point 4 in particular — belongs at the close, where the turn's own instructions are still in hand.

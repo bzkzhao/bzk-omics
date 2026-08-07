@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.4 |
+| Version | 1.5 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -68,6 +68,26 @@ All external identifiers are **CURIEs** — `prefix:local_id` — resolved again
 | `doi` / `pmid` | Publications | `pmid:21139048` |
 
 Locally generated (evidence) nodes use `bzk:` with a **deterministic, content-derived id**: `bzk:` followed by a truncated SHA-256 over a canonical serialization of the node's identity — its label, its identifying fields, and the ids of the content-addressed nodes it anchors to (reference CURIEs, the `ModificationSite` key, `Dataset.content_hash`). The same input therefore yields the same id on re-ingestion: identical content converges on one node rather than minting a new one, which is what makes replay idempotent under I9. Mutable and provenance-timestamp fields (`asserted_at`, `retracted_at`, `created_at`) are excluded from identity, so retraction and supersession follow I6 without changing an id. This extends I7's key discipline from reference nodes to evidence nodes; see ADR-0020.
+
+**Evidence-node identity, per label.** The digest is computed over the identity tuple below — the node's label, these identifying fields, and the ids of the anchor nodes (each already deterministic). The key builder mirrors this table and is guarded by a test against it when it lands; this table, not the builder, defines identity. Excluded from *every* identity: the mutable and provenance timestamps `asserted_at`, `retracted_at`, `created_at`, `started_at`, `ended_at`; `quant_ref` and the quantitative outputs a node reports (measured or derived content, not what distinguishes the node); and descriptive free text (`label`, `rationale`).
+
+| Node type | Identifying fields | Anchors (via edge) |
+|---|---|---|
+| `Project` | `title` | — |
+| `Experiment` | `title`, `modality` | `Project` (`CONTAINS`) |
+| `Sample` | `cell_line` / `model_system`, `source_type`, `genotype`, `treatment`, `timepoint_h`, `replicate`, `replicate_type`, `organism_taxid` | `Experiment` (`PERFORMED_ON`) |
+| `Dataset` | `content_hash` | — (the SHA-256 of the raw file is itself the anchor) |
+| `SiteObservation` | `peptide_sequence` | `Dataset` (`REPORTED_BY`), `ModificationSite` (`RESOLVES_TO_SITE`) |
+| `ProteinObservation` | — | `Dataset` (`REPORTED_BY`), `Protein` (`RESOLVES_TO_PROTEIN`) |
+| `Contrast` | `numerator`, `denominator` | — (placement unsettled — §11 Q1) |
+| `Analysis` | `kind`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `workflow_id`, `workflow_revision`, `parameters_json` | `Dataset`(s) (`USED`); for `kind = 'curation'`, the asserted content stands in for `USED` |
+| `Imputation` | `method`, `downshift_sd`, `width_sd`, `seed`, `scope` | `Analysis` (`IMPUTATION_FOR`) |
+| `ModifierAssignment` | `basis`, `candidate_modifiers`, `confidence` | `SiteObservation` (`ASSIGNMENT_FOR`), `Analysis` (`ASSIGNMENT_SUPPORTED_BY`) / `Publication` (`ASSIGNMENT_CITES`) |
+| `EnzymeAssociation` | `direction`, `basis`, `confidence` | `SiteObservation` (`ASSOCIATION_FOR`), `Protein` (`ASSOCIATION_ENZYME`), `Analysis` (`ASSOCIATION_SUPPORTED_BY`) / `Publication` (`ASSOCIATION_CITES`) |
+| `ProteinAssignment` | `basis`, `candidate_proteins`, `confidence` | `SiteObservation` (`PROTEIN_ASSIGNMENT_FOR`), `Protein` (`ASSIGNS_PROTEIN`) |
+| `DifferentialResult` | — (the statistics are outputs, not identity) | `Analysis` (`WAS_GENERATED_BY`), the observation (`RESULT_FOR_SITE` / `RESULT_FOR_PROTEIN`), `Contrast` (`RESULT_IN_CONTRAST`) |
+
+Provenance agents key on their natural external identifiers, not a digest: `Person` on `orcid` (falling back to `name`), `Software` on `name` + `version` + `container_digest`. Anchor edge directions are as declared in the §5–§7 DDL.
 
 > **To verify before implementation:** the PSI-MOD accession for the GlyGly remnant. Unimod 121 (GlyGly) is the identifier used by MaxQuant and FragPipe and should be treated as primary; the PSI-MOD cross-reference above is unconfirmed and must be checked against the current PSI-MOD release.
 
