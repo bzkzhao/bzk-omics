@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.6 |
+| Version | 1.7 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -69,23 +69,23 @@ All external identifiers are **CURIEs** — `prefix:local_id` — resolved again
 
 Locally generated (evidence) nodes use `bzk:` with a **deterministic, content-derived id**: `bzk:` followed by a truncated SHA-256 over a canonical serialization of the node's identity — its label, its identifying fields, and the ids of the content-addressed nodes it anchors to (reference CURIEs, the `ModificationSite` key, `Dataset.content_hash`). The same input therefore yields the same id on re-ingestion: identical content converges on one node rather than minting a new one, which is what makes replay idempotent under I9. Mutable and provenance-timestamp fields (`asserted_at`, `retracted_at`, `created_at`) are excluded from identity, so retraction and supersession follow I6 without changing an id. This extends I7's key discipline from reference nodes to evidence nodes; see ADR-0020.
 
-**Evidence-node identity, per label.** The digest is computed over the identity tuple below — the node's label, these identifying fields, and the ids of the anchor nodes (each already deterministic). The key builder mirrors this table and is guarded by a test against it when it lands; this table, not the builder, defines identity. Excluded from *every* identity: the mutable and provenance timestamps `asserted_at`, `retracted_at`, `created_at`, `started_at`, `ended_at`; `quant_ref` and the quantitative outputs a node reports (measured or derived content, not what distinguishes the node); and descriptive free text (`label`, `rationale`).
+**Evidence-node identity, per label.** The digest is computed over the identity tuple below — the node's label, its identifying fields, and the ids of the anchor nodes (each already deterministic). This table, not the key builder, defines identity; the builder mirrors it. `tests/test_schema.py` checks the table against the DDL in both directions: every identifying name and every excluded name is a real column, every anchor is a real rel table, and — the direction that matters most — **every column is accounted for, listed as identifying or in `Excluded columns`**. A column that is neither is a silent default to non-identifying, which is the missing-field collision this scheme exists to prevent; the completeness check turns adding a node column into a forced row edit. The exclusions fall in three families — mutable and provenance timestamps (`asserted_at`, `retracted_at`, `created_at`, `started_at`, `ended_at`); `quant_ref` and the quantitative outputs a node reports; and descriptive free text (`label`, `rationale`) — but the per-row `Excluded columns` list is authoritative, since prose categories cannot be checked.
 
-| Node type | Identifying fields | Anchors (via edge) |
-|---|---|---|
-| `Project` | `title` | — |
-| `Experiment` | `title`, `modality` | `Project` (`CONTAINS`) |
-| `Sample` | `cell_line` / `model_system`, `source_type`, `genotype`, `treatment`, `timepoint_h`, `replicate`, `replicate_type`, `organism_taxid` | `Experiment` (`PERFORMED_ON`) |
-| `Dataset` | `content_hash` | — (the SHA-256 of the raw file is itself the anchor) |
-| `SiteObservation` | `peptide_sequence` | `Dataset` (`REPORTED_BY`), `ModificationSite` (`RESOLVES_TO_SITE`) |
-| `ProteinObservation` | — | `Dataset` (`REPORTED_BY`), `Protein` (`RESOLVES_TO_PROTEIN`) |
-| `Contrast` | `numerator`, `denominator` | — (placement unsettled — §11 Q1) |
-| `Analysis` | `kind`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `workflow_id`, `workflow_revision`, `parameters_json` | `Dataset`(s) (`USED`); for `kind = 'curation'`, the asserted content stands in for `USED` |
-| `Imputation` | `method`, `downshift_sd`, `width_sd`, `seed`, `scope` | `Analysis` (`IMPUTATION_FOR`) |
-| `ModifierAssignment` | `basis`, `candidate_modifiers`, `confidence` | `SiteObservation` (`ASSIGNMENT_FOR`), `Analysis` (`ASSIGNMENT_SUPPORTED_BY`) / `Publication` (`ASSIGNMENT_CITES`) |
-| `EnzymeAssociation` | `direction`, `basis`, `confidence` | `SiteObservation` (`ASSOCIATION_FOR`), `Protein` (`ASSOCIATION_ENZYME`), `Analysis` (`ASSOCIATION_SUPPORTED_BY`) / `Publication` (`ASSOCIATION_CITES`) |
-| `ProteinAssignment` | `basis`, `candidate_proteins`, `confidence` | `SiteObservation` (`PROTEIN_ASSIGNMENT_FOR`), `Protein` (`ASSIGNS_PROTEIN`) |
-| `DifferentialResult` | — (the statistics are outputs, not identity) | `Analysis` (`WAS_GENERATED_BY`), the observation (`RESULT_FOR_SITE` / `RESULT_FOR_PROTEIN`), `Contrast` (`RESULT_IN_CONTRAST`) |
+| Node type | Identifying fields | Anchors (via edge) | Excluded columns |
+|---|---|---|---|
+| `Project` | `title` | — | `created_at` |
+| `Experiment` | `title`, `modality` | `Project` (`CONTAINS`) | `organism_taxid` |
+| `Sample` | `cell_line` / `model_system`, `source_type`, `genotype`, `treatment`, `timepoint_h`, `replicate`, `replicate_type`, `organism_taxid` | `Experiment` (`PERFORMED_ON`) | `label` |
+| `Dataset` | `content_hash` | — (the SHA-256 of the raw file is itself the anchor) | `label`, `source`, `external_accession`, `acquisition_mode`, `instrument`, `search_engine`, `search_engine_version`, `library_type`, `library_prediction_model`, `fasta_release`, `embargo_holder`, `embargo_reference`, `embargo_released_at` |
+| `SiteObservation` | `peptide_sequence` | `Dataset` (`REPORTED_BY`), `ModificationSite` (`RESOLVES_TO_SITE`) | `localization_prob`, `score`, `is_decoy`, `n_imputed`, `quant_ref` |
+| `ProteinObservation` | — | `Dataset` (`REPORTED_BY`), `Protein` (`RESOLVES_TO_PROTEIN`) | `quant_ref`, `n_peptides` |
+| `Contrast` | `numerator`, `denominator` | — (placement unsettled — §11 Q1) | `label` |
+| `Analysis` | `kind`, `basis`, `confidence`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `workflow_id`, `workflow_revision`, `parameters_json` | `Dataset`(s) (`USED`); for `kind = 'curation'`, the asserted content stands in for `USED` | `label`, `rationale`, `started_at`, `ended_at` |
+| `Imputation` | `method`, `downshift_sd`, `width_sd`, `seed`, `scope` | `Analysis` (`IMPUTATION_FOR`) | `n_values_imputed`, `n_values_total`, `asserted_at`, `retracted_at` |
+| `ModifierAssignment` | `basis`, `candidate_modifiers`, `confidence` | `SiteObservation` (`ASSIGNMENT_FOR`), `Analysis` (`ASSIGNMENT_SUPPORTED_BY`) / `Publication` (`ASSIGNMENT_CITES`) | `rationale`, `asserted_at`, `retracted_at` |
+| `EnzymeAssociation` | `direction`, `basis`, `confidence` | `SiteObservation` (`ASSOCIATION_FOR`), `Protein` (`ASSOCIATION_ENZYME`), `Analysis` (`ASSOCIATION_SUPPORTED_BY`) / `Publication` (`ASSOCIATION_CITES`) | `effect_size`, `adj_p_value`, `rationale`, `asserted_at`, `retracted_at` |
+| `ProteinAssignment` | `basis`, `candidate_proteins`, `confidence` | `SiteObservation` (`PROTEIN_ASSIGNMENT_FOR`), `Protein` (`ASSIGNS_PROTEIN`) | `rationale`, `asserted_at`, `retracted_at` |
+| `DifferentialResult` | — (the statistics are outputs, not identity) | `Analysis` (`WAS_GENERATED_BY`), the observation (`RESULT_FOR_SITE` / `RESULT_FOR_PROTEIN`), `Contrast` (`RESULT_IN_CONTRAST`) | `log2fc`, `p_value`, `adj_p_value`, `protein_adjusted`, `adjustment_method` |
 
 Provenance agents key on their natural external identifiers, not a digest: `Person` on `orcid` (falling back to `name`), `Software` on `name` + `version` + `container_digest`. Anchor edge directions are as declared in the §5–§7 DDL.
 

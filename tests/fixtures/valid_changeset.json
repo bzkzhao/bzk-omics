@@ -1,5 +1,5 @@
 {
-  "note": "A structurally sound, self-contained change-set that satisfies every write-time invariant (I2, I3, I4, I10, I14, I15, I16, I19) and ADR-0019 structural validation (including multiplicity). Real accessions and real UniProt sequences (ONTOLOGY.md \u00a79). Protein nodes carry both sequence_version and sequence, the shape the deferred residue-agreement check (HANDOFF \u00a78) needs; the site is keyed at a real lysine (P20591 position 48 is K in sv4), so the seed stays valid once that check lands. Proves the checks accept valid input, and seeds the week-3 adapter tests. SITE_ON attaches the site only to uniprot:P20591, the accession it is keyed against; the multi-mapping to uniprot:P09914-2 is carried by bzk:pa1.candidate_proteins (\u00a76.3), not a second SITE_ON to a protein where position 48 is a different residue. bzk:dr1 is the site-level result; bzk:dr2 is the protein-level result it is adjusted against (ADJUSTED_BY), each with its own WAS_GENERATED_BY to a distinct Analysis. bzk:dr2 attaches to the protein it measures, bzk:pobs1, via RESULT_FOR_PROTEIN (§5/§7), and bzk:pobs1 resolves to uniprot:P20591 via RESOLVES_TO_PROTEIN — so a protein-level result attaches to the ProteinObservation it measures rather than to nothing, and the proteome correction dr1 receives is traceable to the protein it came from.",
+  "note": "A structurally sound, self-contained change-set that satisfies every write-time invariant (I2, I3, I4, I10, I14, I15, I16, I19) and ADR-0019 structural validation (including multiplicity). Real accessions and real UniProt sequences (ONTOLOGY.md \u00a79). Protein nodes carry both sequence_version and sequence, the shape the deferred residue-agreement check (HANDOFF \u00a78) needs; the site is keyed at a real lysine (P20591 position 48 is K in sv4), so the seed stays valid once that check lands. Proves the checks accept valid input, and seeds the week-3 adapter tests. SITE_ON attaches the site only to uniprot:P20591, the accession it is keyed against; the multi-mapping to uniprot:P09914-2 is carried by bzk:pa1.candidate_proteins (\u00a76.3), not a second SITE_ON to a protein where position 48 is a different residue. bzk:dr1 is the site-level result; bzk:dr2 is the protein-level result it is adjusted against (ADJUSTED_BY), each with its own WAS_GENERATED_BY to a distinct Analysis. bzk:dr2 attaches to the protein it measures, bzk:pobs1, via RESULT_FOR_PROTEIN (§5/§7), and bzk:pobs1 resolves to uniprot:P20591 via RESOLVES_TO_PROTEIN — so a protein-level result attaches to the ProteinObservation it measures rather than to nothing, and the proteome correction dr1 receives is traceable to the protein it came from. bzk:an1 (welch_t) and bzk:an3 (moderated_t) are two site-level analyses over the same matrix differing PRECISELY by test — the colab_reproducefigure cell-16 case (HANDOFF §8) — each producing its own site-level DifferentialResult for bzk:obs1; with test identifying the Analysis (ONTOLOGY §3, v1.6) they resolve to distinct ids rather than colliding, which is the collision the test move was made to prevent. an1/an2 differ by grain (site vs protein) and so by quantity; an1/an3 isolate test as the sole difference.",
   "nodes": [
     {"id": "uniprot:P20591", "label": "Protein", "sequence_version": 4, "sequence": "MVVSEVDIAKADPAAASHPLLLNGDATVAQKNPGSVAENNLCSQYEEKVRPCIDLIDSLRALGVEQDLALPAIAVIGDQSSGKSSVLEALSGVALPRGSGIVTRCPLVLKLKKLVNEDKWRGKVSYQDYEIEISDASEVEKEINKAQNAIAGEGMGISHELITLEISSRDVPDLTLIDLPGITRVAVGNQPADIGYKIKTLIKKYIQRQETISLVVVPSNVDIATTEALSMAQEVDPEGDRTIGILTKPDLVDKGTEDKVVDVVRNLVFHLKKGYMIVKCRGQQEIQDQLSLSEALQREKIFFENHPYFRDLLEEGKATVPCLAEKLTSELITHICKSLPLLENQIKETHQRITEELQKYGVDIPEDENEKMFFLIDKVNAFNQDITALMQGEETVGEEDIRLFTRLRHEFHKWSTIIENNFQEGHKILSRKIQKFENQYRGRELPGFVNYRTFETIVKQQIKALEEPAVDMLHTVTDMVRLAFTDVSIKNFEEFFNLHRTAKSKIEDIRAEQEREGEKLIRLHFQMEQIVYCQDQVYRGALQKVREKELEEEKKKKSWDFGAFQSSSATDSSMEEIFQHLMAYHQEASKRISSHIPLIIQFFMLQTYGQQLQKAMLQLLQDKDTYSWLLKERSDTSDKRKFLKERLARLTQARRRLAQFPG"},
     {"id": "uniprot:P09914-2", "label": "Protein", "sequence_version": 2, "sequence": "MPDLENRVLDQIEFLDTKYSVGIHNLLAYVKHLKGQNEEALKSLKEAENLMQEEHDNQANVRSLVTWGNFAWMYYHMGRLAEAQTYLDKVENICKKLSNPFRYRMECPEIDCEEGWALLKCGGKNYERAKACFEKVLEVDPENPESSAGYAISAYRLDGFKLATKNHKPFSLLPLRQAVRLNPDNGYIKVLLALKLQDEGQEAEGEKYIEEALANMSSQTYVFRYAAKFYRRKGSVDKALELLKKALQETPTSVLLHHQIGLCYKAQMIQIKEATKGQPRGQNREKLDKMIRSAIFHFESAVEKKPTFEVAHLDLARMYIEAGNHRKAEENFQKLLCMKPVVEETMQDIHFHYGRFQEFQKKSDVNAIIHYLKAIKIEQASLTRDKSINSLKKLVLRKLRRKALDLESLSLLGFVYKLEGNMNEALEYYERALRLAADFENSVRQGP"},
@@ -12,11 +12,14 @@
     {"id": "bzk:pa1", "label": "ProteinAssignment", "candidate_proteins": ["uniprot:P20591", "uniprot:P09914-2"], "basis": "unique_peptide", "confidence": "confirmed", "retracted_at": null},
     {"id": "bzk:an1", "label": "Analysis", "kind": "processing", "quantity": "intensity", "localization_threshold": 0.75, "filters_applied": ["reverse", "potential_contaminant"], "test": "welch_t", "fdr_method": "BH", "parameters_observed": true},
     {"id": "bzk:an2", "label": "Analysis", "kind": "processing", "quantity": "lfq", "filters_applied": ["reverse", "potential_contaminant"], "test": "welch_t", "fdr_method": "BH", "parameters_observed": true},
+    {"id": "bzk:an3", "label": "Analysis", "kind": "processing", "quantity": "intensity", "localization_threshold": 0.75, "filters_applied": ["reverse", "potential_contaminant"], "test": "moderated_t", "fdr_method": "BH", "parameters_observed": true},
     {"id": "bzk:imp1", "label": "Imputation", "method": "downshifted_normal", "downshift_sd": 1.8, "width_sd": 0.3, "seed": 0},
     {"id": "bzk:imp2", "label": "Imputation", "method": "none"},
+    {"id": "bzk:imp3", "label": "Imputation", "method": "none"},
     {"id": "bzk:pobs1", "label": "ProteinObservation", "n_peptides": 7},
     {"id": "bzk:dr1", "label": "DifferentialResult", "log2fc": 3.4, "p_value": 1.2e-05, "protein_adjusted": "applied", "adjustment_method": "residual_vs_protein_lfc"},
-    {"id": "bzk:dr2", "label": "DifferentialResult", "log2fc": 1.1, "protein_adjusted": "not_applied"}
+    {"id": "bzk:dr2", "label": "DifferentialResult", "log2fc": 1.1, "protein_adjusted": "not_applied"},
+    {"id": "bzk:dr3", "label": "DifferentialResult", "log2fc": 2.7, "p_value": 3.0e-04, "protein_adjusted": "not_applied"}
   ],
   "edges": [
     {"type": "SITE_ON", "from": "uniprot:P20591#sv4#K48#unimod:121", "to": "uniprot:P20591"},
@@ -29,11 +32,14 @@
     {"type": "ASSIGNS_PROTEIN", "from": "bzk:pa1", "to": "uniprot:P20591"},
     {"type": "WAS_GENERATED_BY", "from": "bzk:dr1", "to": "bzk:an1"},
     {"type": "WAS_GENERATED_BY", "from": "bzk:dr2", "to": "bzk:an2"},
+    {"type": "WAS_GENERATED_BY", "from": "bzk:dr3", "to": "bzk:an3"},
     {"type": "IMPUTATION_FOR", "from": "bzk:imp1", "to": "bzk:an1"},
     {"type": "IMPUTATION_FOR", "from": "bzk:imp2", "to": "bzk:an2"},
+    {"type": "IMPUTATION_FOR", "from": "bzk:imp3", "to": "bzk:an3"},
     {"type": "ADJUSTED_BY", "from": "bzk:dr1", "to": "bzk:dr2"},
     {"type": "RESULT_FOR_SITE", "from": "bzk:dr1", "to": "bzk:obs1"},
     {"type": "RESULT_FOR_PROTEIN", "from": "bzk:dr2", "to": "bzk:pobs1"},
-    {"type": "RESOLVES_TO_PROTEIN", "from": "bzk:pobs1", "to": "uniprot:P20591"}
+    {"type": "RESOLVES_TO_PROTEIN", "from": "bzk:pobs1", "to": "uniprot:P20591"},
+    {"type": "RESULT_FOR_SITE", "from": "bzk:dr3", "to": "bzk:obs1"}
   ]
 }

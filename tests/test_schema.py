@@ -63,22 +63,31 @@ def test_schema_rel_tables_match_ontology() -> None:
 
 
 def test_identity_table_matches_ddl() -> None:
-    """§3's per-label identity table must name only real columns and rel tables (ADR-0020).
+    """§3's per-label identity table must partition each evidence node's columns (ADR-0020).
 
-    Identity is normative in §3, and the key builder mirrors it. This keeps the table honest against
-    the DDL: it caught `test`/`fdr_method` listed for `Analysis` while they sat on `DifferentialResult`.
+    Completeness (the direction that matters): every column is listed identifying or excluded — a
+    column that is neither is a silent default to non-identifying, the missing-field collision
+    ADR-0020 warns of (caught `Analysis` omitting `basis`/`confidence`). Soundness: identifying and
+    excluded names are real columns (caught `test`/`fdr_method` mislisted on `Analysis`), and every
+    anchor is a real rel table.
     """
     nodes, rels = _parse_ontology()
     text = ONTOLOGY.read_text()
     region = text[text.index("Evidence-node identity, per label") : text.index("Provenance agents key")]
-    rows = re.findall(r"^\| `(\w+)` \| (.+?) \| (.+?) \|\s*$", region, re.M)
+    rows = re.findall(r"^\| `(\w+)` \| (.+?) \| (.+?) \| (.+?) \|\s*$", region, re.M)
     assert rows, "identity table not found in §3"
-    for label, fields_col, anchors_col in rows:
-        assert label in nodes, f"§3 identity table lists unknown node {label!r}"
-        for fld in re.findall(r"`([a-z][a-z0-9_]*)`", fields_col):
-            assert fld in nodes[label], f"§3: {label}.{fld} is not a column of {label}"
+    for label, ident_col, anchors_col, excl_col in rows:
+        assert label in nodes, f"§3 lists unknown node {label!r}"
+        identifying = set(re.findall(r"`([a-z][a-z0-9_]*)`", ident_col))
+        excluded = set(re.findall(r"`([a-z][a-z0-9_]*)`", excl_col))
+        columns = nodes[label] - {"id"}
+        assert identifying.isdisjoint(excluded), f"§3 {label}: both identifying and excluded: {identifying & excluded}"
+        assert identifying | excluded == columns, (
+            f"§3 {label}: columns not partitioned — unaccounted {columns - identifying - excluded}, "
+            f"phantom {(identifying | excluded) - columns}"
+        )
         for edge in re.findall(r"`([A-Z][A-Z0-9_]+)`", anchors_col):
-            assert edge in rels, f"§3: anchor {edge!r} (row {label}) is not a rel table"
+            assert edge in rels, f"§3 anchor {edge!r} (row {label}) is not a rel table"
 
 
 def test_schema_builds_on_kuzu() -> None:
