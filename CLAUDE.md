@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active |
-| Version | 1.2 |
+| Version | 1.3 |
 | Last reviewed | 2026-08-07 |
 | Authoritative for | Document routing, working conventions |
 
@@ -92,3 +92,10 @@ Duplicating a fact into a second document is a defect, not redundancy. The copie
 - Open questions live in a numbered `Open questions` section at the end of the relevant file, not in comments or issues.
 - Real external identifiers only. Never invent a UniProt accession, PXD accession, or ontology term to fill an example — mark it synthetic or leave it blank.
 - Commit to `main`. This is a single-developer repository with linear history; development lands directly on `main`, not on long-lived feature branches. A session handed a different working branch by its harness should fast-forward the change onto `main` when it is complete, and continue there.
+- **Verify at every critical node before starting the next thing.** A critical node is any `ONTOLOGY.md` amendment, any new ADR, the key builder, each adapter, and anything touching the export boundary (I18). Verification means four things, each reported explicitly:
+  1. Full suite green, and `tests/test_schema.py` confirmed specifically.
+  2. The change did what it claimed, checked directly rather than inferred from a passing suite. Green tests have twice been consistent with a real defect here: four invariant checks passed vacuously while fully tested (ADR-0019), and `test_rebuild` asserted a table count against its own source.
+  3. What the change did **not** cover, stated plainly. Most defects found on this project surfaced from that question, not from a test run.
+  4. Any instruction from the turn that was dropped or partially done.
+
+  Do not begin the next item until those four are reported. A turn spent verifying is cheaper than an ADR that supersedes another.
