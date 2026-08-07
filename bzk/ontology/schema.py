@@ -267,6 +267,7 @@ REL_TABLES: list[RelTable] = [
     RelTable("REPORTS_SITE", "Dataset", "SiteObservation", multiplicity="ONE_MANY"),
     RelTable("REPORTS_PROTEIN", "Dataset", "ProteinObservation", multiplicity="ONE_MANY"),
     RelTable("RESULT_FOR_SITE", "DifferentialResult", "SiteObservation", multiplicity="MANY_ONE"),
+    RelTable("RESULT_FOR_PROTEIN", "DifferentialResult", "ProteinObservation", multiplicity="MANY_ONE"),
     RelTable("RESULT_IN_CONTRAST", "DifferentialResult", "Contrast", multiplicity="MANY_ONE"),
     RelTable("ADJUSTED_BY", "DifferentialResult", "DifferentialResult", multiplicity="MANY_ONE"),
     RelTable("SAMPLE_GENERATED_BY", "Sample", "Analysis", multiplicity="MANY_ONE"),

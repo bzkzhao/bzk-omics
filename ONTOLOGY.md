@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.2 |
-| Last reviewed | 2026-08-06 |
+| Version | 1.3 |
+| Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
 | Authoritative for | Node types, edge types, field semantics, invariants |
@@ -241,6 +241,7 @@ CREATE REL TABLE PRODUCED(FROM Sample TO Dataset);
 CREATE REL TABLE REPORTS_SITE(FROM Dataset TO SiteObservation, ONE_MANY);
 CREATE REL TABLE REPORTS_PROTEIN(FROM Dataset TO ProteinObservation, ONE_MANY);
 CREATE REL TABLE RESULT_FOR_SITE(FROM DifferentialResult TO SiteObservation, MANY_ONE);
+CREATE REL TABLE RESULT_FOR_PROTEIN(FROM DifferentialResult TO ProteinObservation, MANY_ONE);
 CREATE REL TABLE RESULT_IN_CONTRAST(FROM DifferentialResult TO Contrast, MANY_ONE);
 CREATE REL TABLE ADJUSTED_BY(FROM DifferentialResult TO DifferentialResult, MANY_ONE);
 CREATE REL TABLE SAMPLE_GENERATED_BY(FROM Sample TO Analysis, MANY_ONE);

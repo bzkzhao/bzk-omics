@@ -65,7 +65,7 @@ def test_rebuild_creates_schema_and_finds_no_drift(tmp_path: Any) -> None:
     home = tmp_path / "home"
     _seed_cache(home, fx)
     report = rebuild(home=home, curation_dir=CURATION_DIR, session=_session(fx))
-    assert report.tables_created == 56  # 23 node + 33 rel tables
+    assert report.tables_created == 57  # 23 node + 34 rel tables
     assert report.curation_records == 1  # data/curation/curation_PXD018299.json
     assert report.drifts == []
     assert (home / "graph.kuzu").exists()
