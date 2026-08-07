@@ -39,6 +39,15 @@ class RelTable:
     multiplicity: str | None = None  # ONE_MANY | MANY_ONE | MANY_MANY | ONE_ONE | None
 
 
+# Closed vocabulary for the identifying Analysis.quantity field (ONTOLOGY.md §5, I16, ADR-0020).
+# Mirror of the §5 enum; guarded against on-disk data by tests/test_schema.py. 'intensity' is a
+# plain intensity with NO multiplicity axis (protein- or precursor-level) and is invalid for a
+# MaxQuant modification-site source, which uses 'intensity_multiplicity_summed'.
+QUANTITY_VALUES: frozenset[str] = frozenset(
+    {"intensity", "intensity_multiplicity_summed", "ratio_mod_base", "lfq", "ibaq"}
+)
+
+
 # ── Reference nodes (ONTOLOGY.md §4) ──
 NODE_TABLES: list[NodeTable] = [
     NodeTable(

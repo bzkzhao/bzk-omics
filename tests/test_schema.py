@@ -7,6 +7,7 @@ fails here loudly rather than surfacing as a wrong residue or a silently dropped
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import tempfile
@@ -88,6 +89,35 @@ def test_identity_table_matches_ddl() -> None:
         )
         for edge in re.findall(r"`([A-Z][A-Z0-9_]+)`", anchors_col):
             assert edge in rels, f"§3 anchor {edge!r} (row {label}) is not a rel table"
+
+
+def test_quantity_values_are_in_enum() -> None:
+    """Every Analysis.quantity on disk must be in the closed enum (ONTOLOGY §5, schema.QUANTITY_VALUES).
+
+    quantity is an identifying field (§3, ADR-0020); two spellings of one quantity mint two Analysis
+    ids for one fact. This checks fixtures and curation records honour the closed vocabulary.
+    """
+    def quantities(obj: object):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k == "quantity" and isinstance(v, str):
+                    yield v
+                else:
+                    yield from quantities(v)
+        elif isinstance(obj, list):
+            for item in obj:
+                yield from quantities(item)
+
+    root = Path(__file__).resolve().parents[1]
+    seen = 0
+    for folder in ("tests/fixtures", "data/curation"):
+        for path in (root / folder).rglob("*.json"):
+            for q in quantities(json.loads(path.read_text())):
+                seen += 1
+                assert q in schema.QUANTITY_VALUES, (
+                    f"{path.name}: quantity {q!r} not in closed enum {sorted(schema.QUANTITY_VALUES)}"
+                )
+    assert seen, "no quantity values found — guard would be vacuous"
 
 
 def test_schema_builds_on_kuzu() -> None:

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.9 |
+| Version | 1.10 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -243,11 +243,16 @@ CREATE NODE TABLE Analysis(
   basis STRING,                 -- curation only; enum in §5.3
   confidence STRING,            -- curation only; 'authoritative' | 'inferred'
   rationale STRING,
-  quantity STRING,              -- the specific quantity consumed: 'intensity' | 'ratio_mod_base'
-                                -- | 'lfq' | 'ibaq'. For MaxQuant modification-site tables the
-                                -- multiplicity treatment is part of it: 'intensity_multiplicity_summed'
-                                -- (the plain per-sample Intensity column) vs 'intensity_multiplicity_<n>'
-                                -- (the ___n split). Bare 'intensity' hides which — see I16.
+  quantity STRING,              -- CLOSED enum (mirror: schema.py QUANTITY_VALUES): 'intensity' |
+                                -- 'intensity_multiplicity_summed' | 'ratio_mod_base' | 'lfq' | 'ibaq'.
+                                -- 'intensity' is a plain intensity with NO multiplicity axis
+                                -- (protein- or precursor-level: proteinGroups, DIA-NN) — the only
+                                -- place bare 'intensity' is legal. A MaxQuant modification-site
+                                -- source HAS a multiplicity axis and MUST use
+                                -- 'intensity_multiplicity_summed' (the summed Intensity column);
+                                -- bare 'intensity' is invalid there. Per-multiplicity consumption
+                                -- (the ___n split) is deferred — extend the enum when a
+                                -- per-multiplicity analysis is actually run. See I16.
   localization_threshold DOUBLE,-- recorded, never hard-coded; see §6.4
   filters_applied STRING[],     -- e.g. ['reverse','potential_contaminant']
   test STRING,                  -- 'perseus_s0' | 'moderated_t_ebayes' | 'welch_t'; per analysis (§5.4, I16)
@@ -591,7 +596,7 @@ Normative. Violations are ingestion errors, not warnings.
 - **I17 — Reviewed preferred, never silently.** Where a candidate protein set contains both reviewed (Swiss-Prot) and unreviewed (TrEMBL) entries, resolution promotes the reviewed entry and records `ProteinAssignment.basis = 'reviewed_preferred'`. Measured on PXD018299, the search engine's razor pick was unreviewed in 4 of 8 sampled sites despite a reviewed alternative being present. The promotion is an inference and is recorded as one.
 - **I18 — Embargo is enforced at the boundary.** No `Dataset` with `source = 'embargoed'` and `embargo_released_at IS NULL` may contribute to any export, report, figure file or shared artifact. Queries and views within the local instance are unrestricted. The check sits at the export boundary, not at query time, so the data remains fully usable to its holder while being incapable of leaking.
 - **I19 — Observed and reported provenance are distinguished.** Every `Analysis` sets `parameters_observed`. Where `false`, the analysis was run outside the platform and its parameters are as stated by the user rather than as executed; every derived `DifferentialResult` is labelled accordingly in views and exports. An externally computed result is never presented with the same provenance standing as one the platform produced.
-- **I16 — Quantity and test are declared.** Every `Analysis` records which quantity it consumed and the filters applied, including the localisation threshold, and — where it runs one — the statistical `test` and its `fdr_method`, with test-specific parameters (`s0`, randomisation count) in `parameters_json`. These live on the `Analysis`, not the `DifferentialResult`: every result of an analysis shares them, and `ARCHITECTURE.md` §4 already records the test's parameters there per this invariant. (The DDL previously placed `test` / `fdr_method` on `DifferentialResult`, contradicting §4; the §3 identity table surfaced the pre-existing discrepancy, resolved here — ONTOLOGY v1.6, ADR-0020.) Two defensible quantities on the same dataset differed by a factor of ~90 in usable sites; neither choice is recoverable from a published methods section, and that gap is what this platform exists to close. The declared quantity must name the *specific* quantity, not just its family: for a MaxQuant modification-site table the multiplicity-summed total and the per-multiplicity `Intensity___n` are different quantities, and a value that hides which (bare `intensity`) is the same invisible-choice defect as `intensity` vs `ratio_mod_base`. The 12-of-14 baseline was computed on multiplicity-summed intensity (ROADMAP § Deposit and supplementary survey).
+- **I16 — Quantity and test are declared.** Every `Analysis` records which quantity it consumed and the filters applied, including the localisation threshold, and — where it runs one — the statistical `test` and its `fdr_method`, with test-specific parameters (`s0`, randomisation count) in `parameters_json`. These live on the `Analysis`, not the `DifferentialResult`: every result of an analysis shares them, and `ARCHITECTURE.md` §4 already records the test's parameters there per this invariant. (The DDL previously placed `test` / `fdr_method` on `DifferentialResult`, contradicting §4; the §3 identity table surfaced the pre-existing discrepancy, resolved here — ONTOLOGY v1.6, ADR-0020.) Two defensible quantities on the same dataset differed by a factor of ~90 in usable sites; neither choice is recoverable from a published methods section, and that gap is what this platform exists to close. The declared quantity is drawn from the **closed enum in §5** and must name the *specific* quantity, not just its family: a MaxQuant modification-site source uses `intensity_multiplicity_summed`, and bare `intensity` — legal only where there is no multiplicity axis (protein- or precursor-level) — is invalid there. A value that hid the multiplicity treatment would be the same invisible-choice defect as `intensity` vs `ratio_mod_base`. Because quantity is an identifying field (§3, ADR-0020), two spellings of one quantity would mint two `Analysis` ids for one fact; the closed enum forecloses that. The 12-of-14 baseline was computed on multiplicity-summed intensity (ROADMAP § Deposit and supplementary survey).
 
 ---
 
