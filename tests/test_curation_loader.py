@@ -35,6 +35,7 @@ from bzk.curation.loader import (
     load_path,
 )
 from bzk.ontology import invariants
+from bzk.ontology.invariants import NODE_TYPE_KEY
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REAL_RECORD = REPO_ROOT / "data" / "curation" / "curation_PXD018299.json"
@@ -56,7 +57,7 @@ def loaded(synthetic: dict[str, Any]) -> LoadedCuration:
 
 
 def _nodes(result: LoadedCuration, label: str) -> list[dict[str, Any]]:
-    return [n for n in result.nodes if n["label"] == label]
+    return [n for n in result.nodes if n[NODE_TYPE_KEY] == label]
 
 
 # ── Refusal: the real record ────────────────────────────────────────────────────────────────────
@@ -84,19 +85,33 @@ def test_refusal_carries_the_curators_note_not_just_the_field_name() -> None:
     assert "IDENTIFYING" in str(exc.value)
 
 
-def test_refuses_the_unstimulated_arms_missing_timepoint() -> None:
-    """`Sample.timepoint_h` is identifying (§3) and null on the six non-IFN samples.
+def test_the_unstimulated_arms_null_timepoint_is_accepted() -> None:
+    """`Sample.timepoint_h` is null on the six non-IFN samples, and that is now a *determined*
+    absence rather than a refusal.
 
-    §3 does not classify that absence, and the record's own `unresolved` says why: the methods do
-    not state a timepoint for the unstimulated arms. That is a *contingent* absence — the knowledge
-    had not arrived — which ADR-0021 forbids in an identifying position. The loader therefore
-    refuses these six as well as the two titles, and this is not covered by any `pending` marker.
+    It was a refusal until 2026-08-07, and the fix was not to reclassify the null but to define the
+    column: §5's DDL had a comment on every `Sample` field except this one, so "hours since
+    treatment" and "hours in culture" were both readable and only the first makes the null
+    inapplicable rather than unknown. With `timepoint_h` defined as hours since treatment, §3
+    classifies the absence as determined by `treatment`, and these six key as they stand.
+
+    Asserted as *what is not owed* rather than as a passing load, because the record is still
+    incomplete for other reasons — the two titles. If the classification were dropped, this fails.
     """
     with pytest.raises(CurationIncomplete) as exc:
         load_path(REAL_RECORD)
-    timepoints = [p for p in exc.value.paths if "timepoint_h" in p]
-    assert len(timepoints) == 6, exc.value.paths
-    assert all("mapping[" in p for p in timepoints)
+    assert not [p for p in exc.value.paths if "timepoint_h" in p], exc.value.paths
+
+
+def test_the_real_record_now_owes_only_the_two_titles() -> None:
+    """The whole of what the curator still owes, in one assertion, so the count cannot drift.
+
+    Eight items before the timepoint column was defined; two after. When the titles arrive this
+    fails and the record loads — which is the prompt to check what it then yields.
+    """
+    with pytest.raises(CurationIncomplete) as exc:
+        load_path(REAL_RECORD)
+    assert set(exc.value.paths) == {"project.title", "experiment.title"}
 
 
 def test_refuses_an_unmarked_null(synthetic: dict[str, Any]) -> None:
@@ -190,26 +205,39 @@ def test_samples_are_linked_to_the_curation_analysis(loaded: LoadedCuration) -> 
     assert sources == set(loaded.sample_ids.values())
 
 
-def test_the_sample_label_column_is_not_emitted_because_the_key_collides(
-    loaded: LoadedCuration,
-) -> None:
-    """A change-set node is `{"label": <node type>, "id", **props}` (`invariants.py`), and `label`
-    is *also* a real DDL column on `Sample`, `Dataset`, `Analysis`, `Contrast`, `Disease`, `Drug`.
+def test_the_label_column_is_written_alongside_the_node_type(loaded: LoadedCuration) -> None:
+    """`label` is a real DDL column on six node types *and* was the change-set's node-type key.
 
-    Writing the column would overwrite the node type. No existing fixture hit this — the nodes in
-    `valid_changeset.json` that have a `label` column never set it — so the loader is the first
-    writer to meet it. It declines to emit the column rather than mangling the node, and the value
-    it would have carried (the mapping key, verbatim, un-normalised — tidying `KO_1_181212063719`
-    is the adapter's job) is returned on `sample_ids` instead, so nothing is lost. Recorded as a
-    change-set representation defect in `HANDOFF.md` §8.
+    While the discriminator owned that name the six columns were unwritable through the documented
+    ingestion path — `{**props}` would have overwritten the node type — and the loader's first draft
+    declined to emit them, which was a workaround, not a fix. The discriminator is now `__label__`
+    (ADR-0019, 2026-08-07) and both live side by side. This asserts the pair, not just the column:
+    a regression that reinstated the collision would silently satisfy a column-only check.
+
+    `Sample.label` is the mapping key verbatim — the column header the curation was written
+    against, un-normalised, because tidying `KO_1_181212063719` is the adapter's job.
     """
-    assert {n["label"] for n in _nodes(loaded, "Sample")} == {"Sample"}
-    assert set(loaded.sample_ids) == {
-        "Intensity CTRL_1",
-        "Intensity CTRL_2",
-        "Intensity TREAT_1",
-        "Intensity TREAT_2",
-    }
+    for node in _nodes(loaded, "Sample"):
+        assert node[NODE_TYPE_KEY] == "Sample"
+        assert node["label"] in loaded.sample_ids
+    assert {n["label"] for n in _nodes(loaded, "Sample")} == set(loaded.sample_ids)
+    dataset = _nodes(loaded, "Dataset")[0]
+    assert dataset[NODE_TYPE_KEY] == "Dataset"
+    assert dataset["label"] == "SYNTHETIC_GlyGlyKSites.txt"
+
+
+def test_ids_do_not_depend_on_the_label_column(
+    loaded: LoadedCuration, synthetic: dict[str, Any]
+) -> None:
+    """`label` is excluded from identity on every node that has one (§3), so writing it moves no id.
+
+    Worth pinning: the column became writable in the same change that started writing it, and if it
+    had leaked into the identity tuple every `Sample` and `Dataset` id in the graph would shift the
+    day an adapter set a different label for the same sample.
+    """
+    changed = copy.deepcopy(synthetic)
+    changed["mapping"]["Intensity CTRL_1 renamed"] = changed["mapping"].pop("Intensity CTRL_1")
+    assert set(load(changed).sample_ids.values()) == set(loaded.sample_ids.values())
 
 
 def test_dataset_records_pipeline_metadata_without_branching(loaded: LoadedCuration) -> None:

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.16 |
+| Version | 1.17 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -137,6 +137,7 @@ The last two rows are the exception to the digest rule: provenance agents key on
 |---|---|---|---|
 | `Sample` | `cell_line` | determined | `source_type` — NULL for tissue |
 | `Sample` | `model_system` | determined | `source_type` — NULL in vitro; exactly one of this and `cell_line` is present |
+| `Sample` | `timepoint_h` | determined | `treatment` — NULL where `treatment = 'none'`. The column is hours *since treatment* (§5 DDL), so an untreated arm has no elapsed-since-treatment and the value does not exist. Classified 2026-08-07, when the curation loader refused six PXD018299 samples over it: the column carried no DDL comment, so "unknown" and "inapplicable" were indistinguishable and the null looked contingent. Defining what the column measures is what settled it — the classification followed, it was not chosen to clear a refusal |
 | `Analysis` | `basis` | determined | `kind` — curation only (§5.3) |
 | `Analysis` | `confidence` | determined | `kind` — curation only (§5.3) |
 | `Analysis` | `quantity` | determined | `kind` — a curation analysis consumes none (I16) |
@@ -292,8 +293,11 @@ CREATE NODE TABLE Sample(
   organism_taxid INT64,         -- REQUIRED. Mouse and human coexist in one graph.
   model_system STRING,          -- e.g. '4T1 BALB/c subcutaneous'; NULL in vitro
   genotype STRING,              -- e.g. 'USP18-/-', 'USP18 C64R/C65R'
-  treatment STRING,             -- e.g. 'IFN-alpha2b 10 U/mL'
-  timepoint_h DOUBLE,
+  treatment STRING,             -- e.g. 'IFN-alpha2b 10 U/mL'; 'none' for an untreated arm
+  timepoint_h DOUBLE,           -- hours SINCE TREATMENT, not hours in culture.
+                                -- NULL where treatment = 'none': an untreated arm has no
+                                -- elapsed-since-treatment, so the value does not exist rather
+                                -- than being unknown (§3 absence table).
   replicate INT64,
   replicate_type STRING,        -- 'biological' | 'technical'
   PRIMARY KEY (id));

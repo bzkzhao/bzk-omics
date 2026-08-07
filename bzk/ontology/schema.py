@@ -45,6 +45,7 @@ CURATION_CONFIDENCE: frozenset[str] = frozenset(CURATION_BASIS.values())
 ABSENCE: dict[tuple[str, str], str] = {
     ("Sample", "cell_line"): "determined",
     ("Sample", "model_system"): "determined",
+    ("Sample", "timepoint_h"): "determined",
     ("Analysis", "basis"): "determined",
     ("Analysis", "confidence"): "determined",
     ("Analysis", "quantity"): "determined",

@@ -19,6 +19,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
+# A change-set node is `{invariants.NODE_TYPE_KEY: <node type>, "id", **columns}` and an edge is
+# `{"type", "from", "to", **properties}` — the format ADR-0019 governs and `invariants.py` enforces.
+# The node-type key is `__label__`, not `label`, because `label` is a real DDL column on six node
+# tables; see that module. Note the distinction from `SampleMapping.samples` below, whose entries
+# are descriptors rather than change-set nodes.
 Node = dict[str, Any]
 Edge = dict[str, Any]
 

@@ -18,6 +18,7 @@ from typing import Any
 import kuzu
 
 from bzk.ontology import schema
+from bzk.ontology.invariants import NODE_TYPE_KEY
 
 ONTOLOGY = Path(__file__).resolve().parents[1] / "ONTOLOGY.md"
 MULTIPLICITIES = {"ONE_ONE", "ONE_MANY", "MANY_ONE", "MANY_MANY"}
@@ -66,9 +67,9 @@ def test_schema_rel_tables_match_ontology() -> None:
 
 
 def _walk_nodes(obj: object) -> Iterator[dict[str, Any]]:
-    """Yield every dict carrying an 'id' and a 'label' — the node shape, wherever it is nested."""
+    """Yield every dict carrying an 'id' and a node-type key — the node shape, wherever nested."""
     if isinstance(obj, dict):
-        if "id" in obj and "label" in obj:
+        if "id" in obj and NODE_TYPE_KEY in obj:
             yield obj
         for value in obj.values():
             yield from _walk_nodes(value)
@@ -253,7 +254,7 @@ def test_absent_identifying_fields_are_determined_not_contingent() -> None:
     for folder in ("tests/fixtures", "data/curation"):
         for path in (root / folder).rglob("*.json"):
             for node in _walk_nodes(json.loads(path.read_text())):
-                label = str(node["label"])  # _walk_nodes only yields dicts carrying one
+                label = str(node[NODE_TYPE_KEY])  # _walk_nodes only yields dicts with one
                 for field in identifying.get(label, ()):
                     if node.get(field) is None:
                         seen += 1
@@ -371,7 +372,7 @@ def test_reference_ids_on_disk_are_canonical() -> None:
     for folder in ("tests/fixtures", "data/curation"):
         for path in (root / folder).rglob("*.json"):
             for node in _walk_nodes(json.loads(path.read_text())):
-                label, node_id = node.get("label"), node.get("id", "")
+                label, node_id = node.get(NODE_TYPE_KEY), node.get("id", "")
                 if label not in {"Protein", "ProteinSequence", "ModificationSite", "Modifier"}:
                     continue
                 seen += 1

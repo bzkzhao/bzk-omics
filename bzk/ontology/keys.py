@@ -90,6 +90,12 @@ def identity_tuple(
     if spec is None:
         raise KeyError_(f"{label!r} has no identity spec in schema.IDENTITY")
     types = _COLUMN_TYPES.get(label, {})
+    # `label=` here is the hashed identity tuple, NOT the change-set's node-type key — which was
+    # renamed to `__label__` in 2026-08-07's ADR-0019 addendum. This one deliberately did not
+    # follow: these bytes are hash input, so renaming the prefix would re-mint every evidence id in
+    # the graph to fix a name collision that does not exist here (a node's *columns* never enter
+    # the tuple by this route — only `spec.fields` do, and `label` is excluded from identity on
+    # every node that has such a column).
     parts = [f"label={label}"]
 
     for field in sorted(spec.fields):

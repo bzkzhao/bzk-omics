@@ -8,9 +8,9 @@ a curation `Analysis`, with every `Sample` carrying `SAMPLE_GENERATED_BY` to tha
 `Sample` reaching no curation activity is permanently and correctly flagged `unprovenanced` (I5).
 
 **Refusing is the principal behaviour, not a guard bolted on.** Under ADR-0021 a node cannot be
-minted without its identifying values, and the one real record on disk is missing three of them. So
-the loader collects everything the curator owes and raises once, by exact field name. Two
-independent layers find them:
+minted without its identifying values, and the one real record on disk is still missing two of them
+(`project.title`, `experiment.title`). So the loader collects everything the curator owes and raises
+once, by exact field name. Two independent layers find them:
 
 1. the record's top-level **`pending`** object — dotted paths to values the curator has explicitly
    marked, so the refusal is by name rather than a late failure on a null, and the curator's note
@@ -20,10 +20,12 @@ independent layers find them:
    `curated`. This layer does not consult the markers, which is the point: a curator who nulls a
    field without recording it must not get a null into an identifying position.
 
-Layer 2 is what makes the marker a convenience rather than the guard. It is also what surfaced the
-third blocker: `Sample.timepoint_h` is identifying, null on the six unstimulated PXD018299 samples,
-and §3 classifies no such absence — the record's own `unresolved` says the methods do not state a
-timepoint, which is a *contingent* absence and exactly what ADR-0021 forbids.
+Layer 2 is what makes the marker a convenience rather than the guard. It is also what surfaced a
+third blocker the markers said nothing about, since closed: `Sample.timepoint_h` is identifying and
+null on the six unstimulated PXD018299 samples, and §3 classified no such absence. The fix was not
+to reclassify the null but to define the column — §5 gave `timepoint_h` no comment, so "unknown"
+and "inapplicable" were indistinguishable. It is hours *since treatment*, so an untreated arm has
+none, and §3 now classifies the absence as determined by `treatment` (ONTOLOGY v1.17).
 
 **Nothing here derives a missing value.** Not a title from an accession, not a DOI from the prose in
 `rationale`, not a tidied sample name from a column header. Inventing one is forbidden (`CLAUDE.md`:
@@ -41,6 +43,7 @@ from typing import Any
 
 from bzk.adapters.base import Edge, Node, SampleMapping
 from bzk.ontology import invariants, schema
+from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.ontology.keys import evidence_id
 
 # Record key -> the node field it supplies, for the flat blocks. Sample fields come from `mapping`
@@ -52,9 +55,9 @@ _DATASET_FROM_RECORD = {
     "search_engine_version": "search_engine_version",
 }
 
-# `Sample` columns the loader reads out of a `mapping` entry. `label` is deliberately absent — see
-# `_sample_node`. `model_system` is read even though no record supplies it, so that a record which
-# does supply it is not silently dropped.
+# `Sample` columns the loader reads out of a `mapping` entry. `label` is not among them: it is not
+# a curator-supplied field but the mapping key itself, set in `load`. `model_system` is read even
+# though no record supplies it, so that a record which does supply it is not silently dropped.
 _SAMPLE_FIELDS = (
     "source_type",
     "cell_line",
@@ -66,13 +69,6 @@ _SAMPLE_FIELDS = (
     "replicate",
     "replicate_type",
 )
-
-# A change-set node is `{"label": <node type>, "id", **props}` (`invariants.py`), so a DDL column
-# literally called `label` cannot be written without overwriting the node type. These are the node
-# types where that collision exists; the loader emits every other column and skips this one.
-# Recorded as a representation defect in HANDOFF.md §8 — the fix is the change-set shape, not a
-# rename here, and none of these columns is identifying (§3) so no id depends on the omission.
-_LABEL_COLUMN_COLLIDES = frozenset({"Sample", "Dataset", "Analysis", "Contrast", "Disease", "Drug"})
 
 
 class CurationError(ValueError):
@@ -147,14 +143,7 @@ def _node(label: str, node_id: str, props: Mapping[str, Any]) -> Node:
     unknown = set(props) - columns
     if unknown:  # a typo'd field would otherwise be dropped silently and change no id
         raise CurationError(f"{label} has no column(s) {sorted(unknown)} in the DDL")
-    if "label" in props and label in _LABEL_COLUMN_COLLIDES:
-        # Loud rather than silent: `{**props}` would overwrite the node type and the change-set
-        # would fail structural validation somewhere far from the cause.
-        raise CurationError(
-            f"{label}.label is a DDL column and 'label' is also the change-set's node-type key, "
-            "so writing it would overwrite the node type — see HANDOFF.md §8"
-        )
-    return {"label": label, "id": node_id, **props}
+    return {NODE_TYPE_KEY: label, "id": node_id, **props}
 
 
 _COLUMNS: dict[str, list[tuple[str, str]]] = {t.name: t.columns for t in schema.NODE_TABLES}
@@ -252,13 +241,22 @@ def load(record: Mapping[str, Any]) -> LoadedCuration:
         "organism_taxid": experiment_block.get("organism_taxid"),
     }
     dataset = {
+        # `label` is writable again since the discriminator moved to `__label__` (ADR-0019,
+        # 2026-08-07). It carries the recorded filename, not a composed sentence: the loader emits
+        # values the record holds and does not write display prose of its own.
+        "label": record.get("file"),
         "content_hash": record.get("content_hash"),
         "external_accession": record.get("accession") or record.get("dataset"),
         **{col: record.get(key) for key, col in _DATASET_FROM_RECORD.items()},
     }
     mapping: dict[str, dict[str, Any]] = dict(record.get("mapping") or {})
     samples = {
-        key: {name: entry.get(name) for name in _SAMPLE_FIELDS} for key, entry in mapping.items()
+        # `label` is the mapping key verbatim — the column header this curation was written
+        # against, un-normalised. Tidying `KO_1_181212063719` is the adapter's job (`ROADMAP.md`
+        # § Measured findings); doing it here would add information the record does not carry.
+        # Non-identifying (§3), so it moves no id.
+        key: {"label": key, **{name: entry.get(name) for name in _SAMPLE_FIELDS}}
+        for key, entry in mapping.items()
     }
 
     # Both layers run over everything before anything is raised, so one pass tells the curator the

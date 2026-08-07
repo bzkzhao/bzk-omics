@@ -8,7 +8,8 @@ The invariants of ONTOLOGY.md §8 are errors, not warnings (CLAUDE.md): a violat
   validation** (ADR-0019): every referent an edge names is present, every edge endpoint carries
   the node label `schema.py` declares for that relationship, every edge type is a relationship in
   the DDL, every relationship's multiplicity is respected (a MANY_ONE source or a ONE_MANY
-  destination appears at most once in the change-set), and every node has a unique id. Structural
+  destination appears at most once in the change-set), and every node has a unique id and declares
+  a node type the DDL knows. Structural
   failures raise ``STRUCTURE``, except a
   missing or mislabelled endpoint on a relationship a specific invariant owns (SITE_ON→I2,
   ASSIGNS→I3, ASSOCIATION_FOR→I10, ASSIGNS_PROTEIN→I14), which raises that invariant. Structural
@@ -30,10 +31,16 @@ construction · write-path · data = storage layer). Tracked in HANDOFF.md §8:
   - I17 (CON)        reviewed preferred — recorded by the adapter / ProteinAssignment construction
   - I18 (EX)         embargo — the export-boundary check; must land with the first export path
 
-A change-set is plain data, independent of Kùzu storage: a node is ``{"label", "id", **props}`` and
-an edge is ``{"type", "from", "to"}``. Relationship and label expectations are derived from
-`schema.py` (the mirror of ONTOLOGY.md §4-7), never restated here — domain logic stays out of code
-that consumes the contract (ONTOLOGY.md §10).
+A change-set is plain data, independent of Kùzu storage: a node is
+``{NODE_TYPE_KEY, "id", **props}`` and an edge is ``{"type", "from", "to"}``. Relationship and label
+expectations are derived from `schema.py` (the mirror of ONTOLOGY.md §4-7), never restated here —
+domain logic stays out of code that consumes the contract (ONTOLOGY.md §10).
+
+**The node-type key is ``__label__``, not ``label``** (ADR-0019, renamed 2026-08-07). ``label`` is a
+real DDL column on six node tables — `Sample`, `Dataset`, `Analysis`, `Contrast`, `Disease`, `Drug`
+— so while the discriminator owned that name those six columns could not be written through this
+contract at all: ``{**props}`` would have overwritten the node type. Every column in §4-§7 matches
+``[a-z][a-z0-9_]*``, so a dunder key cannot collide with one now or later.
 """
 
 from __future__ import annotations
@@ -53,10 +60,15 @@ from bzk.ontology.schema import (
 Node = dict[str, Any]
 Edge = dict[str, Any]
 
+# The node-type discriminator. Read it from here rather than writing the literal, so the next
+# rename is one edit — the reason the last one was mechanical is that there were no adapters yet.
+NODE_TYPE_KEY = "__label__"
+
 # Endpoint labels, valid relationship names, and multiplicity per relationship — derived from the
 # schema, so this module mirrors ONTOLOGY.md rather than becoming a second source of truth.
 _REL_ENDPOINTS: dict[str, tuple[str, str]] = {t.name: (t.src, t.dst) for t in schema.REL_TABLES}
 _REL_MULT: dict[str, str | None] = {t.name: t.multiplicity for t in schema.REL_TABLES}
+_NODE_LABELS: frozenset[str] = frozenset(t.name for t in schema.NODE_TABLES)
 
 # Relationships a write-time invariant consults; a structural failure on one is that invariant's.
 _REL_INVARIANT: dict[str, str] = {
@@ -76,7 +88,7 @@ class InvariantError(Exception):
 
 
 def _nodes(nodes: Iterable[Node], label: str) -> list[Node]:
-    return [n for n in nodes if n.get("label") == label]
+    return [n for n in nodes if n.get(NODE_TYPE_KEY) == label]
 
 
 def _edges(edges: Iterable[Edge], rel: str) -> list[Edge]:
@@ -94,10 +106,26 @@ def _validate_structure(nodes: list[Node], edges: list[Edge]) -> None:
     for node in nodes:
         node_id = node.get("id")
         if node_id is None:
-            raise InvariantError("STRUCTURE", f"node labelled {node.get('label')!r} has no id")
+            raise InvariantError(
+                "STRUCTURE", f"node labelled {node.get(NODE_TYPE_KEY)!r} has no id"
+            )
         if node_id in seen:
             raise InvariantError("STRUCTURE", f"duplicate node id {node_id!r} in the change-set")
         seen.add(node_id)
+        # Every node declares a node type the DDL knows. Until 2026-08-07 a node type was only ever
+        # checked where an *edge* pointed at it, so a node no edge referenced could carry a typo'd
+        # type or none at all and pass. The discriminator rename in the same ADR is what exposed
+        # it: a producer still emitting the old `label` key yields nodes with no type, and the one
+        # thing that must not do is validate. Checked after `id` so an id-less node still reports
+        # as one.
+        node_type = node.get(NODE_TYPE_KEY)
+        if node_type not in _NODE_LABELS:
+            raise InvariantError(
+                "STRUCTURE",
+                f"node {node_id!r} declares {NODE_TYPE_KEY}={node_type!r}, which is not a node "
+                f"table in the schema. A node's type is carried by {NODE_TYPE_KEY!r}, not 'label' "
+                "— 'label' is a DDL column on six node tables (ADR-0019, 2026-08-07).",
+            )
 
     by_id = {node["id"]: node for node in nodes if "id" in node}
     # MANY_ONE / ONE_ONE constrain the source side; ONE_MANY / ONE_ONE the destination side.
@@ -117,10 +145,11 @@ def _validate_structure(nodes: list[Node], edges: list[Edge]) -> None:
                 raise InvariantError(
                     owner, f"{rel} names {role} {edge.get(role)!r}, absent from the change-set"
                 )
-            if referent.get("label") != expected:
+            if referent.get(NODE_TYPE_KEY) != expected:
                 raise InvariantError(
                     owner,
-                    f"{rel} {role} {edge.get(role)!r} is labelled {referent.get('label')!r}, "
+                    f"{rel} {role} {edge.get(role)!r} is labelled "
+                    f"{referent.get(NODE_TYPE_KEY)!r}, "
                     f"not {expected!r} as the schema declares",
                 )
 

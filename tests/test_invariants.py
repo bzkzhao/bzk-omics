@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from bzk.ontology.invariants import InvariantError, validate
+from bzk.ontology.invariants import NODE_TYPE_KEY, InvariantError, validate
 
 VALID_CHANGESET = Path(__file__).parent / "fixtures" / "valid_changeset.json"
 
@@ -26,8 +26,11 @@ USP18 = "uniprot:O43593"
 GG = "unimod:121"
 
 
-def n(label: str, **props: object) -> dict[str, object]:
-    return {"label": label, **props}
+def n(node_type: str, **props: object) -> dict[str, object]:
+    """Build a change-set node. The parameter is `node_type`, not `label`, for the same reason the
+    discriminator is `__label__`: `label` is a real column and a test that sets one must be able
+    to. This helper hit the collision itself the moment such a test was written."""
+    return {NODE_TYPE_KEY: node_type, **props}
 
 
 def e(rel: str, frm: str, to: str) -> dict[str, str]:
@@ -361,6 +364,45 @@ def test_structure_node_without_id_raises() -> None:
         validate([n("Protein", sequence_version=1)], [])  # no id
     assert ei.value.invariant == "STRUCTURE"
     assert "has no id" in str(ei.value)
+
+
+def test_structure_node_with_no_type_raises() -> None:
+    """A node no edge references was previously unchecked, so it could carry no node type at all.
+
+    Node types were only ever verified where an edge pointed at one, which left this hole: a
+    change-set of nothing but untyped nodes validated clean. Found 2026-08-07 while checking the
+    discriminator rename had no silent-failure mode — it has exactly this one.
+    """
+    with pytest.raises(InvariantError) as ei:
+        validate([{"id": "bzk:x1"}], [])
+    assert ei.value.invariant == "STRUCTURE"
+    assert NODE_TYPE_KEY in str(ei.value)
+
+
+def test_structure_old_style_node_is_rejected_not_silently_accepted() -> None:
+    """The regression the rename could have caused: a producer still emitting `label`.
+
+    Before the node-type check, `{"label": "Sample", "id": ...}` passed — the old key was ignored,
+    the node had no type, and nothing complained. A stale adapter would have written type-less
+    nodes into the graph. The error names the right key so the fix is obvious from the message.
+    """
+    with pytest.raises(InvariantError) as ei:
+        validate([{"label": "Sample", "id": "bzk:s1"}], [])
+    assert ei.value.invariant == "STRUCTURE"
+    assert "'label'" in str(ei.value)
+
+
+def test_structure_unknown_node_type_raises() -> None:
+    """A typo'd node type is not a node table, and mints an id under a label the DDL lacks."""
+    with pytest.raises(InvariantError) as ei:
+        validate([n("Smaple", id="bzk:s1")], [])
+    assert ei.value.invariant == "STRUCTURE"
+    assert "Smaple" in str(ei.value)
+
+
+def test_structure_a_node_may_carry_both_the_type_key_and_a_label_column() -> None:
+    """The point of the rename: `Sample.label` is a real column and must be writable."""
+    validate([n("Sample", id="bzk:s1", label="WT_IFN_1", replicate=1)], [])
 
 
 def test_structure_duplicate_node_id_raises() -> None:
