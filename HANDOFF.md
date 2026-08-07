@@ -198,14 +198,35 @@ identifying values, so the loader must refuse rather than invent.
    no `Dataset` there is no `USED` anchor for an `Analysis` and no `REPORTED_BY` for an observation.
    **Fix:** back-fill the SHA-256 when the input file is next in hand — which is the same moment
    `raw/` gets populated, so the two unblock together.
-2. **No `Project` or `Experiment`, so no `Sample`.** `curation_PXD018299.json`'s `mapping` carries
-   exactly `Sample`'s identifying fields — genotype, treatment, timepoint_h, replicate,
-   replicate_type, cell_line, organism_taxid — but `Sample` anchors on `Experiment` (`PERFORMED_ON`)
-   and `Experiment` on `Project` (`CONTAINS`), and the record names neither. `modality` is present
-   (an `Experiment` field); the titles are not. **Fix:** decide whether the curation record grows a
-   project/experiment block, or whether the loader mints a per-dataset `Experiment` from the
-   accession. The first is honest curation; the second invents a title, which `CLAUDE.md` forbids.
-   Settle before writing the loader — it determines the record format.
+2. **No `Project` or `Experiment`, so no `Sample`** — **format decided 2026-08-07: the record grows
+   the block.** Minting an `Experiment` from the accession was rejected: it would invent a title,
+   which `CLAUDE.md` forbids, and the title is the curator's to supply. `Sample` anchors on
+   `Experiment` (`PERFORMED_ON`) and `Experiment` on `Project` (`CONTAINS`), so the whole chain must
+   be constructible before any `Sample` id exists. The block is **exactly the identifying fields of
+   those two nodes and nothing more**:
+
+   ```jsonc
+   "project":    { "title": null },                       // REQUIRED — Project's only identifying field
+   "experiment": { "title": null,                         // REQUIRED — identifying
+                   "modality": "digly_proteomics",        // REQUIRED — identifying; moved from top level
+                   "organism_taxid": 9606 }               // REQUIRED — identifying since ONTOLOGY v1.13
+   ```
+
+   `modality` **moved** out of the top level into the block rather than being duplicated: it is an
+   `Experiment` field, and two homes for one fact is the defect this repository keeps repairing.
+   `Project.created_at` is not in the block — it is non-identifying, so the loader does not need it.
+
+   A third, smaller instance sits in `mapping`: every entry now carries `source_type` (null,
+   awaiting the curator). It is identifying on `Sample` and is **not** a determined absence, so a
+   `Sample` cannot be keyed without it — whereas `model_system` may stay absent for a cell line,
+   because *that* absence is determined by `source_type` (§3).
+
+   Consequence worth stating: `organism_taxid` is asserted at experiment level rather than derived
+   from the samples, so **one `Experiment` is one organism**, and cross-species work is two
+   experiments rather than one with mixed samples.
+
+   Values are left null in `curation_PXD018299.json`, with the requirement recorded in that file's
+   own `unresolved` list. **The loader waits on them.**
 
 Neither is a defect in the loader design; both are the record format meeting a rule that did not
 exist when the records were hand-written. `source_type` is a third, smaller instance: `Sample`

@@ -1,7 +1,14 @@
 {
   "accession": "PXD018299",
   "file": "HAP1_USP18KO_GlyGlyKSites.txt",
-  "modality": "digly_proteomics",
+  "project": {
+    "title": null
+  },
+  "experiment": {
+    "title": null,
+    "modality": "digly_proteomics",
+    "organism_taxid": 9606
+  },
   "search_engine": "maxquant",
   "search_engine_version": "1.5.5.1",
   "acquisition_mode": "dda",
@@ -14,7 +21,10 @@
   "unresolved": [
     "Timepoint for the unstimulated (non-IFN) arms is not stated separately in the methods; timepoint_h is therefore recorded only for the IFN arms and left absent elsewhere rather than assumed to be 48 h.",
     "Replicate type (biological vs technical) is not explicitly stated in the methods for the GlyGly peptidome. Recorded as 'unspecified' pending author correspondence. This affects how the variance estimate in any differential test should be interpreted.",
-    "Whether a matched wild-type-only site table exists as a separate file in the deposit, or whether this single table contains all twelve samples. The column names indicate the latter."
+    "Whether a matched wild-type-only site table exists as a separate file in the deposit, or whether this single table contains all twelve samples. The column names indicate the latter.",
+    "project.title and experiment.title are not supplied. Both are identifying (ONTOLOGY.md §3), so no Experiment id and therefore no Sample id can be constructed until the curator provides them. The loader must refuse rather than derive a title from the accession — inventing one is forbidden (CLAUDE.md: real external identifiers only).",
+    "experiment.organism_taxid is stated at experiment level rather than derived from the mapping, because it is identifying on Experiment (ONTOLOGY.md §3). Consequence: one organism per Experiment, so cross-species work is two Experiments, not one with mixed samples.",
+    "Each mapping entry needs source_type ('cell_line' | 'tumour_tissue' | 'primary_cell'). It is identifying on Sample and is NOT a determined absence, so a Sample cannot be keyed without it. model_system stays absent for a cell line — that absence IS determined by source_type (§3)."
   ],
   "contrasts_of_interest": [
     {
@@ -37,6 +47,7 @@
       "timepoint_h": null,
       "replicate": 1,
       "replicate_type": "unspecified",
+      "source_type": null,
       "cell_line": "HAP1",
       "organism_taxid": 9606
     },
@@ -46,6 +57,7 @@
       "timepoint_h": null,
       "replicate": 2,
       "replicate_type": "unspecified",
+      "source_type": null,
       "cell_line": "HAP1",
       "organism_taxid": 9606
     },
@@ -55,6 +67,7 @@
       "timepoint_h": null,
       "replicate": 3,
       "replicate_type": "unspecified",
+      "source_type": null,
       "cell_line": "HAP1",
       "organism_taxid": 9606
     },
@@ -64,6 +77,7 @@
       "timepoint_h": 48,
       "replicate": 1,
       "replicate_type": "unspecified",
+      "source_type": null,
       "cell_line": "HAP1",
       "organism_taxid": 9606
     },
@@ -73,6 +87,7 @@
       "timepoint_h": 48,
       "replicate": 2,
       "replicate_type": "unspecified",
+      "source_type": null,
       "cell_line": "HAP1",
       "organism_taxid": 9606
     },
@@ -82,6 +97,7 @@
       "timepoint_h": 48,
       "replicate": 3,
       "replicate_type": "unspecified",
+      "source_type": null,
       "cell_line": "HAP1",
       "organism_taxid": 9606
     },
@@ -91,6 +107,7 @@
       "timepoint_h": null,
       "replicate": 1,
       "replicate_type": "unspecified",
+      "source_type": null,
       "cell_line": "HAP1",
       "organism_taxid": 9606,
       "note": "Trailing token 181212063719 is an instrument run identifier, not a condition."
@@ -101,6 +118,7 @@
       "timepoint_h": null,
       "replicate": 2,
       "replicate_type": "unspecified",
+      "source_type": null,
       "cell_line": "HAP1",
       "organism_taxid": 9606
     },
@@ -110,6 +128,7 @@
       "timepoint_h": null,
       "replicate": 3,
       "replicate_type": "unspecified",
+      "source_type": null,
       "cell_line": "HAP1",
       "organism_taxid": 9606
     },
@@ -119,6 +138,7 @@
       "timepoint_h": 48,
       "replicate": 1,
       "replicate_type": "unspecified",
+      "source_type": null,
       "cell_line": "HAP1",
       "organism_taxid": 9606
     },
@@ -128,6 +148,7 @@
       "timepoint_h": 48,
       "replicate": 2,
       "replicate_type": "unspecified",
+      "source_type": null,
       "cell_line": "HAP1",
       "organism_taxid": 9606
     },
@@ -137,6 +158,7 @@
       "timepoint_h": 48,
       "replicate": 3,
       "replicate_type": "unspecified",
+      "source_type": null,
       "cell_line": "HAP1",
       "organism_taxid": 9606
     }
