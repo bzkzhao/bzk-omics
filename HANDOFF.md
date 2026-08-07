@@ -155,6 +155,38 @@ All three cost time during exploration. All three are the same class: code that 
 | Search engine for the new USP18 dataset | Assumption A2 | Yes for that dataset only |
 | Where in his pipeline the handover belongs | `ROADMAP.md` § Open questions | No — ask at the meeting |
 
+### Unenforced invariants (audit 2026-08-07), by class
+
+The write-time change-set checks (I2, I3, I4, I10, I14, I15, I16, I19) and change-set structural
+validation (ADR-0019) are enforced in `bzk/ontology/invariants.py`. The rest are not yet enforced;
+grouped by *how* they must be enforced, so a source-tree lint is not mistaken for a data check.
+
+- **CS — write-time change-set check, not written.** **I1** (disjointness: reject locally-authored
+  reference–reference edges; ref–ref edges carry `source`). **I8** (also WG: every `Sample` reaches a
+  curation `Analysis` via `SAMPLE_GENERATED_BY`).
+- **WG — whole-graph / query-time, not written.** **I5** (provenance reachability; entities with no
+  path to an `Analysis` flagged `unprovenanced` at query time, §7). **I8** (the reachability half).
+- **EX — export boundary, not written.** **I18** (embargo). *Trigger: I18 must land with the first
+  export, report or figure-writing path, before that path merges.* The risk is not the embargoed
+  dataset arriving — local queries over it are unrestricted (§8) — it is the first code that can
+  write a file. Streamlit output is on the v0.1 list, so this is an ordering constraint on that work,
+  not a reminder.
+- **LINT — source-tree lint, not a data check, not written.** **I12** (no tryptic assumptions in
+  core: no assumption peptides end in K/R, carry one modification, or map to one protein). **I13**
+  (no branching on `search_engine` / `acquisition_mode` / `library_type` / `test` outside
+  `adapters/` and the stats registry). Both need a test that greps/parses the source, not a
+  change-set.
+- **CON — enforced by construction, pending the code that constructs.** **I7** (deterministic
+  content-derived reference keys; holds once a single key builder exists). **I17** (reviewed
+  preferred — see the table row above; recorded by the adapter or `ProteinAssignment` construction).
+- **write-path, not written.** **I6** (append-only assertions: reject in-place edits of
+  `ModifierAssignment` / `DifferentialResult`; supersession creates a new node; retraction
+  propagation is a v0.2 action-layer concern).
+- **data layer, pending.** **I11** (quantitative retention: every observation keeps its per-sample
+  matrix in DuckDB — needs the `quant/` layer).
+- **OP — operational, partial.** **I9** (reproducible rebuild — exercised by `rebuild.py` for schema
+  recreation; full regeneration pending adapters).
+
 ---
 
 ## 9. Delete this file

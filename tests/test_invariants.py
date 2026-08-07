@@ -1,30 +1,29 @@
-"""Invariant enforcement tests — written before the schema, and failing by design.
+"""Invariant enforcement tests.
 
-Per HANDOFF.md §3 and ARCHITECTURE.md §4a, the invariant suite is authored first and
-fails first: "an adapter that ingests data while violating I3 or I14 is worse than no
-adapter." These tests import ``bzk.ontology.invariants``, which does not exist yet, so
-collection fails with ImportError — that is the correct initial state. Once
-``bzk/ontology/invariants.py`` and ``bzk/ontology/schema.py`` exist, each test must go
-green by *rejecting* the violating change.
-
-Scope: one case per invariant checkable at write time (HANDOFF.md §3) —
-I2, I3, I4, I10, I14, I15, I16, I19. Invariants that can only be enforced at the export
-boundary (I18) or over the whole rebuilt graph (I5, I9) are not write-time cases and are
-covered elsewhere.
-
-Contract asserted here (provisional, to be realised by invariants.py):
-``validate(nodes, edges, only="I?") -> None`` runs a single invariant's rule over a
-staged change-set and raises ``InvariantError`` (carrying ``.invariant``) on violation.
-The change-set is plain data — node = ``{"label", **props}``, edge =
-``{"type", "from", "to"}`` — mirroring ONTOLOGY.md §4-6, so invariant logic stays a pure
-function independent of Kùzu storage. Identifiers are real (ONTOLOGY.md §9).
+One case per write-time invariant (I2, I3, I4, I10, I14, I15, I16, I19), each asserting the
+specific message so an untested second branch cannot hide (F2); the branch tests that F2 found
+missing; a shared valid change-set every check accepts, proving none rejects unconditionally (F3);
+the missing-referent cases that used to pass vacuously (F1); and change-set structural validation
+(ADR-0019) across its four holes. Identifiers are real (ONTOLOGY.md §9).
 """
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from bzk.ontology.invariants import InvariantError, validate
+
+VALID_CHANGESET = Path(__file__).parent / "fixtures" / "valid_changeset.json"
+
+# Real external identifiers (ONTOLOGY.md §9; USP18 = O43593).
+UBIQUITIN = "uniprot:P0CG48"
+MX1 = "uniprot:P20591"
+IFIT1_2 = "uniprot:P09914-2"
+USP18 = "uniprot:O43593"
+GG = "unimod:121"
 
 
 def n(label: str, **props: object) -> dict[str, object]:
@@ -35,35 +34,34 @@ def e(rel: str, frm: str, to: str) -> dict[str, str]:
     return {"type": rel, "from": frm, "to": to}
 
 
-# Real external identifiers (ONTOLOGY.md §9 worked example; USP18 = O43593).
-UBIQUITIN = "uniprot:P0CG48"
-MX1 = "uniprot:P20591"
-IFIT1_2 = "uniprot:P09914-2"
-USP18 = "uniprot:O43593"
-GG = "unimod:121"
+# ── F3: the valid change-set every check accepts ──────────────────────────────────────────────
+
+
+def test_valid_changeset_passes_every_check() -> None:
+    cs = json.loads(VALID_CHANGESET.read_text())
+    validate(cs["nodes"], cs["edges"])  # structural + all checks: must not raise
+    for inv in ["I2", "I3", "I4", "I10", "I14", "I15", "I16", "I19"]:
+        validate(cs["nodes"], cs["edges"], only=inv)  # each check accepts valid input
+
+
+# ── One violation per invariant, asserting the branch via its message ─────────────────────────
 
 
 def test_I2_site_parent_protein_needs_sequence_version() -> None:
-    """I2 — a ModificationSite whose parent Protein lacks a sequence_version cannot exist.
-
-    Residue numbering is meaningless without a fully specified sequence (ONTOLOGY.md §8 I2).
-    """
     site = f"{MX1}#sv?#K48#{GG}"
     nodes = [
-        n("Protein", id=MX1, sequence_version=None, sequence="MVVSEVDIAKADK"),  # unpinned
+        n("Protein", id=MX1, sequence_version=None),
         n("ModificationSite", id=site, residue="K", position=48, modification_type=GG),
     ]
-    edges = [e("SITE_ON", site, MX1)]
     with pytest.raises(InvariantError) as ei:
-        validate(nodes, edges, only="I2")
+        validate(nodes, [e("SITE_ON", site, MX1)], only="I2")
     assert ei.value.invariant == "I2"
+    assert "sequence_version" in str(ei.value)
 
 
 def test_I3_ambiguous_assignment_may_not_name_a_modifier() -> None:
-    """I3 — no bare modifier claims: a definite modifier (ASSIGNS edge) may not ride on an
-    assignment whose confidence is still 'ambiguous' (ONTOLOGY.md §6.1, §8 I3)."""
     nodes = [
-        n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR", localization_prob=0.98),
+        n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR"),
         n("Modifier", id=UBIQUITIN, name="ubiquitin", leaves_gg_remnant=True),
         n(
             "ModifierAssignment",
@@ -74,87 +72,78 @@ def test_I3_ambiguous_assignment_may_not_name_a_modifier() -> None:
             retracted_at=None,
         ),
     ]
-    edges = [
-        e("ASSIGNMENT_FOR", "bzk:ma1", "bzk:obs1"),
-        e("ASSIGNS", "bzk:ma1", UBIQUITIN),  # asserting ubiquitin while ambiguous
-    ]
+    edges = [e("ASSIGNMENT_FOR", "bzk:ma1", "bzk:obs1"), e("ASSIGNS", "bzk:ma1", UBIQUITIN)]
     with pytest.raises(InvariantError) as ei:
         validate(nodes, edges, only="I3")
     assert ei.value.invariant == "I3"
+    assert "ambiguous" in str(ei.value)
 
 
 def test_I4_applied_adjustment_requires_adjusted_by_edge() -> None:
-    """I4 — protein_adjusted='applied' requires an ADJUSTED_BY edge to the protein-level
-    result used for correction (ONTOLOGY.md §8 I4)."""
     nodes = [
         n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR"),
-        n(
-            "DifferentialResult",
-            id="bzk:dr1",
-            log2fc=3.4,
-            p_value=1.2e-5,
-            protein_adjusted="applied",
-            adjustment_method="residual_vs_protein_lfc",
-        ),
+        n("DifferentialResult", id="bzk:dr1", log2fc=3.4, protein_adjusted="applied"),
     ]
-    edges = [e("RESULT_FOR_SITE", "bzk:dr1", "bzk:obs1")]  # 'applied' but no ADJUSTED_BY
     with pytest.raises(InvariantError) as ei:
-        validate(nodes, edges, only="I4")
+        validate(nodes, [e("RESULT_FOR_SITE", "bzk:dr1", "bzk:obs1")], only="I4")
     assert ei.value.invariant == "I4"
+    assert "ADJUSTED_BY" in str(ei.value)
+
+
+def test_I4_protein_adjusted_must_be_in_the_enum() -> None:
+    # F2: the enum branch of I4, previously untested.
+    nodes = [n("DifferentialResult", id="bzk:dr1", log2fc=3.4, protein_adjusted="sort_of")]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [], only="I4")
+    assert ei.value.invariant == "I4"
+    assert "must be one of" in str(ei.value)
 
 
 def test_I10_enzyme_attribution_requires_a_live_association() -> None:
-    """I10 — a site may not be presented as an enzyme's product except through a *live*
-    EnzymeAssociation; a retracted one is not live (ONTOLOGY.md §6.2, §8 I10)."""
     nodes = [
         n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR"),
-        n("Protein", id=USP18, sequence_version=1, sequence="MSKAFGLLR"),
+        n("Protein", id=USP18, sequence_version=1),
         n(
             "EnzymeAssociation",
             id="bzk:ea1",
             direction="deconjugates",
             basis="knockout",
             confidence="confirmed",
-            retracted_at="2026-08-14T00:00:00",  # retracted → not live
+            retracted_at="2026-08-14T00:00:00",
         ),
     ]
-    edges = [
-        e("ASSOCIATION_FOR", "bzk:ea1", "bzk:obs1"),
-        e("ASSOCIATION_ENZYME", "bzk:ea1", USP18),
-    ]
+    edges = [e("ASSOCIATION_FOR", "bzk:ea1", "bzk:obs1"), e("ASSOCIATION_ENZYME", "bzk:ea1", USP18)]
     with pytest.raises(InvariantError) as ei:
         validate(nodes, edges, only="I10")
     assert ei.value.invariant == "I10"
+    assert "retracted" in str(ei.value)
 
 
 def test_I14_multimapping_site_needs_confirmed_protein_assignment() -> None:
-    """I14 — a peptide mapping to >1 protein is never rendered against one protein without
-    a ProteinAssignment of confidence='confirmed' (ONTOLOGY.md §6.3, §8 I14; 82% prevalence)."""
     nodes = [
-        n("Protein", id=MX1, sequence_version=3, sequence="MVVSEVDIAKADK"),
-        n("Protein", id=IFIT1_2, sequence_version=2, sequence="MSTNGDDHQVK"),
+        n("Protein", id=MX1, sequence_version=3),
+        n("Protein", id=IFIT1_2, sequence_version=2),
         n("SiteObservation", id="bzk:obs1", peptide_sequence="SHVISADK"),
         n(
             "ProteinAssignment",
             id="bzk:pa1",
-            candidate_proteins=[MX1, IFIT1_2],  # shared peptide, >1 candidate
+            candidate_proteins=[MX1, IFIT1_2],
             basis="razor",
-            confidence="ambiguous",  # not 'confirmed'
+            confidence="ambiguous",
             retracted_at=None,
         ),
     ]
     edges = [
         e("PROTEIN_ASSIGNMENT_FOR", "bzk:pa1", "bzk:obs1"),
-        e("ASSIGNS_PROTEIN", "bzk:pa1", MX1),  # rendered against one, but not confirmed
+        e("ASSIGNS_PROTEIN", "bzk:pa1", MX1),
     ]
     with pytest.raises(InvariantError) as ei:
         validate(nodes, edges, only="I14")
     assert ei.value.invariant == "I14"
+    assert "confirmed" in str(ei.value)
 
 
 def test_I15_analysis_with_results_must_declare_imputation() -> None:
-    """I15 — every Analysis producing differential results links to an Imputation, including
-    method='none' (ONTOLOGY.md §6.5, §8 I15)."""
     nodes = [
         n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR", n_imputed=4),
         n(
@@ -163,30 +152,37 @@ def test_I15_analysis_with_results_must_declare_imputation() -> None:
             kind="processing",
             quantity="intensity",
             localization_threshold=0.75,
-            filters_applied=["reverse", "potential_contaminant"],
+            filters_applied=["reverse"],
             parameters_observed=True,
         ),
         n("DifferentialResult", id="bzk:dr1", log2fc=3.4, protein_adjusted="not_applied"),
     ]
     edges = [
-        e("WAS_GENERATED_BY", "bzk:dr1", "bzk:an1"),  # Analysis yields a result...
+        e("WAS_GENERATED_BY", "bzk:dr1", "bzk:an1"),
         e("RESULT_FOR_SITE", "bzk:dr1", "bzk:obs1"),
-        # ...but no IMPUTATION_FOR edge to any Imputation
     ]
     with pytest.raises(InvariantError) as ei:
         validate(nodes, edges, only="I15")
     assert ei.value.invariant == "I15"
+    assert "declares no Imputation" in str(ei.value)
+
+
+def test_I15_stochastic_imputation_requires_a_seed() -> None:
+    # F2: the seed branch of I15, previously untested.
+    nodes = [n("Imputation", id="bzk:imp1", method="downshifted_normal", seed=None)]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [], only="I15")
+    assert ei.value.invariant == "I15"
+    assert "without a seed" in str(ei.value)
 
 
 def test_I16_analysis_must_declare_quantity() -> None:
-    """I16 — every Analysis records the quantity it consumed and the filters applied,
-    including the localisation threshold (ONTOLOGY.md §8 I16)."""
     nodes = [
         n(
             "Analysis",
             id="bzk:an1",
             kind="processing",
-            quantity=None,  # undeclared
+            quantity=None,
             localization_threshold=0.75,
             filters_applied=["reverse"],
             parameters_observed=True,
@@ -195,11 +191,29 @@ def test_I16_analysis_must_declare_quantity() -> None:
     with pytest.raises(InvariantError) as ei:
         validate(nodes, [], only="I16")
     assert ei.value.invariant == "I16"
+    assert "quantity" in str(ei.value)
+
+
+def test_I16_analysis_must_declare_filters() -> None:
+    # F2: the filters_applied branch of I16, previously untested.
+    nodes = [
+        n(
+            "Analysis",
+            id="bzk:an1",
+            kind="processing",
+            quantity="intensity",
+            localization_threshold=0.75,
+            filters_applied=None,
+            parameters_observed=True,
+        ),
+    ]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [], only="I16")
+    assert ei.value.invariant == "I16"
+    assert "filters" in str(ei.value)
 
 
 def test_I19_analysis_must_set_parameters_observed() -> None:
-    """I19 — every Analysis sets parameters_observed; externally computed results carry
-    reported, not observed, provenance (ONTOLOGY.md §5.4, §8 I19)."""
     nodes = [
         n(
             "Analysis",
@@ -209,9 +223,108 @@ def test_I19_analysis_must_set_parameters_observed() -> None:
             quantity="intensity",
             localization_threshold=0.75,
             filters_applied=["reverse"],
-            parameters_observed=None,  # unset
+            parameters_observed=None,
         ),
     ]
     with pytest.raises(InvariantError) as ei:
         validate(nodes, [], only="I19")
     assert ei.value.invariant == "I19"
+    assert "parameters_observed" in str(ei.value)
+
+
+# ── F1 / ADR-0019 hole (i): a missing referent is the owning invariant's error, not a pass ─────
+
+
+def test_I2_missing_protein_referent_raises() -> None:
+    site = f"{MX1}#sv3#K48#{GG}"
+    nodes = [n("ModificationSite", id=site, residue="K", position=48, modification_type=GG)]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("SITE_ON", site, MX1)], only="I2")  # no Protein node
+    assert ei.value.invariant == "I2"
+    assert "absent from the change-set" in str(ei.value)
+
+
+def test_I3_missing_assignment_referent_raises() -> None:
+    nodes = [n("Modifier", id=UBIQUITIN, name="ubiquitin", leaves_gg_remnant=True)]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("ASSIGNS", "bzk:ma1", UBIQUITIN)], only="I3")  # no ModifierAssignment
+    assert ei.value.invariant == "I3"
+    assert "absent from the change-set" in str(ei.value)
+
+
+def test_I10_missing_association_referent_raises() -> None:
+    nodes = [n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR")]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("ASSOCIATION_FOR", "bzk:ea1", "bzk:obs1")], only="I10")  # no assoc
+    assert ei.value.invariant == "I10"
+    assert "absent from the change-set" in str(ei.value)
+
+
+def test_I14_missing_assignment_referent_raises() -> None:
+    nodes = [n("Protein", id=MX1, sequence_version=3)]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("ASSIGNS_PROTEIN", "bzk:pa1", MX1)], only="I14")  # no ProteinAssignment
+    assert ei.value.invariant == "I14"
+    assert "absent from the change-set" in str(ei.value)
+
+
+# ── ADR-0019 holes (ii) label mismatch, (iii) unknown edge type, (iv) node id integrity ───────
+
+
+def test_structure_unknown_edge_type_raises() -> None:
+    site = f"{MX1}#sv3#K48#{GG}"
+    nodes = [
+        n("ModificationSite", id=site, residue="K", position=48, modification_type=GG),
+        n("Protein", id=MX1, sequence_version=3),
+    ]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("SITS_ON", site, MX1)])  # typo'd relationship
+    assert ei.value.invariant == "STRUCTURE"
+    assert "not a relationship in the schema" in str(ei.value)
+
+
+def test_structure_label_mismatch_on_unowned_relation_is_structural() -> None:
+    site = f"{MX1}#sv3#K48#{GG}"
+    nodes = [
+        n("Protein", id=MX1, sequence_version=3),
+        n("ModificationSite", id=site, residue="K", position=48, modification_type=GG),
+    ]
+    # MEASURED_AT is SiteObservation -> ModificationSite; a Protein 'from' is wrong.
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("MEASURED_AT", MX1, site)])
+    assert ei.value.invariant == "STRUCTURE"
+    assert "not 'SiteObservation'" in str(ei.value)
+
+
+def test_structure_label_mismatch_on_owned_relation_attributes_to_invariant() -> None:
+    # A SITE_ON whose 'to' is not a Protein is I2's error — the guard that makes _check_I2 sound
+    # in reading sequence_version off edge["to"].
+    nodes = [
+        n(
+            "ModificationSite",
+            id=f"{MX1}#sv3#K48#{GG}",
+            residue="K",
+            position=48,
+            modification_type=GG,
+        ),
+        n("Modifier", id=UBIQUITIN, name="ubiquitin", leaves_gg_remnant=True),
+    ]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("SITE_ON", f"{MX1}#sv3#K48#{GG}", UBIQUITIN)])  # to is a Modifier
+    assert ei.value.invariant == "I2"
+    assert "not 'Protein'" in str(ei.value)
+
+
+def test_structure_node_without_id_raises() -> None:
+    with pytest.raises(InvariantError) as ei:
+        validate([n("Protein", sequence_version=1)], [])  # no id
+    assert ei.value.invariant == "STRUCTURE"
+    assert "has no id" in str(ei.value)
+
+
+def test_structure_duplicate_node_id_raises() -> None:
+    nodes = [n("Protein", id="dup", sequence_version=1), n("Modifier", id="dup", name="x")]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [])
+    assert ei.value.invariant == "STRUCTURE"
+    assert "duplicate node id" in str(ei.value)

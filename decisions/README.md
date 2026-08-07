@@ -16,6 +16,7 @@ This exists because a project with one developer and a compressed timeline will 
 | [0015](0015-perseus-s0-default.md) | Perseus `s0` test as the default statistical entry — supersedes 0011 |
 | [0016](0016-embargoed-datasets.md) | Embargoed dataset state for unpublished collaborator data |
 | [0017](0017-downstream-positioning.md) | Downstream positioning, with both ingestion paths |
+| [0019](0019-changeset-structural-validation.md) | Change-sets are self-contained; structural validation precedes invariants |
 
 ## Queued
 
