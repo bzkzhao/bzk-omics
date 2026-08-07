@@ -3,16 +3,12 @@
   "file": "HAP1_USP18KO_GlyGlyKSites.txt",
   "content_hash": "sha256:a4a503e39581334c3553d3631456ad8aca22e193ba928810f6d46fde15622009",
   "project": {
-    "title": null
+    "title": "USP18-dependent ISGylation"
   },
   "experiment": {
-    "title": null,
+    "title": "HAP1 USP18 knockout diGly proteomics, ±IFN-α2b",
     "modality": "digly_proteomics",
     "organism_taxid": 9606
-  },
-  "pending": {
-    "project.title": "IDENTIFYING (ONTOLOGY.md §3). Supplying or later changing it re-mints the Project id, the Experiment id beneath it, and every Sample id beneath that. Not a free-text label.",
-    "experiment.title": "IDENTIFYING (ONTOLOGY.md §3), alongside modality and organism_taxid. Supplying or later changing it re-mints this Experiment's id and every Sample id anchored to it. Cheap while the graph is empty (I9 regenerates it); not cosmetic afterwards."
   },
   "search_engine": "maxquant",
   "search_engine_version": "1.5.5.1",

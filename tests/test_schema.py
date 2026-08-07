@@ -403,13 +403,22 @@ def test_pending_markers_point_at_values_that_are_actually_pending() -> None:
     actually ready. Every listed path must therefore resolve to a null.
 
     The converse — a null that no marker names — is NOT checkable here, because legitimate nulls
-    exist (`timepoint_h` is deliberately null where the methods section does not state one). Only
-    the loader, which knows which record fields become which identifying node fields, can close
-    that direction.
+    exist (`Sample.timepoint_h` is null wherever `treatment = 'none'`, an absence §3 classifies as
+    determined). Only the loader, which knows which record fields become which identifying node
+    fields, can close that direction.
+
+    Scans `tests/fixtures/` as well as `data/curation/`. When the PXD018299 titles arrived on
+    2026-08-07 the last real marker in the repository disappeared with them, and this guard's own
+    non-vacuity assertion caught that it now had nothing to check — the right outcome, and the
+    reason the synthetic pending record exists. A guard whose subject matter is *records that are
+    not finished yet* cannot rely on one being unfinished.
     """
     root = Path(__file__).resolve().parents[1]
     checked = 0
-    for path in (root / "data/curation").rglob("*.json"):
+    for path in [
+        *(root / "data/curation").rglob("*.json"),
+        *(root / "tests/fixtures").rglob("*.json"),
+    ]:
         record = json.loads(path.read_text())
         for dotted, why in record.get("pending", {}).items():
             checked += 1

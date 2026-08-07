@@ -40,6 +40,7 @@ from bzk.ontology.invariants import NODE_TYPE_KEY
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REAL_RECORD = REPO_ROOT / "data" / "curation" / "curation_PXD018299.json"
 SYNTHETIC = REPO_ROOT / "tests" / "fixtures" / "curation_synthetic_loadable.json"
+PENDING = REPO_ROOT / "tests" / "fixtures" / "curation_synthetic_pending.json"
 
 
 def _record(path: Path) -> dict[str, Any]:
@@ -63,16 +64,18 @@ def _nodes(result: LoadedCuration, label: str) -> list[dict[str, Any]]:
 # ── Refusal: the real record ────────────────────────────────────────────────────────────────────
 
 
-def test_refuses_the_real_record_naming_the_pending_fields() -> None:
-    """`data/curation/curation_PXD018299.json` is not loadable, and the loader says exactly why.
+def test_refuses_a_record_with_pending_markers_naming_the_fields() -> None:
+    """The refusal path, on a synthetic record rather than on the real one.
 
-    When the curator supplies the titles this test fails, which is the point: the failure is the
-    prompt to re-check what the record now yields rather than a silent change in behaviour.
+    It ran against `data/curation/curation_PXD018299.json` until the titles arrived on 2026-08-07,
+    at which point five tests here failed at once — correctly, as designed, but the lesson is that
+    a guard resting on real data being *incomplete* stops guarding the moment the curator completes
+    it. `curation_synthetic_pending.json` is the loadable fixture's twin, differing only in what is
+    owed, so the machinery stays covered whatever the real records look like.
     """
     with pytest.raises(CurationIncomplete) as exc:
-        load_path(REAL_RECORD)
-    assert "project.title" in exc.value.paths
-    assert "experiment.title" in exc.value.paths
+        load_path(PENDING)
+    assert set(exc.value.paths) == {"project.title", "experiment.title"}
     message = str(exc.value)
     assert "project.title" in message and "experiment.title" in message
 
@@ -81,37 +84,64 @@ def test_refusal_carries_the_curators_note_not_just_the_field_name() -> None:
     """The `pending` notes state the consequence — re-minting every Sample id — at the point
     someone is editing. A refusal that dropped them would send the curator to the document."""
     with pytest.raises(CurationIncomplete) as exc:
-        load_path(REAL_RECORD)
+        load_path(PENDING)
     assert "IDENTIFYING" in str(exc.value)
 
 
-def test_the_unstimulated_arms_null_timepoint_is_accepted() -> None:
-    """`Sample.timepoint_h` is null on the six non-IFN samples, and that is now a *determined*
-    absence rather than a refusal.
+# ── The real record, which now loads ────────────────────────────────────────────────────────────
 
-    It was a refusal until 2026-08-07, and the fix was not to reclassify the null but to define the
+
+def test_the_real_record_loads() -> None:
+    """`data/curation/curation_PXD018299.json` goes through the loader end to end.
+
+    Every blocker `HANDOFF.md` §3 tracked is closed: the deposit digest, `source_type`, the
+    timepoint column's definition, and finally the two titles. Twelve samples, one of each of the
+    rest. If a future edit to the record breaks it, this fails rather than the graph quietly
+    losing a dataset.
+    """
+    result = load_path(REAL_RECORD)
+    assert len(_nodes(result, "Sample")) == 12
+    assert len(_nodes(result, "Project")) == 1
+    assert len(_nodes(result, "Experiment")) == 1
+    assert len(_nodes(result, "Dataset")) == 1
+    assert len(_nodes(result, "Analysis")) == 1
+    assert len(set(result.sample_ids.values())) == 12
+    invariants.validate(result.nodes, result.edges)
+
+
+def test_the_unstimulated_arms_key_with_a_null_timepoint() -> None:
+    """`Sample.timepoint_h` is null on the six non-IFN samples, and they key regardless.
+
+    This refused until 2026-08-07, and the fix was not to reclassify the null but to define the
     column: §5's DDL had a comment on every `Sample` field except this one, so "hours since
     treatment" and "hours in culture" were both readable and only the first makes the null
-    inapplicable rather than unknown. With `timepoint_h` defined as hours since treatment, §3
-    classifies the absence as determined by `treatment`, and these six key as they stand.
-
-    Asserted as *what is not owed* rather than as a passing load, because the record is still
-    incomplete for other reasons — the two titles. If the classification were dropped, this fails.
+    inapplicable rather than unknown. Now that the record loads, the claim can be asserted on the
+    nodes themselves instead of on the absence of a refusal — six samples with `treatment = 'none'`
+    carry a null timepoint and a minted id.
     """
-    with pytest.raises(CurationIncomplete) as exc:
-        load_path(REAL_RECORD)
-    assert not [p for p in exc.value.paths if "timepoint_h" in p], exc.value.paths
+    samples = _nodes(load_path(REAL_RECORD), "Sample")
+    untreated = [s for s in samples if s["treatment"] == "none"]
+    assert len(untreated) == 6
+    assert all(s["timepoint_h"] is None and s["id"].startswith("bzk:") for s in untreated)
+    treated = [s for s in samples if s["treatment"] != "none"]
+    assert len(treated) == 6
+    assert all(s["timepoint_h"] == 48 for s in treated)
 
 
-def test_the_real_record_now_owes_only_the_two_titles() -> None:
-    """The whole of what the curator still owes, in one assertion, so the count cannot drift.
+def test_the_two_titles_are_identifying_on_the_real_record() -> None:
+    """The consequence the removed `pending` notes warned about, kept as a check once they are gone.
 
-    Eight items before the timepoint column was defined; two after. When the titles arrive this
-    fails and the record loads — which is the prompt to check what it then yields.
+    Both titles are identifying (§3), so editing either re-mints the `Experiment` and every
+    `Sample` beneath it. The notes said so; the notes are now deleted, because the values are
+    supplied. This asserts what they asserted, and does not depend on prose surviving.
     """
-    with pytest.raises(CurationIncomplete) as exc:
-        load_path(REAL_RECORD)
-    assert set(exc.value.paths) == {"project.title", "experiment.title"}
+    before = load_path(REAL_RECORD)
+    record = _record(REAL_RECORD)
+    record["experiment"]["title"] = record["experiment"]["title"] + " (revised)"
+    after = load(record)
+    assert after.project_id == before.project_id
+    assert after.experiment_id != before.experiment_id
+    assert set(after.sample_ids.values()).isdisjoint(before.sample_ids.values())
 
 
 def test_refuses_an_unmarked_null(synthetic: dict[str, Any]) -> None:
@@ -135,10 +165,10 @@ def test_a_classified_absence_is_not_refused(loaded: LoadedCuration) -> None:
     assert all(s.get("model_system") is None for s in samples)
 
 
-def test_every_owed_field_names_a_reason(loaded: LoadedCuration) -> None:
-    """A refusal lists what is owed *and* why; `loaded` here only proves the happy path is clean."""
+def test_every_owed_field_names_a_reason() -> None:
+    """A refusal lists what is owed *and* why — a bare field list sends the curator to the docs."""
     with pytest.raises(CurationIncomplete) as exc:
-        load_path(REAL_RECORD)
+        load_path(PENDING)
     assert all(item.why.strip() for item in exc.value.owed)
 
 

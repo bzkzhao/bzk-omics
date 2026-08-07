@@ -1,0 +1,81 @@
+{
+  "synthetic": true,
+  "note": "SYNTHETIC — the incomplete twin of curation_synthetic_loadable.json, and the refusal path's home now that data/curation/curation_PXD018299.json is complete. Both titles are null and both are marked `pending`, so the loader's two layers have something to refuse and tests/test_schema.py's pending-marker guard has something to check. Keeping this synthetic rather than testing refusal against the real record is deliberate: a guard that depends on real data staying broken stops guarding the moment the curator fixes it, which is exactly what happened to five tests when the titles arrived. Everything else matches the loadable twin, so the two differ ONLY in what is owed.",
+  "accession": "SYNTHETIC-0002",
+  "file": "SYNTHETIC_GlyGlyKSites.txt",
+  "content_hash": "sha256:b50c8b3b88781ec08bee0d3b62cecf96391f4ee86230941cf92150c92003664f",
+  "project": {
+    "title": null
+  },
+  "experiment": {
+    "title": null,
+    "modality": "digly_proteomics",
+    "organism_taxid": 9606
+  },
+  "pending": {
+    "project.title": "IDENTIFYING (ONTOLOGY.md §3). Supplying or later changing it re-mints the Project id, the Experiment id beneath it, and every Sample id beneath that. Not a free-text label.",
+    "experiment.title": "IDENTIFYING (ONTOLOGY.md §3), alongside modality and organism_taxid. Supplying or later changing it re-mints this Experiment's id and every Sample id anchored to it."
+  },
+  "search_engine": "maxquant",
+  "search_engine_version": "1.5.5.1",
+  "acquisition_mode": "dda",
+  "instrument": "Q Exactive HF",
+  "basis": "publication_methods",
+  "confidence": "inferred",
+  "curated_by": null,
+  "curated_at": "2026-08-07",
+  "rationale": "Synthetic. Written to exercise the loader, not to describe an experiment anyone performed.",
+  "unresolved": [
+    "Nothing. A record with an open question does not belong in a success-path fixture — the refusal path is tested against the real record instead."
+  ],
+  "contrasts_of_interest": [
+    {
+      "id": "treated_vs_untreated",
+      "numerator": "treated",
+      "denominator": "untreated",
+      "note": "Read by the loader and deliberately NOT materialised as a Contrast node — the reference-vs-evidence placement is unsettled (ONTOLOGY.md §11 Q1) and the adapter constructs the contrast inline (HANDOFF.md §8)."
+    }
+  ],
+  "mapping": {
+    "Intensity CTRL_1": {
+      "genotype": "WT",
+      "treatment": "none",
+      "timepoint_h": 48,
+      "replicate": 1,
+      "replicate_type": "biological",
+      "source_type": "cell_line",
+      "cell_line": "HAP1",
+      "organism_taxid": 9606
+    },
+    "Intensity CTRL_2": {
+      "genotype": "WT",
+      "treatment": "none",
+      "timepoint_h": 48,
+      "replicate": 2,
+      "replicate_type": "biological",
+      "source_type": "cell_line",
+      "cell_line": "HAP1",
+      "organism_taxid": 9606
+    },
+    "Intensity TREAT_1": {
+      "genotype": "WT",
+      "treatment": "synthetic_treatment",
+      "timepoint_h": 48,
+      "replicate": 1,
+      "replicate_type": "biological",
+      "source_type": "cell_line",
+      "cell_line": "HAP1",
+      "organism_taxid": 9606
+    },
+    "Intensity TREAT_2": {
+      "genotype": "WT",
+      "treatment": "synthetic_treatment",
+      "timepoint_h": 48,
+      "replicate": 2,
+      "replicate_type": "biological",
+      "source_type": "cell_line",
+      "cell_line": "HAP1",
+      "organism_taxid": 9606
+    }
+  }
+}
