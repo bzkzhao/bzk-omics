@@ -1,0 +1,6 @@
+Majority protein IDs	Gene names	Peptides	Student's T-test Difference KO_IFN_WT_IFN	-Log Student's T-test p-value KO_IFN_WT_IFN	Student's T-test q-value KO_IFN_WT_IFN	Student's T-test Significant KO_IFN_WT_IFN
+#!{Type}	T	T	N	N	N	N	C
+P20591	MX1	7	3.42	4.5100	0.0012	+
+P19525	EIF2AK2	12	4.95	5.0200	0.0009	+
+O43593	USP18	4	-1.87	2.3000	0.0210	+
+P05161	ISG15	9	0.31	0.4400	0.7300	

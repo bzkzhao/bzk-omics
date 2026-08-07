@@ -1,0 +1,2 @@
+Majority protein IDs	Gene names
+P20591	MX1

@@ -1,0 +1,3 @@
+Majority protein IDs	Peptides	Student's T-test Difference KO_IFN_WT_IFN	Student's T-test p-value KO_IFN_WT_IFN	Student's T-test q-value KO_IFN_WT_IFN
+#!{Type}	T	N	N	N	N
+P20591	7	3.42	3.0902e-05	0.0012

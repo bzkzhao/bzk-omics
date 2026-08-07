@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.5 |
+| Version | 1.6 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -64,7 +64,8 @@ bzk/
   ontology/      # schema DDL, node/edge dataclasses, invariant checks, the key builder
   curation/      # data/curation/*.json -> change-set; the one non-derivable input (§2)
     loader.py
-  adapters/      # ingestion; one module per search engine
+  adapters/      # ingestion; one module per search engine or analysis tool
+    perseus.py   # analysis-output (ADR-0017); protein grain, no network in the parse path
     maxquant.py
     fragpipe.py
     diann.py
@@ -106,6 +107,8 @@ Two classes of adapter, because the platform sits downstream of both search engi
 | Adapter | Priority | Rationale |
 |---|---|---|
 | Perseus result table | 1 | The collaborating group's workflow, confirmed by correspondence. The shortest path to holding a real user's real results |
+
+**Declared parameters are constructor arguments, not `parse` arguments.** An analysis-output adapter must set `Analysis.quantity`, `test`, `fdr_method` and `external_version`, and a result table states none of them — that is what `parameters_observed = false` means (§5.4, I19). They therefore arrive in a `DeclaredAnalysis` passed when the adapter is constructed, leaving `parse(file, mapping)` exactly as the `ObservationAdapter` protocol declares it. The alternative, widening `parse`, would have made the contract different for the two adapter classes; the alternative of defaulting them would make a reported parameter indistinguishable from an observed one, which is the promotion I19 exists to refuse. Contrasts arrive the same way, since Perseus builds its column suffixes from its own group names and those are not the platform's condition labels.
 
 **Search-output adapters** — ingest raw quantification, retaining the matrix (I11) so results are recomputable.
 
