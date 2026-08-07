@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.9 |
+| Version | 1.10 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -104,6 +104,7 @@ From PXD018299 (`HAP1_USP18KO_GlyGlyKSites.txt`, MaxQuant site table, 2.8 MB), i
 | Position validation, isoform-stripping resolver | 18/20 | Both failures were resolver bugs, not data errors; they exposed the key defect |
 | **Razor pick lands on TrEMBL despite a reviewed entry in the set** | **4 of 8 sampled** | I17 added: reviewed preferred, recorded as `ProteinAssignment` basis |
 | Sequences amended since the ~2019 search | 1 of 20 (5%) — `H7BZW7`, updated June 2026 | ~114 of 2,298 sites at risk of silent drift. Amendment is ongoing, not historical, so flagging beats one-time reconciliation. Resolves `ARCHITECTURE.md` open question 1. **Superseded by measurement 2026-08-07: the realised cost is 40 of 2,056 sites (1.9%), not ~114 — see § Sequence drift below. The 5% figure counts sequences amended, which bounds sites broken rather than estimating it** |
+| **Rows dropped by a threshold the graph does not record** | **242 of 2,298 (10.5%)** at `Localization prob >= 0.75` | I16's exact case, unfired because the adapter emits no `Analysis` for it to check. See § The platform made an invisible analytical choice |
 | **Sites whose residue no longer matches today's UniProt** | **40 of 2,056 (1.9%)**, over 16 proteins | Measured, not projected. Refused at ingestion and counted; drift is 2.8× likelier on unreviewed entries |
 | **Razor picks whose UniProt entry has since been deleted** | **25 accessions, 48 sites**, all `Inactive`, all unreviewed | The site cannot be keyed at all (I2). Strengthens I17: the TrEMBL pick is the one that disappears |
 | Reviewed entries in sample; sequence versions | 15/20 reviewed; versions 1–4 | Amendment is ongoing across the set, not historical |
@@ -195,6 +196,41 @@ significantly-changed proteins carries contaminants the reader is expected to fi
 in the paper — the column is right there — but it settles a design question: an analysis-output
 adapter cannot assume an export has been filtered, and `Analysis.filters_applied` describing what
 the *user says* they applied is exactly the `parameters_observed = false` distinction doing its job.
+
+### The platform made an invisible analytical choice, 2026-08-07
+
+**The clearest finding of the project, because it is the project's own failure mode.** `VISION.md`
+exists because a defensible analytical choice, made once and never recorded, is unrecoverable from
+a published methods section. `bzk/adapters/maxquant_sites.py` made one and recorded it nowhere.
+
+The site adapter drops every row below `Localization prob >= 0.75`. On PXD018299 that is **242 of
+2,298 rows — 10.5% of the dataset, discarded by a number that appears in no node in the graph.**
+After Slice 4a the graph holds one `Analysis`, of kind `curation`; `localization_threshold` is null
+on it, and there is no other `Analysis` at all.
+
+I16 is the invariant written for exactly this: *"every `Analysis` records which quantity it consumed
+and the filters applied, **including the localisation threshold**"*. It did not fire. Not because
+the field was wrong — because the adapter emits no `Analysis`, so the check iterates over nothing.
+**An invariant that cannot fire on an empty set is not enforcement, and a filter applied by a node
+that does not exist is the invisible choice arriving through the gap rather than through the field.**
+
+Three things make this worth a finding rather than a bug report:
+
+1. **The magnitude is the same class the platform was built for.** § Measured findings already
+   records two defensible quantities differing by ~90× in usable sites. 10.5% is smaller and the
+   same kind of thing: a reader given the 1,967 sites cannot recover that 242 were removed, or why,
+   or that 0.75 rather than 0.5 was the reason.
+2. **It was introduced by the turn that made the pipeline real.** Before Slice 4a nothing reached
+   the graph, so nothing was unrecorded. Wiring ingestion created the gap in the same commit that
+   made the platform work — which is precisely when this class of defect is invented.
+3. **It was found by asking what the invariant covered, not by a failing test.** Every check was
+   green. `CLAUDE.md` point 3 is the reason it surfaced at all.
+
+The fix is a search-output `Analysis` — `kind = 'external'`, `external_tool = 'maxquant'`,
+`parameters_observed = false` (I19), `quantity = 'intensity_multiplicity_summed'`,
+`localization_threshold`, `filters_applied` — that every `SiteObservation` attaches to. It is
+Slice 4b's first task and blocks any result derived from these observations, because a
+`DifferentialResult` computed over a silently filtered population inherits the silence.
 
 ### The ingested population is 1,967, 2026-08-07
 
