@@ -64,7 +64,7 @@ Follow `ROADMAP.md` § Milestones. This adds the granularity that document delib
 
 **`bzk/rebuild.py`** — drops and reconstructs from `raw/` plus the curation export. Written now, not later. I9 is an assumption until this runs.
 
-*Done when:* twenty accessions resolve and validate; a mismatched position fails loudly; the graph rebuilds without loss.
+*Done when:* twenty accessions resolve and validate; a mismatched position fails loudly; the graph drops and recreates its schema. "Rebuilds without loss" is met only **vacuously** so far — there are no observations in the graph to lose, since no adapter has ingested any. I9 therefore stays an assumption until the first adapter has put content in the graph and a rebuild reproduces it; §8 records this as partial, and it is not discharged by `rebuild.py` alone.
 
 ### Weeks 3–4
 
@@ -150,7 +150,7 @@ All three cost time during exploration. All three are the same class: code that 
 | ~~Kùzu version number not recorded~~ — recorded `==0.11.3` | `ARCHITECTURE.md` §1 | Resolved |
 | `Contrast` reference-vs-evidence ambiguity | `ONTOLOGY.md` §11 Q1 | No — settle before v0.2 |
 | Multi-modified peptides | `ONTOLOGY.md` §11 Q3 | Possibly — will surface on first MaxQuant ingestion |
-| **I17 `reviewed_preferred` promotion is unowned** | resolver surfaces `reviewed`; nothing consumes it | No — decide with the first adapter. The promotion of a reviewed Swiss-Prot entry over a TrEMBL razor pick belongs to the **adapter** (which assembles the candidate set) or to **`ProteinAssignment` construction** (`ONTOLOGY.md` §6.3, I17), recorded as `basis = 'reviewed_preferred'` — never to the resolver, which only reports review status |
+| **I17 `reviewed_preferred` promotion — owned by the search-output adapters** (decided 2026-08-07) | `ProteinAssignment` construction in `adapters/` | No — the Perseus (analysis-output) adapter has no candidate sets or razor picks (`ARCHITECTURE.md` §3), so I17 does not apply there. The promotion of a reviewed Swiss-Prot entry over a TrEMBL razor pick belongs to the **search-output adapters** (MaxQuant first), in **`ProteinAssignment` construction** (`ONTOLOGY.md` §6.3, I17), recorded as `basis = 'reviewed_preferred'`; it lands with the MaxQuant adapter (weeks 5-6). The resolver only reports review status |
 | ADRs 0004–0014 unwritten | `decisions/` | No — write during weeks 7–8 |
 | Search engine for the new USP18 dataset | Assumption A2 | Yes for that dataset only |
 | Where in his pipeline the handover belongs | `ROADMAP.md` § Open questions | No — ask at the meeting |
@@ -186,7 +186,9 @@ grouped by *how* they must be enforced, so a source-tree lint is not mistaken fo
   change-set.
 - **CON — enforced by construction, pending the code that constructs.** **I7** (deterministic
   content-derived reference keys; holds once a single key builder exists). **I17** (reviewed
-  preferred — see the table row above; recorded by the adapter or `ProteinAssignment` construction).
+  preferred — decided 2026-08-07: owned by the search-output adapters (MaxQuant first) in
+  `ProteinAssignment` construction; the Perseus analysis-output adapter has no candidate sets, so
+  it does not apply there. Lands weeks 5-6. See the table row above).
 - **write-path, not written.** **I6** (append-only assertions: reject in-place edits of
   `ModifierAssignment` / `DifferentialResult`; supersession creates a new node; retraction
   propagation is a v0.2 action-layer concern).
