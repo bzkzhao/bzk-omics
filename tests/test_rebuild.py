@@ -86,29 +86,20 @@ def _seed_cache(home: Path, fx: dict[str, Any]) -> Path:
     return seq
 
 
-def test_rebuild_creates_schema_and_finds_no_drift(tmp_path: Any) -> None:
+def test_rebuild_creates_schema_and_leaves_the_archive_alone(tmp_path: Any) -> None:
+    """Reconstruction only. The drift check moved to `bzk.drift` (2026-08-07) and rebuild does no
+    network work of its own — so this asserts the archive is *untouched*, which is the property
+    that makes it an I9 input rather than derived output."""
     fx = _fx()
     home = tmp_path / "home"
     _seed_cache(home, fx)
-    report = rebuild(home=home, curation_dir=CURATION_DIR, session=_session(fx))
+    report = rebuild(home=home, curation_dir=CURATION_DIR)
     assert report.tables_created == 57  # 24 node + 33 rel tables (ADR-0023 dropped two)
     assert report.curation_records == 1  # data/curation/curation_PXD018299.json
     assert (report.nodes_written, report.edges_written) == (16, 38)
-    assert report.drifts == []
     assert (home / "graph.kuzu").exists()
-    assert (home / "cache" / "uniprot" / "seq" / "P09914-2#sv2.txt").exists()  # cache untouched
-
-
-def test_rebuild_detects_content_drift(tmp_path: Any) -> None:
-    fx = _fx()
-    home = tmp_path / "home"
-    seq = _seed_cache(home, fx)
-    sv = fx["entries"]["P49720"]["entryAudit"]["sequenceVersion"]
-    (seq / f"P49720#sv{sv}.txt").write_text("MUTATEDSEQUENCE")  # no longer matches UniProt
-    report = rebuild(home=home, curation_dir=CURATION_DIR, session=_session(fx))
-    drifted = {d.accession: d for d in report.drifts}
-    assert "P49720" in drifted
-    assert drifted["P49720"].content_changed is True
+    assert (home / "cache" / "uniprot" / "seq" / "P09914-2#sv2.txt").exists()  # archive untouched
+    assert not hasattr(report, "drifts"), "rebuild no longer performs the drift check"
 
 
 def test_drop_stores_removes_derived_but_keeps_cache(tmp_path: Any) -> None:
@@ -137,7 +128,7 @@ def test_rebuild_puts_the_curation_record_in_the_graph(tmp_path: Any) -> None:
     fx = _fx()
     home = tmp_path / "home"
     _seed_cache(home, fx)
-    rebuild(home=home, curation_dir=CURATION_DIR, session=_session(fx))
+    rebuild(home=home, curation_dir=CURATION_DIR)
     conn = open_graph(home)
     assert store.count_nodes(conn) == EXPECTED_NODES
     assert store.count_edges(conn) == EXPECTED_EDGES
@@ -153,9 +144,9 @@ def test_rebuild_is_reproducible(tmp_path: Any) -> None:
     fx = _fx()
     home = tmp_path / "home"
     _seed_cache(home, fx)
-    rebuild(home=home, curation_dir=CURATION_DIR, session=_session(fx))
+    rebuild(home=home, curation_dir=CURATION_DIR)
     first = store.ids_by_label(open_graph(home))
-    rebuild(home=home, curation_dir=CURATION_DIR, session=_session(fx))
+    rebuild(home=home, curation_dir=CURATION_DIR)
     second = store.ids_by_label(open_graph(home))
     assert first == second
     assert sum(len(v) for v in second.values()) == 16
@@ -171,7 +162,7 @@ def test_rebuilt_ids_match_the_committed_pin(tmp_path: Any) -> None:
     fx = _fx()
     home = tmp_path / "home"
     _seed_cache(home, fx)
-    rebuild(home=home, curation_dir=CURATION_DIR, session=_session(fx))
+    rebuild(home=home, curation_dir=CURATION_DIR)
     pinned = json.loads(MINTED_IDS.read_text())
     assert store.ids_by_label(open_graph(home)) == {
         "Project": [pinned["project"]],
@@ -196,7 +187,7 @@ def test_replay_stops_on_a_record_it_cannot_load(tmp_path: Any) -> None:
     curation.mkdir()
     shutil.copy(PENDING_RECORD, curation / "curation_broken.json")
     with pytest.raises(CurationError) as exc:
-        rebuild(home=home, curation_dir=curation, session=_session(fx))
+        rebuild(home=home, curation_dir=curation)
     assert "curation_broken.json" in str(exc.value)
     assert "project.title" in str(exc.value)
 
@@ -213,7 +204,7 @@ def test_replay_is_idempotent_within_one_graph(tmp_path: Any) -> None:
     fx = _fx()
     home = tmp_path / "home"
     _seed_cache(home, fx)
-    rebuild(home=home, curation_dir=CURATION_DIR, session=_session(fx))
+    rebuild(home=home, curation_dir=CURATION_DIR)
     conn = open_graph(home)
     before = store.ids_by_label(conn)
     replay_ingestion(conn, CURATION_DIR, home=home)

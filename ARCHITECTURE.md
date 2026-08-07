@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.11 |
+| Version | 1.12 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -80,6 +80,7 @@ bzk/
   quant/         # DuckDB layer, normalisation
   stats/         # moderated t-test, BH, protein-level adjustment
   provenance/    # PROV-O mapping, content hashing; raw_store.py is the content-addressed raw/
+  drift.py       # `bzk drift` — validates the sequence archive against UniProt; writes a receipt
   http.py        # the injected-HTTP protocols the three network-touching modules share
   api/           # FastAPI routes
 web/             # SvelteKit

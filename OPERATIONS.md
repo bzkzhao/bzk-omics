@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.5 |
+| Version | 0.6 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ARCHITECTURE.md`, `ONTOLOGY.md` |
 | Authoritative for | Backup, cache policy, dependency pinning, rebuild discipline |
@@ -23,12 +23,18 @@ Not everything. Invariant I9 states that the graph is derived, so most of it is 
 | `curation_*.json` | **No** — human judgement | **Critical.** Version-controlled, not just backed up |
 | `analysis_*.json` | **No** — records choices made | **Critical.** Version-controlled |
 | Manual `ModifierAssignment`, `EnzymeAssociation` | **No** — asserted by a person | **Critical.** Export nightly (§2) |
-| `raw/` source files | Yes, from PRIDE — unless embargoed | High for embargoed data, low otherwise |
-| `graph.kuzu/` | Yes, from raw plus curation | Low |
+| `raw/` source files | **Only if the deposit is unchanged** — re-fetchable from PRIDE, not reproducible | High for embargoed data, **high** otherwise |
+| `cache/uniprot/` | **No** — captured external state, see below | **High.** An I9 input since 2026-08-07 |
+| `graph.kuzu/` | Yes, from the four I9 inputs | Low |
 | `quant.duckdb` | Yes | Low |
-| `cache/uniprot/` | Yes, slowly | Low |
 
 **The asymmetry is the point.** A few megabytes of JSON are irreplaceable; tens of gigabytes of graph and matrices are a compute cost. Backing up the small irreplaceable set frequently is both cheaper and more effective than snapshotting everything occasionally.
+
+**Corrected 2026-08-07: `cache/uniprot/` was listed as *"Yes, slowly"* and low priority. Both were wrong, and the word *cache* is what made them plausible.** It is not a performance optimisation — it is the pinned sequence content every `ModificationSite` position is meaningful against, fetched from an authority that mutates and that may not serve a superseded version at all. `ONTOLOGY.md` §8 I9 now names it as a fourth input alongside `raw/`, the curation export and the DDL, and §11 Q6 records why: it is the same class of thing as `raw/` — captured external state, immutable once captured, addressed so a new version is a new entry. Neither is regenerable; both are archives.
+
+**What losing it costs.** No id changes, because `ModificationSite` keys on the sequence *version* and not on its content, so nothing looks broken. What happens instead is that a rebuild re-resolves against today's UniProt, the residue check refuses every site whose sequence has since been amended, and the graph regenerates **smaller** — visible only as a changed refusal count that reads like data drift. And because the drift check works by comparing the stored copy against a fresh fetch, with no stored copy the fresh fetch becomes its own reference: **drift stops being detectable, including retrospectively.** The cache is the sole record of what the graph's positions were validated against. Losing it is silent in both directions, which is precisely why it cannot be low priority.
+
+At PXD018299's scale the archive is ~1,029 sequence files plus their entry metadata — **8.3 MB measured**, against 19 MB for the whole of `raw/` (of which the ingested site table is 2.7 MB) — so this is a correction of classification, not a meaningful new storage burden.
 
 ---
 
@@ -77,6 +83,10 @@ The same discipline applies to DuckDB and Polars, though both are more stable.
 `bzk rebuild` drops the graph and the quantitative store, then reconstructs both from `raw/`, the curation export, and the current DDL.
 
 **Run it weekly, and after every schema change.** The claim in I9 — that schema change is a compute cost rather than a migration — is true only while this is verified. An untested rebuild path is an assumption, not an invariant.
+
+**Two commands since 2026-08-07, with different cadences.** `bzk rebuild` reconstructs and is cheap (119.9 s on PXD018299, and dominated by the write path rather than by anything irreducible); run it after every schema change, as above. `bzk drift` validates the sequence archive against UniProt and is expensive (~980 s for 1,029 sequences); run it **weekly**. They were one command until the archive grew past a thousand sequences and the combined cost reached 17.6 minutes — at which point the honest thing and the convenient thing diverged, and the convenient thing won: the session that introduced the cost changed the schema twice and ran a full rebuild once, at the end.
+
+`bzk drift` leaves a receipt in `cache/uniprot/.drift`, and every `bzk rebuild` reports how stale it is. **Rebuild never refuses on staleness** — it is the disaster-recovery path, and a network check standing in front of recovery would be worse than a stale check. The obligation that gives staleness teeth belongs at the export boundary with I18 and is recorded in `HANDOFF.md` §8; until it exists, the receipt is a report and not a control.
 
 A rebuild that produces a different 12-of-14 result is a regression, and the appropriate response is to stop and find out why rather than to accept the new number.
 

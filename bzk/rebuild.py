@@ -4,13 +4,20 @@ Per OPERATIONS.md §5 and HANDOFF.md §3, written in week 1 so I9 is exercised r
 Reconstruction has four steps:
 
 1. Drop the derived stores — ``graph.kuzu`` and ``quant.duckdb`` under ``~/.bzk-omics/``. The
-   UniProt cache is *not* dropped: it is an input to the drift check, not derived output.
+   sequence archive is *not* dropped: it is an I9 input (ONTOLOGY.md §8), not derived output.
 2. Recreate the schema from `schema.py` (the executable mirror of ONTOLOGY.md §4-7).
 3. Replay ingestion from the curation export in ``data/curation/``: every record through
-   `bzk.curation.loader`, validated, and written to the graph by `bzk.ontology.store`.
-4. Drift-check the UniProt sequence cache (ONTOLOGY.md §11 Q5): for each immutable tier-2 entry
-   (``accession#sv``), refetch the current sequence and compare by content, catching a sequence
-   UniProt has amended even when the version number did not move.
+   `bzk.curation.loader`, then the deposit it names through the adapter that recognises it,
+   validated, and written to the graph by `bzk.ontology.store`.
+4. Report how stale the sequence archive's validation is, from the receipt `bzk.drift` leaves.
+
+**The drift check is no longer step 4; it is `bzk drift`, a separate command.** It was never a
+rebuild step — it validates an *input* against the outside world, and the graph is byte-identical
+whether or not it runs. Welding them cost 980 s of the 1,057 s a full rebuild took once Slice 4a
+pinned 1,028 sequences, and a 17-minute command run "after every schema change" (OPERATIONS.md §5)
+is one that stops being run. Rebuild **reports** staleness and never refuses: it is the
+disaster-recovery path, and a network check standing in front of recovery is worse than a stale
+check.
 
 **Step 3 was a logged no-op from week 1 until 2026-08-07, and I9 was vacuous for exactly that
 long.** "The graph rebuilds without loss" is trivially true of a graph with nothing in it, and
@@ -40,22 +47,20 @@ the whole path is testable offline.
 from __future__ import annotations
 
 import shutil
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import kuzu
 
+from bzk import drift
 from bzk.adapters.base import Refusal
 from bzk.adapters.maxquant_sites import DeclaredSiteAnalysis, MaxQuantSiteAdapter
 from bzk.curation.loader import CurationError, LoadedCuration, load_path
-from bzk.http import RestSession
 from bzk.ontology import schema, store
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.provenance import raw_store
 from bzk.resolve.nodes import Resolver
-from bzk.resolve.uniprot import resolve
 
 DEFAULT_HOME = Path.home() / ".bzk-omics"
 DEFAULT_CURATION_DIR = Path(__file__).resolve().parents[1] / "data" / "curation"
@@ -65,14 +70,8 @@ def log(message: str) -> None:
     print(f"[rebuild] {message}")
 
 
-@dataclass(frozen=True)
-class Drift:
-    accession: str
-    cached_sv: int
-    current_sv: int | None
-    content_changed: bool
-    stored_len: int
-    current_len: int
+#: Re-exported so `Drift` has one definition (`bzk.drift`) and one import path for existing callers.
+Drift = drift.Drift
 
 
 @dataclass(frozen=True)
@@ -95,7 +94,6 @@ class RebuildReport:
     curation_records: int
     nodes_written: int
     edges_written: int
-    drifts: list[Drift]
     deposits_ingested: int = 0
     site_observations: int = 0
     refusals: list[Refusal] = field(default_factory=list)
@@ -262,49 +260,18 @@ def replay_ingestion(
     )
 
 
-def drift_check(cache_dir: Path, *, session: RestSession | None = None) -> list[Drift]:
-    """Compare each cached tier-2 sequence against a fresh UniProt fetch (ONTOLOGY.md §11 Q5).
-
-    Fetching into a throwaway cache with ``refresh=True`` bypasses both cache tiers, so an isoform
-    sequence UniProt amended without bumping the parent version is caught by content, not just by a
-    changed version number.
-    """
-    seq_dir = cache_dir / "seq"
-    if not seq_dir.exists():
-        return []
-    drifts: list[Drift] = []
-    for path in sorted(seq_dir.glob("*#sv*.txt")):
-        accession, _, sv_text = path.stem.rpartition("#sv")
-        if not sv_text.isdigit():
-            continue
-        stored = path.read_text()
-        with tempfile.TemporaryDirectory() as tmp:
-            fresh = resolve(accession, cache_dir=Path(tmp), refresh=True, session=session)
-        current = fresh.sequence
-        content_changed = current is not None and current != stored
-        version_changed = fresh.sequence_version != int(sv_text)
-        if content_changed or version_changed:
-            drifts.append(
-                Drift(
-                    accession=accession,
-                    cached_sv=int(sv_text),
-                    current_sv=fresh.sequence_version,
-                    content_changed=content_changed,
-                    stored_len=len(stored),
-                    current_len=len(current or ""),
-                )
-            )
-    return drifts
-
-
 def rebuild(
     *,
     home: Path = DEFAULT_HOME,
     curation_dir: Path = DEFAULT_CURATION_DIR,
-    session: RestSession | None = None,
     resolver: Resolver | None = None,
 ) -> RebuildReport:
-    """Drop and reconstruct the derived stores, then drift-check the sequence cache."""
+    """Drop and reconstruct the derived stores from the I9 inputs, and report archive staleness.
+
+    No `session` parameter: rebuild's only network path is now the resolver, injected as `resolver`.
+    A `session` argument survived here for one revision after the drift check moved out, doing
+    nothing — a parameter that is accepted and ignored is a worse lie than one that is missing.
+    """
     log("dropping derived stores (graph.kuzu, quant.duckdb)")
     drop_stores(home)
 
@@ -314,29 +281,19 @@ def rebuild(
 
     replay = replay_ingestion(conn, curation_dir, home=home, resolver=resolver)
 
-    log("drift-checking the UniProt sequence cache")
-    drifts = drift_check(home / "cache" / "uniprot", session=session)
-    if drifts:
-        for d in drifts:
-            log(
-                f"DRIFT: {d.accession} cached sv{d.cached_sv} ({d.stored_len} aa) vs "
-                f"current sv{d.current_sv} ({d.current_len} aa); content_changed={d.content_changed}"
-            )
-    else:
-        log("no sequence drift detected")
+    log(drift.staleness_line(home))
 
     log(
         f"done: {tables} tables, {replay.curation_records} curation record(s), "
         f"{replay.deposits_ingested} deposit(s), {replay.site_observations} site observation(s), "
         f"{len(replay.refusals)} refused, {replay.nodes_written} nodes, "
-        f"{replay.edges_written} edges, {len(drifts)} drift(s)"
+        f"{replay.edges_written} edges"
     )
     return RebuildReport(
         tables_created=tables,
         curation_records=replay.curation_records,
         nodes_written=replay.nodes_written,
         edges_written=replay.edges_written,
-        drifts=drifts,
         deposits_ingested=replay.deposits_ingested,
         site_observations=replay.site_observations,
         refusals=replay.refusals,
