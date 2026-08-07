@@ -61,7 +61,7 @@ Follow `ROADMAP.md` § Milestones. This adds the granularity that document delib
 - `bzk/ontology/schema.py` — structured DDL emitter, 56 tables, mirrors `ONTOLOGY.md` §4–6; guarded by `tests/test_schema.py` (parses the normative DDL, asserts agreement, builds on Kùzu 0.11.3).
 - `bzk/ontology/invariants.py` — write-time checks I2, I3, I4, I10, I14, I15, I16, I19 plus change-set **structural validation (ADR-0019, incl. multiplicity)**, derived from `schema.py`.
 - `bzk/resolve/uniprot.py` — isoform-aware resolver, two-tier immutable cache, 20/20 on PXD018299 offline.
-- `bzk/rebuild.py` — drop / create-schema / replay / drift-check. I9 met **vacuously** only (no ingested content yet — see the Weeks 1–2 *Done when* note below).
+- `bzk/rebuild.py` — drop / create-schema / replay / drift-check, and `bzk/ontology/store.py`, the change-set write path. **I9 is no longer vacuous as of 2026-08-07:** the replay loads `data/curation/`, writes it, and a second rebuild reproduces the same 16 nodes and 38 edges with the same ids — checked against `tests/fixtures/pxd018299_curation_ids.json`, which predates the writer, as well as against itself.
 - `bzk/adapters/base.py` — the `ObservationAdapter` contract, `SampleMapping`, `ParsedObservations`; `tests/test_adapters_base.py` pins it against `tests/fixtures/valid_changeset.json`.
 
 `perseus.py` is **not** written. Do not start it first.
@@ -106,9 +106,9 @@ Follow `ROADMAP.md` § Milestones. This adds the granularity that document delib
 
 **`bzk/resolve/uniprot.py`** — port from `colab_identityresolution.ipynb` Steps 4 and 5 (the isoform-aware version, validated 20/20). **Not a verbatim port**, and the module docstring says so: two deliberate changes beyond adding the cache. (1) The `sequence_source` guard moves into the module — an isoform whose sequence cannot be fetched returns *no* sequence rather than the canonical one, so a caller cannot accidentally validate an isoform position against the canonical sequence (the notebook was safe only because Step 5 checked `sequence_source` first). (2) The persistent cache under `~/.bzk-omics/cache/uniprot/` is two-tier: entry metadata keyed on the base accession, sequence keyed on `accession#isoform#sv` and immutable — the immutable key needs the sequence version, which is only known after the entry fetch. Retention policy in `OPERATIONS.md` §3.
 
-**`bzk/rebuild.py`** — drops and reconstructs from `raw/` plus the curation export. Written now, not later. I9 is an assumption until this runs.
+**`bzk/rebuild.py`** — drops and reconstructs from `raw/` plus the curation export. Written now, not later. I9 was an assumption until this ran *with content*, which it first did on 2026-08-07.
 
-*Done when:* twenty accessions resolve and validate; a mismatched position fails loudly; the graph drops and recreates its schema. "Rebuilds without loss" is met only **vacuously** so far — there are no observations in the graph to lose, since no adapter has ingested any. I9 therefore stays an assumption until the first adapter has put content in the graph and a rebuild reproduces it; §8 records this as partial, and it is not discharged by `rebuild.py` alone.
+*Done when:* twenty accessions resolve and validate; a mismatched position fails loudly; the graph drops and recreates its schema. **All met, and "rebuilds without loss" stopped being vacuous on 2026-08-07** — for a whole week it was true only because the graph was empty. The curation loader, not an adapter, is what discharged it: `replay_ingestion` loads `data/curation/`, `bzk/ontology/store.py` writes it, and `tests/test_rebuild.py` rebuilds twice and compares ids. **It is discharged for curation content only.** No `Observation` has ever been stored, so "no observations in the graph to lose" is still literally true — what changed is that there is now something to lose and losing it fails a test.
 
 ### Weeks 3–4
 

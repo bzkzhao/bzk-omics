@@ -24,7 +24,8 @@ construction · write-path · data = storage layer). Tracked in HANDOFF.md §8:
   - I6  (write-path) append-only assertions — reject in-place edits; retraction propagation (v0.2)
   - I7  (CON)        deterministic reference keys — holds once the key builder exists
   - I8  (CS + WG)    curated design — Sample→curation reachability + `inferred` labelling
-  - I9  (OP)         reproducible rebuild — partly exercised by `rebuild.py`
+  - I9  (OP)         reproducible rebuild — exercised by `rebuild.py`; non-vacuous since
+                     2026-08-07, when the curation replay began writing real content
   - I11 (data)       quantitative retention — needs the DuckDB layer
   - I12 (LINT)       no tryptic assumptions — a source-tree lint, not a change-set check
   - I13 (LINT)       pipeline metadata is data — a source-tree lint, not a change-set check

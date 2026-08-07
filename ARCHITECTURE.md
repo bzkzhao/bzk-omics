@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.6 |
+| Version | 1.7 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -62,6 +62,7 @@ The UniProt cache is not optional. Site position validation requires the exact s
 ```
 bzk/
   ontology/      # schema DDL, node/edge dataclasses, invariant checks, the key builder
+    store.py     # the change-set write path: the only module that knows both it and Kùzu
   curation/      # data/curation/*.json -> change-set; the one non-derivable input (§2)
     loader.py
   adapters/      # ingestion; one module per search engine or analysis tool
@@ -87,6 +88,15 @@ contract. A curation record is not an engine's output and carries no measurement
 judgement about which raw file corresponds to which condition, which §5.3 models as an *activity*.
 It also runs first and produces the `SampleMapping` an adapter then consumes, so making it an
 adapter would make the contract circular.
+
+**`ontology/store.py` is the only module that writes.** `invariants.py` is deliberately
+storage-free — a change-set is plain data, which is what lets every invariant be a pure function
+testable without a graph (ADR-0019's rejected alternative (b)) — so the knowledge of how a
+change-set becomes rows lives in exactly one place, out of the validator and out of every producer.
+It `MERGE`s rather than `CREATE`s: ids are content-derived (I7, ADR-0020) and ADR-0019 requires
+producers to re-stage the referents they name, so the same `Protein` legitimately arrives in many
+change-sets and must converge rather than collide. That is the write-path half of the guarantee the
+digest scheme makes on the read side, and it is what makes I9's replay idempotent.
 
 **`http.py` holds protocols, not a client.** Three modules take an injectable `session` so their
 logic is exercisable offline (`resolve/uniprot.py`, `sources/pride.py`, and `rebuild.py`, which
