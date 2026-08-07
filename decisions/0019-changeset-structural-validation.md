@@ -110,6 +110,45 @@ DDL declares only two rel properties in total (`source`, `evidence_code`) and ne
 That is a latent risk recorded in `HANDOFF.md` §8, not a second rename — the node case was a live
 defect with six instances, this one has none.
 
+**Reserved namespace — an invariant of the format, added 2026-08-07.** The rename above fixed one
+collision. This is the rule it is an instance of, stated so the next one fails at the test suite
+rather than at whichever writer first wants the field.
+
+A change-set dict mixes two kinds of key, and the difference is what the `label` collision came
+down to:
+
+- **Reserved keys** carry information the DDL does not store under that name — a node's type is the
+  *table* it lives in, an edge's type is the *relationship*. Nodes: `__label__`. Edges: `type`,
+  `from`, `to`.
+- **Column-backed keys** name a real column and mean exactly it. `id` is the only one.
+
+The rule, in both directions:
+
+5. **Reserved keys may not name a column or property.** No reserved node key may be a column on any
+   node table; no reserved edge key may be a property on any rel table. A collision makes that
+   column unwritable through the ingestion contract, silently — `{**columns}` overwrites the
+   structural key.
+6. **Column-backed keys must name a column, on every table.** `id` must be a column of every node
+   table and its primary key, or structural validation reads a field the store does not have.
+7. **A reserved key must be *unable* to become a column, not merely happen not to be one.** Every
+   column in ONTOLOGY.md §4-§7 matches `[a-z][a-z0-9_]*`, so a reserved key must fall outside that
+   shape. This is the difference between `__label__` and `node_type`: the second is a fix that
+   works until someone adds the column.
+
+Guarded by `tests/test_invariants.py`, one test per direction, derived from `schema.py` so the
+check follows the DDL rather than restating it. Rule 5 currently has nothing to catch on the edge
+side — the DDL declares two rel properties in total, `source` and `evidence_code`, and neither
+collides — which is exactly why it is a guard and not a note: it passes today and fires the day a
+relationship gains a property called `type`, `from` or `to`, without anyone remembering to look.
+That automatic trigger is what makes leaving the edge keys un-renamed a decision rather than a
+deferral.
+
+Why this is written as a format invariant and not as a fifth structural check: it is a property of
+the *schema against the format*, fixed at author time, not of any particular change-set. Putting it
+in `_validate_structure` would re-derive a static fact on every write and, worse, report it only
+once data flowed through the collision — which is how `label` survived this ADR and its first two
+addenda in the first place.
+
 **Note.** This is the shape of the ingestion contract for the adapters (weeks 3-6): batch by a
 complete fact, not by node type.
 

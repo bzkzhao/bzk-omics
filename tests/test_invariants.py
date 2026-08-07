@@ -10,11 +10,20 @@ the missing-referent cases that used to pass vacuously (F1); and change-set stru
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
 
-from bzk.ontology.invariants import NODE_TYPE_KEY, InvariantError, validate
+from bzk.ontology import schema
+from bzk.ontology.invariants import (
+    COLUMN_BACKED_NODE_KEYS,
+    NODE_TYPE_KEY,
+    RESERVED_EDGE_KEYS,
+    RESERVED_NODE_KEYS,
+    InvariantError,
+    validate,
+)
 
 VALID_CHANGESET = Path(__file__).parent / "fixtures" / "valid_changeset.json"
 
@@ -364,6 +373,87 @@ def test_structure_node_without_id_raises() -> None:
         validate([n("Protein", sequence_version=1)], [])  # no id
     assert ei.value.invariant == "STRUCTURE"
     assert "has no id" in str(ei.value)
+
+
+# ── ADR-0019's reserved namespace: the change-set format against the DDL ──────────────────────
+
+
+def test_reserved_node_keys_are_not_columns_on_any_node_table() -> None:
+    """No structural node key may name a column. This is the guard the `label` collision needed.
+
+    `label` was the node-type discriminator *and* a `STRING` column on six node tables, so those
+    six columns were unwritable through the ingestion contract — `{**columns}` overwrote the node
+    type. It went unnoticed through the whole of ADR-0019 and its first two addenda because
+    nothing compared the format's key names against the DDL's column names; it took a writer that
+    actually wanted the column to surface it.
+
+    Instance fixes do not generalise. This does: it fails the day anyone adds a column called
+    `__label__`, or renames the discriminator onto a name a table already uses, and it names the
+    table and column rather than leaving the next session to diagnose a mangled node.
+    """
+    offenders = {
+        (t.name, column)
+        for t in schema.NODE_TABLES
+        for column, _type in t.columns
+        if column in RESERVED_NODE_KEYS
+    }
+    assert not offenders, (
+        f"reserved change-set key(s) collide with DDL columns: {sorted(offenders)}. A node dict is "
+        f"{{**reserved, **columns}}, so the column can never be written. Rename the column, or the "
+        "key (ADR-0019 § reserved namespace)."
+    )
+
+
+def test_reserved_edge_keys_are_not_properties_on_any_rel_table() -> None:
+    """The same rule for edges, where it currently has nothing to catch — which is the point.
+
+    An edge dict is `{"type", "from", "to", **properties}`. The DDL declares two rel properties in
+    total (`source`, `evidence_code`) and neither collides, so this passes today and was left
+    un-renamed deliberately. It fires the moment a relationship gains a property called `type`,
+    `from` or `to` — the trigger `HANDOFF.md` §8 records, made automatic instead of remembered.
+    """
+    offenders = {
+        (t.name, prop)
+        for t in schema.REL_TABLES
+        for prop, _type in t.properties
+        if prop in RESERVED_EDGE_KEYS
+    }
+    assert not offenders, (
+        f"reserved edge key(s) collide with DDL rel properties: {sorted(offenders)}. Rename the "
+        "property, or move the structural keys into a dunder namespace as the node ones were "
+        "(ADR-0019 § reserved namespace)."
+    )
+
+
+def test_column_backed_keys_are_columns_on_every_node_table() -> None:
+    """The converse direction, which the same rule implies and a one-sided guard would miss.
+
+    `id` is not reserved: it names a real column and means exactly it, which is why the rename left
+    it alone. That only holds while every node table actually has the column — otherwise structural
+    validation reads a field the store does not have. Checked as the primary key too, since that is
+    what makes `id` unique in the graph and not merely within a change-set.
+    """
+    for table in schema.NODE_TABLES:
+        columns = {column for column, _type in table.columns}
+        missing = COLUMN_BACKED_NODE_KEYS - columns
+        assert not missing, f"{table.name} has no {sorted(missing)} column, but the format reads it"
+        assert table.primary_key in COLUMN_BACKED_NODE_KEYS, (
+            f"{table.name} keys on {table.primary_key!r}, which the change-set format does not read"
+        )
+
+
+def test_the_node_type_key_is_outside_the_column_name_space() -> None:
+    """A structural key must be *unable* to become a column, not merely happen not to be one.
+
+    Every column in ONTOLOGY.md §4-§7 matches `[a-z][a-z0-9_]*`, so a key outside that shape cannot
+    collide with a future one. This is what makes `__label__` a fix and `node_type` only a
+    postponement — and it is what fails if someone later "tidies" the dunder away.
+    """
+    for key in RESERVED_NODE_KEYS:
+        assert not re.fullmatch(r"[a-z][a-z0-9_]*", key), (
+            f"reserved key {key!r} is shaped like a DDL column name, so a future column could take "
+            "it. Reserved keys live outside the column-name space (ADR-0019 § reserved namespace)."
+        )
 
 
 def test_structure_node_with_no_type_raises() -> None:

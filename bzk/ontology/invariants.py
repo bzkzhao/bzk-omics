@@ -64,6 +64,26 @@ Edge = dict[str, Any]
 # rename is one edit — the reason the last one was mechanical is that there were no adapters yet.
 NODE_TYPE_KEY = "__label__"
 
+# ── The reserved namespace (ADR-0019) ────────────────────────────────────────────────────────────
+#
+# A change-set dict mixes *structural* keys with *stored* ones. The distinction is what the `label`
+# collision came down to, so it is declared rather than left implicit, and the two kinds are
+# guarded in opposite directions by `tests/test_invariants.py`:
+#
+#   - **Reserved** keys carry information the DDL does not store under that name — a node's type is
+#     the table it lives in, an edge's type is the relationship. They must therefore collide with
+#     NO column or property, or a real field becomes unwritable. `label` was reserved while also
+#     being a column on six node tables, so those six columns could not be written at all.
+#   - **Column-backed** keys name a real column and mean exactly it. `id` is the only one. It must
+#     therefore be present on EVERY node table, or structural validation reads a field the store
+#     does not have.
+#
+# The rule is the general form of the 2026-08-07 rename, and the guard is what makes it hold for
+# the next field rather than the last one.
+RESERVED_NODE_KEYS: frozenset[str] = frozenset({NODE_TYPE_KEY})
+RESERVED_EDGE_KEYS: frozenset[str] = frozenset({"type", "from", "to"})
+COLUMN_BACKED_NODE_KEYS: frozenset[str] = frozenset({"id"})
+
 # Endpoint labels, valid relationship names, and multiplicity per relationship — derived from the
 # schema, so this module mirrors ONTOLOGY.md rather than becoming a second source of truth.
 _REL_ENDPOINTS: dict[str, tuple[str, str]] = {t.name: (t.src, t.dst) for t in schema.REL_TABLES}
