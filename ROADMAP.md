@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.8 |
+| Version | 1.9 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -195,6 +195,25 @@ significantly-changed proteins carries contaminants the reader is expected to fi
 in the paper — the column is right there — but it settles a design question: an analysis-output
 adapter cannot assume an export has been filtered, and `Analysis.filters_applied` describing what
 the *user says* they applied is exactly the `parameters_observed = false` distinction doing its job.
+
+### The ingested population is 1,967, 2026-08-07
+
+The graph now holds the deposit's sites (`python -m bzk.rebuild`), and the population that reached
+it is **not** the file's row count and **not** the notebook's 1,375. Stated here because every
+comparison against `colab_reproducefigure.ipynb` from now on is between two different populations,
+and a difference in a downstream count will otherwise be read as a pipeline discrepancy.
+
+| | rows | |
+|---|---|---|
+| `HAP1_USP18KO_GlyGlyKSites.txt` | 2,341 | |
+| − decoys and contaminants | −43 | 2,298 |
+| − `Localization prob < 0.75` | −242 | 2,056 considered |
+| − refused at ingestion | −89 | 40 residue drift · 48 unresolvable protein · 1 no razor pick |
+| **= `SiteObservation`s in the graph** | **1,967** | |
+
+The notebook's 1,375 is a different filter again — it is the testable subset after its own
+quantitative filtering, not the ingestible subset — so 1,967 and 1,375 are not two answers to one
+question. Reconciling them is Slice 4b's business.
 
 ### Sequence drift costs 40 of 2,056 sites, 2026-08-07
 

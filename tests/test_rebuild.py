@@ -216,6 +216,161 @@ def test_replay_is_idempotent_within_one_graph(tmp_path: Any) -> None:
     rebuild(home=home, curation_dir=CURATION_DIR, session=_session(fx))
     conn = open_graph(home)
     before = store.ids_by_label(conn)
-    replay_ingestion(conn, CURATION_DIR)
+    replay_ingestion(conn, CURATION_DIR, home=home)
     assert store.ids_by_label(conn) == before
     assert store.count_nodes(conn) == EXPECTED_NODES
+
+
+# ── Search-output ingestion in the replay (Slice 4a) ─────────────────────────────────────────────
+
+
+SYNTHETIC_RECORD = Path(__file__).parent / "fixtures" / "curation_synthetic_loadable.json"
+
+
+def _fresh_graph(home: Path) -> Any:
+    """An empty graph with the DDL applied, without `rebuild`'s drop / drift-check steps."""
+    from bzk.rebuild import create_graph
+
+    return create_graph(home)
+
+
+_SYNTHETIC_SEQUENCE = "MAAKGGKLLKR"  # K at 4, 7, 10 — synthetic, and labelled as such
+
+
+def _synthetic_site_table() -> bytes:
+    """A two-row MaxQuant site table, CRLF as the deposit is. One row is a residue mismatch."""
+    header = (
+        "Proteins\tPositions within proteins\tLeading proteins\tProtein\tPosition\t"
+        "Amino acid\tLocalization prob\tScore\tReverse\tPotential contaminant\tid"
+    )
+    rows = [
+        "P20591\t4\tP20591\tP20591\t4\tK\t0.99\t80.5\t\t\t0",
+        "P20591\t5\tP20591\tP20591\t5\tK\t0.99\t70.1\t\t\t1",  # position 5 is G — refused
+    ]
+    return ("\r\n".join([header, *rows]) + "\r\n").encode("utf-8")
+
+
+def _resolver_for(accession: str) -> Any:
+    from bzk.resolve.uniprot import Resolution
+
+    def _resolve(requested: str) -> Resolution:
+        assert requested == accession, requested
+        return Resolution(
+            status="ok",
+            requested=requested,
+            canonical=requested,
+            isoform=None,
+            is_isoform=False,
+            reviewed=True,
+            entry_type="UniProtKB reviewed (Swiss-Prot)",
+            sequence=_SYNTHETIC_SEQUENCE,
+            sequence_version=4,
+            last_seq_update="2019-12-11",
+            gene=None,
+            sequence_source="canonical",
+        )
+
+    return _resolve
+
+
+def _curation_dir_with_deposit(tmp_path: Path, home: Path) -> Path:
+    """A curation export whose record names a synthetic deposit that is in the content store.
+
+    Built rather than committed: the record's `content_hash` must equal the digest of the bytes,
+    so writing the two independently would let them drift apart. `raw_store.store` computes it.
+    """
+    from bzk.provenance import raw_store
+
+    stored = raw_store.store(_synthetic_site_table(), "SYNTHETIC_GlyGlyKSites.txt", home=home)
+    record = json.loads(SYNTHETIC_RECORD.read_text())
+    record["file"] = "SYNTHETIC_GlyGlyKSites.txt"
+    record["content_hash"] = stored.content_hash
+    curation_dir = tmp_path / "curation"
+    curation_dir.mkdir()
+    (curation_dir / "curation_SYNTHETIC.json").write_text(json.dumps(record), encoding="utf-8")
+    return curation_dir
+
+
+def test_replay_ingests_the_deposit_its_curation_names(tmp_path: Any) -> None:
+    """Slice 4a: the sites reach the graph, not just the curation.
+
+    Entirely offline — synthetic deposit, injected resolver — per `HANDOFF.md` §8: a path tested
+    against the real 2.8 MB deposit would be slow, would depend on someone having run the fetch,
+    and would stop testing the day the deposit changes.
+    """
+    from bzk.rebuild import replay_ingestion
+
+    home = tmp_path / "home"
+    curation_dir = _curation_dir_with_deposit(tmp_path, home)
+    conn = _fresh_graph(home)
+
+    report = replay_ingestion(conn, curation_dir, home=home, resolver=_resolver_for("P20591"))
+    assert report.deposits_ingested == 1
+    assert report.site_observations == 1  # of two rows; the other is a residue mismatch
+    assert [r.reason for r in report.refusals] == ["residue_mismatch"]
+
+    counts = store.count_nodes(conn)
+    assert counts["SiteObservation"] == 1
+    assert counts["ModifierAssignment"] == 1
+    assert counts["Modifier"] == 3
+    assert counts["ModificationSite"] == 1
+    assert counts["ProteinSequence"] == 1
+
+
+def test_the_adapter_and_the_curation_agree_on_one_dataset(tmp_path: Any) -> None:
+    """The join that makes I5 traversable: both key `Dataset` on `content_hash` — the loader from
+    the record, the adapter by hashing the bytes — so their ids converge (I7) and the sites hang off
+    the dataset the curation describes rather than off a second, unprovenanced one.
+
+    Asserted rather than assumed: a mismatch would produce a graph that looks complete, with two
+    `Dataset` nodes and no path from any observation back to a `Sample`.
+    """
+    from bzk.rebuild import replay_ingestion
+
+    home = tmp_path / "home"
+    curation_dir = _curation_dir_with_deposit(tmp_path, home)
+    conn = _fresh_graph(home)
+    replay_ingestion(conn, curation_dir, home=home, resolver=_resolver_for("P20591"))
+
+    assert store.count_nodes(conn)["Dataset"] == 1
+    rows = conn.execute(
+        "MATCH (s:Sample)-[:PRODUCED]->(d:Dataset)-[:REPORTS_SITE]->(o:SiteObservation) "
+        "RETURN count(DISTINCT o)"
+    )
+    assert not isinstance(rows, list)
+    assert rows.get_next()[0] == 1, "no SiteObservation is reachable from a Sample"
+
+
+def test_a_deposit_absent_from_the_store_is_reported_not_invented(tmp_path: Any) -> None:
+    """`raw/` is per-machine and gitignored, so a fresh container has curation and no deposit. That
+    is a smaller graph, not a broken one — and the count says so rather than the total implying it.
+    """
+    from bzk.rebuild import replay_ingestion
+
+    home = tmp_path / "home"
+    curation_dir = tmp_path / "curation"
+    curation_dir.mkdir()
+    record = json.loads(SYNTHETIC_RECORD.read_text())
+    (curation_dir / "curation_SYNTHETIC.json").write_text(json.dumps(record), encoding="utf-8")
+    conn = _fresh_graph(home)
+
+    report = replay_ingestion(conn, curation_dir, home=home, resolver=_resolver_for("P20591"))
+    assert report.deposits_ingested == 0
+    assert report.site_observations == 0
+    assert report.curation_records == 1
+    assert "SiteObservation" not in store.count_nodes(conn)
+
+
+def test_an_altered_deposit_raises_rather_than_ingesting(tmp_path: Any) -> None:
+    """The digest is what ties curation to bytes (`OPERATIONS.md` §2). A file that is present but
+    altered is the case worth failing on — absent is tolerated, changed is not."""
+    from bzk.rebuild import replay_ingestion
+
+    home = tmp_path / "home"
+    curation_dir = _curation_dir_with_deposit(tmp_path, home)
+    deposit = next((home / "raw").rglob("SYNTHETIC_GlyGlyKSites.txt"))
+    deposit.write_bytes(_synthetic_site_table() + b"tampered\r\n")
+    conn = _fresh_graph(home)
+
+    with pytest.raises(ValueError, match="hash|altered|differ"):
+        replay_ingestion(conn, curation_dir, home=home, resolver=_resolver_for("P20591"))

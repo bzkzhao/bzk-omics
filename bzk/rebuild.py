@@ -20,25 +20,41 @@ reproduces it, and `tests/test_rebuild.py` compares a second rebuild against the
 against the ids pinned in `tests/fixtures/pxd018299_curation_ids.json` — so reproducibility is
 checked against something outside this module as well as against itself.
 
-The adapters stay out of the replay. `perseus.py` has no real input (`HANDOFF.md` §8) and inventing
-one to make the replay look fuller would put content in the graph that `raw/` cannot regenerate,
-which is the one thing I9 forbids.
+**Search-output ingestion joined the replay 2026-08-07.** Each curation record names a deposit by
+`content_hash`; where those bytes are in the content-addressed store, the record's
+`SampleMapping` and the file go through the adapter that recognises it, and the sites are written
+alongside the curation. This is what I9's *"regenerable from `raw/` plus the curation export"*
+actually means — before it, the clause was discharged against curation content only.
 
-Network access is injectable (``session``) so the drift check is testable offline.
+`perseus.py` still stays out: it has no real input (`HANDOFF.md` §8) and inventing one to make the
+replay look fuller would put content in the graph that `raw/` cannot regenerate, which is the one
+thing I9 forbids. The MaxQuant site table is the opposite case — it *is* in `raw/`, by digest.
+
+**A rebuild reaches UniProt.** `resolve_to_nodes` needs a sequence version per razor pick, served
+from `~/.bzk-omics/cache/uniprot` and fetched on a miss. That makes the cache an input to the
+replay and not only to the drift check, which is `ONTOLOGY.md` §11 Q6 — recorded there, unresolved,
+and now load-bearing rather than latent. Both the resolver and the HTTP session are injectable, so
+the whole path is testable offline.
 """
 
 from __future__ import annotations
 
 import shutil
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import kuzu
 
-from bzk.curation.loader import CurationError, load_path
+from bzk.adapters.base import Refusal
+from bzk.adapters.maxquant_sites import DeclaredSiteAnalysis, MaxQuantSiteAdapter
+from bzk.curation.loader import CurationError, LoadedCuration, load_path
 from bzk.http import RestSession
 from bzk.ontology import schema, store
+from bzk.ontology.invariants import NODE_TYPE_KEY
+from bzk.provenance import raw_store
+from bzk.resolve.nodes import Resolver
 from bzk.resolve.uniprot import resolve
 
 DEFAULT_HOME = Path.home() / ".bzk-omics"
@@ -64,6 +80,13 @@ class ReplayReport:
     curation_records: int
     nodes_written: int
     edges_written: int
+    #: Deposits an adapter recognised and ingested. Zero on a machine where `raw/` is empty.
+    deposits_ingested: int = 0
+    #: `SiteObservation`s written — the ingested population, which is NOT the file's row count.
+    site_observations: int = 0
+    #: Rows an adapter refused, carried up so a rebuild states what it did not ingest rather than
+    #: leaving it to be inferred from a smaller total (`CLAUDE.md` § Flag rather than hide).
+    refusals: list[Refusal] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -73,6 +96,9 @@ class RebuildReport:
     nodes_written: int
     edges_written: int
     drifts: list[Drift]
+    deposits_ingested: int = 0
+    site_observations: int = 0
+    refusals: list[Refusal] = field(default_factory=list)
 
 
 def _remove(path: Path) -> None:
@@ -106,8 +132,57 @@ def open_graph(home: Path) -> kuzu.Connection:
     return kuzu.Connection(kuzu.Database(str(home / "graph.kuzu")))
 
 
-def replay_ingestion(conn: kuzu.Connection, curation_dir: Path) -> ReplayReport:
-    """Load every curation record and write it to the graph. The substance of I9.
+def _deposit_for(loaded: LoadedCuration, home: Path) -> Path | None:
+    """The raw file a curation record is about, or `None` if it is not in the content store.
+
+    Located by **digest, not filename**: the record's `Dataset.content_hash` is what ties curation
+    to bytes, and `raw_store.verify` re-hashes the file it finds, so a replay cannot silently run
+    against a re-downloaded or revised deposit that happens to share a name (`OPERATIONS.md` §2).
+
+    `None` rather than an error when it is absent: `raw/` is per-machine and gitignored
+    (`ARCHITECTURE.md` §2), so a fresh container has curation but no deposit until
+    `python -m bzk.sources.pride` runs. That is a smaller graph, not a broken one, and the count is
+    reported. A file that is present but *altered* still raises, which is the case worth failing on.
+    """
+    dataset = next((n for n in loaded.nodes if n[NODE_TYPE_KEY] == "Dataset"), None)
+    if dataset is None or not dataset.get("content_hash"):
+        return None
+    try:
+        return raw_store.verify(
+            str(dataset["content_hash"]), filename=str(dataset["label"]), home=home
+        )
+    except FileNotFoundError:
+        return None
+
+
+def _adapter_for(loaded: LoadedCuration, path: Path, resolver: Resolver | None) -> Any | None:
+    """The adapter that recognises this file, configured from the curation record.
+
+    Every declared parameter comes from the record — `search_engine`, its version — rather than
+    from a constant here, so the graph records what the curator stated about the run rather than
+    what this module assumed. Selection is by `sniff` on content, never by filename
+    (`ARCHITECTURE.md` §3).
+    """
+    dataset = next(n for n in loaded.nodes if n[NODE_TYPE_KEY] == "Dataset")
+    adapter = MaxQuantSiteAdapter(
+        DeclaredSiteAnalysis(
+            search_engine=str(dataset.get("search_engine") or "unknown"),
+            external_version=str(dataset.get("search_engine_version") or "unknown"),
+            acquisition_mode=dataset.get("acquisition_mode"),
+        ),
+        resolver=resolver,
+    )
+    return adapter if adapter.sniff(path) else None
+
+
+def replay_ingestion(
+    conn: kuzu.Connection,
+    curation_dir: Path,
+    *,
+    home: Path,
+    resolver: Resolver | None = None,
+) -> ReplayReport:
+    """Load every curation record, then ingest the deposit it names. The substance of I9.
 
     Records are replayed in sorted filename order so a rebuild is deterministic in the one respect
     the loader is not: ids are content-derived and order-independent, but *log output* and any
@@ -117,9 +192,26 @@ def replay_ingestion(conn: kuzu.Connection, curation_dir: Path) -> ReplayReport:
     A record that cannot be loaded **stops the rebuild**. Skipping it and carrying on would produce
     a graph that is silently a subset of the export — I9 says the graph is regenerable from `raw/`
     plus the curation export, and a partial replay makes that false while looking successful.
+
+    **The curation record runs first, and that ordering is load-bearing.** The adapter needs the
+    `SampleMapping` the loader produces, and the two agree on the `Dataset` because both key it on
+    `content_hash` — the loader from the record, the adapter by hashing the bytes. Their ids
+    converge (I7), so the sites attach to the dataset the curation describes rather than to a second
+    one, and every `SiteObservation` is reachable from a `Sample` and its curation `Analysis` (I5).
+    That convergence is asserted in `tests/test_rebuild.py` rather than assumed.
+
+    **`home` has no default, deliberately.** It did for one revision, `DEFAULT_HOME`, and a test
+    calling `replay_ingestion(conn, CURATION_DIR)` against a temporary graph then reached into the
+    real `~/.bzk-omics/raw/` and ingested the actual 2.8 MB deposit — 78 seconds, and counts that
+    depended on whether the developer had run the fetch. That is `HANDOFF.md` §8's live-data hazard
+    arriving from the other direction: not a fixture that stops guarding when real data changes, but
+    a *test* that silently starts using real data because a default pointed at it. Requiring the
+    argument makes the omission a type error.
     """
     records = sorted(curation_dir.glob("curation_*.json")) if curation_dir.exists() else []
     nodes = edges = 0
+    observations = deposits = 0
+    refusals: list[Refusal] = []
     for path in records:
         try:
             loaded = load_path(path)
@@ -132,8 +224,42 @@ def replay_ingestion(conn: kuzu.Connection, curation_dir: Path) -> ReplayReport:
         nodes += written.nodes_written
         edges += written.edges_written
         log(f"replayed {path.name}: {written.nodes_written} nodes, {written.edges_written} edges")
-    log(f"ingestion replay: {len(records)} curation record(s), {nodes} nodes, {edges} edges")
-    return ReplayReport(curation_records=len(records), nodes_written=nodes, edges_written=edges)
+
+        source = _deposit_for(loaded, home)
+        if source is None:
+            log(f"  no deposit in the content store for {path.name}; sites not ingested")
+            continue
+        adapter = _adapter_for(loaded, source, resolver)
+        if adapter is None:
+            log(f"  no adapter recognises {source.name}; sites not ingested")
+            continue
+        parsed = adapter.parse(source, loaded.sample_mapping())
+        written = store.write_change_set(conn, parsed.nodes, parsed.edges)
+        nodes += written.nodes_written
+        edges += written.edges_written
+        deposits += 1
+        refusals.extend(parsed.refusals)
+        report = adapter.report
+        emitted = report.sites_emitted if report is not None else 0
+        observations += emitted
+        log(
+            f"  ingested {source.name} via {adapter.name}: {emitted} site(s), "
+            f"{len(parsed.refusals)} refused, {written.nodes_written} nodes, "
+            f"{written.edges_written} edges"
+        )
+    log(
+        f"ingestion replay: {len(records)} curation record(s), {deposits} deposit(s), "
+        f"{observations} site observation(s), {len(refusals)} refusal(s), "
+        f"{nodes} nodes, {edges} edges"
+    )
+    return ReplayReport(
+        curation_records=len(records),
+        nodes_written=nodes,
+        edges_written=edges,
+        deposits_ingested=deposits,
+        site_observations=observations,
+        refusals=refusals,
+    )
 
 
 def drift_check(cache_dir: Path, *, session: RestSession | None = None) -> list[Drift]:
@@ -176,6 +302,7 @@ def rebuild(
     home: Path = DEFAULT_HOME,
     curation_dir: Path = DEFAULT_CURATION_DIR,
     session: RestSession | None = None,
+    resolver: Resolver | None = None,
 ) -> RebuildReport:
     """Drop and reconstruct the derived stores, then drift-check the sequence cache."""
     log("dropping derived stores (graph.kuzu, quant.duckdb)")
@@ -185,7 +312,7 @@ def rebuild(
     conn = create_graph(home)
     tables = len(schema.table_names())
 
-    replay = replay_ingestion(conn, curation_dir)
+    replay = replay_ingestion(conn, curation_dir, home=home, resolver=resolver)
 
     log("drift-checking the UniProt sequence cache")
     drifts = drift_check(home / "cache" / "uniprot", session=session)
@@ -200,7 +327,9 @@ def rebuild(
 
     log(
         f"done: {tables} tables, {replay.curation_records} curation record(s), "
-        f"{replay.nodes_written} nodes, {replay.edges_written} edges, {len(drifts)} drift(s)"
+        f"{replay.deposits_ingested} deposit(s), {replay.site_observations} site observation(s), "
+        f"{len(replay.refusals)} refused, {replay.nodes_written} nodes, "
+        f"{replay.edges_written} edges, {len(drifts)} drift(s)"
     )
     return RebuildReport(
         tables_created=tables,
@@ -208,6 +337,9 @@ def rebuild(
         nodes_written=replay.nodes_written,
         edges_written=replay.edges_written,
         drifts=drifts,
+        deposits_ingested=replay.deposits_ingested,
+        site_observations=replay.site_observations,
+        refusals=replay.refusals,
     )
 
 
