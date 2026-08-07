@@ -36,6 +36,7 @@ CURATION_BASIS: dict[str, str] = {
 }
 CURATION_CONFIDENCE: frozenset[str] = frozenset(CURATION_BASIS.values())
 
+
 # The modifiers a tryptic K-GG remnant cannot distinguish (§6.1). This is `candidate_modifiers`'
 # one home: the field is identifying on `ModifierAssignment`, so populating it by querying whichever
 # `Modifier` nodes the graph happens to hold would make every assignment id a function of when the
@@ -66,10 +67,23 @@ CURATION_CONFIDENCE: frozenset[str] = frozenset(CURATION_BASIS.values())
 #
 # So the set is three, not four. §6.1's prose named four and its DDL example three; the example was
 # right. Guarded against §6.1 by tests/test_schema.py.
-GG_REMNANT_MODIFIERS: dict[str, str] = {
-    "uniprot:P0CG48": "ubiquitin",
-    "uniprot:Q15843": "NEDD8",
-    "uniprot:P05161": "ISG15",
+#
+# The motif is carried here rather than beside the seed, so the `Modifier.c_terminal_motif` column
+# and the set that justifies membership have one home. It is the **mature** C-terminus — the same
+# distinction the paragraph above is about, and the value a reader would otherwise re-derive wrongly
+# from the canonical sequence.
+@dataclass(frozen=True)
+class GgRemnantModifier:
+    """One modifier a tryptic K-GG remnant cannot distinguish from the others."""
+
+    name: str
+    c_terminal_motif: str  # mature chain, per the table above
+
+
+GG_REMNANT_MODIFIERS: dict[str, GgRemnantModifier] = {
+    "uniprot:P0CG48": GgRemnantModifier("ubiquitin", "LRLRGG"),
+    "uniprot:Q15843": GgRemnantModifier("NEDD8", "LALRGG"),
+    "uniprot:P05161": GgRemnantModifier("ISG15", "LRLRGG"),
 }
 
 # §3's absence classification, mirrored for code that must decide whether a null is legal.

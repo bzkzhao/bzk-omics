@@ -29,6 +29,7 @@ VALID_CHANGESET = Path(__file__).parent / "fixtures" / "valid_changeset.json"
 
 # Real external identifiers (ONTOLOGY.md §9; USP18 = O43593).
 UBIQUITIN = "uniprot:P0CG48"
+ISG15 = "uniprot:P05161"
 MX1 = "uniprot:P20591"
 IFIT1_2 = "uniprot:P09914-2"
 USP18 = "uniprot:O43593"
@@ -167,6 +168,37 @@ def test_I3_ambiguous_assignment_may_not_name_a_modifier() -> None:
         validate(nodes, edges, only="I3")
     assert ei.value.invariant == "I3"
     assert "ambiguous" in str(ei.value)
+
+
+def test_I3_a_site_observation_without_an_assignment_is_refused() -> None:
+    """§6.1's every-observation-has-an-assignment rule, the under-claiming half of I3.
+
+    A site with no assignment is not a cautious site — it states nothing about its modifier, and
+    nothing downstream can tell "not assigned yet" from "assigned, ambiguous". The first invites
+    someone to supply the missing default by assuming ubiquitin, which is the assumption §6.1
+    exists to refuse.
+    """
+    nodes = [n("SiteObservation", id="bzk:obs1", candidate_proteins=[MX1])]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [], only="I3")
+    assert ei.value.invariant == "I3"
+    assert "no ModifierAssignment" in str(ei.value)
+
+
+def test_I3_an_ambiguous_assignment_satisfies_the_rule() -> None:
+    """The positive case, and the point of the default: `ambiguous` is a real assignment. Asserted
+    so a future tightening cannot quietly start demanding a non-ambiguous one."""
+    nodes = [
+        n("SiteObservation", id="bzk:obs1", candidate_proteins=[MX1]),
+        n(
+            "ModifierAssignment",
+            id="bzk:ma1",
+            basis="inferred_default",
+            confidence="ambiguous",
+            candidate_modifiers=[UBIQUITIN],
+        ),
+    ]
+    validate(nodes, [e("ASSIGNMENT_FOR", "bzk:ma1", "bzk:obs1")], only="I3")  # must not raise
 
 
 def test_I4_applied_adjustment_requires_adjusted_by_edge() -> None:
@@ -466,7 +498,9 @@ def test_structure_label_mismatch_on_unowned_relation_is_structural() -> None:
     # The message names the pair the edge actually runs between and the pair(s) the schema
     # declares. It changed shape with ADR-0022, because a relationship may now declare more than
     # one pair and "not X" no longer describes the failure.
-    assert "runs 'Protein' → 'ModificationSite'" in str(ei.value)
+    # Endpoint labels are now reported as the *set* carrying that id, since two labels may share
+    # one (ADR-0019, corrected 2026-08-07) and naming a single one would be a guess.
+    assert "runs ['Protein'] → ['ModificationSite']" in str(ei.value)
     assert "declares SiteObservation → ModificationSite" in str(ei.value)
 
 
@@ -617,11 +651,29 @@ def test_structure_a_node_may_carry_both_the_type_key_and_a_label_column() -> No
 
 
 def test_structure_duplicate_node_id_raises() -> None:
-    nodes = [n("Protein", id="dup", sequence_version=1), n("Modifier", id="dup", name="x")]
+    """Duplicate means same label *and* same id — see the test below for why the label matters."""
+    nodes = [n("Protein", id="dup", accession="dup"), n("Protein", id="dup", accession="dup")]
     with pytest.raises(InvariantError) as ei:
         validate(nodes, [])
     assert ei.value.invariant == "STRUCTURE"
     assert "duplicate node id" in str(ei.value)
+
+
+def test_structure_two_labels_may_share_one_id() -> None:
+    """ADR-0019, corrected 2026-08-07. §3 keys `Protein` and `Modifier` both on `uniprot:`, so
+    **ISG15 is `uniprot:P05161` under both** — the protein a diGly search reports as a razor pick,
+    and the modifier its K-GG remnant might have come from. That is this project's anchor domain,
+    not an edge case, and the old id-only rule rejected the first real change-set that contained it.
+
+    This test asserted the opposite until real data ran through the modifier seed.
+    """
+    nodes = [
+        n("Protein", id=ISG15, accession="P05161"),
+        n("Modifier", id=ISG15, name="ISG15", c_terminal_motif="LRLRGG", leaves_gg_remnant=True),
+        n("ProteinSequence", id=f"{ISG15}#sv1", sequence_version=1),
+    ]
+    # The edge is disambiguated by the relationship's declared endpoints, not by the id.
+    validate(nodes, [e("HAS_SEQUENCE", ISG15, f"{ISG15}#sv1")])  # must not raise
 
 
 # ── ADR-0019 hole (v): multiplicity, from schema.RelTable.multiplicity ─────────────────────────

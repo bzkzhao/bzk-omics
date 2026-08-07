@@ -122,8 +122,17 @@ def _edges(edges: Iterable[Edge], rel: str) -> list[Edge]:
     return [e for e in edges if e.get("type") == rel]
 
 
-def _index(nodes: Iterable[Node]) -> dict[Any, Node]:
-    return {n["id"]: n for n in nodes if "id" in n}
+def _index(nodes: Iterable[Node], label: str) -> dict[Any, Node]:
+    """`{id: node}` for one label.
+
+    Label-scoped, not global. Two node tables may share an id — §3 keys both `Protein` and
+    `Modifier` on `uniprot:`, so ISG15 is `uniprot:P05161` under both (ADR-0019, corrected
+    2026-08-07) — and a global index would return whichever came last. The failure that causes is
+    silent rather than loud: I2's `HAS_SEQUENCE` clause reads `.get("accession")` off the node it
+    finds, and a `Modifier` has no `accession`, so the check would skip instead of raising. Every
+    caller here knows the label from the relationship it is walking, so scoping costs nothing.
+    """
+    return {n["id"]: n for n in nodes if "id" in n and n.get(NODE_TYPE_KEY) == label}
 
 
 def _validate_structure(nodes: list[Node], edges: list[Edge]) -> None:
@@ -136,9 +145,20 @@ def _validate_structure(nodes: list[Node], edges: list[Edge]) -> None:
             raise InvariantError(
                 "STRUCTURE", f"node labelled {node.get(NODE_TYPE_KEY)!r} has no id"
             )
-        if node_id in seen:
-            raise InvariantError("STRUCTURE", f"duplicate node id {node_id!r} in the change-set")
-        seen.add(node_id)
+        # Keyed on (label, id), not id alone. Two node *tables* may legitimately share an id, and
+        # the case is not exotic: `Modifier` and `Protein` both key on `uniprot:` (§3), so ISG15 is
+        # `uniprot:P05161` under both — the protein that a diGly search reports as a razor pick, and
+        # the modifier a K-GG remnant might have come from. That is the anchor domain of this
+        # project, not an edge case, and it surfaced the first time a real file was ingested with
+        # the modifier seed in the same change-set. Kùzu stores them in separate tables and is
+        # untroubled; it was this format that was too narrow.
+        if (node.get(NODE_TYPE_KEY), node_id) in seen:
+            raise InvariantError(
+                "STRUCTURE",
+                f"duplicate node id {node_id!r} for label {node.get(NODE_TYPE_KEY)!r} in the "
+                "change-set",
+            )
+        seen.add((node.get(NODE_TYPE_KEY), node_id))
         # Every node declares a node type the DDL knows. Until 2026-08-07 a node type was only ever
         # checked where an *edge* pointed at it, so a node no edge referenced could carry a typo'd
         # type or none at all and pass. The discriminator rename in the same ADR is what exposed
@@ -154,7 +174,15 @@ def _validate_structure(nodes: list[Node], edges: list[Edge]) -> None:
                 "— 'label' is a DDL column on six node tables (ADR-0019, 2026-08-07).",
             )
 
-    by_id = {node["id"]: node for node in nodes if "id" in node}
+    # id -> every label carrying it. An edge names its endpoints by bare id, so where two labels
+    # share one the edge would be ambiguous — except that the *relationship* declares its endpoint
+    # types, which disambiguates it: `HAS_SEQUENCE(FROM Protein TO ProteinSequence)` reaching
+    # `uniprot:P05161` can only mean the `Protein`. So an endpoint is well-formed when SOME node
+    # with that id carries a declared label, rather than when THE node with that id does.
+    labels_by_id: dict[Any, set[str]] = defaultdict(set)
+    for node in nodes:
+        if "id" in node:
+            labels_by_id[node["id"]].add(str(node.get(NODE_TYPE_KEY)))
     # MANY_ONE / ONE_ONE constrain the source side; ONE_MANY / ONE_ONE the destination side.
     seen_from: dict[str, set[Any]] = defaultdict(set)
     seen_to: dict[str, set[Any]] = defaultdict(set)
@@ -165,19 +193,19 @@ def _validate_structure(nodes: list[Node], edges: list[Edge]) -> None:
                 "STRUCTURE", f"edge type {rel!r} is not a relationship in the schema"
             )
         owner = _REL_INVARIANT.get(rel, "STRUCTURE")
-        endpoints = []
+        present = []
         for role in ("from", "to"):
-            referent = by_id.get(edge.get(role))
-            if referent is None:
+            found = labels_by_id.get(edge.get(role))
+            if not found:
                 raise InvariantError(
                     owner, f"{rel} names {role} {edge.get(role)!r}, absent from the change-set"
                 )
-            endpoints.append(referent.get(NODE_TYPE_KEY))
-        if tuple(endpoints) not in _REL_ENDPOINTS[rel]:
+            present.append(found)
+        if not any(src in present[0] and dst in present[1] for src, dst in _REL_ENDPOINTS[rel]):
             declared = " or ".join(f"{s} → {d}" for s, d in _REL_ENDPOINTS[rel])
             raise InvariantError(
                 owner,
-                f"{rel} runs {endpoints[0]!r} → {endpoints[1]!r} between "
+                f"{rel} runs {sorted(present[0])} → {sorted(present[1])} between "
                 f"{edge.get('from')!r} and {edge.get('to')!r}; the schema declares {declared}",
             )
 
@@ -238,9 +266,10 @@ def _check_I2(nodes: list[Node], edges: list[Edge]) -> None:
     Clause 3 is skipped where the change-set carries no `sequence`, which is legal: a site may be
     re-staged against a `ProteinSequence` already in the graph. It is a backstop, not the first line.
     """
-    by_id = _index(nodes)
+    sites = _index(nodes, "ModificationSite")
+    sequences = _index(nodes, "ProteinSequence")
     for edge in _edges(edges, "SITE_ON"):  # ModificationSite -> ProteinSequence
-        site, protein_sequence = by_id[edge["from"]], by_id[edge["to"]]
+        site, protein_sequence = sites[edge["from"]], sequences[edge["to"]]
         version = protein_sequence.get("sequence_version")
         if version is None:
             raise InvariantError(
@@ -267,8 +296,9 @@ def _check_I2(nodes: list[Node], edges: list[Edge]) -> None:
                     f"but {edge['to']} has {actual or 'nothing (past the end)'!r} there.",
                 )
 
+    proteins = _index(nodes, "Protein")
     accession_of = {
-        e["to"]: by_id[e["from"]].get("accession") for e in _edges(edges, "HAS_SEQUENCE")
+        e["to"]: proteins[e["from"]].get("accession") for e in _edges(edges, "HAS_SEQUENCE")
     }
     for protein_sequence in _nodes(nodes, "ProteinSequence"):
         node_id = str(protein_sequence.get("id", ""))
@@ -301,17 +331,48 @@ def _sv_segment(node_id: str) -> int | None:
 
 
 def _check_I3(nodes: list[Node], edges: list[Edge]) -> None:
-    """I3 — no bare modifier claim: an ambiguous ModifierAssignment may not ASSIGNS a modifier."""
+    """I3 — no bare modifier claim, in two directions.
+
+    **No over-claiming:** an ambiguous `ModifierAssignment` may not `ASSIGNS` a modifier. This half
+    has always been here — it stops a K-GG site being named "ubiquitination" without evidence.
+
+    **No silent under-claiming:** every `SiteObservation` must carry a `ModifierAssignment`
+    (§6.1). An observation with none is not a *cautious* site, it is a site whose modifier status is
+    unstated, and nothing downstream can distinguish "no assignment yet" from "assignment is
+    ambiguous" — the first reads as an omission and invites someone to supply the missing default by
+    assuming ubiquitin, which is the assumption the whole §6.1 apparatus exists to refuse. §6.1
+    creates the `inferred_default` / `ambiguous` assignment automatically for exactly this reason;
+    this makes the automatic step non-optional instead of conventional.
+
+    **Scoped to the change-set, which has a cost worth stating.** A producer re-staging a
+    `SiteObservation` — because an edge it emits names one (ADR-0019) — must re-stage that
+    observation's assignment too. That is stricter than I2's residue clause, which *skips* when the
+    change-set does not carry the sequence, and the two differ for a reason: a `ProteinSequence` is
+    immutable reference content that legitimately lives only in the graph, whereas an assignment is
+    evidence tied one-to-one to the observation and travels with it.
+    """
     _check_confidence(nodes, "ModifierAssignment", "I3")
-    by_id = _index(nodes)
+    assignments = _index(nodes, "ModifierAssignment")
     for edge in _edges(edges, "ASSIGNS"):  # ModifierAssignment -> Modifier
-        assignment = by_id[edge["from"]]
+        assignment = assignments[edge["from"]]
         if assignment.get("confidence") == "ambiguous":
             raise InvariantError(
                 "I3",
                 f"ModifierAssignment {edge['from']} asserts modifier {edge['to']} while "
                 "confidence='ambiguous'; a K-GG site may not be named without a "
                 "non-ambiguous assignment.",
+            )
+
+    assigned = {e["to"] for e in _edges(edges, "ASSIGNMENT_FOR")}  # -> SiteObservation
+    for observation in _nodes(nodes, "SiteObservation"):
+        if observation.get("id") not in assigned:
+            raise InvariantError(
+                "I3",
+                f"SiteObservation {observation.get('id')} carries no ModifierAssignment. §6.1 "
+                "requires one on every observation — created as basis='inferred_default', "
+                "confidence='ambiguous' where nothing orthogonal is known. A site with no "
+                "assignment states nothing about its modifier, which reads as an omission to be "
+                "filled in rather than as the ambiguity it actually is.",
             )
 
 
@@ -337,9 +398,9 @@ def _check_I4(nodes: list[Node], edges: list[Edge]) -> None:
 def _check_I10(nodes: list[Node], edges: list[Edge]) -> None:
     """I10 — an enzyme may be attributed to a site only through a *live* EnzymeAssociation."""
     _check_confidence(nodes, "EnzymeAssociation", "I10")
-    by_id = _index(nodes)
+    associations = _index(nodes, "EnzymeAssociation")
     for edge in _edges(edges, "ASSOCIATION_FOR"):  # EnzymeAssociation -> SiteObservation
-        association = by_id[edge["from"]]
+        association = associations[edge["from"]]
         if association.get("retracted_at") is not None:
             raise InvariantError(
                 "I10",
@@ -362,9 +423,9 @@ def _check_I14(nodes: list[Node], edges: list[Edge]) -> None:
     pick would refuse 82% of sites with nothing that would satisfy it.
     """
     _check_confidence(nodes, "ProteinAssignment", "I14")
-    by_id = _index(nodes)
+    protein_assignments = _index(nodes, "ProteinAssignment")
     for edge in _edges(edges, "ASSIGNS_PROTEIN"):  # ProteinAssignment -> Protein
-        assignment = by_id[edge["from"]]
+        assignment = protein_assignments[edge["from"]]
         candidates = assignment.get("candidate_proteins") or []
         if len(candidates) > 1 and assignment.get("confidence") != "confirmed":
             raise InvariantError(

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.10 |
+| Version | 1.11 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -63,6 +63,7 @@ The UniProt cache is not optional. Site position validation requires the exact s
 bzk/
   ontology/      # schema DDL, node/edge dataclasses, invariant checks, the key builder
     store.py     # the change-set write path: the only module that knows both it and Kùzu
+    seed.py      # Modifier nodes from GG_REMNANT_MODIFIERS — reference data from version control
   curation/      # data/curation/*.json -> change-set; the one non-derivable input (§2)
     loader.py
   adapters/      # ingestion; one module per search engine or analysis tool

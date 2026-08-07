@@ -123,6 +123,42 @@ def test_no_relationship_is_the_exact_reverse_of_another() -> None:
     )
 
 
+def test_no_relationship_role_admits_two_labels_that_can_share_an_id() -> None:
+    """The guard ADR-0019's (label, id) correction promised.
+
+    An edge names its endpoints by bare id. That is unambiguous only because no relationship has a
+    *role* — source or destination — that two id-sharing labels could both fill: the pair the
+    schema declares picks the reading. `Protein` and `Modifier` are the id-sharing pair, both keyed
+    bare `uniprot:{accession}` (§3, §4), which is how ISG15 came to be `uniprot:P05161` under both.
+
+    Today no relationship admits both in one role, so bare ids resolve. That is a property of this
+    DDL, not a guarantee of the format, and this fails the day a relationship is added that breaks
+    it — at which point edges need to carry an endpoint label and ADR-0019 needs revisiting.
+    """
+    text = ONTOLOGY.read_text()
+    # The §3 per-label key table: which reference labels are bare `uniprot:` and so can collide.
+    table = text[text.index("| Node | Prefix | Example") :]
+    table = table[: table.index("\n\n")]
+    uniprot_labels = {
+        label
+        for label, prefix in re.findall(r"^\| `(\w+)` \| `([\w:]+)` \|", table, re.MULTILINE)
+        if prefix == "uniprot:"
+    }
+    # `Protein` is keyed `uniprot:{accession}` by §4's key templates rather than by that table.
+    collide = uniprot_labels | {"Protein"}
+    assert {"Protein", "Modifier"} <= collide, f"expected the known pair, found {collide}"
+
+    _, rels = _parse_ontology()
+    for name, (pairs, _) in rels.items():
+        for role, index in (("source", 0), ("destination", 1)):
+            labels = {pair[index] for pair in pairs}
+            ambiguous = labels & collide
+            assert len(ambiguous) <= 1, (
+                f"{name}'s {role} admits {sorted(ambiguous)}, which share the `uniprot:` id space "
+                "— an edge naming that endpoint by bare id would be ambiguous (ADR-0019)."
+            )
+
+
 def _walk_nodes(obj: object) -> Iterator[dict[str, Any]]:
     """Yield every dict carrying an 'id' and a node-type key — the node shape, wherever nested."""
     if isinstance(obj, dict):
@@ -571,9 +607,14 @@ def test_gg_remnant_modifiers_match_ontology_6_1() -> None:
     # The excluded ones must be named too — an enum of three with no stated exclusions reads as an
     # oversight, which is how the four-item prose survived in the first place.
     assert {"O15205", "P63165"} <= cited, "§6.1 must say why FAT10 and SUMO are excluded"
-    for accession, name in schema.GG_REMNANT_MODIFIERS.items():
+    for accession, modifier in schema.GG_REMNANT_MODIFIERS.items():
         assert accession.startswith("uniprot:"), accession
-        assert name.lower() in section.lower(), f"§6.1 does not name {name}"
+        assert modifier.name.lower() in section.lower(), f"§6.1 does not name {modifier.name}"
+        # The motif is the *mature* C-terminus and must end in the diglycine that defines the set,
+        # with K or R at -3. Checked here rather than trusted: a motif copied off the canonical
+        # sequence is the specific error §6.1 records, and it would otherwise reach `Modifier` nodes.
+        assert modifier.c_terminal_motif.endswith("GG"), modifier
+        assert modifier.c_terminal_motif[-3] in "KR", modifier
 
     # Beyond §6.1, and deliberately about the *token* rather than about any syntax.
     #

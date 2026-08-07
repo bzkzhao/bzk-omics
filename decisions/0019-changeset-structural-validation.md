@@ -149,6 +149,30 @@ in `_validate_structure` would re-derive a static fact on every write and, worse
 once data flowed through the collision — which is how `label` survived this ADR and its first two
 addenda in the first place.
 
+**A node is identified by (label, id), not by id alone — corrected 2026-08-07.** Point 4 above said
+"every node has a unique id", and the implementation read that as unique across the whole
+change-set. That is wrong, and real data proved it on the first run that seeded `Modifier` nodes
+alongside `Protein`s: **§3 keys both on `uniprot:`**, so ISG15 is `uniprot:P05161` under both
+labels — the protein a diGly search reports as a razor pick, *and* the modifier the K-GG remnant
+might have come from. Kùzu stores the two in separate tables and is untroubled; it was this format
+that was too narrow, and the collision is the project's anchor domain rather than an edge case.
+
+Three consequences, all in `_validate_structure` and its callers:
+
+1. Uniqueness is per `(label, id)`. Two labels sharing an id is legal.
+2. An edge names endpoints by **bare id**, so where two labels share one the reference is ambiguous
+   in isolation. It is disambiguated by the *relationship*, which declares its endpoint types:
+   `HAS_SEQUENCE(FROM Protein TO ProteinSequence)` reaching `uniprot:P05161` can only mean the
+   `Protein`. So an endpoint is well-formed when **some** node with that id carries a declared
+   label, rather than when **the** node with that id does.
+3. Any producer collapsing duplicates by id must key the same way, or it silently drops one of the
+   two nodes — which is precisely what happened before the check caught it.
+
+What this does **not** do is give edges a way to name a label explicitly. Under the current schema
+they never need one: no relationship declares an endpoint pair that both readings of a shared id
+would satisfy. That is a property of today's DDL rather than a guarantee of the format, and it is
+recorded in `HANDOFF.md` §8 with the guard that would detect the day it stops being true.
+
 **Note.** This is the shape of the ingestion contract for the adapters (weeks 3-6): batch by a
 complete fact, not by node type.
 

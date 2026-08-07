@@ -22,7 +22,7 @@ from bzk.adapters.maxquant_sites import (
     MaxQuantSiteAdapter,
     MaxQuantSiteError,
 )
-from bzk.ontology import invariants
+from bzk.ontology import invariants, schema
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.resolve.nodes import Resolver
 from bzk.resolve.uniprot import Resolution
@@ -174,6 +174,82 @@ def test_each_fact_is_written_once(tmp_path: Path) -> None:
     reports = next(e for e in parsed.edges if e["type"] == "REPORTS_SITE")
     observation = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "SiteObservation")
     assert reports["to"] == observation["id"], "REPORTS_SITE runs Dataset -> SiteObservation"
+
+
+# ── Slice 3: the ambiguous default on every site ────────────────────────────────────────────────
+
+
+def test_every_site_gets_an_ambiguous_assignment(tmp_path: Path) -> None:
+    """§6.1: the default is created automatically, `inferred_default` / `ambiguous`, naming the
+    candidate set rather than a modifier. Enforced by I3, so this asserts the *content* the
+    invariant cannot — that the candidate set is the three-member closed enum and not, say, empty.
+    """
+    parsed = _adapter().parse(_write(tmp_path, [_row()]), _mapping())
+    assignment = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "ModifierAssignment")
+    assert assignment["basis"] == "inferred_default"
+    assert assignment["confidence"] == "ambiguous"
+    assert assignment["candidate_modifiers"] == [
+        "uniprot:P05161",
+        "uniprot:P0CG48",
+        "uniprot:Q15843",
+    ]
+    observation = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "SiteObservation")
+    assert {"type": "ASSIGNMENT_FOR", "from": assignment["id"], "to": observation["id"]} in (
+        parsed.edges
+    )
+
+
+def test_the_default_assignment_names_no_modifier(tmp_path: Path) -> None:
+    """I3, and the product: a K-GG site is not reported as ubiquitination. `ASSIGNS` is what would
+    name one, and an ambiguous assignment may not carry it — so its absence here is the claim."""
+    parsed = _adapter().parse(_write(tmp_path, [_row()]), _mapping())
+    assert not [e for e in parsed.edges if e["type"] == "ASSIGNS"]
+
+
+def test_the_modifier_set_is_seeded_from_its_one_home(tmp_path: Path) -> None:
+    """`candidate_modifiers` names ids, so the `Modifier` nodes must be in the change-set — the
+    same treatment `candidate_proteins` gets. Seeded from `schema.GG_REMNANT_MODIFIERS` via
+    `seed.modifier_nodes()`, never written out here, so the set has one home (ADR-0021)."""
+    parsed = _adapter().parse(_write(tmp_path, [_row()]), _mapping())
+    modifiers = {n["id"]: n for n in parsed.nodes if n[NODE_TYPE_KEY] == "Modifier"}
+    assert set(modifiers) == set(schema.GG_REMNANT_MODIFIERS)
+    assert modifiers["uniprot:P0CG48"]["name"] == "ubiquitin"
+    assert modifiers["uniprot:P0CG48"]["c_terminal_motif"] == "LRLRGG"
+    assert all(m["leaves_gg_remnant"] for m in modifiers.values())
+    # Every id named by an assignment is a node in the same change-set.
+    assignment = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "ModifierAssignment")
+    assert set(assignment["candidate_modifiers"]) <= set(modifiers)
+
+
+def test_re_ingesting_converges_on_one_assignment(tmp_path: Path) -> None:
+    """`asserted_at` is excluded from identity (§3), so a second run of the same file produces the
+    same assignment id rather than a new one per run — which is what makes I9's replay idempotent
+    and I6's retraction meaningful (a superseding assignment must be a *different* node)."""
+    path = _write(tmp_path, [_row()])
+    first = _adapter().parse(path, _mapping())
+    second = _adapter().parse(path, _mapping())
+    ids = [
+        {n["id"] for n in p.nodes if n[NODE_TYPE_KEY] == "ModifierAssignment"}
+        for p in (first, second)
+    ]
+    assert ids[0] == ids[1]
+
+
+def test_two_sites_get_two_distinct_assignments(tmp_path: Path) -> None:
+    """The `SiteObservation` anchor is what separates them; the fields are identical across sites,
+    so an id built from fields alone would collapse every site's assignment into one node."""
+    rows = [_row(position=p, positions=p, row_id=str(i)) for i, p in enumerate(("4", "7"))]
+    parsed = _adapter().parse(_write(tmp_path, rows), _mapping())
+    assignments = [n for n in parsed.nodes if n[NODE_TYPE_KEY] == "ModifierAssignment"]
+    assert len({a["id"] for a in assignments}) == 2
+
+
+def test_a_refused_site_gets_no_assignment(tmp_path: Path) -> None:
+    """A refused row produces no observation, so it must produce no assignment either — an
+    assignment attached to nothing would be a dangling inference."""
+    parsed = _adapter().parse(_write(tmp_path, [_row(position="5", positions="5")]), _mapping())
+    assert not [n for n in parsed.nodes if n[NODE_TYPE_KEY] == "SiteObservation"]
+    assert not [n for n in parsed.nodes if n[NODE_TYPE_KEY] == "ModifierAssignment"]
 
 
 def test_the_sample_descriptor_is_narrowed_to_its_columns(tmp_path: Path) -> None:

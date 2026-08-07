@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.2 |
+| Version | 1.3 |
 | Last reviewed | 2026-08-07 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -143,8 +143,21 @@ Follow `ROADMAP.md` § Milestones. This adds the granularity that document delib
    `perseus.py` is unaffected. That channel *is* how the measurement exists — a `logging.warning`
    would have left it uncountable.
 
-   **Slice 3** — the `Modifier` seed from `schema.GG_REMNANT_MODIFIERS` plus `ModifierAssignment`
-   (`inferred_default` / `ambiguous`) on every site, per §6.1.
+   **Slice 3 is done (2026-08-07).** `bzk/ontology/seed.py` turns `schema.GG_REMNANT_MODIFIERS`
+   into the three `Modifier` nodes — the set's one home now also carries `c_terminal_motif`, the
+   mature C-terminus, so the column and the membership argument do not drift apart. Every
+   `SiteObservation` gets a `ModifierAssignment` with `basis = 'inferred_default'`,
+   `confidence = 'ambiguous'` and the three-member candidate set, and **no `ASSIGNS` edge**: I3
+   forbids an ambiguous assignment naming a modifier, and that refusal is the product. On the real
+   file: 1,967 sites, 1,967 assignments, 3 modifiers, 0 `ASSIGNS`.
+
+   **§6.1's every-observation-has-an-assignment rule is now enforced, not conventional.** It is the
+   under-claiming half of I3, written before the adapter emitted anything and failing on all ten
+   adapter tests until it did. A site with no assignment is not a *cautious* site — nothing
+   downstream can tell "not assigned yet" from "assigned, ambiguous", and the first reads as an
+   omission inviting someone to assume ubiquitin. Scoped to the change-set, which means a producer
+   re-staging a `SiteObservation` must re-stage its assignment; that is stricter than I2's residue
+   clause, which skips, and the checker's docstring says why the two differ.
 
    **Slice 4** — wire the adapter into `replay_ingestion` beside the loader, and re-derive 12-of-14
    through the graph. That is ROADMAP's v0.1 exit criterion, and the point of the whole route.
@@ -269,6 +282,7 @@ All three cost time during exploration. All three are the same class: code that 
 | ~~**`SITE_ON` is `MANY_MANY` against a key composing one parent**~~ **Closed 2026-08-07 — ADR-0023 narrows it to `MANY_ONE`** | `ONTOLOGY.md` §4, §6.3, ADR-0023 | §6.3 deferred this to *"the first search-output adapter"*. The adapter arrived and **could not settle it** — it emits one `SITE_ON` per site unconditionally, so the *1,967 of 1,967* offered here as evidence was the adapter reporting its own design choice back. The row is kept rather than rewritten because that failure generalises: **deferring a modelling question to an implementation only works when the implementation is free to come out either way**, and where it is not, the deferral must name the measurement instead. What settled it was in the file all along — the same peptide sits at a different absolute position in each protein it maps to, 75.1% of multi-protein rows — plus the key composing exactly one `ProteinSequence`, and `P20591:48 = K` against `P09914-2:48 = E` showing a shared position *number* is not a shared position. A second parent is now a write-time structural error, with its red case in `tests/test_invariants.py`. Resolved |
 | ~~**Two pairs of relationships model one fact each**~~ **Closed 2026-08-07 — ADR-0023** | `ONTOLOGY.md` §3/§4/§5/§6.1/§6.3, `bzk/ontology/schema.py`, ADR-0023 | `RESOLVES_TO_SITE` and `MEASURED_AT` were the same endpoints at the same multiplicity; `REPORTS_SITE` and `REPORTED_BY` were one fact in both directions. §1's diagram drew one of each and §3's identity table anchored the other, so two readers of the same document would have written queries traversing different edges over one graph. **`MEASURED_AT` and `REPORTS_SITE` survive; the other two are dropped, not aliased** — an unpopulated relationship that means the same as a populated one answers with zero rows where a removed one errors. Renaming cost nothing in ids (`identity_tuple` discards the relationship name; verified by performing the swap, not by reading it). Schema 59 → **57** tables. **The class is closed by two assertions, not by this turn having looked**: no two relationships may share endpoints and multiplicity, and none may be another's exact reverse — both unwritable until the DDL stopped declaring the violations, both mutation-tested. Resolved |
 | **The resolver reports `status='ok'` for a deleted UniProt entry** | `bzk/resolve/uniprot.py`, `bzk/resolve/nodes.py` | Found by the first real adapter run: 25 of the site table's razor picks return `entryType: 'Inactive'` — UniProt entries deleted or demerged since the 2019 search — and `resolve` reports them `status='ok'` with `sequence_version=None` and no sequence, because the fetch succeeded and it only inspects `reviewed`/`sequence`/`entryAudit`. Nothing is *wrong* downstream: `resolve_to_nodes` refuses them for having no sequence version, and `maxquant_sites.py` refuses the 48 sites keyed on them, so no bad data is admitted. What is lost is the *reason*. The refusal reads *"no sequence_version, so no ProteinSequence can be keyed"*, which sounds like a metadata gap in a live entry; the truth is that the protein the search named no longer exists as a distinct entry, which is a different finding for a curator and a different fix (re-map to the merge target, not wait for UniProt to fill a field). **`entry_type` is already captured on `Resolution` and already carries `'Inactive'`** — nothing needs fetching, only a status the caller can branch on, so this is small. It is deferred here rather than done inline because it widens `Resolution.status`'s closed set, which `tests/test_resolve.py` and the recorded-response fixtures both pin. **Trigger: the next change to `resolve/uniprot.py`.** No |
+| ~~**A change-set could not hold `Protein` and `Modifier` for one accession**~~ **Fixed 2026-08-07 — ADR-0019 corrected** | `bzk/ontology/invariants.py`, `bzk/ontology/store.py`, ADR-0019 | Found by the first real run that seeded `Modifier` nodes: §3 keys **both `Protein` and `Modifier` on bare `uniprot:`**, so ISG15 is `uniprot:P05161` under both — the protein a diGly search reports as a razor pick, and the modifier its K-GG remnant might have come from. That is this project's anchor domain, not an edge case. ADR-0019 said node ids are unique within a change-set and the code read that as unique *globally*; Kùzu stores the two in separate tables and was never troubled. Corrected to **(label, id)** in three places, and the second and third are the dangerous ones: `store.py` resolved an edge's endpoint labels through `{id: node}`, so a collision would have picked the wrong label, `MATCH`ed the wrong table and **written nothing** — the silent failure its own comment already warned about; and `_index` was global, so I2's `HAS_SEQUENCE` clause would have read `.get('accession')` off a `Modifier`, got `None`, and **skipped the check** rather than raising. Both are the shape this repository keeps meeting: a check reporting clean because it never ran. Edges still name endpoints by bare id, which is unambiguous only because no relationship admits both labels in one role — now asserted by `test_no_relationship_role_admits_two_labels_that_can_share_an_id`, mutation-tested, so the day that stops being true is a red test rather than a wrong answer. Resolved |
 | ADRs 0004–0014 unwritten | `decisions/` | No — write during weeks 7–8 |
 | Search engine for the new USP18 dataset | Assumption A2 | Yes for that dataset only |
 | Where in his pipeline the handover belongs | `ROADMAP.md` § Open questions | No — ask at the meeting |

@@ -21,6 +21,7 @@ its own props, now enforced once for every producer.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -104,7 +105,13 @@ def write_change_set(
             statement += " SET " + ", ".join(assignments)
         _query(conn, statement, parameters)
 
-    by_id = {node["id"]: node for node in nodes}
+    # id -> every label carrying it. Not `{id: node}`: two node tables may share an id (§3 keys
+    # both `Protein` and `Modifier` on `uniprot:`, so ISG15 is `uniprot:P05161` under both), and
+    # keying on id alone lets the later node win. That would pick the wrong label below, MATCH the
+    # wrong table, and write nothing — the exact silent failure the next comment warns about.
+    labels_by_id: dict[Any, set[str]] = defaultdict(set)
+    for node in nodes:
+        labels_by_id[node["id"]].add(str(node[NODE_TYPE_KEY]))
     for edge in edges:
         rel = edge["type"]
         endpoints = _REL_ENDPOINTS.get(rel)
@@ -112,13 +119,22 @@ def write_change_set(
             raise StoreError(f"{rel!r} is not a relationship in the schema")
         # Which declared pair this edge uses is read off the change-set's own nodes, not assumed
         # to be the first: a multi-pair relationship (ADR-0022) would otherwise MATCH the wrong
-        # label and silently write nothing, since MATCH on no rows is not an error.
-        src_label = str(by_id[edge["from"]][NODE_TYPE_KEY])
-        dst_label = str(by_id[edge["to"]][NODE_TYPE_KEY])
-        if (src_label, dst_label) not in endpoints:
+        # label and silently write nothing, since MATCH on no rows is not an error. Where an id
+        # carries two labels the relationship's declared endpoints are what disambiguate it.
+        pair = next(
+            (
+                (s, d)
+                for s, d in endpoints
+                if s in labels_by_id[edge["from"]] and d in labels_by_id[edge["to"]]
+            ),
+            None,
+        )
+        if pair is None:
             raise StoreError(
-                f"{rel} runs {src_label} → {dst_label}, which the schema does not declare"
+                f"{rel} runs {sorted(labels_by_id[edge['from']])} → "
+                f"{sorted(labels_by_id[edge['to']])}, which the schema does not declare"
             )
+        src_label, dst_label = pair
         declared = _REL_PROPERTIES[rel]
         props = {k: v for k, v in edge.items() if k not in ("type", "from", "to")}
         unknown = set(props) - set(declared)

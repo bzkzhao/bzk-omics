@@ -57,7 +57,7 @@ from pathlib import Path
 
 from bzk.adapters import maxquant
 from bzk.adapters.base import Edge, Node, ParsedObservations, Refusal, SampleMapping
-from bzk.ontology import invariants, schema
+from bzk.ontology import invariants, schema, seed
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.ontology.keys import evidence_id, modification_site_key, protein_key
 from bzk.provenance.raw_store import content_hash
@@ -209,7 +209,7 @@ class MaxQuantSiteAdapter:
             resolver=self.resolver,
         )
 
-        nodes: list[Node] = _sample_nodes(mapping) + list(resolved.nodes)
+        nodes: list[Node] = _sample_nodes(mapping) + seed.modifier_nodes() + list(resolved.nodes)
         edges: list[Edge] = list(resolved.edges)
 
         dataset = {
@@ -357,6 +357,28 @@ class MaxQuantSiteAdapter:
         # `RESOLVES_TO_SITE` and `REPORTED_BY` were duplicates of these and are dropped from the DDL.
         edges.append({"type": "REPORTS_SITE", "from": dataset_id, "to": observation_id})
         edges.append({"type": "MEASURED_AT", "from": observation_id, "to": site_id})
+
+        # **The ambiguous default, on every site (§6.1, I3).** A K-GG remnant is +114.0429 Da
+        # whether it came from ubiquitin, NEDD8 or ISG15, and neither the precursor mass nor MS²
+        # separates them — so the honest claim at ingestion is the candidate set, not a modifier.
+        # No `ASSIGNS` edge: I3 forbids an ambiguous assignment naming one, and that refusal is the
+        # product (`VISION.md`). A later assignment with orthogonal evidence supersedes this one and
+        # retracts it (I6); this is never edited.
+        assignment: dict[str, object] = {
+            "candidate_modifiers": list(seed.CANDIDATE_MODIFIERS),
+            "basis": "inferred_default",
+            "confidence": "ambiguous",
+            "rationale": None,
+            "asserted_at": None,
+            "retracted_at": None,
+        }
+        # `asserted_at` is deliberately absent from identity (§3, ADR-0020) so re-ingesting the same
+        # file converges on one assignment rather than minting a new one per run.
+        assignment_id = evidence_id(
+            "ModifierAssignment", assignment, {"SiteObservation": observation_id}
+        )
+        nodes.append(self._node("ModifierAssignment", assignment_id, assignment))
+        edges.append({"type": "ASSIGNMENT_FOR", "from": assignment_id, "to": observation_id})
         return nodes, edges
 
     @staticmethod
@@ -365,8 +387,12 @@ class MaxQuantSiteAdapter:
 
     @staticmethod
     def _deduplicate(nodes: list[Node]) -> list[Node]:
-        """Content-derived ids converge, so one `Protein` named by 400 rows is one node (I7)."""
-        seen: dict[str, Node] = {}
+        """Content-derived ids converge, so one `Protein` named by 400 rows is one node (I7).
+
+        Keyed on (label, id): `Modifier` and `Protein` share the `uniprot:` space, so ISG15 is
+        `uniprot:P05161` under both and keying on id alone silently dropped one of them.
+        """
+        seen: dict[tuple[str, str], Node] = {}
         for node in nodes:
-            seen.setdefault(node["id"], node)
+            seen.setdefault((node[NODE_TYPE_KEY], node["id"]), node)
         return list(seen.values())
