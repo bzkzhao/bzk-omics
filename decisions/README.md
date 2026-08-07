@@ -17,6 +17,7 @@ This exists because a project with one developer and a compressed timeline will 
 | [0016](0016-embargoed-datasets.md) | Embargoed dataset state for unpublished collaborator data |
 | [0017](0017-downstream-positioning.md) | Downstream positioning, with both ingestion paths |
 | [0019](0019-changeset-structural-validation.md) | Change-sets are self-contained; structural validation precedes invariants |
+| [0020](0020-deterministic-evidence-ids.md) | Deterministic, content-derived ids for evidence nodes (not ULIDs) |
 
 ## Queued
 

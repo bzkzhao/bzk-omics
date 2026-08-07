@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.3 |
+| Version | 1.4 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -67,7 +67,7 @@ All external identifiers are **CURIEs** — `prefix:local_id` — resolved again
 | `chebi` | ChEBI | `chebi:CHEBI:15377` |
 | `doi` / `pmid` | Publications | `pmid:21139048` |
 
-Locally generated nodes use `bzk:` with a ULID: `bzk:01J9X2...`. Local IDs are never reused, including after deletion.
+Locally generated (evidence) nodes use `bzk:` with a **deterministic, content-derived id**: `bzk:` followed by a truncated SHA-256 over a canonical serialization of the node's identity — its label, its identifying fields, and the ids of the content-addressed nodes it anchors to (reference CURIEs, the `ModificationSite` key, `Dataset.content_hash`). The same input therefore yields the same id on re-ingestion: identical content converges on one node rather than minting a new one, which is what makes replay idempotent under I9. Mutable and provenance-timestamp fields (`asserted_at`, `retracted_at`, `created_at`) are excluded from identity, so retraction and supersession follow I6 without changing an id. This extends I7's key discipline from reference nodes to evidence nodes; see ADR-0020.
 
 > **To verify before implementation:** the PSI-MOD accession for the GlyGly remnant. Unimod 121 (GlyGly) is the identifier used by MaxQuant and FragPipe and should be treated as primary; the PSI-MOD cross-reference above is unconfirmed and must be checked against the current PSI-MOD release.
 
@@ -254,7 +254,7 @@ Kùzu has no inheritance, so the supertype is a **contract**, not a table. Every
 
 | Field / edge | Meaning |
 |---|---|
-| `id` | `bzk:` ULID |
+| `id` | `bzk:` + deterministic content-derived digest (§3, ADR-0020) |
 | `quant_ref` | Key into the columnar store (§2) |
 | `REPORTED_BY → Dataset` | Which dataset reported it |
 | `RESOLVES_TO → <reference node>` | The external entity it measures |
@@ -567,7 +567,7 @@ Normative. Violations are ingestion errors, not warnings.
 
 ## 9. Worked example
 
-*Identifiers are real; quantitative values and the site position are illustrative, not measured.*
+*Reference identifiers are real; the `bzk:` evidence ids are illustrative stubs standing in for the content-derived digests defined in §3; quantitative values and the site position are illustrative, not measured.*
 
 ```
 Reference
@@ -580,34 +580,34 @@ Reference
                  uniprot:O15205 (FAT10,      leaves_gg_remnant true)
 
 Evidence
-  Project        bzk:01J9X2A  "ISGylation in colorectal carcinoma"
-  Experiment     bzk:01J9X2B  modality digly_proteomics
-  Sample         bzk:01J9X2C  HCT116, IFN-β 1000 U/mL, 8 h, biological rep 1
-  Dataset        bzk:01J9X2D  source local, search_engine fragpipe 21.1,
+  Project        bzk:3a5f0e…  "ISGylation in colorectal carcinoma"
+  Experiment     bzk:b1c2d3…  modality digly_proteomics
+  Sample         bzk:c4e7a9…  HCT116, IFN-β 1000 U/mL, 8 h, biological rep 1
+  Dataset        bzk:d8021f…  source local, search_engine fragpipe 21.1,
                               fasta_release 2026_02, content_hash sha256:9f3c…
-  SiteObservation bzk:01J9X2E peptide LLQFIDK(gg)ELVR, localization_prob 0.98
+  SiteObservation bzk:e6b44c… peptide LLQFIDK(gg)ELVR, localization_prob 0.98
                               -[MEASURED_AT]-> uniprot:P20591#sv3#K48#unimod:121
 
-  ModifierAssignment bzk:01J9X2F
+  ModifierAssignment bzk:f019a7…
       candidate_modifiers [P0CG48, Q15843, P05161, O15205]
       basis inferred_default   confidence ambiguous
       asserted_at 2026-08-01   retracted_at NULL
 
   ── after the UBA7 knockout arm is ingested ──
 
-  ModifierAssignment bzk:01J9X2F  retracted_at 2026-08-14
-  ModifierAssignment bzk:01J9X3A
+  ModifierAssignment bzk:f019a7…  retracted_at 2026-08-14
+  ModifierAssignment bzk:a72d10…
       candidate_modifiers [P05161]
       basis uba7_knockout      confidence confirmed
       rationale "site absent in UBA7-/- across 3/3 replicates, adj.p 2.1e-4"
       -[ASSIGNS]-> uniprot:P05161
-      -[ASSIGNMENT_SUPPORTED_BY]-> Analysis bzk:01J9X39
+      -[ASSIGNMENT_SUPPORTED_BY]-> Analysis bzk:39c8bb…
 
-  DifferentialResult bzk:01J9X2G
+  DifferentialResult bzk:2100ae…
       log2fc 3.4, p 1.2e-5, adj_p 8.0e-4, test moderated_t_ebayes, fdr_method BH
       protein_adjusted "applied", adjustment_method "residual_vs_protein_lfc"
-      -[ADJUSTED_BY]-> DifferentialResult bzk:01J9X2H  (MX1 protein level)
-      -[WAS_GENERATED_BY]-> Analysis bzk:01J9X2I
+      -[ADJUSTED_BY]-> DifferentialResult bzk:7cf3d2…  (MX1 protein level)
+      -[WAS_GENERATED_BY]-> Analysis bzk:1e90fa…
 ```
 
 Before the knockout arm exists, the platform reports a diGly site with an ambiguous modifier. It does not report an ISGylation site. That distinction is the product.

@@ -69,7 +69,7 @@ Follow `ROADMAP.md` § Milestones. This adds the granularity that document delib
 **The next action is documents, in this exact order — three separate turns:**
 
 1. ~~**ONTOLOGY v1.3 — add `RESULT_FOR_PROTEIN`.**~~ **Done 2026-08-07.** `DifferentialResult → ProteinObservation` (`MANY_ONE`) added to §5 DDL and `schema.py` `REL_TABLES`; schema is now 57 tables (was 56); `tests/test_schema.py` and `tests/test_rebuild.py` green. **The next action is item 2.**
-2. **ADR-0020 + `ONTOLOGY.md` §3/§9 id amendment** — deterministic, content-derived evidence-node ids (decision (a); §8).
+2. ~~**ADR-0020 + `ONTOLOGY.md` §3/§9 id amendment.**~~ **Done 2026-08-07.** ADR-0020 written; §3 id scheme and the §5.1 contract row amended, §9 worked example restubbed to content-derived digests (ONTOLOGY v1.4). Direction unchanged (decision (a)); form chosen is an opaque `bzk:`+truncated-SHA-256 digest over a canonical identity tuple. The key **builder** itself is code and lands with item 3 / the adapters (I7 CON). **The next action is item 3.**
 3. **The curation loader** — reads `data/curation/*.json` in the shape those files already have; loader defaults and the `content_hash` / `Contrast` items are in §8.
 
 *Only then* `bzk/adapters/perseus.py` (Weeks 3–4 below). The empty `raw/` (§8) bounds what can be validated end to end until it is populated.
@@ -170,7 +170,7 @@ All three cost time during exploration. All three are the same class: code that 
 | ~~Kùzu version number not recorded~~ — recorded `==0.11.3` | `ARCHITECTURE.md` §1 | Resolved |
 | `Contrast` reference-vs-evidence ambiguity | `ONTOLOGY.md` §11 Q1 | No — settle before v0.2 |
 | ~~**`RESULT_FOR_PROTEIN` edge missing**~~ — added `DifferentialResult → ProteinObservation` (`MANY_ONE`) to ONTOLOGY §5 DDL (v1.3) and `schema.py` `REL_TABLES`; consistency test green | `ONTOLOGY.md` §5 | Resolved 2026-08-07 |
-| **Deterministic evidence-node ids — decision (a), pending ADR-0020** | `ONTOLOGY.md` §3/§9 | Direction settled 2026-08-07, ADR not yet written. Evidence nodes (`SiteObservation`, `DifferentialResult`, `Analysis`, …) get **deterministic, content-derived ids** — decision (a) — not ULIDs. This makes re-ingestion idempotent: replaying the same input under I9 produces the same node ids rather than duplicates, which is what lets `rebuild.py` verify reproduction. It resolves the I7 / §3 / I9 tension noted during the resolver work in favour of I7's key discipline. The change is ADR-0020 plus a §3/§9 id-scheme amendment; sequence it **after** ONTOLOGY v1.3 (`RESULT_FOR_PROTEIN`) and **before** the curation loader |
+| ~~**Deterministic evidence-node ids — decision (a)**~~ — ADR-0020 written; §3/§5.1/§9 amended (ONTOLOGY v1.4). Opaque `bzk:`+truncated-SHA-256 digest over a canonical identity tuple; the key builder is code, lands with the loader/adapters (I7 CON) | `ONTOLOGY.md` §3, ADR-0020 | Resolved 2026-08-07 |
 | **Curation record carries no `content_hash`** | `data/curation/*.json`, `OPERATIONS.md` §2 | Every record under `data/curation/` identifies its input by bare filename, no checksum, so I9 replay cannot confirm it is running against the bytes the curation was written for. Format gap now recorded in `OPERATIONS.md` §2 (add SHA-256 `content_hash`); existing records back-filled when their input is next in hand. No — not blocking, but it lands with the curation loader |
 | **`colab_reproducefigure.ipynb` cell 16 is a second test → a second `Analysis` (I16)** | statistics layer, weeks 5–6 | Cell 16 adds an `adj_p_moderated` column: a *second* significance test (moderated *t*) computed on the same matrix as the primary welch_t. Under I16 each declared quantity/test is its own `Analysis`, so `res` carries the outputs of **two** analyses, not one — the per-site table does not end at `n_candidate_proteins` as an earlier note implied. The adapter (or the notebook reconstruction) must emit two `Analysis` nodes and route each result column to its own. No — surfaces when that table is ingested |
 | **Statistics-registry default vs on-disk baseline — ordering question** | `HANDOFF.md` §5, statistics layer | ADR-0015 makes `perseus_s0` the **default and required** registry entry (from author correspondence). But the 12-of-14 regression on disk was measured under `welch_t` + BH, and the only per-site result the group has produced (`colab_reproducefigure.ipynb`) is also welch_t. So the *validated-on-disk* method and the *default* method differ. §5 already fixes the build order (welch_t first, reproduce 12-of-14, then `perseus_s0` as a second baseline); the open question is which becomes the registry default the first adapter writes, and whether the two baselines are recorded side by side before that is decided. Keep measured (welch_t, on disk) and reasoned (perseus_s0, from correspondence) distinct — ADR-0015's own discipline. No — settle when the statistics layer lands |
@@ -214,7 +214,9 @@ grouped by *how* they must be enforced, so a source-tree lint is not mistaken fo
   `adapters/` and the stats registry). Both need a test that greps/parses the source, not a
   change-set.
 - **CON — enforced by construction, pending the code that constructs.** **I7** (deterministic
-  content-derived reference keys; holds once a single key builder exists). **I17** (reviewed
+  content-derived keys; ADR-0020 extends this from reference nodes to evidence nodes, so one key
+  builder now serves both — I7 holds once that builder exists, which lands with the loader/adapters).
+  **I17** (reviewed
   preferred — decided 2026-08-07: owned by the search-output adapters (MaxQuant first) in
   `ProteinAssignment` construction; the Perseus analysis-output adapter has no candidate sets, so
   it does not apply there. Lands weeks 5-6. See the table row above).
