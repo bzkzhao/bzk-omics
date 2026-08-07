@@ -203,9 +203,14 @@ three families:
    `Imputation.method`, `scope`; `DifferentialResult.adjustment_method`; and the `basis` of all three
    `EvidencedInference` subtypes. Each is closed in a document and open in code. `Analysis.kind` is
    the worst: `_check_I16` branches on `kind == 'curation'`, so a misspelling both forks the id *and*
-   silently escapes the quantity and filter checks. (`confidence` is now wired for the three
-   subtypes; `Analysis.confidence` uses curation's separate `authoritative` | `inferred` vocabulary,
-   which no frozenset models.)
+   silently escapes the quantity and filter checks.
+   **`Analysis.confidence` is the one still fully unguarded.** `confidence` on the three
+   `EvidencedInference` subtypes is now wired to `schema.CONFIDENCE` (`ambiguous` | `probable` |
+   `confirmed`) via `_check_I3` / `_check_I10` / `_check_I14`, but `Analysis.confidence` is
+   curation's **separate** vocabulary — `authoritative` | `inferred` (§5.3) — which no frozenset
+   models and no check reads. Reusing `CONFIDENCE` for it would be wrong, not merely loose: the two
+   sets share no values. It needs its own closed enum in `schema.py` and a checker, and it is
+   identifying, so a misspelling forks an `Analysis` id.
 2. **Order-sensitive lists** (3 fields): `Analysis.filters_applied`,
    `ModifierAssignment.candidate_modifiers`, `ProteinAssignment.candidate_proteins`. Element order
    alone changes the id, and a search engine's candidate ordering is not canonical — at I14's
@@ -228,7 +233,18 @@ grouped by *how* they must be enforced, so a source-tree lint is not mistaken fo
 
 - **CS — write-time change-set check, not written.** **I1** (disjointness: reject locally-authored
   reference–reference edges; ref–ref edges carry `source`). **I8** (also WG: every `Sample` reaches a
-  curation `Analysis` via `SAMPLE_GENERATED_BY`). **Residue agreement across `SITE_ON`** (completes
+  curation `Analysis` via `SAMPLE_GENERATED_BY`). **The `EvidencedInference` contract itself
+  (§6), unenforced in every clause.** §6 requires each subtype to carry `basis`, `confidence`,
+  `rationale`, `asserted_at` / `retracted_at`, *and* an evidence edge to an `Analysis` or a
+  `Publication`. Nothing checks any of it. `_check_confidence` (added 2026-08-07) validates the
+  **value** of `confidence` when one is present and deliberately skips `None`, because presence is
+  the contract's business and not that checker's — so an assignment with no `confidence` at all
+  passes today. The same holds for the other required fields and for the evidence edge; the valid
+  fixture's `bzk:ma1` has neither `ASSIGNMENT_SUPPORTED_BY` nor `ASSIGNMENT_CITES` and is accepted.
+  A single contract check over the three subtypes would close all of it, and it is a pure
+  change-set function, so it belongs here rather than at query time. See also §11 Q9, which asks
+  whether the contract's evidence-edge clause is right in the first place — settle that before
+  writing the check, or the check will enforce a clause the schema contradicts. **Residue agreement across `SITE_ON`** (completes
   I2, candidate new invariant): I2 pins the sequence version but never verifies the residue at the
   site's position matches its `SITE_ON` target's sequence — the write-time mirror of the resolver's
   `validate_position`. It belongs in the write-time set: it would catch a site keyed at one

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.13 |
+| Version | 1.14 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -786,6 +786,8 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
 
    **A second cardinality question sits with it: `ADJUSTED_BY` is not an anchor.** For an `applied` result it names the protein-level result used as the correction baseline, but it is absent from §3's anchor list, so two corrected results differing *only* in which baseline they used share an id. This is reachable under a faithful implementation rather than a contrived one: at I14's measured 82% multi-mapping, an honest correction of an ambiguous site is computed against *each* candidate parent, and `ADJUSTED_BY` is `MANY_ONE`, so each such correction needs its own `DifferentialResult`. Decide with the XOR question above, when `perseus.py` emits protein-adjusted results.
 8. **Two identity verdicts left `uncertain` by the 2026-08-07 audit, both pending the adapter that would settle them.** `ProteinObservation` identity is `Dataset` + `Protein` with no identifying field at all; it collides if a `proteinGroups` adapter ever emits two group-level quantifications in one dataset that resolve to the same `Protein` — a shared protein appearing in two groups, or two groups collapsing onto one accession because grouping is not isoform-aware while `Protein` identity is. There is no `ProteinAssignment` fallback at protein grain to separate them. `Imputation` identity is its config plus its `Analysis` anchor; two matrices imputed with identical settings under **one** `Analysis` (a diGly peptidome and its matched proteome) would collide, since `scope` names granularity and not which matrix. §6.5 prescribes two `Analysis` nodes for that case, which avoids it — so the verdict is safe-by-convention, not safe-by-construction. Both settle with the adapters (weeks 3–6).
+
+9. **Is §6's evidence-edge clause right, or does `ProteinAssignment` need an edge?** The `EvidencedInference` contract (§6) states every subtype MUST carry an evidence edge to an `Analysis` or a `Publication`. `ModifierAssignment` has `ASSIGNMENT_SUPPORTED_BY` / `ASSIGNMENT_CITES` and `EnzymeAssociation` has `ASSOCIATION_SUPPORTED_BY` / `ASSOCIATION_CITES`; **`ProteinAssignment` has neither** — its only edges are `PROTEIN_ASSIGNMENT_FOR` and `ASSIGNS_PROTEIN`. So the DDL contradicts its own stated supertype contract, and nothing catches it because the contract is unenforced (`HANDOFF.md` §8, CS class). Two readings, and the documents do not choose. Either the clause is too strong — a protein assignment's bases (`unambiguous`, `unique_peptide`, `leading`, `razor`, `reviewed_preferred`) are **intrinsic to the search output** rather than cited from a separate analysis, so requiring a citation would force a hollow one — or the assignment genuinely has provenance worth naming and the schema is missing the edge, which would leave every razor pick unattributable to the run that made it. Note the first reading does not cover `orthogonal_evidence`, whose whole point is external support. Settle before writing the contract check, and before the MaxQuant adapter constructs `ProteinAssignment`s at scale (weeks 5–6). Surfaced by the 2026-08-07 audit.
 
 **Resolved**
 

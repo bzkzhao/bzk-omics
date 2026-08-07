@@ -6,6 +6,7 @@
 | Date | 2026-08-07 |
 | Supersedes | — |
 | Superseded by | — |
+| Revised in place | **2026-08-07, three commits after acceptance** — `bf8c837` (pointer to §3's identity table; the retraction-export consequence), `86dba42` (the `parameters_json` canonicalization rule; the consequence recording that the identity table exposed the `test`/`fdr_method` contradiction), `120be8b` (corrected "discharges I7" to the future tense, since no key builder exists). The edits stand and are not reversed. **They were a breach of the append-only convention** in `decisions/README.md`, recorded here so the exception is visible rather than silent. From 2026-08-07 the convention holds strictly: an Accepted ADR is amended only by a superseding ADR. |
 
 ## Context
 
