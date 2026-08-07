@@ -70,6 +70,59 @@ def test_schema_rel_tables_match_ontology() -> None:
     assert schema_rels == ontology_rels
 
 
+# ── ADR-0023: one relationship per fact ─────────────────────────────────────────────────────────
+#
+# Both guards were unwritable before ADR-0023, because the DDL declared the violations. They pass
+# the moment it lands, and that is the point: the duplicate pairs were found by an adapter author
+# having to choose which edge to emit, which is not a process that repeats reliably. An assertion
+# closes the class; noticing it once does not.
+
+
+def test_no_two_relationships_share_endpoints_and_multiplicity() -> None:
+    """`RESOLVES_TO_SITE` and `MEASURED_AT` were `SiteObservation → ModificationSite`, `MANY_ONE`,
+    both of them — one fact stored twice, kept in step by nothing. §1's diagram drew one and §3's
+    identity table anchored the other, so two readers of the same document would have written
+    queries that traverse different edges over the same graph.
+
+    Checked against the DDL rather than `schema.py`, so amending the document without the mirror
+    still fails here.
+    """
+    _, rels = _parse_ontology()
+    by_shape: dict[tuple[tuple[tuple[str, str], ...], str | None], list[str]] = {}
+    for name, (pairs, mult) in rels.items():
+        by_shape.setdefault((pairs, mult), []).append(name)
+    duplicates = {shape: names for shape, names in by_shape.items() if len(names) > 1}
+    assert not duplicates, (
+        f"relationships sharing endpoints and multiplicity: {duplicates}. Two names for one fact "
+        "diverge; pick one and drop the other (ADR-0023) rather than keeping an alias."
+    )
+
+
+def test_no_relationship_is_the_exact_reverse_of_another() -> None:
+    """`REPORTS_SITE` (`Dataset → SiteObservation`) and `REPORTED_BY` (the reverse) were both
+    declared. A reverse relationship buys nothing in a graph database — Cypher traverses
+    `<-[:REPORTS_SITE]-` perfectly well — so it is duplication with no upside, and it let the two
+    observation grains anchor identity on opposite directions of one fact.
+
+    Single-pair relationships only: a multi-pair `REL TABLE` (ADR-0022) has no single reverse, and
+    inventing a rule for one would be guessing at a case that does not exist.
+    """
+    _, rels = _parse_ontology()
+    single = {name: pairs[0] for name, (pairs, _) in rels.items() if len(pairs) == 1}
+    offenders = sorted(
+        {
+            tuple(sorted((a, b)))
+            for a, pa in single.items()
+            for b, pb in single.items()
+            if a < b and pa == tuple(reversed(pb))
+        }
+    )
+    assert not offenders, (
+        f"relationships declared in both directions: {offenders}. Keep the direction the other "
+        "grain already uses (ADR-0023) and drop the reverse."
+    )
+
+
 def _walk_nodes(obj: object) -> Iterator[dict[str, Any]]:
     """Yield every dict carrying an 'id' and a node-type key — the node shape, wherever nested."""
     if isinstance(obj, dict):

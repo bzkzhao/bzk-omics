@@ -162,19 +162,18 @@ def test_the_output_is_a_valid_change_set(tmp_path: Path) -> None:
 
 
 def test_each_fact_is_written_once(tmp_path: Path) -> None:
-    """The DDL declares `MEASURED_AT` and `RESOLVES_TO_SITE` over identical endpoints with
-    identical multiplicity, and `REPORTS_SITE` is `REPORTED_BY` reversed. Emitting all four writes
-    each fact twice and leaves no way to tell which is authoritative. The two kept are §3's
-    identity anchors — the pair the observation's id is already a function of.
-
-    Asserted rather than left to the code so that resolving the duplication in `ONTOLOGY.md`
-    (`HANDOFF.md` §8) has to come back through this test, instead of an adapter quietly emitting
-    both again.
+    """ADR-0023: `RESOLVES_TO_SITE` and `REPORTED_BY` were duplicates of the two below and are gone
+    from the DDL, so emitting them is no longer merely redundant — it would fail structural
+    validation. Kept as an explicit assertion anyway: the surviving *direction* of `REPORTS_SITE`
+    is the thing most easily got wrong, since its predecessor pointed the other way.
     """
     parsed = _adapter().parse(_write(tmp_path, [_row()]), _mapping())
     types = {e["type"] for e in parsed.edges}
-    assert {"REPORTED_BY", "RESOLVES_TO_SITE"} <= types
-    assert not types & {"MEASURED_AT", "REPORTS_SITE"}
+    assert {"REPORTS_SITE", "MEASURED_AT"} <= types
+    assert not types & {"REPORTED_BY", "RESOLVES_TO_SITE"}
+    reports = next(e for e in parsed.edges if e["type"] == "REPORTS_SITE")
+    observation = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "SiteObservation")
+    assert reports["to"] == observation["id"], "REPORTS_SITE runs Dataset -> SiteObservation"
 
 
 def test_the_sample_descriptor_is_narrowed_to_its_columns(tmp_path: Path) -> None:

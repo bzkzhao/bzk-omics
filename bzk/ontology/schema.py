@@ -198,7 +198,7 @@ IDENTITY: dict[str, Identity] = {
         # row per site, so the peptide separates nothing the anchors do not, and the deposit has no
         # peptide-level file to supply it from. Peptidoform discrimination is §11 Q4's.
         fields=("candidate_proteins",),
-        anchors=(("Dataset", "REPORTED_BY"), ("ModificationSite", "RESOLVES_TO_SITE")),
+        anchors=(("Dataset", "REPORTS_SITE"), ("ModificationSite", "MEASURED_AT")),
     ),
     "ProteinObservation": Identity(
         # `RESOLVES_TO_PROTEIN` is MANY_MANY since ADR-0022 and so cannot contribute one anchor id;
@@ -499,7 +499,7 @@ REL_TABLES: list[RelTable] = [
     # §4
     RelTable("ENCODES", "Gene", "Protein", multiplicity="ONE_MANY"),
     RelTable("HAS_SEQUENCE", "Protein", "ProteinSequence", multiplicity="ONE_MANY"),
-    RelTable("SITE_ON", "ModificationSite", "ProteinSequence", multiplicity="MANY_MANY"),
+    RelTable("SITE_ON", "ModificationSite", "ProteinSequence", multiplicity="MANY_ONE"),
     RelTable(
         "ANNOTATED_IN",
         "Protein",
@@ -521,8 +521,6 @@ REL_TABLES: list[RelTable] = [
     RelTable("SAMPLE_GENERATED_BY", "Sample", "Analysis", multiplicity="MANY_ONE"),
     RelTable("CURATION_CITES", "Analysis", "Publication"),
     # §5.1 Observation contract
-    RelTable("REPORTED_BY", "SiteObservation", "Dataset", multiplicity="MANY_ONE"),
-    RelTable("RESOLVES_TO_SITE", "SiteObservation", "ModificationSite", multiplicity="MANY_ONE"),
     RelTable("RESOLVES_TO_PROTEIN", "ProteinObservation", "Protein", multiplicity="MANY_MANY"),
     # §6.1 modifier assignment
     RelTable("MEASURED_AT", "SiteObservation", "ModificationSite", multiplicity="MANY_ONE"),

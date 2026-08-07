@@ -643,6 +643,27 @@ def test_structure_many_one_source_appears_at_most_once() -> None:
     assert "MANY_ONE" in str(ei.value)
 
 
+def test_structure_a_site_may_not_have_two_parent_sequences() -> None:
+    """What ADR-0023's narrowing actually buys: a second `SITE_ON` is now a **write-time error**.
+
+    While `SITE_ON` was `MANY_MANY` this change-set validated. The site's id names `P20591#sv4`, so
+    attaching it to `P09914-2#sv2` as well asserted a position against a sequence the key does not
+    mention — and position 48 is `K` in the first and `E` in the second, which is the whole reason
+    one `ModificationSite` cannot span parents. Unrepresentable in the id before; rejected now.
+    """
+    site = f"{MX1}#sv4#K48#{GG}"
+    nodes = [
+        n("ProteinSequence", id=f"{MX1}#sv4", sequence_version=4),
+        n("ProteinSequence", id=f"{IFIT1_2}#sv2", sequence_version=2),
+        n("ModificationSite", id=site, residue="K", position=48, modification_type=GG),
+    ]
+    edges = [e("SITE_ON", site, f"{MX1}#sv4"), e("SITE_ON", site, f"{IFIT1_2}#sv2")]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, edges)
+    assert ei.value.invariant == "STRUCTURE"
+    assert "MANY_ONE" in str(ei.value)
+
+
 def test_structure_one_many_destination_appears_at_most_once() -> None:
     # ENCODES is Gene -> Protein, ONE_MANY: a protein is encoded by at most one gene.
     nodes = [

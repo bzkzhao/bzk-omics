@@ -91,7 +91,7 @@ def test_rebuild_creates_schema_and_finds_no_drift(tmp_path: Any) -> None:
     home = tmp_path / "home"
     _seed_cache(home, fx)
     report = rebuild(home=home, curation_dir=CURATION_DIR, session=_session(fx))
-    assert report.tables_created == 59  # 24 node + 35 rel tables
+    assert report.tables_created == 57  # 24 node + 33 rel tables (ADR-0023 dropped two)
     assert report.curation_records == 1  # data/curation/curation_PXD018299.json
     assert (report.nodes_written, report.edges_written) == (16, 38)
     assert report.drifts == []

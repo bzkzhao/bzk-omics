@@ -353,17 +353,10 @@ class MaxQuantSiteAdapter:
             {"Dataset": dataset_id, "ModificationSite": site_id},
         )
         nodes.append(self._node("SiteObservation", observation_id, observation))
-        # **Only the two §3 anchors, not their duplicates.** The DDL declares four relationships
-        # over these two pairs: `REPORTED_BY` (SiteObservation→Dataset, MANY_ONE) alongside
-        # `REPORTS_SITE` (Dataset→SiteObservation, ONE_MANY), and `RESOLVES_TO_SITE` alongside
-        # `MEASURED_AT` — which are the *same* endpoints and the *same* multiplicity as each other.
-        # Emitting all four would write each fact twice and leave a reader unable to tell which is
-        # authoritative, which is what `CLAUDE.md` § Single source of truth calls a defect rather
-        # than redundancy. The two kept are the ones §3 anchors identity on, so they are the pair a
-        # `SiteObservation` id is already a function of. Which duplicate survives in the DDL is an
-        # ONTOLOGY question and is recorded in `HANDOFF.md` §8 rather than decided here.
-        edges.append({"type": "REPORTED_BY", "from": observation_id, "to": dataset_id})
-        edges.append({"type": "RESOLVES_TO_SITE", "from": observation_id, "to": site_id})
+        # The two §3 anchors, which since ADR-0023 are the only relationships over these pairs:
+        # `RESOLVES_TO_SITE` and `REPORTED_BY` were duplicates of these and are dropped from the DDL.
+        edges.append({"type": "REPORTS_SITE", "from": dataset_id, "to": observation_id})
+        edges.append({"type": "MEASURED_AT", "from": observation_id, "to": site_id})
         return nodes, edges
 
     @staticmethod
