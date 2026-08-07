@@ -7,6 +7,7 @@ a record's hash and a rebuild's recomputation cannot disagree. Retrieval is inje
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,12 @@ from bzk.provenance.raw_store import content_hash, sha256_hex, store, verify
 from bzk.sources.pride import PXD018299_SITES, DepositFile, fetch, to_https
 
 PAYLOAD = b"Proteins\tPosition\tAmino acid\nA0A024R4E5\t88\tK\n"
+
+# The same deposit with its digest pin dropped. These tests feed synthetic bytes to exercise
+# store mechanics, so the real deposit's expected_content_hash does not apply to them — and
+# `fetch` rightly refuses bytes that do not match a pin. Dropping it explicitly keeps that
+# refusal strict for the real deposit instead of loosening it to accommodate the stubs.
+UNPINNED = replace(PXD018299_SITES, expected_content_hash=None)
 
 
 class _StubResponse:
@@ -104,20 +111,20 @@ def test_the_deposit_url_matches_the_notebooks() -> None:
 
 def test_fetch_stores_under_the_hash_of_what_it_received(tmp_path: Path) -> None:
     session = _StubSession()
-    stored = fetch(PXD018299_SITES, home=tmp_path, session=session)
+    stored = fetch(UNPINNED, home=tmp_path, session=session)
     assert stored.content_hash == content_hash(PAYLOAD)
     assert stored.path.read_bytes() == PAYLOAD
-    assert session.urls == [PXD018299_SITES.url]
+    assert session.urls == [UNPINNED.url]
 
 
 def test_refetching_unchanged_bytes_rewrites_nothing(tmp_path: Path) -> None:
-    fetch(PXD018299_SITES, home=tmp_path, session=_StubSession())
-    assert fetch(PXD018299_SITES, home=tmp_path, session=_StubSession()).already_present is True
+    fetch(UNPINNED, home=tmp_path, session=_StubSession())
+    assert fetch(UNPINNED, home=tmp_path, session=_StubSession()).already_present is True
 
 
 def test_a_revised_deposit_is_a_new_address_not_an_overwrite(tmp_path: Path) -> None:
-    original = fetch(PXD018299_SITES, home=tmp_path, session=_StubSession())
-    revised = fetch(PXD018299_SITES, home=tmp_path, session=_StubSession(PAYLOAD + b"revised\n"))
+    original = fetch(UNPINNED, home=tmp_path, session=_StubSession())
+    revised = fetch(UNPINNED, home=tmp_path, session=_StubSession(PAYLOAD + b"revised\n"))
     assert original.content_hash != revised.content_hash
     assert original.path.exists(), "OPERATIONS §2: a same-named re-download must not clobber"
 
@@ -125,3 +132,31 @@ def test_a_revised_deposit_is_a_new_address_not_an_overwrite(tmp_path: Path) -> 
 def test_deposit_url_is_built_from_the_archive_layout() -> None:
     other = DepositFile(accession="PXD000001", year=2012, month=3, filename="f.txt")
     assert other.url.endswith("/2012/03/PXD000001/f.txt")
+
+
+def test_bytes_that_do_not_match_the_pin_are_refused(tmp_path: Path) -> None:
+    """A pinned deposit that returns different bytes is a revision or a truncated download.
+
+    `HANDOFF.md` §3 records that this deposit is byte-stable, so a mismatch is never routine drift.
+    Failing loudly here is what stops a rebuild from running against bytes the curation records
+    were not written for — the silent-wrongness this project keeps designing against.
+    """
+    pinned = replace(PXD018299_SITES, expected_content_hash=content_hash(b"not what arrives"))
+    with pytest.raises(ValueError, match="not the expected"):
+        fetch(pinned, home=tmp_path, session=_StubSession())
+
+
+def test_refused_bytes_are_still_stored_for_comparison(tmp_path: Path) -> None:
+    """The raise happens after the write, so what actually arrived can be diffed against the pin."""
+    pinned = replace(PXD018299_SITES, expected_content_hash=content_hash(b"not what arrives"))
+    with pytest.raises(ValueError):
+        fetch(pinned, home=tmp_path, session=_StubSession())
+    assert verify(content_hash(PAYLOAD), filename=pinned.filename, home=tmp_path).exists()
+
+
+def test_matching_bytes_pass_the_pin(tmp_path: Path) -> None:
+    """The pin must not reject the bytes it names — otherwise the real fetch could never succeed."""
+    pinned = replace(PXD018299_SITES, expected_content_hash=content_hash(PAYLOAD))
+    assert fetch(pinned, home=tmp_path, session=_StubSession()).content_hash == content_hash(
+        PAYLOAD
+    )
