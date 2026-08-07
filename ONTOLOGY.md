@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.11 |
+| Version | 1.12 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -71,7 +71,30 @@ All external identifiers are **CURIEs** — `prefix:local_id` — resolved again
 
 Locally generated (evidence) nodes use `bzk:` with a **deterministic, content-derived id**: `bzk:` followed by a truncated SHA-256 over a canonical serialization of the node's identity — its label, its identifying fields, and the ids of the content-addressed nodes it anchors to (reference CURIEs, the `ModificationSite` key, `Dataset.content_hash`). The same input therefore yields the same id on re-ingestion: identical content converges on one node rather than minting a new one, which is what makes replay idempotent under I9. Mutable and provenance-timestamp fields (`asserted_at`, `retracted_at`, `created_at`) are excluded from identity, so retraction and supersession follow I6 without changing an id. This extends I7's key discipline from reference nodes to evidence nodes; see ADR-0020.
 
-**Evidence-node identity, per label.** The digest is computed over the identity tuple below — the node's label, its identifying fields, and the ids of the anchor nodes (each already deterministic). This table, not the key builder, defines identity; the builder mirrors it. `tests/test_schema.py` checks the table against the DDL in both directions: every identifying name and every excluded name is a real column, every anchor is a real rel table, and — the direction that matters most — **every column is accounted for, listed as identifying or in `Excluded columns`**. A column that is neither is a silent default to non-identifying, which is the missing-field collision this scheme exists to prevent; the completeness check turns adding a node column into a forced row edit. The exclusions fall in three families — mutable and provenance timestamps (`asserted_at`, `retracted_at`, `created_at`, `started_at`, `ended_at`); `quant_ref` and the quantitative outputs a node reports; and descriptive free text (`label`, `rationale`) — but the per-row `Excluded columns` list is authoritative, since prose categories cannot be checked.
+**Node identity, per label.** Every id in this graph is content-derived (I7). The two halves of §1 *encode* that differently, and the difference is deliberate:
+
+- **Reference nodes carry human-readable composite keys** — an authority's own identifier, optionally composed with local structure, per the §4 templates.
+- **Evidence nodes carry opaque digests** — `bzk:` plus a truncated SHA-256 (ADR-0020).
+
+The identity **model** is identical for both: a node's identity is its label, its identifying fields, and the ids of its anchors. Only the encoding differs, and it differs because the inputs do. A reference key composes identifiers an authority already minted, few and short enough to read by eye and check in a URL. An evidence identity spans peptide sequences, parameter sets and several anchors at once; no readable concatenation survives that, so it is hashed.
+
+**This table, not the key builder, defines identity; the builder mirrors it.** `tests/test_schema.py` checks it against the DDL in four directions: every node table in the DDL has exactly one row; every identifying and excluded name is a real column of that node; **every column is accounted for, listed as identifying or in `Excluded columns`**; and every anchor names a real relationship *whose declared endpoints are this node and that anchor* — not merely a relationship that exists. A column that is neither identifying nor excluded is a silent default to non-identifying, which is the missing-field collision this scheme exists to prevent, and the completeness check turns adding a column into a forced row edit. The exclusions fall in three families — mutable and provenance timestamps (`asserted_at`, `retracted_at`, `created_at`, `started_at`, `ended_at`); `quant_ref` and the quantitative outputs a node reports; and descriptive free text (`label`, `rationale`) — but the per-row `Excluded columns` list is authoritative, since prose categories cannot be checked.
+
+**Reference nodes.** The key is the §4 template; the identifying fields below are what that template composes. Where a row's identifying fields are `—`, the id *is* the authority's identifier and no column composes it.
+
+| Node type | Identifying fields | Anchors (via edge) | Excluded columns |
+|---|---|---|---|
+| `Gene` | — (authority-assigned) | — | `symbol`, `ensembl_id`, `name` |
+| `Protein` | `accession` | — | `name`, `organism_taxid` |
+| `ProteinSequence` | `sequence_version` | `Protein` (`HAS_SEQUENCE`) | `sequence` |
+| `ModificationSite` | `residue`, `position`, `modification_type` | `ProteinSequence` (`SITE_ON`) | — |
+| `Modifier` | — (authority-assigned) | — | `name`, `c_terminal_motif`, `leaves_gg_remnant` |
+| `Pathway` | — (authority-assigned) | — | `name`, `source` |
+| `Disease` | — (authority-assigned) | — | `label` |
+| `Drug` | — (authority-assigned) | — | `label` |
+| `Publication` | — (authority-assigned) | — | `title`, `year` |
+
+**Evidence nodes.** The digest is computed over the identity tuple below.
 
 | Node type | Identifying fields | Anchors (via edge) | Excluded columns |
 |---|---|---|---|
@@ -80,22 +103,25 @@ Locally generated (evidence) nodes use `bzk:` with a **deterministic, content-de
 | `Sample` | `cell_line` / `model_system`, `source_type`, `genotype`, `treatment`, `timepoint_h`, `replicate`, `replicate_type`, `organism_taxid` | `Experiment` (`PERFORMED_ON`) | `label` |
 | `Dataset` | `content_hash` | — (the SHA-256 of the raw file is itself the anchor) | `label`, `source`, `external_accession`, `acquisition_mode`, `instrument`, `search_engine`, `search_engine_version`, `library_type`, `library_prediction_model`, `fasta_release`, `embargo_holder`, `embargo_reference`, `embargo_released_at` |
 | `SiteObservation` | `peptide_sequence` | `Dataset` (`REPORTED_BY`), `ModificationSite` (`RESOLVES_TO_SITE`) | `localization_prob`, `score`, `is_decoy`, `n_imputed`, `quant_ref` |
-| `ProteinObservation` | — | `Dataset` (`REPORTED_BY`), `Protein` (`RESOLVES_TO_PROTEIN`) | `quant_ref`, `n_peptides` |
+| `ProteinObservation` | — | `Dataset` (`REPORTS_PROTEIN`), `Protein` (`RESOLVES_TO_PROTEIN`) | `quant_ref`, `n_peptides` |
 | `Contrast` | `numerator`, `denominator` | — (placement unsettled — §11 Q1) | `label` |
-| `Analysis` | `kind`, `basis`, `confidence`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `workflow_id`, `workflow_revision`, `parameters_json` | `Dataset`(s) (`USED`); for `kind = 'curation'`, the asserted content stands in for `USED` | `label`, `rationale`, `started_at`, `ended_at` |
+| `Analysis` | `kind`, `basis`, `confidence`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `workflow_id`, `workflow_revision`, `parameters_json` | `Dataset` (`USED`) — one or more; for a curation analysis the asserted content stands in for it | `label`, `rationale`, `started_at`, `ended_at` |
 | `Imputation` | `method`, `downshift_sd`, `width_sd`, `seed`, `scope` | `Analysis` (`IMPUTATION_FOR`) | `n_values_imputed`, `n_values_total`, `asserted_at`, `retracted_at` |
 | `ModifierAssignment` | `basis`, `candidate_modifiers`, `confidence` | `SiteObservation` (`ASSIGNMENT_FOR`), `Analysis` (`ASSIGNMENT_SUPPORTED_BY`) / `Publication` (`ASSIGNMENT_CITES`) | `rationale`, `asserted_at`, `retracted_at` |
 | `EnzymeAssociation` | `direction`, `basis`, `confidence` | `SiteObservation` (`ASSOCIATION_FOR`), `Protein` (`ASSOCIATION_ENZYME`), `Analysis` (`ASSOCIATION_SUPPORTED_BY`) / `Publication` (`ASSOCIATION_CITES`) | `effect_size`, `adj_p_value`, `rationale`, `asserted_at`, `retracted_at` |
 | `ProteinAssignment` | `basis`, `candidate_proteins`, `confidence` | `SiteObservation` (`PROTEIN_ASSIGNMENT_FOR`), `Protein` (`ASSIGNS_PROTEIN`) | `rationale`, `asserted_at`, `retracted_at` |
-| `DifferentialResult` | `protein_adjusted`, `adjustment_method` (I4's required declaration of result *kind*. A single site-level `Analysis` emits **both** where a matched proteome exists — the uncorrected result (not_applied) and the corrected one (applied, carrying `ADJUSTED_BY` to the protein result it used) — so they share `WAS_GENERATED_BY`, observation and contrast and are separated *only* by these fields; the correction is a within-analysis step, not a separate `Analysis`. ARCHITECTURE §4's store-both differentiator) | `Analysis` (`WAS_GENERATED_BY`), the observation (`RESULT_FOR_SITE` / `RESULT_FOR_PROTEIN`), `Contrast` (`RESULT_IN_CONTRAST`) | `log2fc`, `p_value`, `adj_p_value` |
+| `DifferentialResult` | `protein_adjusted`, `adjustment_method` (I4's required declaration of result *kind*. A single site-level `Analysis` emits **both** where a matched proteome exists — the uncorrected result (not_applied) and the corrected one (applied, carrying `ADJUSTED_BY` to the protein result it used) — so they share `WAS_GENERATED_BY`, observation and contrast and are separated *only* by these fields; the correction is a within-analysis step, not a separate `Analysis`. ARCHITECTURE §4's store-both differentiator) | `Analysis` (`WAS_GENERATED_BY`), `SiteObservation` (`RESULT_FOR_SITE`) / `ProteinObservation` (`RESULT_FOR_PROTEIN`), `Contrast` (`RESULT_IN_CONTRAST`) | `log2fc`, `p_value`, `adj_p_value` |
 
-Provenance agents key on their natural external identifiers, not a digest: `Person` on `orcid` (falling back to `name`), `Software` on `name` + `version` + `container_digest`. Anchor edge directions are as declared in the §5–§7 DDL.
+| `Person` | `orcid`, `name` | — | — |
+| `Software` | `name`, `version`, `container_digest` | — | — |
+
+The last two are the exception to the digest rule: provenance agents key on their natural external identifiers. `Person` keys on `orcid` and **falls back to `name`** when no ORCID is recorded, which means its id depends on how much was known at ingest time rather than on the person — the same is true of `Software` when `container_digest` is absent. Both are recorded here as they stand; neither is resolved.
 
 **`parameters_json` is canonicalized before hashing.** It is an identifying field of `Analysis` and, under the test scheme (§5.4, I16), carries `s0` and the randomisation count. Canonicalizing the identity *tuple* treats each field as a value and does not reach inside a string, so `parameters_json` is itself parsed and canonically re-serialized — sorted keys, normalized numeric forms — before it enters the tuple, never hashed as raw text. Otherwise two ingesters emitting the same parameters with different key order, spacing, or float formatting would produce different `Analysis` ids, defeating the idempotent replay this scheme exists to guarantee (ADR-0020).
 
 **Queryability tradeoff, accepted.** Holding `s0` inside `parameters_json` rather than as a column means analyses cannot be filtered by `s0` without string matching, and ADR-0015 makes `perseus_s0` default and required, so that value *will* be queried. This is accepted deliberately: a column per test parameter does not generalize across tests — permutation counts, shrinkage priors and the rest all differ — and the recomputation and comparison the registry exists for read parameters per analysis, not by a cross-analysis `s0` filter. If an `s0` index is ever needed it is added then, not pre-emptively.
 
-> **To verify before implementation:** the PSI-MOD accession for the GlyGly remnant. Unimod 121 (GlyGly) is the identifier used by MaxQuant and FragPipe and should be treated as primary; the PSI-MOD cross-reference above is unconfirmed and must be checked against the current PSI-MOD release.
+> **To verify, no longer blocking:** the PSI-MOD accession for the GlyGly remnant is unconfirmed and must be checked against the current PSI-MOD release before it is displayed anywhere. It is not urgent: §4 pins Unimod as the sole key authority, so PSI-MOD is a cross-reference only and an unconfirmed value can no longer fragment a `ModificationSite` id.
 
 ---
 
@@ -150,18 +176,41 @@ CREATE REL TABLE SITE_ON(FROM ModificationSite TO ProteinSequence, MANY_MANY);  
 CREATE REL TABLE ANNOTATED_IN(FROM Protein TO Pathway, source STRING, evidence_code STRING);
 ```
 
-**Key template:**
+**Key templates.** Every reference key is content-derived (I7) and readable. Two shapes.
+
+*Authority-assigned* — the id **is** the external identifier, CURIE-prefixed per the §3 map. Nothing local composes it.
+
+| Node | Prefix | Example |
+|---|---|---|
+| `Gene` | `hgnc:` | `hgnc:5699` |
+| `Modifier` | `uniprot:` | `uniprot:P05161` |
+| `Pathway` | `reactome:` | `reactome:R-HSA-1169408` |
+| `Disease` | `mondo:` | `mondo:MONDO_0004992` |
+| `Drug` | `chebi:` | `chebi:CHEBI:15377` |
+| `Publication` | `pmid:` | `pmid:21139048` |
+
+*Composed* — local structure over an authority identifier. Each composes **its anchor's id** (§3) with **its own identifying fields**, which is the same rule the evidence digests follow; only the encoding differs.
 
 ```
-Protein          uniprot:{accession}
-ProteinSequence  uniprot:{accession}#sv{sequence_version}
-ModificationSite uniprot:{accession}#sv{sequence_version}#{residue}{position}#{modification_curie}
+Protein           uniprot:{accession}
+ProteinSequence   {Protein.id}#sv{sequence_version}
+ModificationSite  {ProteinSequence.id}#{residue}{position}#{modification_type}
 
   uniprot:P05161      /  uniprot:P05161#sv1      /  uniprot:P05161#sv1#K42#unimod:121
   uniprot:P09914-2    /  uniprot:P09914-2#sv2    /  uniprot:P09914-2#sv2#K376#unimod:121
 ```
 
 `{accession}` is the full UniProt accession **including any isoform suffix** — `P09914-2` *is* an accession, not a canonical accession plus a property. There is no separate isoform field to compose.
+
+A `ModificationSite` key composes **exactly one** `ProteinSequence`. `SITE_ON` is declared `MANY_MANY`, which permits more than the key can express; in practice a site carries one `SITE_ON`, to the sequence it is keyed against, and multi-mapping is carried by `ProteinAssignment.candidate_proteins` (§6.3). The declaration is wider than the key — recorded, not resolved.
+
+**Key canonicalization.** A key that can be written two ways is two ids for one fact — ADR-0020's fragmentation, mirrored into the reference half, and it sits under every observation in the graph. Fixed forms:
+
+- **`modification_type` is keyed on Unimod, always.** §3's prefix map lists both `unimod` and `mod` (PSI-MOD); a site keyed `unimod:121` and the same site keyed `mod:00492` would fragment into two nodes, defeating I7 in the very words it is written in — *identical entities from different sources converge on one node*. Unimod is primary because it is what MaxQuant and FragPipe emit. **A PSI-MOD accession is a cross-reference only and never a key component.**
+- **`sequence_version`** renders as a bare decimal integer, unpadded: `#sv4`, never `#sv04`.
+- **`residue`** is a single uppercase letter: `K`, never `k`.
+- **`accession`** keeps UniProt's own casing, uppercase, with any `-N` suffix: `P09914-2`.
+- **CURIE prefixes** are lowercase and spelled exactly as in the §3 map. The *local part* keeps its authority's casing, so `chebi:CHEBI:15377` and `go:GO:0032020` are correct as written.
 
 `ModificationSite.id` is deterministic and content-derived, so the same site ingested from two datasets resolves to one node.
 
