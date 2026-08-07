@@ -323,6 +323,8 @@ For locally generated data the curation node is created automatically at ingesti
 
 Curation nodes are immutable under I6. A corrected mapping supersedes rather than overwrites, and the retraction propagates to every derived result and figure.
 
+`RESULT_FOR_SITE` and `RESULT_FOR_PROTEIN` attach a `DifferentialResult` to the evidence node it measures — a `SiteObservation`, or at protein grain a `ProteinObservation`, mirroring `RESULT_FOR_SITE`'s target. A protein-level result therefore has a target of its own rather than dangling, and it is what `ADJUSTED_BY`'s target must be reachable from: a site-level result corrected against the matched proteome can be traced to the protein that correction came from.
+
 `ADJUSTED_BY` points a site-level result at the protein-level result used to correct it. Its presence is what makes `protein_adjusted = 'applied'` auditable rather than asserted.
 
 ---
@@ -657,6 +659,7 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
 3. Should historical UniProt sequence retrieval be supported, or only current? Measured: 1 of 20 sampled sequences was amended after the original search, implying roughly 5% of sites are at risk of silent position drift. Current-only resolution flags these; historical retrieval would let them be reconciled.
 4. Multi-modified peptides: a peptide bearing two K-GG sites currently yields two `SiteObservation` nodes sharing a `peptide_sequence`. Is a `PeptidoformObservation` parent needed to preserve co-occurrence?
 5. **Does an isoform's `sequence_version`, inherited from the parent entry's `entryAudit` (§4), track edits confined to the isoform?** An isoform is the canonical sequence with its splice-variant (VSP / `VAR_SEQ`) features applied. If UniProt amends only those isoform-defining features — changing the isoform's spliced sequence while leaving the canonical sequence untouched — it is unconfirmed whether `entryAudit.sequenceVersion` bumps. If it does not, an isoform key such as `P09914-2#sv2` could silently denote two different sequences over time: drift specific to isoforms, invisible to the version number. **Mitigation:** `rebuild.py` refetches each resolved sequence and compares it to the stored `Protein.sequence`, so drift is caught by content, independent of the version number. To confirm: UniProt's versioning behaviour for isoform-only edits, and whether the rebuild comparison suffices or historical isoform retrieval (cf. Q3) becomes necessary.
+6. **Should every `DifferentialResult` be required to attach to exactly one of `RESULT_FOR_SITE` or `RESULT_FOR_PROTEIN`?** A result measures either a site or a protein — never both, never neither — so an exactly-one (XOR) structural check would express that, and it is the check that would have caught the protein-level `bzk:dr2` in the valid fixture attaching to nothing it measures. Not minted as an invariant: the grain a `DifferentialResult` carries is only fixed once `perseus.py` emits results at both grains (site and protein), so the cardinality should be decided when the adapter lands rather than pre-committed here. Surfaced 2026-08-07 with `RESULT_FOR_PROTEIN` (v1.3).
 
 **Resolved**
 

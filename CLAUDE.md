@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Active |
-| Version | 1.1 |
-| Last reviewed | 2026-08-06 |
+| Version | 1.2 |
+| Last reviewed | 2026-08-07 |
 | Authoritative for | Document routing, working conventions |
 
 Router and working conventions for the bzk Omics repository. Read this first; it tells you which document governs the change you are making.
@@ -91,3 +91,4 @@ Duplicating a fact into a second document is a defect, not redundancy. The copie
 - Prefer amending a document over adding one. The document set is deliberately small.
 - Open questions live in a numbered `Open questions` section at the end of the relevant file, not in comments or issues.
 - Real external identifiers only. Never invent a UniProt accession, PXD accession, or ontology term to fill an example — mark it synthetic or leave it blank.
+- Commit to `main`. This is a single-developer repository with linear history; development lands directly on `main`, not on long-lived feature branches. A session handed a different working branch by its harness should fast-forward the change onto `main` when it is complete, and continue there.
