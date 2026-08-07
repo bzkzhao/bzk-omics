@@ -59,12 +59,14 @@ NODE_TABLES: list[NodeTable] = [
         [
             ("id", "STRING"),
             ("accession", "STRING"),
-            ("isoform", "STRING"),
-            ("sequence_version", "INT64"),
-            ("sequence", "STRING"),
             ("name", "STRING"),
             ("organism_taxid", "INT64"),
         ],
+        note="stable identity; the sequence lives on ProteinSequence (ADR-0005)",
+    ),
+    NodeTable(
+        "ProteinSequence",
+        [("id", "STRING"), ("sequence_version", "INT64"), ("sequence", "STRING")],
     ),
     NodeTable(
         "ModificationSite",
@@ -262,7 +264,8 @@ NODE_TABLES: list[NodeTable] = [
 REL_TABLES: list[RelTable] = [
     # §4
     RelTable("ENCODES", "Gene", "Protein", multiplicity="ONE_MANY"),
-    RelTable("SITE_ON", "ModificationSite", "Protein", multiplicity="MANY_MANY"),
+    RelTable("HAS_SEQUENCE", "Protein", "ProteinSequence", multiplicity="ONE_MANY"),
+    RelTable("SITE_ON", "ModificationSite", "ProteinSequence", multiplicity="MANY_MANY"),
     RelTable(
         "ANNOTATED_IN",
         "Protein",

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.3 |
+| Version | 0.4 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ARCHITECTURE.md`, `ONTOLOGY.md` |
 | Authoritative for | Backup, cache policy, dependency pinning, rebuild discipline |
@@ -98,7 +98,7 @@ One test per invariant means `validate()` implements the clause each test target
 
 | Invariant | Enforced | Not yet enforced | Enforceable when |
 |---|---|---|---|
-| I2 | Parent protein carries `sequence_version` | Site key embeds sequence version *and* isoform | Ingestion produces keys |
+| I2 | `SITE_ON` target (a `ProteinSequence`) carries `sequence_version` | Site key embeds sequence version *and* isoform; site-key version equals the target's `sequence_version` (ADR-0005) | Ingestion produces keys |
 | I3 | An ambiguous assignment may not name a modifier | Every `SiteObservation` has ≥ 1 `ModifierAssignment` | Ingestion produces full change-sets |
 
 Both remaining clauses are properties of a complete ingestion rather than of a single staged write, so neither is checkable against the current change-set interface. Add them with the first adapter, not before — a test that cannot fail is worse than an absent one.

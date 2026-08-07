@@ -47,14 +47,15 @@ def test_valid_changeset_passes_every_check() -> None:
 # ── One violation per invariant, asserting the branch via its message ─────────────────────────
 
 
-def test_I2_site_parent_protein_needs_sequence_version() -> None:
+def test_I2_site_parent_sequence_needs_sequence_version() -> None:
+    # The SITE_ON target is a ProteinSequence, not a Protein (ADR-0005).
     site = f"{MX1}#sv?#K48#{GG}"
     nodes = [
-        n("Protein", id=MX1, sequence_version=None),
+        n("ProteinSequence", id=f"{MX1}#sv?", sequence_version=None),
         n("ModificationSite", id=site, residue="K", position=48, modification_type=GG),
     ]
     with pytest.raises(InvariantError) as ei:
-        validate(nodes, [e("SITE_ON", site, MX1)], only="I2")
+        validate(nodes, [e("SITE_ON", site, f"{MX1}#sv?")], only="I2")
     assert ei.value.invariant == "I2"
     assert "sequence_version" in str(ei.value)
 
@@ -297,8 +298,8 @@ def test_structure_label_mismatch_on_unowned_relation_is_structural() -> None:
 
 
 def test_structure_label_mismatch_on_owned_relation_attributes_to_invariant() -> None:
-    # A SITE_ON whose 'to' is not a Protein is I2's error — the guard that makes _check_I2 sound
-    # in reading sequence_version off edge["to"].
+    # A SITE_ON whose 'to' is not a ProteinSequence is I2's error — the guard that makes _check_I2
+    # sound in reading sequence_version off edge["to"].
     nodes = [
         n(
             "ModificationSite",
@@ -312,7 +313,7 @@ def test_structure_label_mismatch_on_owned_relation_attributes_to_invariant() ->
     with pytest.raises(InvariantError) as ei:
         validate(nodes, [e("SITE_ON", f"{MX1}#sv3#K48#{GG}", UBIQUITIN)])  # to is a Modifier
     assert ei.value.invariant == "I2"
-    assert "not 'Protein'" in str(ei.value)
+    assert "not 'ProteinSequence'" in str(ei.value)
 
 
 def test_structure_node_without_id_raises() -> None:

@@ -142,14 +142,14 @@ def _validate_structure(nodes: list[Node], edges: list[Edge]) -> None:
 
 
 def _check_I2(nodes: list[Node], edges: list[Edge]) -> None:
-    """I2 — a ModificationSite's parent Protein must carry a sequence_version."""
+    """I2 — a ModificationSite's SITE_ON target (a ProteinSequence) must carry a sequence_version."""
     by_id = _index(nodes)
-    for edge in _edges(edges, "SITE_ON"):  # ModificationSite -> Protein
-        protein = by_id[edge["to"]]
-        if protein.get("sequence_version") is None:
+    for edge in _edges(edges, "SITE_ON"):  # ModificationSite -> ProteinSequence
+        protein_sequence = by_id[edge["to"]]
+        if protein_sequence.get("sequence_version") is None:
             raise InvariantError(
                 "I2",
-                f"ModificationSite {edge['from']} sits on Protein {edge['to']} "
+                f"ModificationSite {edge['from']} sits on ProteinSequence {edge['to']} "
                 "which has no sequence_version; residue numbering is meaningless.",
             )
 

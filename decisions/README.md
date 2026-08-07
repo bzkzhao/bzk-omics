@@ -13,6 +13,7 @@ This exists because a project with one developer and a compressed timeline will 
 | [0001](0001-two-graph-model.md) | Reference and evidence graphs are disjoint |
 | [0002](0002-python-backend.md) | Python for the backend |
 | [0003](0003-kuzu-over-neo4j.md) | Kùzu for the graph store |
+| [0005](0005-modificationsite-and-protein-keys.md) | Sequence version and isoform as part of the `ModificationSite` and `Protein` keys |
 | [0015](0015-perseus-s0-default.md) | Perseus `s0` test as the default statistical entry — supersedes 0011 |
 | [0016](0016-embargoed-datasets.md) | Embargoed dataset state for unpublished collaborator data |
 | [0017](0017-downstream-positioning.md) | Downstream positioning, with both ingestion paths |
@@ -26,7 +27,6 @@ Seeded in [`../ARCHITECTURE.md`](../ARCHITECTURE.md) § Seed ADRs, not yet writt
 | # | Decision |
 |---|---|
 | 0004 | Split storage: graph identity in Kùzu, quantitative matrices in DuckDB |
-| 0005 | Sequence version and isoform as part of the `ModificationSite` primary key |
 | 0006 | Modifier identity as a defeasible assignment, not a site property |
 | 0007 | Local moderated *t*-test over an R dependency — superseded by 0011 |
 | 0008 | Append-only assertions with explicit retraction |

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.1 |
+| Version | 1.2 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -189,7 +189,7 @@ To be written as numbered, immutable records in `decisions/`:
 - `0002` Python over TypeScript for the backend
 - `0003` Kùzu over Neo4j for the graph store
 - `0004` Split storage: graph identity in Kùzu, quantitative matrices in DuckDB
-- `0005` Sequence version as part of the `ModificationSite` primary key
+- ~~`0005`~~ Sequence version **and isoform** as part of the `ModificationSite` **and `Protein`** keys — **written 2026-08-07**, see [`decisions/0005`](decisions/0005-modificationsite-and-protein-keys.md)
 - `0006` Modifier identity as a defeasible assignment, not a site property
 - `0007` Local moderated *t*-test over an R dependency
 - `0008` Append-only assertions with explicit retraction

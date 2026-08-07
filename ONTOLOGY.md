@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.10 |
+| Version | 1.11 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -29,7 +29,9 @@ The two sets are joined only through observation nodes. This is the load-bearing
 REFERENCE                          EVIDENCE
 ─────────                          ────────
 Gene                               Project
-Protein ──────┐                    Experiment
+Protein ──[HAS_SEQUENCE]──┐        Experiment
+ProteinSequence ◄─────────┘        Sample
+     ▲ [SITE_ON]
 ModificationSite ◄──[MEASURED_AT]── SiteObservation
 Modifier ◄────[ASSIGNS]──────────── ModifierAssignment
 Pathway                            Dataset
@@ -108,19 +110,25 @@ CREATE NODE TABLE Gene(
   PRIMARY KEY (id));
 
 CREATE NODE TABLE Protein(
-  id STRING,                    -- CURIE, uniprot:ACCESSION
+  id STRING,                    -- CURIE, uniprot:ACCESSION. An isoform carries its
+                                -- suffix in the accession (uniprot:P09914-2); there is
+                                -- no separate isoform column. Stable identity: no
+                                -- sequence, no version. See ADR-0005.
   accession STRING,
-  isoform STRING,               -- e.g. 'P05161-1'; NULL means canonical
-  sequence_version INT64,       -- REQUIRED. See invariant I2.
-  sequence STRING,
   name STRING,
   organism_taxid INT64,
+  PRIMARY KEY (id));
+
+CREATE NODE TABLE ProteinSequence(
+  id STRING,                    -- deterministic; uniprot:ACCESSION#sv{n}. See key template.
+  sequence_version INT64,       -- REQUIRED. See invariant I2.
+  sequence STRING,
   PRIMARY KEY (id));
 
 CREATE NODE TABLE ModificationSite(
   id STRING,                    -- deterministic; see key template below
   residue STRING,               -- single-letter, e.g. 'K'
-  position INT64,               -- 1-based, against Protein.sequence_version
+  position INT64,               -- 1-based, against ProteinSequence.sequence_version
   modification_type STRING,     -- CURIE, unimod:
   PRIMARY KEY (id));
 
@@ -137,22 +145,31 @@ CREATE NODE TABLE Drug(id STRING, label STRING, PRIMARY KEY (id));
 CREATE NODE TABLE Publication(id STRING, title STRING, year INT64, PRIMARY KEY (id));
 
 CREATE REL TABLE ENCODES(FROM Gene TO Protein, ONE_MANY);
-CREATE REL TABLE SITE_ON(FROM ModificationSite TO Protein, MANY_MANY);  -- see §6.3
+CREATE REL TABLE HAS_SEQUENCE(FROM Protein TO ProteinSequence, ONE_MANY);
+CREATE REL TABLE SITE_ON(FROM ModificationSite TO ProteinSequence, MANY_MANY);  -- see §6.3
 CREATE REL TABLE ANNOTATED_IN(FROM Protein TO Pathway, source STRING, evidence_code STRING);
 ```
 
 **Key template:**
 
 ```
-uniprot:{accession}[-{isoform}]#sv{sequence_version}#{residue}{position}#{modification_curie}
+Protein          uniprot:{accession}
+ProteinSequence  uniprot:{accession}#sv{sequence_version}
+ModificationSite uniprot:{accession}#sv{sequence_version}#{residue}{position}#{modification_curie}
 
-  uniprot:P05161#sv1#K42#unimod:121        canonical
-  uniprot:P09914-2#sv2#K376#unimod:121     isoform 2
+  uniprot:P05161      /  uniprot:P05161#sv1      /  uniprot:P05161#sv1#K42#unimod:121
+  uniprot:P09914-2    /  uniprot:P09914-2#sv2    /  uniprot:P09914-2#sv2#K376#unimod:121
 ```
+
+`{accession}` is the full UniProt accession **including any isoform suffix** — `P09914-2` *is* an accession, not a canonical accession plus a property. There is no separate isoform field to compose.
 
 `ModificationSite.id` is deterministic and content-derived, so the same site ingested from two datasets resolves to one node.
 
 **Both the sequence version and the isoform are part of the key**, and for the same reason: position numbering is only meaningful relative to a specific sequence. `P05161#sv1#K42` and `P05161#sv2#K42` may be different lysines because the sequence was amended; `P09914#K376` and `P09914-2#K376` are different lysines because the isoforms differ in length and numbering.
+
+**`Protein` and `ProteinSequence` are separate nodes** because the same argument applies one level up, and applies differently to different edges. A protein's identity outlives any one version of its sequence: `uniprot:Q9UMW8` is USP18 whatever UniProt does to the sequence record. But a *position* is meaningless without a specific sequence, so the thing a site attaches to must be version-specific. Hence `SITE_ON` targets a `ProteinSequence`, while everything whose meaning is version-independent — `ENCODES`, `ANNOTATED_IN`, `ASSOCIATION_ENZYME` (§6.2), `ASSIGNS_PROTEIN` (§6.3), `RESOLVES_TO_PROTEIN` (§5.1) — targets the stable `Protein`. A protein-level quantification measures a gene product, not a sequence version, and carries no residue positions; its `Dataset` anchor already records which search produced it.
+
+A single `Protein` node could not do both jobs: it cannot carry two `sequence_version`s at once, yet sites legitimately pinned at two different versions can attach to the same protein. See ADR-0005.
 
 Measured on PXD018299: resolving `P09914-2` position 376 against the *canonical* IFIT1 sequence returns threonine, and `P62195-2` position 47 returns alanine. Both validate correctly against their own isoform sequences. A schema that treated isoform as a property rather than part of the key would silently merge these with their canonical counterparts and place modifications on the wrong residues.
 
@@ -579,7 +596,7 @@ An entity with no path to a `prov:Activity` is flagged `unprovenanced` at query 
 Normative. Violations are ingestion errors, not warnings.
 
 - **I1 — Disjointness.** No edge may connect two reference nodes with locally-authored semantics. Reference-to-reference edges carry a `source` field naming the external authority.
-- **I2 — Sequence pinning.** Every `Protein` carries `sequence_version`; every `ModificationSite` key includes both the sequence version and the isoform. A site whose parent protein lacks a sequence version cannot be created, and a site on an isoform is never keyed against the canonical accession. Residue numbering without a fully specified sequence is meaningless: measured on PXD018299, isoform positions resolved against canonical sequences return the wrong residue, and 5% of sequences were amended after the original search.
+- **I2 — Sequence pinning.** Every `ProteinSequence` carries the `sequence_version` it names and the `sequence` itself; a `Protein` carries neither, because a protein's identity outlives any one version of its sequence. Every `ModificationSite` key embeds that version, and an isoform is keyed against its own accession (`P09914-2`), never the canonical one. A site's `SITE_ON` target is a `ProteinSequence`, not a `Protein`: a site whose target lacks a sequence version cannot be created, and the version embedded in the site key must equal that target's `sequence_version` — otherwise the position asserts against one sequence while attaching to another. A `ProteinSequence`'s own id must likewise agree with what it declares: the `sv` segment of `uniprot:{accession}#sv{n}` must equal its `sequence_version`, and the accession segment must equal the `Protein` it is reached from by `HAS_SEQUENCE`. Guarding the site key against its target while the target's id and column may disagree leaves the same duplication one level down — a key and a field are two homes for one fact. Residue numbering without a fully specified sequence is meaningless: measured on PXD018299, isoform positions resolved against canonical sequences return the wrong residue, and 5% of sequences were amended after the original search.
 - **I3 — No bare modifier claims.** No `SiteObservation` may assert a modifier except through a `ModifierAssignment`. No UI or export may render a K-GG site as "ubiquitination" unless a live assignment has `confidence != 'ambiguous'`.
 - **I4 — Declared adjustment.** Every `DifferentialResult` on a site sets `protein_adjusted` to one of three states. `applied` requires an `ADJUSTED_BY` edge. `native` means the source quantity is already ratiometric — MaxQuant `Ratio mod/base` divides modified-peptide intensity by unmodified protein signal, so stoichiometry is measured rather than inferred; `adjustment_method` records which. `not_applied` is labelled *stoichiometry-uncorrected* in every view and export. Most DIA outputs, including DIA-NN, provide no native ratio.
 - **I5 — Provenance reachability.** Every entity node reaches at least one `Analysis`, or is flagged `unprovenanced`.
@@ -607,8 +624,11 @@ Normative. Violations are ingestion errors, not warnings.
 ```
 Reference
   Gene           hgnc:5699  (MX1)
-  Protein        uniprot:P20591, sequence_version 3
+  Protein        uniprot:P20591                      (stable; no sequence)
+  ProteinSequence uniprot:P20591#sv3, sequence_version 3
+                              <-[HAS_SEQUENCE]- uniprot:P20591
   ModificationSite  uniprot:P20591#sv3#K48#unimod:121
+                              -[SITE_ON]-> uniprot:P20591#sv3
   Modifier       uniprot:P0CG48 (ubiquitin,  leaves_gg_remnant true)
                  uniprot:Q15843 (NEDD8,      leaves_gg_remnant true)
                  uniprot:P05161 (ISG15,      leaves_gg_remnant true)
@@ -693,8 +713,9 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
 2. Are transcript-level nodes needed in v0.1, or does RNA-seq enter at v0.2 with `TranscriptObservation` mirroring `ProteinObservation`?
 3. Should historical UniProt sequence retrieval be supported, or only current? Measured: 1 of 20 sampled sequences was amended after the original search, implying roughly 5% of sites are at risk of silent position drift. Current-only resolution flags these; historical retrieval would let them be reconciled.
 4. Multi-modified peptides: a peptide bearing two K-GG sites currently yields two `SiteObservation` nodes sharing a `peptide_sequence`. Is a `PeptidoformObservation` parent needed to preserve co-occurrence? **Same question from the identity side (§3):** `SiteObservation` identity is `peptide_sequence` + `Dataset` + `ModificationSite`, with no peptidoform state, so two observations of the same site differing in a *second* modification elsewhere would collide. The MaxQuant GlyGly **site** table cannot produce that pair — it has no `Modifications` / `Modified sequence` column and aggregates across other-modification peptidoforms; its only modification axis is same-type GlyGly multiplicity (`Intensity___1/2/3`, verified against the PXD018299 header). The collision becomes reachable only from a **peptidoform-grain adapter** — MaxQuant `evidence.txt`, or DIA-NN modified precursors (assumptions A1/A2). Resolve both together — a peptidoform key in `SiteObservation` identity and the `PeptidoformObservation` parent — when the first such adapter lands; do not amend the identity before then, since a permanently-null field is dead weight.
-5. **Does an isoform's `sequence_version`, inherited from the parent entry's `entryAudit` (§4), track edits confined to the isoform?** An isoform is the canonical sequence with its splice-variant (VSP / `VAR_SEQ`) features applied. If UniProt amends only those isoform-defining features — changing the isoform's spliced sequence while leaving the canonical sequence untouched — it is unconfirmed whether `entryAudit.sequenceVersion` bumps. If it does not, an isoform key such as `P09914-2#sv2` could silently denote two different sequences over time: drift specific to isoforms, invisible to the version number. **Mitigation:** `rebuild.py` refetches each resolved sequence and compares it to the stored `Protein.sequence`, so drift is caught by content, independent of the version number. To confirm: UniProt's versioning behaviour for isoform-only edits, and whether the rebuild comparison suffices or historical isoform retrieval (cf. Q3) becomes necessary.
-6. **Should every `DifferentialResult` be required to attach to exactly one of `RESULT_FOR_SITE` or `RESULT_FOR_PROTEIN`?** A result measures either a site or a protein — never both, never neither — so an exactly-one (XOR) structural check would express that, and it is the check that would have caught the protein-level `bzk:dr2` in the valid fixture attaching to nothing it measures. Not minted as an invariant: the grain a `DifferentialResult` carries is only fixed once `perseus.py` emits results at both grains (site and protein), so the cardinality should be decided when the adapter lands rather than pre-committed here. Surfaced 2026-08-07 with `RESULT_FOR_PROTEIN` (v1.3).
+5. **Does an isoform's `sequence_version`, inherited from the parent entry's `entryAudit` (§4), track edits confined to the isoform?** An isoform is the canonical sequence with its splice-variant (VSP / `VAR_SEQ`) features applied. If UniProt amends only those isoform-defining features — changing the isoform's spliced sequence while leaving the canonical sequence untouched — it is unconfirmed whether `entryAudit.sequenceVersion` bumps. If it does not, an isoform key such as `P09914-2#sv2` could silently denote two different sequences over time: drift specific to isoforms, invisible to the version number. **Mitigation:** `rebuild.py` refetches each resolved sequence and compares it to the stored `ProteinSequence.sequence`, so drift is caught by content, independent of the version number. To confirm: UniProt's versioning behaviour for isoform-only edits, and whether the rebuild comparison suffices or historical isoform retrieval (cf. Q3) becomes necessary.
+6. **Is the UniProt cache an I9 input, and if so what makes it reconstructible?** I9 states the graph is regenerable from `raw/` (content-addressed), the curation export, and this DDL. `ProteinSequence.sequence` is derivable from none of the three: sequences come from UniProt, which is mutable, and a superseded `sv` may not be refetchable at all once amended — so a rebuild that reaches the network cannot be relied on to reproduce the sequence a site was pinned to. In practice `rebuild.py` already treats `~/.bzk-omics/cache/uniprot/` as an **input** — it is explicitly not dropped — and `OPERATIONS.md` §3 retains every entry referenced by a live `ModificationSite` for exactly this reason. But I9's own list does not name the cache, so the arrangement works while being unstated. Either I9 gains a fourth input and the cache acquires a reconstruction story (it is today a local directory: not content-addressed like `raw/`, not version-controlled like the curation export, and named in `OPERATIONS.md` §1 as *regenerable, low backup priority* — which is the opposite of what an I9 input must be), or sequence content must come from somewhere already in the list. Recorded 2026-08-07 alongside ADR-0005, which does not resolve it: the split makes the pinned sequence *addressable*, not *reconstructible*.
+7. **Should every `DifferentialResult` be required to attach to exactly one of `RESULT_FOR_SITE` or `RESULT_FOR_PROTEIN`?** A result measures either a site or a protein — never both, never neither — so an exactly-one (XOR) structural check would express that, and it is the check that would have caught the protein-level `bzk:dr2` in the valid fixture attaching to nothing it measures. Not minted as an invariant: the grain a `DifferentialResult` carries is only fixed once `perseus.py` emits results at both grains (site and protein), so the cardinality should be decided when the adapter lands rather than pre-committed here. Surfaced 2026-08-07 with `RESULT_FOR_PROTEIN` (v1.3).
 
 **Resolved**
 

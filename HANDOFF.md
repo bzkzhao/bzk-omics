@@ -194,13 +194,20 @@ grouped by *how* they must be enforced, so a source-tree lint is not mistaken fo
   reference–reference edges; ref–ref edges carry `source`). **I8** (also WG: every `Sample` reaches a
   curation `Analysis` via `SAMPLE_GENERATED_BY`). **Residue agreement across `SITE_ON`** (completes
   I2, candidate new invariant): I2 pins the sequence version but never verifies the residue at the
-  site's position matches the parent `Protein`'s sequence — the write-time mirror of the resolver's
+  site's position matches its `SITE_ON` target's sequence — the write-time mirror of the resolver's
   `validate_position`. It belongs in the write-time set: it would catch a site keyed at one
-  residue attached by `SITE_ON` to a protein where that position is a different residue (the
+  residue attached by `SITE_ON` to a sequence where that position is a different residue (the
   isoform-bug arithmetic, and exactly the malformed second `SITE_ON` the valid fixture now avoids).
-  It needs the `Protein.sequence` present in the change-set, which the label check does not yet
-  require, and it overlaps the resolver, so it is a graph-ingestion backstop rather than the first
-  line. Build with the first adapter, not before.
+  It needs the `ProteinSequence.sequence` present in the change-set, which the label check does not
+  yet require, and it overlaps the resolver, so it is a graph-ingestion backstop rather than the
+  first line. Build with the first adapter, not before. **Two further I2 clauses, both unenforced,
+  both from ADR-0005:** (i) a site key's `sv` segment must equal its `SITE_ON` target's
+  `sequence_version`; (ii) a `ProteinSequence`'s id must agree with its own `sequence_version` and
+  with the accession of the `Protein` reached by `HAS_SEQUENCE`. Both are cheap string comparisons
+  over the change-set — no sequence content needed — and sit in the same scope as the
+  residue-agreement check above. **All three land together with the first adapter.** The valid
+  fixture supplies the positive case for all three; the violating cases belong in
+  `tests/test_invariants.py` as red cases, per the one-violation-per-invariant pattern.
 - **WG — whole-graph / query-time, not written.** **I5** (provenance reachability; entities with no
   path to an `Analysis` flagged `unprovenanced` at query time, §7). **I8** (the reachability half).
 - **EX — export boundary, not written.** **I18** (embargo). *Trigger: I18 must land with the first
