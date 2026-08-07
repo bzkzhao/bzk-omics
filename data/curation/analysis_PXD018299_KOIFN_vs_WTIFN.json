@@ -1,6 +1,7 @@
 {
   "dataset": "PXD018299",
   "file": "HAP1_USP18KO_GlyGlyKSites.txt",
+  "content_hash": "sha256:a4a503e39581334c3553d3631456ad8aca22e193ba928810f6d46fde15622009",
   "contrast": "KO_IFN_vs_WT_IFN",
   "quantity": "intensity_multiplicity_summed",
   "localization_threshold": 0.75,

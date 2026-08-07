@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.3 |
+| Version | 1.4 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -67,10 +67,12 @@ bzk/
     fragpipe.py
     diann.py
     base.py      # the adapter contract
+  sources/       # retrieval of public deposits (PRIDE); not a search-engine adapter
+    pride.py
   resolve/       # UniProt resolution, sequence-version pinning, position validation
   quant/         # DuckDB layer, normalisation
   stats/         # moderated t-test, BH, protein-level adjustment
-  provenance/    # PROV-O mapping, content hashing
+  provenance/    # PROV-O mapping, content hashing; raw_store.py is the content-addressed raw/
   api/           # FastAPI routes
 web/             # SvelteKit
 ```
@@ -78,6 +80,8 @@ web/             # SvelteKit
 ### The adapter contract
 
 **Priority order is Perseus first, then MaxQuant; DIA-NN is deferred to v0.2** (`ROADMAP.md` § Explicitly deferred). An earlier revision of this section read *"DIA-NN first"*, reasoning that the Pinto-Fernández group moved to DIA in 2022 (ABPP-HT*) and that its 2025 work uses DIA-NN 2.0 with FASTA-predicted libraries on an Orbitrap Fusion Lumos, so MaxQuant was archival. ADR-0017 reversed that: with the platform positioned downstream, the shortest path to holding a real user's real results is the analysis-output adapter, and the collaborator confirmed Perseus is his workflow. The tables below carry the current order.
+
+**`sources/` is separate from `adapters/` deliberately.** This section defines an adapter as one module per search engine, and the contract is `ObservationAdapter` — `sniff` / `parse` over a file already in hand. Fetching a deposit is neither; it *produces* the file an adapter then reads. It is also separate from `provenance/`, which owns the content-addressed store and stays offline so it can be tested without a network. (`HANDOFF.md` §4 originally pencilled this as `adapters/pride.py`; module boundaries are this document's to settle, and `sources/pride.py` is where it landed.)
 
 Two classes of adapter, because the platform sits downstream of both search engines and analysis tools.
 
@@ -110,6 +114,8 @@ class ObservationAdapter(Protocol):
 The signature takes a file and a mapping — never a directory convention. Search engines differ more in output layout than in output content, so sniffing the file is stable where assuming a folder shape is not.
 
 `ParsedObservations` satisfies the `Observation` contract (`ONTOLOGY.md` §5.1) and makes no tryptic assumptions (I12): peptides need not end in K or R, may carry several modifications, and may map to more than one protein.
+
+**The PXD018299 deposit is CRLF throughout** (2,342 CRLF line endings, zero bare LF; measured 2026-08-07 on the fetched bytes). `pandas.read_csv` handles it, but any manual `split('\n')` leaves a trailing `\r` on the last field of every row — so the 159th column parses as `'Best PEP scan number\r'` rather than `'Best PEP scan number'`. That is the ran-cleanly-and-was-wrong class `HANDOFF.md` §6 catalogues: a lookup on the last column simply returns nothing.
 
 **Adapter responsibilities beyond parsing.** Measured against PXD018299: drop `Reverse` and `Potential contaminant` rows before anything else; normalise sample names (one replicate carries an instrument run ID); convert PRIDE `ftp://` locations to `https://ftp.pride.ebi.ac.uk`; record rather than apply the localisation threshold; emit the full candidate protein set, never the razor pick alone.
 

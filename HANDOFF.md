@@ -184,20 +184,18 @@ All three cost time during exploration. All three are the same class: code that 
 | Search engine for the new USP18 dataset | Assumption A2 | Yes for that dataset only |
 | Where in his pipeline the handover belongs | `ROADMAP.md` § Open questions | No — ask at the meeting |
 
-### The curation loader is blocked on two gaps in the committed records (2026-08-07)
+### The curation loader — one blocker left (2026-08-07)
 
-The key builder now exists (`bzk/ontology/keys.py`), so the loader has ids to mint with. But
-**neither committed curation record can yet produce a validating change-set**, and both reasons are
-the schema working rather than failing — under ADR-0021 a node cannot be minted without its
-identifying values, so the loader must refuse rather than invent.
+The key builder exists (`bzk/ontology/keys.py`) and the checksum gap is closed, so only the
+project/experiment titles remain. Both blockers were the schema working rather than failing — under
+ADR-0021 a node cannot be minted without its identifying values, so the loader must refuse rather
+than invent.
 
-1. **No `content_hash`, so no `Dataset`.** `Dataset` identity *is* `content_hash` (§3), and its
-   absence is classified neither `determined` nor `curated`, so it must be present. Both records
-   identify their input by bare filename (`HAP1_USP18KO_GlyGlyKSites.txt`). This is the gap
-   `OPERATIONS.md` §2 already records; it now blocks rather than merely worries. It cascades: with
-   no `Dataset` there is no `USED` anchor for an `Analysis` and no `REPORTED_BY` for an observation.
-   **Fix:** back-fill the SHA-256 when the input file is next in hand — which is the same moment
-   `raw/` gets populated, so the two unblock together.
+1. ~~**No `content_hash`, so no `Dataset`.**~~ **Resolved 2026-08-07.** `bzk/sources/pride.py`
+   fetched `HAP1_USP18KO_GlyGlyKSites.txt` into the content-addressed store, and all three
+   PXD018299 records now cite
+   `sha256:a4a503e39581334c3553d3631456ad8aca22e193ba928810f6d46fde15622009` (2,759,052 bytes).
+   `Dataset` is constructible.
 2. **No `Project` or `Experiment`, so no `Sample`** — **format decided 2026-08-07: the record grows
    the block.** Minting an `Experiment` from the accession was rejected: it would invent a title,
    which `CLAUDE.md` forbids, and the title is the curator's to supply. `Sample` anchors on
