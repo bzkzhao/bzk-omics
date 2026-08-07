@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active |
-| Version | 1.4 |
+| Version | 1.5 |
 | Last reviewed | 2026-08-07 |
 | Authoritative for | Document routing, working conventions |
 
@@ -93,7 +93,7 @@ Duplicating a fact into a second document is a defect, not redundancy. The copie
 - Real external identifiers only. Never invent a UniProt accession, PXD accession, or ontology term to fill an example — mark it synthetic or leave it blank.
 - Commit to `main`. This is a single-developer repository with linear history; development lands directly on `main`, not on long-lived feature branches. A session handed a different working branch by its harness should fast-forward the change onto `main` when it is complete, and continue there.
 - **Verify at every critical node — as the closing act of the turn that reaches it.** A critical node is any `ONTOLOGY.md` amendment, any new ADR, the key builder, each adapter, and anything touching the export boundary (I18). The four-point report **closes** such a turn; it cannot open one. A session starting a turn — and especially one resumed after a compaction — does not hold the previous turn's instructions, so point 4 is unrecoverable at the open; that is how the `RESULT_FOR_PROTEIN` fixture fix was lost. Points 1 and 2 are also cheapest while the context that produced the change is still fresh. Before ending the turn, report all four explicitly:
-  1. Full suite green, and `tests/test_schema.py` confirmed specifically.
+  1. Every check run and reported by name, at its actual result, **with its target stated**: `pytest` (full suite) and `pytest tests/test_schema.py`; `ruff check bzk tests`; `ruff format --check bzk tests`; `mypy bzk`. **A check not run is reported as not run** — silence is not a pass, and neither is "lint clean" without naming which of the three it covered. The targets are part of the rule because they are not the whole repository: `ruff check .` additionally covers the three notebooks and `mypy bzk tests` additionally covers `tests/`, and both were failing at the time this was written (18 and 36 respectively). A report saying "zero" against an unstated target is the same defect as saying nothing, one level in — so state the target or state the wider number. An earlier draft of this point named pytest and `tests/test_schema.py` only; `ruff` and `mypy` had been reported voluntarily until then, and stopped being reported the moment the protocol stopped asking. Eight commits of decay followed — six `FURB167`, five unformatted files and a real `mypy` error accrued without one report being false, because none of them mentioned lint at all. The narrow standard is what let it through, so the checks are enumerated here rather than left to judgement.
   2. The change did what it claimed, checked directly rather than inferred from a passing suite. Green tests have twice been consistent with a real defect here: four invariant checks passed vacuously while fully tested (ADR-0019), and `test_rebuild` asserted a table count against its own source.
   3. What the change did **not** cover, stated plainly. Most defects found on this project surfaced from that question, not from a test run.
   4. Any instruction from the turn that was dropped or partially done.

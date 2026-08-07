@@ -80,10 +80,11 @@ def _identity_rows() -> list[tuple[str, str, str, str]]:
     # Ends at the absence table, whose rows are also four columns wide and would otherwise be
     # parsed as identity rows.
     region = text[
-        text.index("**Node identity, per label.**")
-        : text.index("**Absence must be determined or curated, never contingent.**")
+        text.index("**Node identity, per label.**") : text.index(
+            "**Absence must be determined or curated, never contingent.**"
+        )
     ]
-    rows = re.findall(r"^\| `(\w+)` \| (.+?) \| (.+?) \| (.+?) \|\s*$", region, re.M)
+    rows = re.findall(r"^\| `(\w+)` \| (.+?) \| (.+?) \| (.+?) \|\s*$", region, re.MULTILINE)
     assert rows, "identity table not found in §3"
     return rows
 
@@ -189,7 +190,7 @@ def test_schema_identity_matches_ontology_table() -> None:
     doc_children = {
         (parent, child, rel, tuple(sorted(re.findall(r"`([a-z][a-z0-9_]*)`", fields))))
         for parent, child, rel, fields in re.findall(
-            r"^\| `(\w+)` \| `(\w+)` \(`([A-Z][A-Z0-9_]+)`\) \| (.+?) \|\s*$", block, re.M
+            r"^\| `(\w+)` \| `(\w+)` \(`([A-Z][A-Z0-9_]+)`\) \| (.+?) \|\s*$", block, re.MULTILINE
         )
     }
     code_children = {
@@ -219,7 +220,7 @@ def test_absent_identifying_fields_are_determined_not_contingent() -> None:
     text = ONTOLOGY.read_text()
     start = text.index("**Absence must be determined or curated, never contingent.**")
     block = text[start : text.index("\n\n", text.index("|---|", start))]
-    rows = re.findall(r"^\| `(\w+)` \| `(\w+)` \| (\w+) \| (.+?) \|\s*$", block, re.M)
+    rows = re.findall(r"^\| `(\w+)` \| `(\w+)` \| (\w+) \| (.+?) \|\s*$", block, re.MULTILINE)
     assert rows, "absence-classification table not found in §3"
 
     identifying = {
@@ -273,7 +274,9 @@ def test_qualifying_child_fields_match_ddl() -> None:
     text = ONTOLOGY.read_text()
     start = text.index("**Qualifying child fields.**")
     block = text[start : text.index("\n\n", text.index("|---|", start))]
-    rows = re.findall(r"^\| `(\w+)` \| `(\w+)` \(`([A-Z][A-Z0-9_]+)`\) \| (.+?) \|\s*$", block, re.M)
+    rows = re.findall(
+        r"^\| `(\w+)` \| `(\w+)` \(`([A-Z][A-Z0-9_]+)`\) \| (.+?) \|\s*$", block, re.MULTILINE
+    )
     assert rows, "qualifying-child table not found in §3"
     for parent, child, edge, fields in rows:
         assert parent in nodes, f"§3 qualifying child: unknown parent {parent!r}"
@@ -306,10 +309,8 @@ def test_key_templates_cover_reference_nodes_and_name_real_fields() -> None:
     section = text[text.index("**Key templates.**") : text.index("**Key canonicalization.**")]
     prefixes = _curie_prefixes()
 
-    authority = dict(re.findall(r"^\| `(\w+)` \| `(\w+):` \|", section, re.M))
-    composed = dict(
-        re.findall(r"^(\w+)\s+((?:uniprot:|\{)\S+)$", section, re.M)
-    )
+    authority = dict(re.findall(r"^\| `(\w+)` \| `(\w+):` \|", section, re.MULTILINE))
+    composed = dict(re.findall(r"^(\w+)\s+((?:uniprot:|\{)\S+)$", section, re.MULTILINE))
 
     assert set(authority) & set(composed) == set(), "a node appears in both template groups"
     assert set(authority) | set(composed) == _reference_node_tables(), (
@@ -408,6 +409,7 @@ def test_quantity_values_are_in_enum() -> None:
     quantity is an identifying field (§3, ADR-0020); two spellings of one quantity mint two Analysis
     ids for one fact. This checks fixtures and curation records honour the closed vocabulary.
     """
+
     def quantities(obj: object):
         if isinstance(obj, dict):
             for k, v in obj.items():

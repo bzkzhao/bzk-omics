@@ -20,6 +20,7 @@ import ast
 import json
 import re
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -40,8 +41,9 @@ CITING_RECORDS = (
 )
 
 
-def _record(name: str) -> dict:
-    return json.loads((CURATION_DIR / name).read_text())
+def _record(name: str) -> dict[str, Any]:
+    loaded: Any = json.loads((CURATION_DIR / name).read_text())
+    return cast("dict[str, Any]", loaded)
 
 
 def _records_citing_the_deposit() -> set[str]:

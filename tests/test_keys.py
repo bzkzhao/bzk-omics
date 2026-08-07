@@ -73,7 +73,9 @@ def test_a_different_float_does_change_an_id() -> None:
 
 
 def test_parameters_json_key_order_and_spacing_do_not_change_an_id() -> None:
-    a = dict(SITE_ANALYSIS, test="perseus_s0", parameters_json='{"s0": 0.1, "n_randomisations": 250}')
+    a = dict(
+        SITE_ANALYSIS, test="perseus_s0", parameters_json='{"s0": 0.1, "n_randomisations": 250}'
+    )
     b = dict(SITE_ANALYSIS, test="perseus_s0", parameters_json='{"n_randomisations":250,"s0":0.1}')
     assert evidence_id("Analysis", a) == evidence_id("Analysis", b)
 
@@ -105,10 +107,28 @@ def test_a_determined_absence_is_stable_across_calls() -> None:
 
 def test_imputation_seed_changes_the_analysis_id() -> None:
     # The collision the fold exists to prevent: two analyses identical but for the seed.
-    seeded = {"Imputation": [{"method": "downshifted_normal", "downshift_sd": 1.8,
-                              "width_sd": 0.3, "seed": 42, "scope": "whole_matrix"}]}
-    other = {"Imputation": [{"method": "downshifted_normal", "downshift_sd": 1.8,
-                             "width_sd": 0.3, "seed": 99, "scope": "whole_matrix"}]}
+    seeded = {
+        "Imputation": [
+            {
+                "method": "downshifted_normal",
+                "downshift_sd": 1.8,
+                "width_sd": 0.3,
+                "seed": 42,
+                "scope": "whole_matrix",
+            }
+        ]
+    }
+    other = {
+        "Imputation": [
+            {
+                "method": "downshifted_normal",
+                "downshift_sd": 1.8,
+                "width_sd": 0.3,
+                "seed": 99,
+                "scope": "whole_matrix",
+            }
+        ]
+    }
     assert evidence_id("Analysis", SITE_ANALYSIS, child_values=seeded) != evidence_id(
         "Analysis", SITE_ANALYSIS, child_values=other
     )
@@ -135,7 +155,11 @@ def test_the_fold_reads_child_column_types_not_the_parents() -> None:
 
 
 def test_anchor_id_changes_the_evidence_id() -> None:
-    ma = {"basis": "literature", "candidate_modifiers": ["uniprot:P05161"], "confidence": "probable"}
+    ma = {
+        "basis": "literature",
+        "candidate_modifiers": ["uniprot:P05161"],
+        "confidence": "probable",
+    }
     ub = evidence_id("ModifierAssignment", ma, anchor_ids={"Modifier": "uniprot:P0CG48"})
     isg = evidence_id("ModifierAssignment", ma, anchor_ids={"Modifier": "uniprot:P05161"})
     assert ub != isg, "ASSIGNS is an anchor — the Ub-vs-ISG15 pair must not collapse"

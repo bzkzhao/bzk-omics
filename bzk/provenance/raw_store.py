@@ -82,5 +82,7 @@ def verify(stored_hash: str, *, filename: str, home: Path | None = None) -> Path
         raise FileNotFoundError(f"{stored_hash} is not in {raw_root(home)} — re-fetch the input")
     actual = sha256_file(path)
     if actual != hex_digest:
-        raise ValueError(f"{path} hashes to sha256:{actual}, not {stored_hash}; the store is corrupt")
+        raise ValueError(
+            f"{path} hashes to sha256:{actual}, not {stored_hash}; the store is corrupt"
+        )
     return path

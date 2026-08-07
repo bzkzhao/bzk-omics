@@ -35,9 +35,7 @@ from bzk.ontology import schema
 DIGEST_HEX = 32
 
 _NULL = "\x00null"  # distinct from "" so an absent value never collides with an empty one
-_COLUMN_TYPES: dict[str, dict[str, str]] = {
-    t.name: dict(t.columns) for t in schema.NODE_TABLES
-}
+_COLUMN_TYPES: dict[str, dict[str, str]] = {t.name: dict(t.columns) for t in schema.NODE_TABLES}
 
 
 class KeyError_(ValueError):
@@ -108,14 +106,20 @@ def identity_tuple(
     children = child_values or {}
     for child_type, _rel, fields in sorted(spec.child_fields):
         child_types = _COLUMN_TYPES.get(child_type, {})
-        rendered = sorted(
+        # Named apart from the per-field `rendered` above: this is a list of whole-child
+        # renderings, and the two roles previously shared one name. `Analysis` runs both loops in
+        # one call, so a str and a list[str] were bound to `rendered` in sequence. Harmless as
+        # written — the assignment here always precedes its own read below — but `",".join()`
+        # accepts a str and would silently join it character-by-character, so the reuse made a
+        # future reordering fail quietly rather than loudly. Distinct names, distinct roles.
+        child_renderings = sorted(
             "|".join(
                 f"{f}={canonical_value(child.get(f), child_types.get(f, 'STRING'))}"
                 for f in sorted(fields)
             )
             for child in children.get(child_type, [])
         )
-        parts.append(f"~{child_type}=[" + ",".join(rendered) + "]")
+        parts.append(f"~{child_type}=[" + ",".join(child_renderings) + "]")
 
     return "\n".join(parts)
 
