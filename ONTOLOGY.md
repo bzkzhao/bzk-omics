@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.14 |
+| Version | 1.15 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -119,7 +119,38 @@ The identity **model** is identical for both: a node's identity is its label, it
 | `DifferentialResult` | `protein_adjusted`, `adjustment_method` (I4's required declaration of result *kind*. A single site-level `Analysis` emits **both** where a matched proteome exists — the uncorrected result (not_applied) and the corrected one (applied, carrying `ADJUSTED_BY` to the protein result it used) — so they share `WAS_GENERATED_BY`, observation and contrast and are separated *only* by these fields; the correction is a within-analysis step, not a separate `Analysis`. Holding both is what lets a user see what the correction did — `ARCHITECTURE.md` §4) | `Analysis` (`WAS_GENERATED_BY`), `SiteObservation` (`RESULT_FOR_SITE`) / `ProteinObservation` (`RESULT_FOR_PROTEIN`), `Contrast` (`RESULT_IN_CONTRAST`) | `log2fc`, `p_value`, `adj_p_value` |
 
 | `Person` | `orcid`, `name` | — | — |
-| `Software` | `name`, `version`, `container_digest` | — | — |
+| `Software` | `name`, `version` | — | `container_digest` |
+
+The last two rows are the exception to the digest rule: provenance agents key on their natural external identifiers, and **ADR-0021 settles how** — this line previously described a fallback key, which was the defect. `Software` keys on `name` + `version`; `container_digest` is a non-identifying attribute, because without a digest there is no evidence that two builds differ, and claiming to distinguish them asserts more than the data supports (I19's discipline). `Person` identity comes from the **curation export and never from an ingest-time inference** — where no ORCID exists the curator supplies a discriminator, so the id stays a function of a versioned file rather than of what happened to be known when a methods section was read.
+
+**Absence must be determined, never contingent.** An identifying field may be null — but only when the *data* determines that it is null, never when the knowledge had simply not arrived. The two are indistinguishable in storage and opposite for identity:
+
+- **Determined.** A protein-grain `Analysis` has no `localization_threshold` because there are no residue positions to localise; an `Analysis` outside curation has no `basis`. Replay produces the same null every time, so identity is unharmed.
+- **Contingent.** An ORCID was not to hand when a methods section was read; a container digest had not been recorded yet. The null describes the moment, not the entity, so the id becomes a function of *when you looked* — precisely what ADR-0020 forbids.
+
+Every identifying field that can be null is classified below. **A field classified `contingent` is a defect, not a configuration:** the guard rejects it outright, which forces the redesign instead of letting an ingest-order dependency in unmarked. The guard also requires that any identifying field found absent in committed data appears here, so an unclassified absence cannot pass unnoticed. See ADR-0021.
+
+| Node type | Field | Absence | Determined by |
+|---|---|---|---|
+| `Sample` | `cell_line` | determined | `source_type` — NULL for tissue |
+| `Sample` | `model_system` | determined | NULL in vitro; exactly one of this and `cell_line` is present |
+| `Analysis` | `basis` | determined | `kind` — curation only (§5.3) |
+| `Analysis` | `confidence` | determined | `kind` — curation only (§5.3) |
+| `Analysis` | `quantity` | determined | `kind` — a curation analysis consumes none (I16) |
+| `Analysis` | `localization_threshold` | determined | grain — no residue positions at protein grain |
+| `Analysis` | `test` | determined | the analysis runs no statistical test |
+| `Analysis` | `fdr_method` | determined | as `test` |
+| `Analysis` | `external_tool` | determined | `kind` — external runs only (§5.4) |
+| `Analysis` | `external_version` | determined | as `external_tool` |
+| `Analysis` | `workflow_id` | determined | not run under a workflow engine |
+| `Analysis` | `workflow_revision` | determined | as `workflow_id` |
+| `Analysis` | `parameters_json` | determined | the test takes no further parameters |
+| `Imputation` | `downshift_sd` | determined | `method` — NULL unless downshifted normal |
+| `Imputation` | `width_sd` | determined | as `downshift_sd` |
+| `Imputation` | `seed` | determined | `method` — required for stochastic methods only (I15) |
+| `Imputation` | `scope` | determined | `method` — NULL when nothing is imputed |
+| `DifferentialResult` | `adjustment_method` | determined | `protein_adjusted` — NULL if `not_applied` (I4) |
+| `Person` | `orcid` | determined | the curation record, not the ingest — ADR-0021 |
 
 **Qualifying child fields.** The third identity component. One instance today; the config-vs-product rule above governs any future one.
 
@@ -128,8 +159,6 @@ The identity **model** is identical for both: a node's identity is its label, it
 | `Analysis` | `Imputation` (`IMPUTATION_FOR`) | `method`, `seed`, `downshift_sd`, `width_sd`, `scope` |
 
 `ModifierAssignment` anchors on `ASSIGNS` because the concluded modifier **is** the assertion. `candidate_modifiers` is the surviving candidate *set*, which diverges from the conclusion whenever more than one candidate remains: two assignments over one site, from one publication, with the same basis, candidate set and confidence, concluding ubiquitin and ISG15 respectively, are two distinct claims and must not share an id. That is the Ub-vs-ISG15 distinction the platform exists to make (`VISION.md`), and `ProteinAssignment` already anchors its pick the same way.
-
-The last two rows are the exception to the digest rule: provenance agents key on their natural external identifiers. `Person` keys on `orcid` and **falls back to `name`** when no ORCID is recorded, which means its id depends on how much was known at ingest time rather than on the person — the same is true of `Software` when `container_digest` is absent. Both are recorded here as they stand; neither is resolved.
 
 **`parameters_json` is canonicalized before hashing.** It is an identifying field of `Analysis` and, under the test scheme (§5.4, I16), carries `s0` and the randomisation count. Canonicalizing the identity *tuple* treats each field as a value and does not reach inside a string, so `parameters_json` is itself parsed and canonically re-serialized — sorted keys, normalized numeric forms — before it enters the tuple, never hashed as raw text. Otherwise two ingesters emitting the same parameters with different key order, spacing, or float formatting would produce different `Analysis` ids, defeating the idempotent replay this scheme exists to guarantee (ADR-0020).
 
@@ -788,6 +817,8 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
 8. **Two identity verdicts left `uncertain` by the 2026-08-07 audit, both pending the adapter that would settle them.** `ProteinObservation` identity is `Dataset` + `Protein` with no identifying field at all; it collides if a `proteinGroups` adapter ever emits two group-level quantifications in one dataset that resolve to the same `Protein` — a shared protein appearing in two groups, or two groups collapsing onto one accession because grouping is not isoform-aware while `Protein` identity is. There is no `ProteinAssignment` fallback at protein grain to separate them. `Imputation` identity is its config plus its `Analysis` anchor; two matrices imputed with identical settings under **one** `Analysis` (a diGly peptidome and its matched proteome) would collide, since `scope` names granularity and not which matrix. §6.5 prescribes two `Analysis` nodes for that case, which avoids it — so the verdict is safe-by-convention, not safe-by-construction. Both settle with the adapters (weeks 3–6).
 
 9. **Is §6's evidence-edge clause right, or does `ProteinAssignment` need an edge?** The `EvidencedInference` contract (§6) states every subtype MUST carry an evidence edge to an `Analysis` or a `Publication`. `ModifierAssignment` has `ASSIGNMENT_SUPPORTED_BY` / `ASSIGNMENT_CITES` and `EnzymeAssociation` has `ASSOCIATION_SUPPORTED_BY` / `ASSOCIATION_CITES`; **`ProteinAssignment` has neither** — its only edges are `PROTEIN_ASSIGNMENT_FOR` and `ASSIGNS_PROTEIN`. So the DDL contradicts its own stated supertype contract, and nothing catches it because the contract is unenforced (`HANDOFF.md` §8, CS class). Two readings, and the documents do not choose. Either the clause is too strong — a protein assignment's bases (`unambiguous`, `unique_peptide`, `leading`, `razor`, `reviewed_preferred`) are **intrinsic to the search output** rather than cited from a separate analysis, so requiring a citation would force a hollow one — or the assignment genuinely has provenance worth naming and the schema is missing the edge, which would leave every razor pick unattributable to the run that made it. Note the first reading does not cover `orthogonal_evidence`, whose whole point is external support. Settle before writing the contract check, and before the MaxQuant adapter constructs `ProteinAssignment`s at scale (weeks 5–6). Surfaced by the 2026-08-07 audit.
+
+10. **Does a preprint and its published version share one `Publication`, or two?** `Publication` is authority-assigned (§4), so a work cited by preprint DOI and later by its published DOI or PMID receives **two ids**, and citations fragment across that boundary — a `ModifierAssignment` citing the preprint and another citing the paper would not converge, and `ASSIGNMENT_CITES` could not show they rest on the same evidence. This is the same late-arriving-identifier shape ADR-0021 settled for `Person` and `Software`, but it does **not** resolve the same way: there, one entity had two possible keys; here it is genuinely arguable that a preprint and a peer-reviewed paper are *different artifacts* with different content and different standing, in which case two nodes are correct and the fragmentation is the model working. The judgement turns on what a citation is for — if it anchors an assertion's evidence, the version matters; if it names a work, it does not. Worth deciding explicitly rather than by default, and cheap while `Publication` carries almost no data. Recorded 2026-08-07 with ADR-0021, which deliberately left it open.
 
 **Resolved**
 

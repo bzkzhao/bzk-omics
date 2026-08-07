@@ -219,6 +219,15 @@ three families:
    `Imputation.downshift_sd`, `width_sd`. `1.8` and `1.80` fork an id. **The `Analysis` qualifying-
    child fold (§3) depends on this rule**, since it folds two of these floats.
 
+**Fallback keys are now forbidden outright (ADR-0021)**, so the builder never has to reconcile one:
+an identifying field may be absent only when its absence is *determined by the data*, never when it
+is *contingent on what was known at ingest*. §3 classifies every nullable identifying field, and
+`tests/test_schema.py` rejects any marked `contingent` and any absence found in committed data but
+left unclassified. `Software` now keys on `name` + `version` (the digest is non-identifying) and
+`Person` identity comes from the curation export rather than an ingest-time inference — so the
+builder can treat every identifying field as either present or determinedly null, with no
+provisional state and no merge step.
+
 Also outstanding from the same audit: `parameters_json`'s canonicalization is documented in §3 and
 ADR-0020 but **implemented nowhere**, so today it behaves as open free text; and reference-key
 components have their own canonical forms now fixed in `ONTOLOGY.md` §4 (Unimod-only modification

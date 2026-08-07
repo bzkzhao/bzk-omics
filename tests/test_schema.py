@@ -77,8 +77,11 @@ def _walk_nodes(obj: object):
 
 def _identity_rows() -> list[tuple[str, str, str, str]]:
     text = ONTOLOGY.read_text()
+    # Ends at the absence table, whose rows are also four columns wide and would otherwise be
+    # parsed as identity rows.
     region = text[
-        text.index("**Node identity, per label.**") : text.index("> **To verify, no longer blocking:**")
+        text.index("**Node identity, per label.**")
+        : text.index("**Absence must be determined, never contingent.**")
     ]
     rows = re.findall(r"^\| `(\w+)` \| (.+?) \| (.+?) \| (.+?) \|\s*$", region, re.M)
     assert rows, "identity table not found in §3"
@@ -151,6 +154,60 @@ def test_identity_table_matches_ddl() -> None:
         assert named == {e for _, e in pairs}, (
             f"§3 {label}: relationship(s) {named - {e for _, e in pairs}} cited without a node type"
         )
+
+
+def test_absent_identifying_fields_are_determined_not_contingent() -> None:
+    """ADR-0021 — an identifying field may be absent only when its absence is DETERMINED.
+
+    Three checks. Every row names a real column that the main table lists as identifying for that
+    node. **No row may be classified `contingent`** — a contingent absence makes an id a function of
+    when the data was read, which ADR-0020 forbids, so it is a defect to redesign rather than a
+    state to declare. And every identifying field actually absent in committed data must be
+    declared here, so an unclassified absence cannot pass unnoticed (this caught `Protein.accession`
+    missing from the fixture on its first run).
+
+    It cannot check that a `determined` classification is TRUE — that a null is genuinely forced by
+    the data rather than merely customary. That stays a modelling judgement.
+    """
+    nodes, _ = _parse_ontology()
+    text = ONTOLOGY.read_text()
+    start = text.index("**Absence must be determined, never contingent.**")
+    block = text[start : text.index("\n\n", text.index("|---|", start))]
+    rows = re.findall(r"^\| `(\w+)` \| `(\w+)` \| (\w+) \| (.+?) \|\s*$", block, re.M)
+    assert rows, "absence-classification table not found in §3"
+
+    identifying = {
+        label: set(re.findall(r"`([a-z][a-z0-9_]*)`", ident))
+        for label, ident, _, _ in _identity_rows()
+    }
+    declared: set[tuple[str, str]] = set()
+    for label, field, kind, _why in rows:
+        assert label in nodes, f"§3 absence table: unknown node {label!r}"
+        assert field in nodes[label], f"§3 absence table: {label}.{field} is not a column"
+        assert field in identifying[label], (
+            f"§3 absence table: {label}.{field} is not an identifying field — only identifying "
+            "fields need classifying"
+        )
+        assert kind == "determined", (
+            f"§3 absence table: {label}.{field} is classified {kind!r}. A contingent absence makes "
+            "the id depend on when the data was read (ADR-0021); redesign the key instead."
+        )
+        declared.add((label, field))
+
+    root = Path(__file__).resolve().parents[1]
+    seen = 0
+    for folder in ("tests/fixtures", "data/curation"):
+        for path in (root / folder).rglob("*.json"):
+            for node in _walk_nodes(json.loads(path.read_text())):
+                label = node.get("label")
+                for field in identifying.get(label, ()):
+                    if node.get(field) is None:
+                        seen += 1
+                        assert (label, field) in declared, (
+                            f"{path.name}: {label} {node['id']} omits identifying field "
+                            f"{field!r}, which §3 does not classify as a determined absence"
+                        )
+    assert seen, "no absent identifying fields found — the data half would be vacuous"
 
 
 def test_qualifying_child_fields_match_ddl() -> None:
