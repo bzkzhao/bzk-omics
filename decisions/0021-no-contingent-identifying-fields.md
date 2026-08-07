@@ -6,6 +6,7 @@
 | Date | 2026-08-07 |
 | Supersedes | — |
 | Superseded by | — |
+| Revised in place | **2026-08-07, same day as acceptance** — added the `curated` classification and the composite-not-fallback statement for `Person`, at the author's direction, after review of the accepted text. Recorded here for the same reason ADR-0020 records its revisions: the append-only convention (`decisions/README.md`) is that an Accepted ADR is amended only by a superseding ADR, and this is an exception, not a precedent. |
 
 Cites ADR-0016 (release mutates non-identifying fields) and ADR-0009 (curation, not configuration)
 as precedents; supersedes neither.
@@ -40,22 +41,25 @@ right answer was already in the repository, in one place, contradicted in two.
 
 ## Decision
 
-**An identifying field may be absent only when its absence is determined by the data, never when it
-is contingent on what was known at ingest.**
+**An identifying field may be absent only when its absence is fixed by something outside the moment
+of ingest — determined by the data, or curated — never when it is contingent on what was known.**
 
-The distinction is the whole rule, because the two absences are indistinguishable in storage:
+The distinction is the whole rule, because the kinds are indistinguishable in storage:
 
-- **Determined** — a protein-grain `Analysis` has no `localization_threshold` because there are no
+- **Determined** — another recorded field or a stated structural fact forces the null. A
+  protein-grain `Analysis` has no `localization_threshold` because a protein-grain quantity has no
   residue positions to localise; an `Analysis` outside curation has no `basis`. Replay produces the
   same null every time, so identity is unharmed.
+- **Curated** — a versioned human judgement fixes it. Weaker, admissible only where identity is
+  curation-sourced; `Person.orcid` is the only instance. See the `Person` clause below.
 - **Contingent** — an ORCID was not to hand; a container digest had not been recorded. The null
   describes the moment, not the entity.
 
 A simpler rule — *"if a field can be absent it cannot be identifying"* — was considered and rejected
-in this form: it would strip `Analysis` of eight identifying fields at once (`basis`, `confidence`,
-`external_tool`, `external_version`, `localization_threshold`, `parameters_json`, `workflow_id`,
-`workflow_revision` are all legitimately null on the fixture's own nodes), collapsing `Analysis`
-identity and the qualifying-child fold with it.
+in this form: it would strip `Analysis` of six identifying fields at once (`basis`, `confidence`,
+`external_tool`, `external_version`, `localization_threshold` and `parameters_json` are all
+legitimately null on the fixture's own nodes), collapsing `Analysis` identity and the
+qualifying-child fold with it.
 
 Applied:
 
@@ -66,10 +70,34 @@ Applied:
 - **`Person` identity comes from the curation export, never from an ingest-time inference.** Where no
   ORCID exists the curator supplies a discriminator. The id is then a function of a versioned,
   diffable file that is already in I9's input set, rather than of whatever a particular ingest
-  happened to know. `ONTOLOGY.md` §3 classifies `Person.orcid`'s absence as determined *by the
-  curation record*.
-- **Every identifying field that can be null is classified** `determined` or `contingent` in §3, and
-  `tests/test_schema.py` **rejects any `contingent` classification** — the marker exists to force a
+  happened to know.
+
+  **`Person` keys on a composite of `orcid` and `name`, not a fallback.** Both always enter the
+  tuple and `orcid` may be null; there is no conditional *use one else the other*, which is the
+  structure this ADR forbids and which the old §3 line described. This matters because a fallback
+  and a composite-with-a-nullable-member are otherwise structurally indistinguishable.
+
+  **And be precise about what it fixes, because it is less than it first appears.** Adding an ORCID
+  to a curation record *still changes that person's id*. A curator deciding whether to record one is
+  not the data determining an absence — it is the original defect moved from ingest-time to
+  curation-time. What genuinely changed is **where the dependency lives**: the defect was never that
+  an id can change, but that it depended on something *outside* I9's input set. Ingest-time
+  knowledge is outside it; the curation export is inside it, versioned and diffable. So replay from
+  a given curation state is deterministic, and a correction is a reviewable edit with a diff rather
+  than an accident of ingest order. That is a real repair of the ADR-0020 violation, and it is not
+  the same thing as a stable id.
+
+  Because that guarantee is weaker than a data-determined absence, §3 classifies `Person.orcid` as
+  **`curated`** rather than `determined` — a third kind, admissible only where identity is
+  curation-sourced, so the weaker guarantee cannot hide inside the stronger word.
+- **`workflow_id` and `workflow_revision` leave `Analysis` identity.** They are the only `Analysis`
+  columns the DDL does not annotate, and nothing recorded forces their null, so "no workflow engine
+  was used" and "the id has not been recorded yet" are indistinguishable — the contingent shape
+  exactly. They become non-identifying on the same reasoning as `container_digest`, and may return
+  to identity if a workflow engine ever makes them reliably present with a recorded determiner.
+- **Every identifying field that can be null is classified** `determined`, `curated` or `contingent`
+  in §3, and `tests/test_schema.py` **rejects any `contingent` classification** and requires every
+  row to give a non-empty reason naming what fixes the absence — the marker exists to force a
   redesign, not to license the state. The guard also requires that an identifying field found absent
   in committed data be declared, so an unclassified absence cannot pass unnoticed. It caught
   `Protein.accession` missing from the fixture on its first run.

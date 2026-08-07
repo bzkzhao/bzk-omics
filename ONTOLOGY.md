@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.15 |
+| Version | 1.16 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -111,7 +111,7 @@ The identity **model** is identical for both: a node's identity is its label, it
 | `SiteObservation` | `peptide_sequence` | `Dataset` (`REPORTED_BY`), `ModificationSite` (`RESOLVES_TO_SITE`) | `localization_prob`, `score`, `is_decoy`, `n_imputed`, `quant_ref` |
 | `ProteinObservation` | — | `Dataset` (`REPORTS_PROTEIN`), `Protein` (`RESOLVES_TO_PROTEIN`) | `quant_ref`, `n_peptides` |
 | `Contrast` | `numerator`, `denominator` | — (placement unsettled — §11 Q1) | `label` |
-| `Analysis` | `kind`, `basis`, `confidence`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `workflow_id`, `workflow_revision`, `parameters_json` | `Dataset` (`USED`) — one or more; for a curation analysis the asserted content stands in for it | `label`, `rationale`, `started_at`, `ended_at` |
+| `Analysis` | `kind`, `basis`, `confidence`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `parameters_json` | `Dataset` (`USED`) — one or more; for a curation analysis the asserted content stands in for it | `label`, `rationale`, `started_at`, `ended_at`, `workflow_id`, `workflow_revision` |
 | `Imputation` | `method`, `downshift_sd`, `width_sd`, `seed`, `scope` | `Analysis` (`IMPUTATION_FOR`) | `n_values_imputed`, `n_values_total`, `asserted_at`, `retracted_at` |
 | `ModifierAssignment` | `basis`, `candidate_modifiers`, `confidence` | `Modifier` (`ASSIGNS`), `SiteObservation` (`ASSIGNMENT_FOR`), `Analysis` (`ASSIGNMENT_SUPPORTED_BY`) / `Publication` (`ASSIGNMENT_CITES`) | `rationale`, `asserted_at`, `retracted_at` |
 | `EnzymeAssociation` | `direction`, `basis`, `confidence` | `SiteObservation` (`ASSOCIATION_FOR`), `Protein` (`ASSOCIATION_ENZYME`), `Analysis` (`ASSOCIATION_SUPPORTED_BY`) / `Publication` (`ASSOCIATION_CITES`) | `effect_size`, `adj_p_value`, `rationale`, `asserted_at`, `retracted_at` |
@@ -121,36 +121,39 @@ The identity **model** is identical for both: a node's identity is its label, it
 | `Person` | `orcid`, `name` | — | — |
 | `Software` | `name`, `version` | — | `container_digest` |
 
-The last two rows are the exception to the digest rule: provenance agents key on their natural external identifiers, and **ADR-0021 settles how** — this line previously described a fallback key, which was the defect. `Software` keys on `name` + `version`; `container_digest` is a non-identifying attribute, because without a digest there is no evidence that two builds differ, and claiming to distinguish them asserts more than the data supports (I19's discipline). `Person` identity comes from the **curation export and never from an ingest-time inference** — where no ORCID exists the curator supplies a discriminator, so the id stays a function of a versioned file rather than of what happened to be known when a methods section was read.
+The last two rows are the exception to the digest rule: provenance agents key on their natural external identifiers, and **ADR-0021 settles how** — this line previously described a fallback key, which was the defect. `Software` keys on `name` + `version`; `container_digest` is a non-identifying attribute, because without a digest there is no evidence that two builds differ, and claiming to distinguish them asserts more than the data supports (I19's discipline). `Person` identity comes from the **curation export and never from an ingest-time inference** — where no ORCID exists the curator supplies a discriminator.
 
-**Absence must be determined, never contingent.** An identifying field may be null — but only when the *data* determines that it is null, never when the knowledge had simply not arrived. The two are indistinguishable in storage and opposite for identity:
+`Person` keys on a **composite of `orcid` and `name`, not a fallback**: both always enter the tuple and `orcid` may be null, so there is no conditional *use one else the other* — the structure ADR-0021 forbids and the structure this line previously described. Be precise about what that fixes. Adding an ORCID to a curation record **still changes that person's id**. What changed is where the dependency lives: the defect was never that an id can change, but that it depended on something *outside* I9's input set — what a particular ingest happened to know. The curation export is inside that set, versioned and diffable, so replay from a given curation state is deterministic and a correction is a visible edit rather than an accident of ingest order. This is why `Person.orcid`'s absence is classified **curated** rather than **determined**: a curator's judgement is not the data forcing a null, and the classification says so instead of letting the weaker guarantee hide inside the stronger word.
 
-- **Determined.** A protein-grain `Analysis` has no `localization_threshold` because there are no residue positions to localise; an `Analysis` outside curation has no `basis`. Replay produces the same null every time, so identity is unharmed.
-- **Contingent.** An ORCID was not to hand when a methods section was read; a container digest had not been recorded yet. The null describes the moment, not the entity, so the id becomes a function of *when you looked* — precisely what ADR-0020 forbids.
+**Absence must be determined or curated, never contingent.** An identifying field may be null — but only when something outside the moment of ingest fixes that null. The kinds are indistinguishable in storage and must therefore be declared:
 
-Every identifying field that can be null is classified below. **A field classified `contingent` is a defect, not a configuration:** the guard rejects it outright, which forces the redesign instead of letting an ingest-order dependency in unmarked. The guard also requires that any identifying field found absent in committed data appears here, so an unclassified absence cannot pass unnoticed. See ADR-0021.
+- **Determined.** Another recorded field, or a stated structural fact, forces the null. A protein-grain `Analysis` has no `localization_threshold` because a protein-grain quantity has no residue positions to localise. Replay produces the same null every time.
+- **Curated.** A versioned human judgement fixes it — not the data. `Person.orcid` is the only instance: a curator recorded that no ORCID exists. Legitimate **only** where the node's identity is curation-sourced (ADR-0021), because the curation export is inside I9's input set, so replay from a given curation state is still deterministic. Weaker than `determined`, and named separately so it cannot hide inside it.
+- **Contingent.** The knowledge had simply not arrived — an ORCID not to hand, a digest not yet recorded. The null describes the moment, not the entity, so the id becomes a function of *when you looked*, which ADR-0020 forbids.
+
+**A `determined` classification is an assertion nothing can verify, so it must name *what* determines the absence** — another field, or a stated data fact. A row whose reason names neither is suspect and should be re-examined rather than trusted. The guard requires a non-empty reason and rejects any `contingent` row outright, forcing a redesign instead of licensing the state; it cannot check that a reason is *true*. It also requires that an identifying field found absent in committed data be declared here, so an unclassified absence cannot pass unnoticed. See ADR-0021.
 
 | Node type | Field | Absence | Determined by |
 |---|---|---|---|
 | `Sample` | `cell_line` | determined | `source_type` — NULL for tissue |
-| `Sample` | `model_system` | determined | NULL in vitro; exactly one of this and `cell_line` is present |
+| `Sample` | `model_system` | determined | `source_type` — NULL in vitro; exactly one of this and `cell_line` is present |
 | `Analysis` | `basis` | determined | `kind` — curation only (§5.3) |
 | `Analysis` | `confidence` | determined | `kind` — curation only (§5.3) |
 | `Analysis` | `quantity` | determined | `kind` — a curation analysis consumes none (I16) |
-| `Analysis` | `localization_threshold` | determined | grain — no residue positions at protein grain |
-| `Analysis` | `test` | determined | the analysis runs no statistical test |
-| `Analysis` | `fdr_method` | determined | as `test` |
+| `Analysis` | `localization_threshold` | determined | `quantity` — a protein-grain quantity has no residue positions to localise (§6.4) |
+| `Analysis` | `test` | determined | produces no `DifferentialResult` — an analysis that runs no test generates none; I15 keys on the same predicate |
+| `Analysis` | `fdr_method` | determined | as `test` — the FDR step exists only where a test does |
 | `Analysis` | `external_tool` | determined | `kind` — external runs only (§5.4) |
-| `Analysis` | `external_version` | determined | as `external_tool` |
-| `Analysis` | `workflow_id` | determined | not run under a workflow engine |
-| `Analysis` | `workflow_revision` | determined | as `workflow_id` |
-| `Analysis` | `parameters_json` | determined | the test takes no further parameters |
+| `Analysis` | `external_version` | determined | `kind` — as `external_tool` |
+| `Analysis` | `parameters_json` | determined | `test` — NULL when the test takes no further parameters; `perseus_s0` requires `s0` and the randomisation count, which ARCHITECTURE §4 makes mandatory |
 | `Imputation` | `downshift_sd` | determined | `method` — NULL unless downshifted normal |
-| `Imputation` | `width_sd` | determined | as `downshift_sd` |
-| `Imputation` | `seed` | determined | `method` — required for stochastic methods only (I15) |
+| `Imputation` | `width_sd` | determined | `method` — as `downshift_sd` |
+| `Imputation` | `seed` | determined | `method` — stochastic methods only (I15) |
 | `Imputation` | `scope` | determined | `method` — NULL when nothing is imputed |
 | `DifferentialResult` | `adjustment_method` | determined | `protein_adjusted` — NULL if `not_applied` (I4) |
-| `Person` | `orcid` | determined | the curation record, not the ingest — ADR-0021 |
+| `Person` | `orcid` | curated | the curation record states that none exists — a curator's judgement, not a data fact; see the provenance-agent note above |
+
+`workflow_id` and `workflow_revision` were classified `determined` here and are **no longer identifying at all**. Nothing recorded forces their null — they are the only `Analysis` columns the DDL does not annotate — so "no workflow engine was used" and "the workflow id has not been recorded" are indistinguishable, which is precisely the contingent shape. They move to `Excluded columns` on the same reasoning ADR-0021 applies to `Software.container_digest`: absent a recorded revision there is no evidence two runs differ. Should a workflow engine later make them reliably present, they can return to identity with their absence determined by a recorded field.
 
 **Qualifying child fields.** The third identity component. One instance today; the config-vs-product rule above governs any future one.
 

@@ -81,7 +81,7 @@ def _identity_rows() -> list[tuple[str, str, str, str]]:
     # parsed as identity rows.
     region = text[
         text.index("**Node identity, per label.**")
-        : text.index("**Absence must be determined, never contingent.**")
+        : text.index("**Absence must be determined or curated, never contingent.**")
     ]
     rows = re.findall(r"^\| `(\w+)` \| (.+?) \| (.+?) \| (.+?) \|\s*$", region, re.M)
     assert rows, "identity table not found in §3"
@@ -171,7 +171,7 @@ def test_absent_identifying_fields_are_determined_not_contingent() -> None:
     """
     nodes, _ = _parse_ontology()
     text = ONTOLOGY.read_text()
-    start = text.index("**Absence must be determined, never contingent.**")
+    start = text.index("**Absence must be determined or curated, never contingent.**")
     block = text[start : text.index("\n\n", text.index("|---|", start))]
     rows = re.findall(r"^\| `(\w+)` \| `(\w+)` \| (\w+) \| (.+?) \|\s*$", block, re.M)
     assert rows, "absence-classification table not found in §3"
@@ -188,9 +188,14 @@ def test_absent_identifying_fields_are_determined_not_contingent() -> None:
             f"§3 absence table: {label}.{field} is not an identifying field — only identifying "
             "fields need classifying"
         )
-        assert kind == "determined", (
+        assert kind in {"determined", "curated"}, (
             f"§3 absence table: {label}.{field} is classified {kind!r}. A contingent absence makes "
             "the id depend on when the data was read (ADR-0021); redesign the key instead."
+        )
+        assert _why.strip() not in {"", "—", "-"}, (
+            f"§3 absence table: {label}.{field} is classified {kind!r} with no reason. A "
+            "classification is an assertion nothing can verify, so it must name what determines "
+            "the absence — another field, or a stated data fact."
         )
         declared.add((label, field))
 
