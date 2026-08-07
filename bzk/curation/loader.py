@@ -139,14 +139,16 @@ class LoadedCuration:
 
 
 def _node(label: str, node_id: str, props: Mapping[str, Any]) -> Node:
-    columns = {name for name, _type in _COLUMNS[label]}
-    unknown = set(props) - columns
-    if unknown:  # a typo'd field would otherwise be dropped silently and change no id
-        raise CurationError(f"{label} has no column(s) {sorted(unknown)} in the DDL")
+    """Assemble one change-set node.
+
+    No column check here. This module used to verify `props` against the DDL, because a typo'd
+    field would otherwise be dropped silently and change no id — that reasoning still holds, but
+    `bzk/ontology/store.py` now enforces it for *every* producer on the write path, so keeping a
+    second copy would be two homes for one rule. The trade is that a bad column now surfaces at the
+    store rather than at the loader; it is exercised in the suite either way, since
+    `tests/test_rebuild.py` writes this loader's output through `store.write_change_set`.
+    """
     return {NODE_TYPE_KEY: label, "id": node_id, **props}
-
-
-_COLUMNS: dict[str, list[tuple[str, str]]] = {t.name: t.columns for t in schema.NODE_TABLES}
 
 
 def _check_identifying(
