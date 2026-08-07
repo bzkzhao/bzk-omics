@@ -161,6 +161,22 @@ def test_the_output_is_a_valid_change_set(tmp_path: Path) -> None:
     invariants.validate(parsed.nodes, parsed.edges)
 
 
+def test_each_fact_is_written_once(tmp_path: Path) -> None:
+    """The DDL declares `MEASURED_AT` and `RESOLVES_TO_SITE` over identical endpoints with
+    identical multiplicity, and `REPORTS_SITE` is `REPORTED_BY` reversed. Emitting all four writes
+    each fact twice and leaves no way to tell which is authoritative. The two kept are §3's
+    identity anchors — the pair the observation's id is already a function of.
+
+    Asserted rather than left to the code so that resolving the duplication in `ONTOLOGY.md`
+    (`HANDOFF.md` §8) has to come back through this test, instead of an adapter quietly emitting
+    both again.
+    """
+    parsed = _adapter().parse(_write(tmp_path, [_row()]), _mapping())
+    types = {e["type"] for e in parsed.edges}
+    assert {"REPORTED_BY", "RESOLVES_TO_SITE"} <= types
+    assert not types & {"MEASURED_AT", "REPORTS_SITE"}
+
+
 def test_the_sample_descriptor_is_narrowed_to_its_columns(tmp_path: Path) -> None:
     """`SampleMapping.samples` holds descriptors, not nodes (`base.py`). `mapping_key` is the
     curation record's column header and is not a `Sample` column; passing it through would put a
