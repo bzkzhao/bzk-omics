@@ -22,9 +22,10 @@ What the adapter must get right, and why each is a test rather than a comment:
   `HANDOFF.md` §6, and the reason both spellings are handled explicitly and tested apart.
 - **CRLF.** `ARCHITECTURE.md` §3 records the PXD018299 deposit as CRLF throughout and what a manual
   split leaves on the last column. One fixture is CRLF for that reason.
-- **Protein groups.** A row naming two accessions measured the *group*. Choosing one is the razor
-  pick I14 exists to forbid, and at protein grain there is no `ProteinAssignment` to record the
-  ambiguity in (§6.3 anchors it on `SiteObservation`). The adapter refuses.
+- **Protein groups.** A row naming two accessions measured the *group*, and 72-77% of real rows do.
+  The adapter refused every one until ADR-0022 made `candidate_proteins` identifying; it now names
+  the whole group and picks none of it. Read from `Protein IDs` rather than `Majority protein IDs`
+  where both exist, because the majority subset is MaxQuant's own inference (§6.3).
 """
 
 from __future__ import annotations
@@ -40,7 +41,6 @@ from bzk.adapters.perseus import (
     DeclaredAnalysis,
     DeclaredContrast,
     PerseusAdapter,
-    PerseusAmbiguous,
     PerseusError,
 )
 from bzk.ontology import invariants
@@ -237,18 +237,54 @@ def test_parse_is_deterministic(adapter: PerseusAdapter, mapping: SampleMapping)
 # ── Refusals ────────────────────────────────────────────────────────────────────────────────────
 
 
-def test_refuses_a_protein_group(mapping: SampleMapping) -> None:
-    """A row naming two accessions measured the group, and picking one is the razor pick.
+def test_a_protein_group_is_ingested_as_a_group(mapping: SampleMapping) -> None:
+    """The ADR-0022 payoff: the row that used to be refused now becomes one observation of two.
 
-    I14 forbids rendering a multi-mapping measurement against one protein without a `confirmed`
-    `ProteinAssignment`, and at protein grain there is nowhere to record the ambiguity: §6.3 anchors
-    `ProteinAssignment` on `SiteObservation`. So the adapter cannot represent this row at all and
-    says so, naming the row, rather than taking the first accession.
+    `candidate_proteins` is identifying and `RESOLVES_TO_PROTEIN` is `MANY_MANY`, so the observation
+    names both members and asserts a pick among neither. Two `Protein` nodes, one observation, two
+    resolves edges — and crucially one `DifferentialResult`, because the row is one measurement of
+    a group, not two measurements.
     """
     adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
-    with pytest.raises(PerseusAmbiguous) as exc:
-        adapter.parse(GROUPS, mapping)
-    assert "P19525;O43593" in str(exc.value)
+    parsed = adapter.parse(GROUPS, mapping)
+    invariants.validate(parsed.nodes, parsed.edges)
+    assert len(_nodes(parsed, "Protein")) == 3  # P20591 alone, plus P19525 and O43593 as a group
+    assert len(_nodes(parsed, "ProteinObservation")) == 2
+    assert len(_nodes(parsed, "DifferentialResult")) == 2
+    grouped = next(
+        n
+        for n in _nodes(parsed, "ProteinObservation")
+        if len(cast("list[str]", n["candidate_proteins"])) > 1
+    )
+    members = cast("list[str]", grouped["candidate_proteins"])
+    assert set(members) == {"uniprot:P19525", "uniprot:O43593"}
+    resolves = [
+        e for e in parsed.edges if e["type"] == "RESOLVES_TO_PROTEIN" and e["from"] == grouped["id"]
+    ]
+    assert len(resolves) == 2
+
+
+def test_no_protein_assignment_is_invented_for_the_group(mapping: SampleMapping) -> None:
+    """A group is not a pick, so nothing here records one.
+
+    MaxQuant's narrowing to `Majority protein IDs` IS an inference worth recording, but §6.3's shape
+    is a candidate set plus a concluded protein, and a narrowing to a smaller *subset* is neither.
+    Deciding that is a modelling question, not an adapter's — `HANDOFF.md` §8.
+    """
+    parsed = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST]).parse(GROUPS, mapping)
+    assert _nodes(parsed, "ProteinAssignment") == []
+    assert not [e for e in parsed.edges if e["type"] == "ASSIGNS_PROTEIN"]
+
+
+def test_the_widest_accession_column_wins(mapping: SampleMapping) -> None:
+    """`Protein IDs` over `Majority protein IDs`: the observation records what was observed.
+
+    The majority subset is MaxQuant's razor-rule inference (§6.3) and the two differ on 52-72% of
+    real rows, so reading the narrower column would quietly record an inference as a measurement.
+    """
+    from bzk.adapters.perseus import PROTEIN_COLUMNS
+
+    assert PROTEIN_COLUMNS.index("Protein IDs") < PROTEIN_COLUMNS.index("Majority protein IDs")
 
 
 def test_refuses_an_undeclared_quantity(mapping: SampleMapping) -> None:

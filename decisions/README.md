@@ -24,7 +24,7 @@ This exists because a project with one developer and a compressed timeline will 
 | [0019](0019-changeset-structural-validation.md) | Change-sets are self-contained; structural validation precedes invariants |
 | [0020](0020-deterministic-evidence-ids.md) | Deterministic, content-derived ids for evidence nodes (not ULIDs) |
 | [0021](0021-no-contingent-identifying-fields.md) | An identifying field may be absent only when its absence is determined — no fallback keys |
-| [0022](0022-protein-group-ambiguity.md) | Multi-mapping is carried by the observation, at both grains — **Proposed** |
+| [0022](0022-protein-group-ambiguity.md) | Multi-mapping is carried by the observation, at both grains |
 
 ## Queued
 

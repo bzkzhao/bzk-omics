@@ -29,7 +29,9 @@ def _ontology_ddl() -> str:
     return re.sub(r"--[^\n]*", "", "\n".join(blocks))  # drop inline comments
 
 
-def _parse_ontology() -> tuple[dict[str, set[str]], dict[str, tuple[str, str, str | None]]]:
+def _parse_ontology() -> tuple[
+    dict[str, set[str]], dict[str, tuple[tuple[tuple[str, str], ...], str | None]]
+]:
     """Extract {node table -> columns} and {rel table -> (src, dst, multiplicity)} from the DDL.
 
     The document guarantees every column is declared in its table's CREATE (§ preamble), so
@@ -37,7 +39,9 @@ def _parse_ontology() -> tuple[dict[str, set[str]], dict[str, tuple[str, str, st
     column the emitter appears to add on its own, which is the divergence we want to catch.
     """
     nodes: dict[str, set[str]] = {}
-    rels: dict[str, tuple[str, str, str | None]] = {}
+    # A relationship may declare several FROM/TO pairs (ADR-0022), so every pair is captured. A
+    # single-pair regex would have silently kept the first and let a second endpoint go unchecked.
+    rels: dict[str, tuple[tuple[tuple[str, str], ...], str | None]] = {}
     for stmt in (s.strip() for s in _ontology_ddl().split(";") if s.strip()):
         node = re.match(r"CREATE NODE TABLE (\w+)\((.*)\)", stmt, re.DOTALL)
         if node:
@@ -46,11 +50,11 @@ def _parse_ontology() -> tuple[dict[str, set[str]], dict[str, tuple[str, str, st
             continue
         rel = re.match(r"CREATE REL TABLE (\w+)\((.*)\)", stmt, re.DOTALL)
         if rel:
-            src_dst = re.search(r"FROM (\w+) TO (\w+)", rel.group(2))
-            assert src_dst is not None, f"unparsable rel: {stmt}"
+            pairs = tuple(re.findall(r"FROM (\w+) TO (\w+)", rel.group(2)))
+            assert pairs, f"unparsable rel: {stmt}"
             tokens = rel.group(2).replace(",", " ").split()
             mult = next((t for t in tokens if t in MULTIPLICITIES), None)
-            rels[rel.group(1)] = (src_dst.group(1), src_dst.group(2), mult)
+            rels[rel.group(1)] = (pairs, mult)
     return nodes, rels
 
 
@@ -62,7 +66,7 @@ def test_schema_node_tables_match_ontology() -> None:
 
 def test_schema_rel_tables_match_ontology() -> None:
     _, ontology_rels = _parse_ontology()
-    schema_rels = {t.name: (t.src, t.dst, t.multiplicity) for t in schema.REL_TABLES}
+    schema_rels = {t.name: (t.pairs, t.multiplicity) for t in schema.REL_TABLES}
     assert schema_rels == ontology_rels
 
 
@@ -147,10 +151,12 @@ def test_identity_table_matches_ddl() -> None:
         pairs = re.findall(r"`([A-Z]\w*)`\s*\(`([A-Z][A-Z0-9_]+)`\)", anchors_col)
         for anchor, edge in pairs:
             assert edge in rels, f"§3 anchor {edge!r} (row {label}) is not a rel table"
-            src, dst, _ = rels[edge]
-            assert {src, dst} == {label, anchor}, (
+            declared, _ = rels[edge]
+            # Any ONE of the declared pairs must match. A multi-pair relationship is still checked
+            # per citation, so citing PROTEIN_ASSIGNMENT_FOR from a node it does not touch fails.
+            assert any({src, dst} == {label, anchor} for src, dst in declared), (
                 f"§3 {label}: anchor cites {edge} as {label}↔{anchor}, "
-                f"but the DDL declares it {src} → {dst}"
+                f"but the DDL declares it {[f'{s} → {d}' for s, d in declared]}"
             )
         # Every relationship named in the anchors cell must belong to a type-paired citation,
         # so a bare edge name cannot slip past the direction check above.
@@ -306,9 +312,10 @@ def test_qualifying_child_fields_match_ddl() -> None:
         assert parent in nodes, f"§3 qualifying child: unknown parent {parent!r}"
         assert child in nodes, f"§3 qualifying child: unknown child {child!r}"
         assert edge in rels, f"§3 qualifying child: {edge!r} is not a rel table"
-        src, dst, _ = rels[edge]
-        assert {src, dst} == {parent, child}, (
-            f"§3 qualifying child: {edge} cited as {parent}↔{child}, DDL declares {src} → {dst}"
+        declared, _ = rels[edge]
+        assert any({src, dst} == {parent, child} for src, dst in declared), (
+            f"§3 qualifying child: {edge} cited as {parent}↔{child}, "
+            f"DDL declares {[f'{s} → {d}' for s, d in declared]}"
         )
         for field in re.findall(r"`([a-z][a-z0-9_]*)`", fields):
             assert field in nodes[child], f"§3 qualifying child: {child}.{field} is not a column"

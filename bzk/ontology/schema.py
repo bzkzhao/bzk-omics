@@ -74,11 +74,25 @@ class NodeTable:
 
 @dataclass(frozen=True)
 class RelTable:
+    """One relationship. `also` carries additional FROM/TO pairs for a multi-pair `REL TABLE`.
+
+    Kùzu allows several endpoint pairs on one relationship (verified on the pinned 0.11.3), which
+    ADR-0022 needs so `PROTEIN_ASSIGNMENT_FOR` can reach both observation grains. Modelled as
+    `src`/`dst` plus extras rather than as a list of pairs because exactly one relationship needs
+    it, and a list would rewrite the other thirty-four for no gain.
+    """
+
     name: str
     src: str
     dst: str
     properties: list[tuple[str, str]] = field(default_factory=list)
     multiplicity: str | None = None  # ONE_MANY | MANY_ONE | MANY_MANY | ONE_ONE | None
+    also: tuple[tuple[str, str], ...] = ()
+
+    @property
+    def pairs(self) -> tuple[tuple[str, str], ...]:
+        """Every declared (source label, destination label), the primary pair first."""
+        return ((self.src, self.dst), *self.also)
 
 
 # Closed vocabulary for the identifying Analysis.quantity field (ONTOLOGY.md §5, I16, ADR-0020).
@@ -144,11 +158,14 @@ IDENTITY: dict[str, Identity] = {
     ),
     "Dataset": Identity(fields=("content_hash",)),
     "SiteObservation": Identity(
-        fields=("peptide_sequence",),
+        fields=("peptide_sequence", "candidate_proteins"),
         anchors=(("Dataset", "REPORTED_BY"), ("ModificationSite", "RESOLVES_TO_SITE")),
     ),
     "ProteinObservation": Identity(
-        anchors=(("Dataset", "REPORTS_PROTEIN"), ("Protein", "RESOLVES_TO_PROTEIN"))
+        # `RESOLVES_TO_PROTEIN` is MANY_MANY since ADR-0022 and so cannot contribute one anchor id;
+        # `candidate_proteins` carries what it used to, as the observed group rather than a pick.
+        fields=("candidate_proteins",),
+        anchors=(("Dataset", "REPORTS_PROTEIN"),),
     ),
     "Contrast": Identity(fields=("numerator", "denominator")),
     "Analysis": Identity(
@@ -199,7 +216,11 @@ IDENTITY: dict[str, Identity] = {
     ),
     "ProteinAssignment": Identity(
         fields=("basis", "candidate_proteins", "confidence"),
-        anchors=(("SiteObservation", "PROTEIN_ASSIGNMENT_FOR"), ("Protein", "ASSIGNS_PROTEIN")),
+        anchors=(
+            ("SiteObservation", "PROTEIN_ASSIGNMENT_FOR"),
+            ("ProteinObservation", "PROTEIN_ASSIGNMENT_FOR"),
+            ("Protein", "ASSIGNS_PROTEIN"),
+        ),
     ),
     "DifferentialResult": Identity(
         fields=("protein_adjusted", "adjustment_method"),
@@ -311,6 +332,7 @@ NODE_TABLES: list[NodeTable] = [
         [
             ("id", "STRING"),
             ("peptide_sequence", "STRING"),
+            ("candidate_proteins", "STRING[]"),
             ("localization_prob", "DOUBLE"),
             ("score", "DOUBLE"),
             ("is_decoy", "BOOLEAN"),
@@ -319,7 +341,13 @@ NODE_TABLES: list[NodeTable] = [
         ],
     ),
     NodeTable(
-        "ProteinObservation", [("id", "STRING"), ("quant_ref", "STRING"), ("n_peptides", "INT64")]
+        "ProteinObservation",
+        [
+            ("id", "STRING"),
+            ("candidate_proteins", "STRING[]"),
+            ("quant_ref", "STRING"),
+            ("n_peptides", "INT64"),
+        ],
     ),
     NodeTable(
         "Contrast",
@@ -456,7 +484,7 @@ REL_TABLES: list[RelTable] = [
     # §5.1 Observation contract
     RelTable("REPORTED_BY", "SiteObservation", "Dataset", multiplicity="MANY_ONE"),
     RelTable("RESOLVES_TO_SITE", "SiteObservation", "ModificationSite", multiplicity="MANY_ONE"),
-    RelTable("RESOLVES_TO_PROTEIN", "ProteinObservation", "Protein", multiplicity="MANY_ONE"),
+    RelTable("RESOLVES_TO_PROTEIN", "ProteinObservation", "Protein", multiplicity="MANY_MANY"),
     # §6.1 modifier assignment
     RelTable("MEASURED_AT", "SiteObservation", "ModificationSite", multiplicity="MANY_ONE"),
     RelTable("ASSIGNMENT_FOR", "ModifierAssignment", "SiteObservation", multiplicity="MANY_ONE"),
@@ -470,7 +498,11 @@ REL_TABLES: list[RelTable] = [
     RelTable("ASSOCIATION_CITES", "EnzymeAssociation", "Publication"),
     # §6.3 protein assignment
     RelTable(
-        "PROTEIN_ASSIGNMENT_FOR", "ProteinAssignment", "SiteObservation", multiplicity="MANY_ONE"
+        "PROTEIN_ASSIGNMENT_FOR",
+        "ProteinAssignment",
+        "SiteObservation",
+        multiplicity="MANY_ONE",
+        also=(("ProteinAssignment", "ProteinObservation"),),
     ),
     RelTable("ASSIGNS_PROTEIN", "ProteinAssignment", "Protein", multiplicity="MANY_ONE"),
     # §6.5 imputation
@@ -490,7 +522,7 @@ def _node_ddl(t: NodeTable) -> str:
 
 
 def _rel_ddl(t: RelTable) -> str:
-    parts = [f"FROM {t.src} TO {t.dst}"]
+    parts = [f"FROM {src} TO {dst}" for src, dst in t.pairs]
     parts += [f"{name} {ktype}" for name, ktype in t.properties]
     if t.multiplicity is not None:
         parts.append(t.multiplicity)

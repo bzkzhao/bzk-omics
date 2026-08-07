@@ -156,6 +156,46 @@ def test_I14_multimapping_site_needs_confirmed_protein_assignment() -> None:
     assert "confirmed" in str(ei.value)
 
 
+def test_I14_a_group_observation_may_not_resolve_to_one_member() -> None:
+    """The protein-grain half, added with ADR-0022 — the door the original I14 left open.
+
+    An observation naming two candidates while resolving to one asserts a razor pick through
+    `RESOLVES_TO_PROTEIN`, which the assignment half of I14 forbids through `ASSIGNS_PROTEIN`. Same
+    claim, different edge; nothing caught it because I14 was phrased about peptides and a
+    `ProteinObservation` has none.
+    """
+    nodes = [
+        n("Protein", id=MX1, accession="P20591"),
+        n("Protein", id=IFIT1_2, accession="P09914-2"),
+        n("Dataset", id="bzk:ds1", content_hash="sha256:" + "0" * 64),
+        n("ProteinObservation", id="bzk:pobs1", candidate_proteins=[MX1, IFIT1_2]),
+    ]
+    edges = [
+        e("REPORTS_PROTEIN", "bzk:ds1", "bzk:pobs1"),
+        e("RESOLVES_TO_PROTEIN", "bzk:pobs1", MX1),  # names two, points at one
+    ]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, edges, only="I14")
+    assert ei.value.invariant == "I14"
+    assert "razor pick" in str(ei.value)
+
+
+def test_I14_a_group_observation_resolving_to_every_member_is_accepted() -> None:
+    """The other side of the same branch, so the check cannot pass by rejecting everything."""
+    nodes = [
+        n("Protein", id=MX1, accession="P20591"),
+        n("Protein", id=IFIT1_2, accession="P09914-2"),
+        n("Dataset", id="bzk:ds1", content_hash="sha256:" + "0" * 64),
+        n("ProteinObservation", id="bzk:pobs1", candidate_proteins=[MX1, IFIT1_2]),
+    ]
+    edges = [
+        e("REPORTS_PROTEIN", "bzk:ds1", "bzk:pobs1"),
+        e("RESOLVES_TO_PROTEIN", "bzk:pobs1", MX1),
+        e("RESOLVES_TO_PROTEIN", "bzk:pobs1", IFIT1_2),
+    ]
+    validate(nodes, edges, only="I14")
+
+
 def test_I15_analysis_with_results_must_declare_imputation() -> None:
     nodes = [
         n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR", n_imputed=4),
@@ -346,7 +386,11 @@ def test_structure_label_mismatch_on_unowned_relation_is_structural() -> None:
     with pytest.raises(InvariantError) as ei:
         validate(nodes, [e("MEASURED_AT", MX1, site)])
     assert ei.value.invariant == "STRUCTURE"
-    assert "not 'SiteObservation'" in str(ei.value)
+    # The message names the pair the edge actually runs between and the pair(s) the schema
+    # declares. It changed shape with ADR-0022, because a relationship may now declare more than
+    # one pair and "not X" no longer describes the failure.
+    assert "runs 'Protein' → 'ModificationSite'" in str(ei.value)
+    assert "declares SiteObservation → ModificationSite" in str(ei.value)
 
 
 def test_structure_label_mismatch_on_owned_relation_attributes_to_invariant() -> None:
@@ -365,7 +409,7 @@ def test_structure_label_mismatch_on_owned_relation_attributes_to_invariant() ->
     with pytest.raises(InvariantError) as ei:
         validate(nodes, [e("SITE_ON", f"{MX1}#sv3#K48#{GG}", UBIQUITIN)])  # to is a Modifier
     assert ei.value.invariant == "I2"
-    assert "not 'ProteinSequence'" in str(ei.value)
+    assert "declares ModificationSite → ProteinSequence" in str(ei.value)
 
 
 def test_structure_node_without_id_raises() -> None:

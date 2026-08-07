@@ -32,7 +32,9 @@ from bzk.ontology.invariants import NODE_TYPE_KEY
 
 _NODE_COLUMNS: dict[str, dict[str, str]] = {t.name: dict(t.columns) for t in schema.NODE_TABLES}
 _NODE_PRIMARY_KEY: dict[str, str] = {t.name: t.primary_key for t in schema.NODE_TABLES}
-_REL_ENDPOINTS: dict[str, tuple[str, str]] = {t.name: (t.src, t.dst) for t in schema.REL_TABLES}
+_REL_ENDPOINTS: dict[str, tuple[tuple[str, str], ...]] = {
+    t.name: t.pairs for t in schema.REL_TABLES
+}
 _REL_PROPERTIES: dict[str, dict[str, str]] = {t.name: dict(t.properties) for t in schema.REL_TABLES}
 
 
@@ -102,12 +104,21 @@ def write_change_set(
             statement += " SET " + ", ".join(assignments)
         _query(conn, statement, parameters)
 
+    by_id = {node["id"]: node for node in nodes}
     for edge in edges:
         rel = edge["type"]
         endpoints = _REL_ENDPOINTS.get(rel)
         if endpoints is None:
             raise StoreError(f"{rel!r} is not a relationship in the schema")
-        src_label, dst_label = endpoints
+        # Which declared pair this edge uses is read off the change-set's own nodes, not assumed
+        # to be the first: a multi-pair relationship (ADR-0022) would otherwise MATCH the wrong
+        # label and silently write nothing, since MATCH on no rows is not an error.
+        src_label = str(by_id[edge["from"]][NODE_TYPE_KEY])
+        dst_label = str(by_id[edge["to"]][NODE_TYPE_KEY])
+        if (src_label, dst_label) not in endpoints:
+            raise StoreError(
+                f"{rel} runs {src_label} → {dst_label}, which the schema does not declare"
+            )
         declared = _REL_PROPERTIES[rel]
         props = {k: v for k, v in edge.items() if k not in ("type", "from", "to")}
         unknown = set(props) - set(declared)

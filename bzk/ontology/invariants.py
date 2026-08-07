@@ -87,7 +87,12 @@ COLUMN_BACKED_NODE_KEYS: frozenset[str] = frozenset({"id"})
 
 # Endpoint labels, valid relationship names, and multiplicity per relationship — derived from the
 # schema, so this module mirrors ONTOLOGY.md rather than becoming a second source of truth.
-_REL_ENDPOINTS: dict[str, tuple[str, str]] = {t.name: (t.src, t.dst) for t in schema.REL_TABLES}
+# Every declared (source, destination) pair per relationship. A relationship may have more
+# than one (ADR-0022: PROTEIN_ASSIGNMENT_FOR reaches both observation grains), so an edge is
+# well-formed when its endpoints match ANY declared pair.
+_REL_ENDPOINTS: dict[str, tuple[tuple[str, str], ...]] = {
+    t.name: t.pairs for t in schema.REL_TABLES
+}
 _REL_MULT: dict[str, str | None] = {t.name: t.multiplicity for t in schema.REL_TABLES}
 _NODE_LABELS: frozenset[str] = frozenset(t.name for t in schema.NODE_TABLES)
 
@@ -159,20 +164,21 @@ def _validate_structure(nodes: list[Node], edges: list[Edge]) -> None:
                 "STRUCTURE", f"edge type {rel!r} is not a relationship in the schema"
             )
         owner = _REL_INVARIANT.get(rel, "STRUCTURE")
-        src_label, dst_label = _REL_ENDPOINTS[rel]
-        for role, expected in (("from", src_label), ("to", dst_label)):
+        endpoints = []
+        for role in ("from", "to"):
             referent = by_id.get(edge.get(role))
             if referent is None:
                 raise InvariantError(
                     owner, f"{rel} names {role} {edge.get(role)!r}, absent from the change-set"
                 )
-            if referent.get(NODE_TYPE_KEY) != expected:
-                raise InvariantError(
-                    owner,
-                    f"{rel} {role} {edge.get(role)!r} is labelled "
-                    f"{referent.get(NODE_TYPE_KEY)!r}, "
-                    f"not {expected!r} as the schema declares",
-                )
+            endpoints.append(referent.get(NODE_TYPE_KEY))
+        if tuple(endpoints) not in _REL_ENDPOINTS[rel]:
+            declared = " or ".join(f"{s} → {d}" for s, d in _REL_ENDPOINTS[rel])
+            raise InvariantError(
+                owner,
+                f"{rel} runs {endpoints[0]!r} → {endpoints[1]!r} between "
+                f"{edge.get('from')!r} and {edge.get('to')!r}; the schema declares {declared}",
+            )
 
         # Multiplicity, from the same source as the endpoints (schema.RelTable.multiplicity).
         mult = _REL_MULT.get(rel)
@@ -275,8 +281,18 @@ def _check_I10(nodes: list[Node], edges: list[Edge]) -> None:
 
 
 def _check_I14(nodes: list[Node], edges: list[Edge]) -> None:
-    """I14 — a multi-mapping peptide is not rendered against one protein without a
-    ProteinAssignment of confidence='confirmed'."""
+    """I14 — a multi-mapping *observation* is not rendered against one protein.
+
+    Two enforceable halves since ADR-0022. The first is the original: an assignment concluding one
+    protein out of several candidates must be `confirmed`. The second is new, and is the door the
+    protein grain left open — an observation that *names* a group while resolving to one member of
+    it asserts exactly what the first half forbids, through a different edge. `RESOLVES_TO_PROTEIN`
+    is `MANY_MANY` precisely so it does not have to.
+
+    Site grain is deliberately not covered here; see I14 in §8. A `ModificationSite` key carries a
+    protein-specific position, so resolving to every candidate is not available, and rejecting the
+    pick would refuse 82% of sites with nothing that would satisfy it.
+    """
     _check_confidence(nodes, "ProteinAssignment", "I14")
     by_id = _index(nodes)
     for edge in _edges(edges, "ASSIGNS_PROTEIN"):  # ProteinAssignment -> Protein
@@ -285,9 +301,26 @@ def _check_I14(nodes: list[Node], edges: list[Edge]) -> None:
         if len(candidates) > 1 and assignment.get("confidence") != "confirmed":
             raise InvariantError(
                 "I14",
-                f"ProteinAssignment {edge['from']} renders a site against one protein "
+                f"ProteinAssignment {edge['from']} renders an observation against one protein "
                 f"({edge['to']}) out of {len(candidates)} candidates with "
                 f"confidence={assignment.get('confidence')!r}; only 'confirmed' may.",
+            )
+
+    resolved: dict[Any, set[Any]] = defaultdict(set)
+    for edge in _edges(edges, "RESOLVES_TO_PROTEIN"):  # ProteinObservation -> Protein
+        resolved[edge["from"]].add(edge["to"])
+    for observation in _nodes(nodes, "ProteinObservation"):
+        candidates = set(observation.get("candidate_proteins") or [])
+        pointed = resolved.get(observation.get("id"), set())
+        # No edges in this batch is not a violation — the node may be re-staged as a referent
+        # (ADR-0019). Pointing at *some* of what it names is.
+        if len(candidates) > 1 and pointed and pointed != candidates:
+            raise InvariantError(
+                "I14",
+                f"ProteinObservation {observation.get('id')} names {len(candidates)} candidate "
+                f"proteins but RESOLVES_TO_PROTEIN reaches {sorted(pointed)}; an observation of a "
+                "group resolves to every member, or it is rendering against a razor pick "
+                "(ONTOLOGY.md §8 I14, ADR-0022).",
             )
 
 

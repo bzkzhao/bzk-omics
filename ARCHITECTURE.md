@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.7 |
+| Version | 1.8 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -67,7 +67,7 @@ bzk/
     loader.py
   adapters/      # ingestion; one module per search engine or analysis tool
     perseus.py   # analysis-output (ADR-0017); protein grain, no network in the parse path
-    maxquant.py
+    maxquant.py  # the guarded table reader today; the adapter proper is weeks 5-6
     fragpipe.py
     diann.py
     base.py      # the adapter contract
@@ -145,6 +145,10 @@ The signature takes a file and a mapping — never a directory convention. Searc
 `ParsedObservations` satisfies the `Observation` contract (`ONTOLOGY.md` §5.1) and makes no tryptic assumptions (I12): peptides need not end in K or R, may carry several modifications, and may map to more than one protein.
 
 **The PXD018299 deposit is CRLF throughout** (2,342 CRLF line endings, zero bare LF; measured 2026-08-07 on the fetched bytes). `pandas.read_csv` handles it, but any manual `split('\n')` leaves a trailing `\r` on the last field of every row — so the 159th column parses as `'Best PEP scan number\r'` rather than `'Best PEP scan number'`. That is the ran-cleanly-and-was-wrong class `HANDOFF.md` §6 catalogues: a lookup on the last column simply returns nothing.
+
+**Six lines of `HAP1_USP18KO_proteinGroups.txt` are not rows** (measured 2026-08-07). MaxQuant writes long semicolon-separated numeric lists in its `*_IDs` columns and some spill onto their own physical lines, each carrying exactly the header's field count — so the field count matches, every structural check passes, and `pandas` reads them as data whose accession column holds numbers like `6215;8153;8154`. Same class as the CRLF note above, same file, same reader: it runs cleanly and is wrong. The effect on that file was to inflate the largest apparent protein group from **33 members to 5,090** while moving the headline multi-mapping percentage by 0.1 — so no summary statistic would have caught it. The test is the file's own bookkeeping rather than a heuristic: `id` is a contiguous 0-based row number, so a line without one is not a row. Implemented once in `bzk/adapters/maxquant.py`, which every MaxQuant reader goes through, rather than in whichever module met it first.
+
+**An analysis output may not be filtered, and cannot be assumed to be.** BJC Supplementary Data 3 — a published table of significantly-changed proteins, and a real Perseus export — carries **12 rows flagged `C: Potential contaminant`**. Not a defect in the paper, since the column is right there; but it settles a design question for the analysis-output adapter, which could easily have assumed a result table had been through the filters its `Analysis` records. It has not. `filters_applied` describing what the *user says* they applied, rather than what the file demonstrates, is `parameters_observed = false` doing exactly its job (§5.4, I19).
 
 **Adapter responsibilities beyond parsing.** Measured against PXD018299: drop `Reverse` and `Potential contaminant` rows before anything else; normalise sample names (one replicate carries an instrument run ID); convert PRIDE `ftp://` locations to `https://ftp.pride.ebi.ac.uk`; record rather than apply the localisation threshold; emit the full candidate protein set, never the razor pick alone.
 

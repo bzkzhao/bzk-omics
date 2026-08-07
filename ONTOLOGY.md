@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.17 |
+| Version | 1.18 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -84,6 +84,8 @@ The identity **model** is identical for both: a node's identity is its label, it
 
 **Canonical ordering.** `IMPUTATION_FOR` is `MANY_ONE`, so several `Imputation`s may attach to one `Analysis`. The folded set is therefore sorted into a canonical order before hashing, exactly as the order-sensitive list fields are (`filters_applied`, `candidate_modifiers`, `candidate_proteins`). This also **depends on the float canonicalization rule**, which is stated nowhere yet and unimplemented: `downshift_sd` and `width_sd` are `DOUBLE`s, so `1.8` and `1.80` would fold to different `Analysis` ids until that rule exists. Recorded in `HANDOFF.md` §8 as part of the key builder's contract.
 
+**An anchor must be single-valued, so widening a relationship removes it from identity.** An anchor contributes *one* id to the tuple, so a `MANY_MANY` relationship cannot be one — there would be several ids and no rule for choosing. `ProteinObservation` therefore anchors on `Dataset` alone: ADR-0022 widened `RESOLVES_TO_PROTEIN` to `MANY_MANY`, and the identifying `candidate_proteins` carries what that anchor used to, as the observed group rather than a razor pick. `ProteinAssignment`'s two `PROTEIN_ASSIGNMENT_FOR` citations are not a counter-example: the relationship has two declared endpoint pairs but any one assignment uses exactly one of them, so the anchor is still single-valued per node.
+
 **This table, not the key builder, defines identity; the builder mirrors it.** `tests/test_schema.py` checks it against the DDL in four directions: every node table in the DDL has exactly one row; every identifying and excluded name is a real column of that node; **every column is accounted for, listed as identifying or in `Excluded columns`**; and every anchor names a real relationship *whose declared endpoints are this node and that anchor* — not merely a relationship that exists. A column that is neither identifying nor excluded is a silent default to non-identifying, which is the missing-field collision this scheme exists to prevent, and the completeness check turns adding a column into a forced row edit. The exclusions fall in three families — mutable and provenance timestamps (`asserted_at`, `retracted_at`, `created_at`, `started_at`, `ended_at`); `quant_ref` and the quantitative outputs a node reports; and descriptive free text (`label`, `rationale`) — but the per-row `Excluded columns` list is authoritative, since prose categories cannot be checked.
 
 **Reference nodes.** The key is the §4 template; the identifying fields below are what that template composes. Where a row's identifying fields are `—`, the id *is* the authority's identifier and no column composes it.
@@ -108,14 +110,14 @@ The identity **model** is identical for both: a node's identity is its label, it
 | `Experiment` | `title`, `modality`, `organism_taxid` | `Project` (`CONTAINS`) | — |
 | `Sample` | `cell_line` / `model_system`, `source_type`, `genotype`, `treatment`, `timepoint_h`, `replicate`, `replicate_type`, `organism_taxid` | `Experiment` (`PERFORMED_ON`) | `label` |
 | `Dataset` | `content_hash` | — (the SHA-256 of the raw file is itself the anchor) | `label`, `source`, `external_accession`, `acquisition_mode`, `instrument`, `search_engine`, `search_engine_version`, `library_type`, `library_prediction_model`, `fasta_release`, `embargo_holder`, `embargo_reference`, `embargo_released_at` |
-| `SiteObservation` | `peptide_sequence` | `Dataset` (`REPORTED_BY`), `ModificationSite` (`RESOLVES_TO_SITE`) | `localization_prob`, `score`, `is_decoy`, `n_imputed`, `quant_ref` |
-| `ProteinObservation` | — | `Dataset` (`REPORTS_PROTEIN`), `Protein` (`RESOLVES_TO_PROTEIN`) | `quant_ref`, `n_peptides` |
+| `SiteObservation` | `peptide_sequence`, `candidate_proteins` | `Dataset` (`REPORTED_BY`), `ModificationSite` (`RESOLVES_TO_SITE`) | `localization_prob`, `score`, `is_decoy`, `n_imputed`, `quant_ref` |
+| `ProteinObservation` | `candidate_proteins` | `Dataset` (`REPORTS_PROTEIN`) | `quant_ref`, `n_peptides` |
 | `Contrast` | `numerator`, `denominator` | — (placement unsettled — §11 Q1) | `label` |
 | `Analysis` | `kind`, `basis`, `confidence`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `parameters_json` | `Dataset` (`USED`) — one or more; for a curation analysis the asserted content stands in for it | `label`, `rationale`, `started_at`, `ended_at`, `workflow_id`, `workflow_revision` |
 | `Imputation` | `method`, `downshift_sd`, `width_sd`, `seed`, `scope` | `Analysis` (`IMPUTATION_FOR`) | `n_values_imputed`, `n_values_total`, `asserted_at`, `retracted_at` |
 | `ModifierAssignment` | `basis`, `candidate_modifiers`, `confidence` | `Modifier` (`ASSIGNS`), `SiteObservation` (`ASSIGNMENT_FOR`), `Analysis` (`ASSIGNMENT_SUPPORTED_BY`) / `Publication` (`ASSIGNMENT_CITES`) | `rationale`, `asserted_at`, `retracted_at` |
 | `EnzymeAssociation` | `direction`, `basis`, `confidence` | `SiteObservation` (`ASSOCIATION_FOR`), `Protein` (`ASSOCIATION_ENZYME`), `Analysis` (`ASSOCIATION_SUPPORTED_BY`) / `Publication` (`ASSOCIATION_CITES`) | `effect_size`, `adj_p_value`, `rationale`, `asserted_at`, `retracted_at` |
-| `ProteinAssignment` | `basis`, `candidate_proteins`, `confidence` | `SiteObservation` (`PROTEIN_ASSIGNMENT_FOR`), `Protein` (`ASSIGNS_PROTEIN`) | `rationale`, `asserted_at`, `retracted_at` |
+| `ProteinAssignment` | `basis`, `candidate_proteins`, `confidence` | `SiteObservation` (`PROTEIN_ASSIGNMENT_FOR`) / `ProteinObservation` (`PROTEIN_ASSIGNMENT_FOR`), `Protein` (`ASSIGNS_PROTEIN`) | `rationale`, `asserted_at`, `retracted_at` |
 | `DifferentialResult` | `protein_adjusted`, `adjustment_method` (I4's required declaration of result *kind*. A single site-level `Analysis` emits **both** where a matched proteome exists — the uncorrected result (not_applied) and the corrected one (applied, carrying `ADJUSTED_BY` to the protein result it used) — so they share `WAS_GENERATED_BY`, observation and contrast and are separated *only* by these fields; the correction is a within-analysis step, not a separate `Analysis`. Holding both is what lets a user see what the correction did — `ARCHITECTURE.md` §4) | `Analysis` (`WAS_GENERATED_BY`), `SiteObservation` (`RESULT_FOR_SITE`) / `ProteinObservation` (`RESULT_FOR_PROTEIN`), `Contrast` (`RESULT_IN_CONTRAST`) | `log2fc`, `p_value`, `adj_p_value` |
 
 | `Person` | `orcid`, `name` | — | — |
@@ -324,6 +326,9 @@ CREATE NODE TABLE Dataset(
 CREATE NODE TABLE SiteObservation(
   id STRING,
   peptide_sequence STRING,
+  candidate_proteins STRING[],  -- OBSERVED: every accession the search reported for this row.
+                                -- Identifying. Distinct from ProteinAssignment.candidate_proteins,
+                                -- which is INFERENTIAL — see §6.3 and ADR-0022.
   localization_prob DOUBLE,     -- 0–1
   score DOUBLE,
   is_decoy BOOLEAN,
@@ -332,7 +337,13 @@ CREATE NODE TABLE SiteObservation(
   PRIMARY KEY (id));
 
 CREATE NODE TABLE ProteinObservation(
-  id STRING, quant_ref STRING, n_peptides INT64, PRIMARY KEY (id));
+  id STRING,
+  candidate_proteins STRING[],  -- OBSERVED: the protein group as the search reported it.
+                                -- Identifying, and it REPLACES the Protein anchor in identity:
+                                -- 77% of rows name more than one (ROADMAP § Protein-group
+                                -- ambiguity), so keying on a single pick was keying on a razor
+                                -- pick. See ADR-0022.
+  quant_ref STRING, n_peptides INT64, PRIMARY KEY (id));
 
 
 CREATE NODE TABLE Contrast(
@@ -433,7 +444,7 @@ The distinction matters: a contract that *permits* extension costs nothing, wher
 ```cypher
 CREATE REL TABLE REPORTED_BY(FROM SiteObservation TO Dataset, MANY_ONE);
 CREATE REL TABLE RESOLVES_TO_SITE(FROM SiteObservation TO ModificationSite, MANY_ONE);
-CREATE REL TABLE RESOLVES_TO_PROTEIN(FROM ProteinObservation TO Protein, MANY_ONE);
+CREATE REL TABLE RESOLVES_TO_PROTEIN(FROM ProteinObservation TO Protein, MANY_MANY);
 ```
 
 ---
@@ -601,14 +612,20 @@ Tryptic peptides are frequently shared between isoforms, paralogues and family m
 ```cypher
 CREATE NODE TABLE ProteinAssignment(
   id STRING,
-  candidate_proteins STRING[],   -- every accession the peptide could derive from
+  candidate_proteins STRING[],   -- INFERENTIAL: the candidate set this assignment
+                                 -- WEIGHED, which may be narrower than the observation's
+                                 -- after filtering or a reviewed-over-TrEMBL preference.
+                                 -- Measured: the two disagree on 52-72% of rows
+                                 -- (ROADMAP § Protein-group ambiguity). ADR-0022.
   basis STRING,                  -- enum below
   confidence STRING,
   rationale STRING,
   asserted_at TIMESTAMP, retracted_at TIMESTAMP,
   PRIMARY KEY (id));
 
-CREATE REL TABLE PROTEIN_ASSIGNMENT_FOR(FROM ProteinAssignment TO SiteObservation, MANY_ONE);
+CREATE REL TABLE PROTEIN_ASSIGNMENT_FOR(FROM ProteinAssignment TO SiteObservation,
+                                        FROM ProteinAssignment TO ProteinObservation,
+                                        MANY_ONE);
 CREATE REL TABLE ASSIGNS_PROTEIN(FROM ProteinAssignment TO Protein, MANY_ONE);
 ```
 
@@ -624,6 +641,10 @@ CREATE REL TABLE ASSIGNS_PROTEIN(FROM ProteinAssignment TO Protein, MANY_ONE);
 **Reviewed entries are preferred, and the preference is recorded.** Measured on PXD018299: in 4 of 8 sampled sites the search engine's razor pick was an unreviewed TrEMBL accession while a reviewed Swiss-Prot entry sat in the same candidate set — `A0A087WXQ8` over `P49720`, `H0YKK0` over `P09661`, `J3KTA4` over `P17844`, `F8VNX8` over `O14545`. Half of protein assignments therefore land on entries with no curator annotation when a well-annotated alternative exists. Resolution promotes the reviewed entry and records `basis = 'reviewed_preferred'`; it never does so silently.
 
 **The `SITE_ON` declaration is wider than the key can express.** `SITE_ON` is `MANY_MANY`, so the DDL permits a `ModificationSite` to attach to several `ProteinSequence`s — but its key composes **exactly one** (§4), so a second attachment would have no representation in the id. In practice a site carries one `SITE_ON`, to the sequence it is keyed against, and the multi-mapping is carried by `candidate_proteins` above; that division is what keeps a razor pick from becoming a silent second parent. Recorded rather than resolved: either the key gains a way to name several parents, or the relationship narrows to `MANY_ONE` and multi-mapping stays entirely within `ProteinAssignment`. Settle when the first search-output adapter constructs both (weeks 5–6).
+
+**Two candidate sets, and they are different facts (ADR-0022).** `SiteObservation.candidate_proteins` and `ProteinObservation.candidate_proteins` are **observed** — what the search reported for that row. `ProteinAssignment.candidate_proteins` is **inferential** — what the assignment weighed, which may be narrower after contaminant filtering or a reviewed-over-TrEMBL preference. This is I19's observed-versus-reported distinction one grain down, and it is why **nothing asserts the two agree**: a guard would forbid recording exactly the narrowing `basis = 'leading'` exists to name. Measured on the three artefacts in `ROADMAP.md` § Protein-group ambiguity, MaxQuant's `Majority protein IDs` differs from its `Protein IDs` on **52–72% of rows**, so "usually identical" is false by a wide margin and the guard would fail on the majority of every real table. The observed set goes to the observation, the weighed set to the assignment, and the conclusion to `ASSIGNS_PROTEIN`.
+
+**The `SITE_ON` question above is narrowed by that, not closed.** Multi-mapping is now recorded on the observation at both grains, so a razor pick is no longer the only place it appears. But `SITE_ON` remains `MANY_MANY` against a key composing one parent, and there is an argument the earlier text does not make: a `ModificationSite` key is `{ProteinSequence.id}#{residue}{position}#{modification_type}`, and **the position differs per protein** — a peptide shared between two proteins sits at different absolute positions in each. So one `ModificationSite` cannot honestly span two parents whatever the declaration permits, which favours the *narrowing* branch rather than the widening one. ADR-0022 did not decide it; it is still for the first search-output adapter.
 
 **Consequence for the headline query.** *Which sites are lost on ISG15 knockdown* is answerable per-protein only where assignment is `confirmed`. Elsewhere the honest answer names a candidate set. Existing tools silently adopt the razor pick; reporting the set instead is a differentiator, not a limitation.
 
@@ -709,7 +730,7 @@ Normative. Violations are ingestion errors, not warnings.
 - **I11 — Quantitative retention.** Every observation persists its per-sample quantitative values in the columnar store, not merely the statistics derived from them. No pipeline stage may discard the matrix after computing a `DifferentialResult`. This is what makes the statistical layer genuinely pluggable: any test — moderated *t*, permutation with s0, or something not yet written — is recomputable from stored values without re-ingestion. A platform retaining only log₂FC and adjusted *p* is married to whichever test produced them.
 - **I12 — No tryptic assumptions.** Core code makes no assumption that peptides terminate in K or R, that a peptide carries at most one modification, or that a peptide maps to exactly one protein. Immunopeptidomics violates the first, multi-modified peptides the second, shared peptides the third. These are free to accommodate now and expensive to retrofit.
 - **I13 — Pipeline metadata is data.** `acquisition_mode`, `search_engine`, `library_type` and `test` are recorded fields, never branch conditions. Any conditional on their value outside `adapters/` or the statistics registry is a defect — it is how the abstraction leaks and how the next pipeline change becomes a rewrite.
-- **I14 — No false singletons.** A `SiteObservation` whose peptide maps to several proteins is never rendered against one protein without a `ProteinAssignment` of confidence `confirmed`. Where assignment is `razor` or `leading`, views and exports name the candidate set. Measured prevalence in PXD018299 is 82%, so this is the default path, not an exception.
+- **I14 — No false singletons.** An **observation** whose `candidate_proteins` names several proteins is never rendered against one of them without a `ProteinAssignment` of confidence `confirmed`. Where assignment is `razor` or `leading`, views and exports name the candidate set. Measured prevalence is 82% at site grain and 72–77% at protein grain (`ROADMAP.md` § Measured findings), so this is the default path, not an exception. Phrased on the observation rather than on *a peptide* since ADR-0022: a `ProteinObservation` has no peptide, which is why the protein grain went uncovered until `perseus.py` met it. **Enforced at write time in two places** — a `ProteinAssignment` reaching `ASSIGNS_PROTEIN` from a multi-candidate set must be `confirmed`, and a `ProteinObservation` naming several candidates must carry `RESOLVES_TO_PROTEIN` to *every* one of them rather than to a subset. At site grain `RESOLVES_TO_SITE` remains `MANY_ONE` and the single site it names is not treated as a violation: a `ModificationSite` key carries a protein-specific position, so pointing at all candidates is not available, and making the pick an ingestion error would reject 82% of sites with no satisfying alternative — `razor` is `ambiguous` by §6.3's own table. That half stays a display and export obligation, which is what *rendered* has always meant.
 - **I15 — Imputation is declared.** Every `Analysis` producing differential results links to an `Imputation`, including `method = 'none'`. Stochastic methods record a seed; without one the analysis is irreproducible from its own inputs and I9 fails. Results whose underlying values are more than half generated are labelled *substantially imputed* wherever they appear.
 - **I17 — Reviewed preferred, never silently.** Where a candidate protein set contains both reviewed (Swiss-Prot) and unreviewed (TrEMBL) entries, resolution promotes the reviewed entry and records `ProteinAssignment.basis = 'reviewed_preferred'`. Measured on PXD018299, the search engine's razor pick was unreviewed in 4 of 8 sampled sites despite a reviewed alternative being present. The promotion is an inference and is recorded as one.
 - **I18 — Embargo is enforced at the boundary.** No `Dataset` with `source = 'embargoed'` and `embargo_released_at IS NULL` may contribute to any export, report, figure file or shared artifact. Queries and views within the local instance are unrestricted. The check sits at the export boundary, not at query time, so the data remains fully usable to its holder while being incapable of leaking.

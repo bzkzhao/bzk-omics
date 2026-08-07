@@ -26,11 +26,18 @@ Three details that produce numbers rather than errors when got wrong, so each is
    export will be too. Splitting on `\\n` by hand leaves `\\r` on the last field of every row, so a
    lookup on the last column silently returns nothing. `splitlines()` handles both; nothing here
    splits on a literal newline.
-3. **Protein groups.** A row naming `P19525;O43593` measured the *group*. Choosing one is the razor
-   pick I14 exists to forbid, and at protein grain there is nowhere to record the ambiguity —
-   §6.3 anchors `ProteinAssignment` on `SiteObservation`, not on `ProteinObservation`. The adapter
-   therefore **refuses**, naming the row. It does not take the first accession, and it does not drop
-   the row silently. That gap in the model is recorded in `HANDOFF.md` §8.
+3. **Protein groups.** A row naming `P19525;O43593` measured the *group*, and 72-77% of real rows
+   do (`ROADMAP.md` § Protein-group ambiguity). This adapter refused every one of them until
+   ADR-0022, because `ProteinObservation` was keyed on a single `Protein` anchor and choosing which
+   is the razor pick I14 forbids. Since ADR-0022 the group **is** the identity: `candidate_proteins`
+   is identifying and `RESOLVES_TO_PROTEIN` is `MANY_MANY`, so the observation names every member
+   and asserts a pick among none of them.
+
+   The set read is **`Protein IDs`, not `Majority protein IDs`**, where both are present. §6.3:
+   *"MaxQuant's `Leading proteins` and `Protein` columns are its own razor-rule inference, not
+   ground truth"* — and `Majority protein IDs` is that inference, being the subset carrying at
+   least half the peptides. An observation records what was observed, so it takes the wider column.
+   The two differ on 52-72% of rows, so this is not a formality.
 
 I13 holds: `search_engine`, `acquisition_mode` and the rest are recorded on the `Dataset`, never
 branched on. The `-Log` detection above is a branch on *file content*, which is what an adapter is
@@ -61,17 +68,16 @@ Q_VALUE = "Student's T-test q-value {suffix}"
 P_VALUE = "Student's T-test p-value {suffix}"
 MINUS_LOG_P = "-Log Student's T-test p-value {suffix}"
 
-#: Where the accession lives, most specific first. MaxQuant's own spellings, carried through Perseus.
-PROTEIN_COLUMNS = ("Majority protein IDs", "Protein IDs", "Proteins", "Protein")
+#: Where the observed accession set lives, **widest first**. `Protein IDs` before
+#: `Majority protein IDs` deliberately: the majority subset is MaxQuant's own inference (§6.3), and
+#: an observation records what was observed. `Protein` last — it is a single razor pick, usable only
+#: when nothing better is in the file.
+PROTEIN_COLUMNS = ("Protein IDs", "Majority protein IDs", "Proteins", "Protein")
 PEPTIDE_COUNT_COLUMNS = ("Peptides", "Razor + unique peptides")
 
 
 class PerseusError(ValueError):
     """A Perseus table cannot be ingested. Never downgraded to a warning (`CLAUDE.md`)."""
-
-
-class PerseusAmbiguous(PerseusError):
-    """A row names more than one protein, so no single `ProteinObservation` can represent it."""
 
 
 @dataclass(frozen=True)
@@ -216,21 +222,24 @@ class PerseusAdapter:
             nodes.append(self._node("Contrast", contrast_id, props))
 
         for line_no, row in rows:
-            accession = self._one_accession(row[protein_column], line_no)
-            protein_id = protein_key(accession)
-            nodes.append(self._node("Protein", protein_id, {"accession": accession}))
+            accessions = self._accessions(row[protein_column], line_no)
+            protein_ids = [protein_key(a) for a in accessions]
+            for accession, protein_id in zip(accessions, protein_ids, strict=True):
+                nodes.append(self._node("Protein", protein_id, {"accession": accession}))
 
-            observation: dict[str, object] = {}
+            # `candidate_proteins` is identifying and `keys.canonical_value` sorts `STRING[]` before
+            # hashing, so the file's ordering — which is MaxQuant's ranking, an inference — cannot
+            # fork an id (I7).
+            observation: dict[str, object] = {"candidate_proteins": protein_ids}
             if peptide_column is not None and row[columns[peptide_column]].strip():
                 observation["n_peptides"] = int(row[columns[peptide_column]])
-            observation_id = evidence_id(
-                "ProteinObservation",
-                observation,
-                {"Dataset": dataset_id, "Protein": protein_id},
-            )
+            observation_id = evidence_id("ProteinObservation", observation, {"Dataset": dataset_id})
             nodes.append(self._node("ProteinObservation", observation_id, observation))
             edges.append({"type": "REPORTS_PROTEIN", "from": dataset_id, "to": observation_id})
-            edges.append({"type": "RESOLVES_TO_PROTEIN", "from": observation_id, "to": protein_id})
+            for protein_id in protein_ids:
+                edges.append(
+                    {"type": "RESOLVES_TO_PROTEIN", "from": observation_id, "to": protein_id}
+                )
 
             for declared, reader in zip(self.contrasts, readers, strict=True):
                 result = reader(row)
@@ -336,19 +345,22 @@ class PerseusAdapter:
         return read
 
     @staticmethod
-    def _one_accession(cell: str, line_no: int) -> str:
+    def _accessions(cell: str, line_no: int) -> list[str]:
+        """The observed candidate set for one row. A group of one is a group.
+
+        No `ProteinAssignment` is emitted here. Where a file carries both columns, MaxQuant's
+        narrowing to `Majority protein IDs` is an inference worth recording — but §6.3's shape is
+        candidate set plus a *concluded protein* (`ASSIGNS_PROTEIN`), and a narrowing to a smaller
+        *subset* is neither. Representing it needs a modelling decision ADR-0022 did not make, and
+        an adapter is the wrong place to make one. Recorded in `HANDOFF.md` §8.
+        """
         accessions = [a.strip() for a in cell.split(";") if a.strip()]
         if not accessions:
-            raise PerseusError(f"line {line_no}: no protein accession")
-        if len(accessions) > 1:
-            raise PerseusAmbiguous(
-                f"line {line_no} names {len(accessions)} proteins ({cell!r}). The row measured the "
-                "group, and choosing one of them is the razor pick I14 forbids without a confirmed "
-                "ProteinAssignment — which cannot be recorded at protein grain, because §6.3 "
-                "anchors ProteinAssignment on SiteObservation. Resolve the group upstream, or "
-                "export one accession per row. Recorded in HANDOFF.md §8."
+            raise PerseusError(
+                f"line {line_no}: no protein accession. A row that names none cannot become a "
+                "ProteinObservation — `candidate_proteins` is identifying (ONTOLOGY.md §3)."
             )
-        return accessions[0]
+        return accessions
 
     @staticmethod
     def _node(label: str, node_id: str, props: Mapping[str, object]) -> Node:

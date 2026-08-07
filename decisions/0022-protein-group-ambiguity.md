@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-08-07 |
 | Supersedes | — |
 | Superseded by | — |
@@ -69,11 +69,32 @@ separate, evidenced inference.** Both grains, one shape.
    without choosing, and what it asserts is what the search reported.
 2. **`PROTEIN_ASSIGNMENT_FOR` accepts `ProteinObservation` as well as `SiteObservation`**, as a
    two-pair `REL TABLE`. Verified available on the pinned Kùzu 0.11.3, writes included.
-3. **I14 extends to cover `RESOLVES_TO_PROTEIN` and `SITE_ON`, not only `ASSIGNS_PROTEIN`**, and is
-   rephrased from "a multi-mapping peptide" to "a multi-mapping observation" so it reaches a grain
-   with no peptide in it.
+3. **I14 is rephrased from "a multi-mapping peptide" to "a multi-mapping observation"**, so it
+   reaches a grain with no peptide in it, and gains a second write-time check: a
+   `ProteinObservation` naming several candidates must carry `RESOLVES_TO_PROTEIN` to *every* one,
+   never a subset. Without it the claim I14 blocks on `ASSIGNS_PROTEIN` walks in through a
+   different edge.
+
+   *Corrected during review.* An earlier draft also extended it to `SITE_ON`. That is not
+   enforceable as a write-time error: `RESOLVES_TO_SITE` is `MANY_ONE`, so resolving to every
+   candidate is unavailable at site grain, and rejecting the single site it names would refuse 82%
+   of sites with nothing that would satisfy the check — `razor` is `ambiguous` by §6.3's own table.
+   The site half stays what *rendered* has always meant: a display and export obligation.
 4. **The site grain takes the same shape**: `SiteObservation` gains the same identifying
-   `candidate_proteins`, which is §6.3's *"the key gains a way to name several parents"* branch.
+   `candidate_proteins`. The observation names every candidate; `RESOLVES_TO_SITE` stays `MANY_ONE`.
+
+   *Corrected during review.* An earlier draft said the site half implements §6.3's *"the key gains
+   a way to name several parents"* branch, and that overstated it twice. First, a `ModificationSite`
+   key is `{ProteinSequence.id}#{residue}{position}#{modification_type}` and **the position differs
+   per protein** — a peptide shared between two proteins sits at different absolute positions in
+   each — so one site cannot honestly span two parents whatever `SITE_ON` permits. That argues for
+   the *narrowing* branch, which this ADR does not take either: it is still for the first
+   search-output adapter. Second, widening `RESOLVES_TO_SITE` would have to drop the
+   `ModificationSite` anchor from `SiteObservation`'s identity, and two GlyGly sites on one peptide
+   share a peptide sequence, a candidate set and a dataset — they would collide. That is
+   `ONTOLOGY.md` §11 Q3, unsettled. So the site half here records the observed candidate set and
+   nothing more, which is real (two different candidate sets no longer produce one id) and is not
+   the whole of §6.3's question.
 
 ### The two candidate sets are different facts, and the data says so loudly
 
@@ -126,8 +147,10 @@ discards 77% of every table.
 
 ## Consequences
 
-**Positive.** The graph stops asserting a protein identity the data does not support, at both
-grains, and §6.3's open question closes rather than acquiring a sibling. `perseus.py` becomes usable
+**Positive.** The graph stops asserting a protein identity the data does not support at protein
+grain, and records the observed candidate set at both. §6.3's open question is **narrowed, not
+closed** — corrected during review; see point 4 — because multi-mapping is no longer visible only
+through a razor pick, while `SITE_ON` still permits more than the `ModificationSite` key expresses. `perseus.py` becomes usable
 on a real export. The observed/inferential split makes MaxQuant's own narrowing recordable as what
 it is — `Protein IDs` to the observation, `Majority protein IDs` to a `ProteinAssignment` with
 `basis = 'leading'` — which is §6.3's *"recorded as such"* actually implemented. The canonicalization

@@ -8,6 +8,15 @@ Same shape as the 12-of-14 baseline fixture, and the same caveat: this checks **
 correctness**, since the fixture came out of the code it guards. A failure means the measurement
 moved or an artefact was revised — both need explaining, neither is fixed by regenerating.
 
+**On mutation-testing these guards** (`CLAUDE.md` point 2): the offline half is deliberately not
+mutation-tested, and that is a decision rather than an omission. Its subject is a fixture of derived
+numbers, and the assertions are arithmetic over them — `multi_fraction == multi / rows`,
+`isoform_only + distinct_gene == multi`. Mutating the fixture to break one of those demonstrates
+only that `==` works. What *is* mutation-tested is the code the numbers come from: dropping the
+spill-line guard in `bzk/adapters/maxquant.py` fails `test_re_measuring_reproduces_the_pinned_
+numbers` here, because the measurement then reads six spill lines as protein groups. That is the
+failure worth catching, and it is caught.
+
 The three inputs live in `raw/`, which does not survive a container (`HANDOFF.md` §3), so the
 re-measurement skips when they are absent. The fixture's own shape is checked either way, because a
 guard whose subject matter is a fetched file must still say something on a cold container.

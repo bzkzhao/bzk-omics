@@ -31,7 +31,6 @@ rather than anything heuristic.
 
 from __future__ import annotations
 
-import csv
 import json
 import statistics
 import sys
@@ -42,6 +41,7 @@ from pathlib import Path
 import openpyxl
 import requests
 
+from bzk.adapters.maxquant import drop_decoys_and_contaminants, read_table
 from bzk.http import BytesSession
 from bzk.provenance.raw_store import StoredFile, store, verify
 from bzk.sources.pride import PXD018299_PROTEIN_GROUPS, fetch
@@ -143,21 +143,15 @@ def measure_perseus_export(path: Path, artefact: str) -> list[GroupStats]:
 
 
 def measure_max_quant(path: Path, artefact: str) -> list[GroupStats]:
-    """MaxQuant `proteinGroups.txt`, with the spill lines and the decoys/contaminants removed."""
-    csv.field_size_limit(sys.maxsize)
-    with path.open(newline="", encoding="utf-8", errors="replace") as handle:
-        rows = list(csv.reader(handle, delimiter="\t"))
-    header = rows[0]
-    # `id` is MaxQuant's own contiguous 0-based row number, so a line without one is a spill from a
-    # preceding row's numeric id list rather than a protein group. See the module docstring.
-    real = [r for r in rows[1:] if r[header.index("id")].isdigit()]
-    kept = [
-        r
-        for r in real
-        if r[header.index("Reverse")] != "+" and r[header.index("Potential contaminant")] != "+"
-    ]
+    """MaxQuant `proteinGroups.txt`, through the shared reader.
+
+    The spill-line guard lives in `bzk/adapters/maxquant.py`, not here: it was found by this
+    measurement but any MaxQuant reader hits it, and a copy in each would be two homes for one rule.
+    """
+    table = read_table(path)
+    kept = drop_decoys_and_contaminants(table)
     return [
-        summarise(artefact, column, [_split(r[header.index(column)]) for r in kept])
+        summarise(artefact, column, [_split(r[table.column(column)]) for r in kept])
         for column in ("Majority protein IDs", "Protein IDs")
     ]
 
