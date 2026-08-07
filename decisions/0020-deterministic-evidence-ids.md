@@ -35,6 +35,13 @@ content-addressed — reference CURIEs, the `ModificationSite` key (ADR-0005), a
 `raw/` + the curation export + the DDL, which is exactly the I9 input set. `canonical` is a stable
 serialization (sorted keys, normalized values) so replay is byte-identical.
 
+A field that is itself structured — `Analysis.parameters_json`, which carries a test's `s0` and
+randomisation count — is **parsed and canonically re-serialized** (sorted keys, normalized numeric
+forms) before it enters the tuple, never hashed as raw text. Canonicalizing the tuple treats a field
+as a value and does not reach inside a string, so without this rule two ingesters emitting the same
+parameters with different key order or float formatting would mint different `Analysis` ids. See
+`ONTOLOGY.md` §3.
+
 Identity **excludes** mutable and provenance-timestamp fields — `asserted_at`, `retracted_at`,
 `created_at` — and the quantitative matrix, which is referenced by `quant_ref`, not hashed into
 identity.
@@ -77,6 +84,14 @@ missing identifying field — and it surfaces as the change-set duplicate-`id` f
 by structural validation (ADR-0019, rule 4), not as silent data loss.
 
 **The §9 worked-example ids become illustrative digest stubs, not literal ULIDs.**
+
+**The identity table earns its keep immediately.** Making §3 the source of truth for identity (and
+guarding it with a test in `tests/test_schema.py`) surfaced a pre-existing contradiction the DDL had
+carried on its own: `test` and `fdr_method` sat on `DifferentialResult` while `ARCHITECTURE.md` §4
+recorded a test's parameters on the `Analysis`. Since every result of an analysis shares its test,
+two analyses differing only by test collapsed to one id — this ADR's own missing-field collision.
+Resolved by moving both columns onto `Analysis` (ONTOLOGY v1.6, I16); the table did not create the
+defect, it exposed one already latent.
 
 ## Alternatives considered
 

@@ -62,6 +62,25 @@ def test_schema_rel_tables_match_ontology() -> None:
     assert schema_rels == ontology_rels
 
 
+def test_identity_table_matches_ddl() -> None:
+    """§3's per-label identity table must name only real columns and rel tables (ADR-0020).
+
+    Identity is normative in §3, and the key builder mirrors it. This keeps the table honest against
+    the DDL: it caught `test`/`fdr_method` listed for `Analysis` while they sat on `DifferentialResult`.
+    """
+    nodes, rels = _parse_ontology()
+    text = ONTOLOGY.read_text()
+    region = text[text.index("Evidence-node identity, per label") : text.index("Provenance agents key")]
+    rows = re.findall(r"^\| `(\w+)` \| (.+?) \| (.+?) \|\s*$", region, re.M)
+    assert rows, "identity table not found in §3"
+    for label, fields_col, anchors_col in rows:
+        assert label in nodes, f"§3 identity table lists unknown node {label!r}"
+        for fld in re.findall(r"`([a-z][a-z0-9_]*)`", fields_col):
+            assert fld in nodes[label], f"§3: {label}.{fld} is not a column of {label}"
+        for edge in re.findall(r"`([A-Z][A-Z0-9_]+)`", anchors_col):
+            assert edge in rels, f"§3: anchor {edge!r} (row {label}) is not a rel table"
+
+
 def test_schema_builds_on_kuzu() -> None:
     tmp = tempfile.mkdtemp(prefix="schema_test_")
     try:

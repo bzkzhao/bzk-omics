@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.5 |
+| Version | 1.6 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -88,6 +88,10 @@ Locally generated (evidence) nodes use `bzk:` with a **deterministic, content-de
 | `DifferentialResult` | — (the statistics are outputs, not identity) | `Analysis` (`WAS_GENERATED_BY`), the observation (`RESULT_FOR_SITE` / `RESULT_FOR_PROTEIN`), `Contrast` (`RESULT_IN_CONTRAST`) |
 
 Provenance agents key on their natural external identifiers, not a digest: `Person` on `orcid` (falling back to `name`), `Software` on `name` + `version` + `container_digest`. Anchor edge directions are as declared in the §5–§7 DDL.
+
+**`parameters_json` is canonicalized before hashing.** It is an identifying field of `Analysis` and, under the test scheme (§5.4, I16), carries `s0` and the randomisation count. Canonicalizing the identity *tuple* treats each field as a value and does not reach inside a string, so `parameters_json` is itself parsed and canonically re-serialized — sorted keys, normalized numeric forms — before it enters the tuple, never hashed as raw text. Otherwise two ingesters emitting the same parameters with different key order, spacing, or float formatting would produce different `Analysis` ids, defeating the idempotent replay this scheme exists to guarantee (ADR-0020).
+
+**Queryability tradeoff, accepted.** Holding `s0` inside `parameters_json` rather than as a column means analyses cannot be filtered by `s0` without string matching, and ADR-0015 makes `perseus_s0` default and required, so that value *will* be queried. This is accepted deliberately: a column per test parameter does not generalize across tests — permutation counts, shrinkage priors and the rest all differ — and the recomputation and comparison the registry exists for read parameters per analysis, not by a cross-analysis `s0` filter. If an `s0` index is ever needed it is added then, not pre-emptively.
 
 > **To verify before implementation:** the PSI-MOD accession for the GlyGly remnant. Unimod 121 (GlyGly) is the identifier used by MaxQuant and FragPipe and should be treated as primary; the PSI-MOD cross-reference above is unconfirmed and must be checked against the current PSI-MOD release.
 
@@ -225,8 +229,6 @@ CREATE NODE TABLE DifferentialResult(
   log2fc DOUBLE,
   p_value DOUBLE,
   adj_p_value DOUBLE,
-  fdr_method STRING,            -- 'BH'
-  test STRING,                  -- 'moderated_t_ebayes'
   protein_adjusted STRING,      -- REQUIRED. 'applied' | 'not_applied' | 'native'
                                 -- 'native' = source already ratiometric. See I4.
   adjustment_method STRING,     -- NULL if 'not_applied'
@@ -244,8 +246,12 @@ CREATE NODE TABLE Analysis(
   quantity STRING,              -- 'intensity' | 'ratio_mod_base' | 'lfq' | 'ibaq'
   localization_threshold DOUBLE,-- recorded, never hard-coded; see §6.4
   filters_applied STRING[],     -- e.g. ['reverse','potential_contaminant']
+  test STRING,                  -- 'perseus_s0' | 'moderated_t_ebayes' | 'welch_t'; per analysis (§5.4, I16)
+  fdr_method STRING,            -- 'permutation' | 'BH'; the FDR control step
   workflow_id STRING, workflow_revision STRING,
-  parameters_json STRING,
+  parameters_json STRING,       -- test-specific parameters, e.g. s0, n_randomisations (§5.4).
+                                -- Identity-bearing: parsed and canonically re-serialized before
+                                -- hashing, never hashed as raw text (§3).
   started_at TIMESTAMP, ended_at TIMESTAMP,
   external_tool STRING,         -- §5.4; 'perseus' | 'r' | 'graphpad'
   external_version STRING,      -- §5.4
@@ -581,7 +587,7 @@ Normative. Violations are ingestion errors, not warnings.
 - **I17 — Reviewed preferred, never silently.** Where a candidate protein set contains both reviewed (Swiss-Prot) and unreviewed (TrEMBL) entries, resolution promotes the reviewed entry and records `ProteinAssignment.basis = 'reviewed_preferred'`. Measured on PXD018299, the search engine's razor pick was unreviewed in 4 of 8 sampled sites despite a reviewed alternative being present. The promotion is an inference and is recorded as one.
 - **I18 — Embargo is enforced at the boundary.** No `Dataset` with `source = 'embargoed'` and `embargo_released_at IS NULL` may contribute to any export, report, figure file or shared artifact. Queries and views within the local instance are unrestricted. The check sits at the export boundary, not at query time, so the data remains fully usable to its holder while being incapable of leaking.
 - **I19 — Observed and reported provenance are distinguished.** Every `Analysis` sets `parameters_observed`. Where `false`, the analysis was run outside the platform and its parameters are as stated by the user rather than as executed; every derived `DifferentialResult` is labelled accordingly in views and exports. An externally computed result is never presented with the same provenance standing as one the platform produced.
-- **I16 — Quantity is declared.** Every `Analysis` records which quantity it consumed and the filters applied, including the localisation threshold. Two defensible quantities on the same dataset differed by a factor of ~90 in usable sites; neither choice is recoverable from a published methods section, and that gap is what this platform exists to close.
+- **I16 — Quantity and test are declared.** Every `Analysis` records which quantity it consumed and the filters applied, including the localisation threshold, and — where it runs one — the statistical `test` and its `fdr_method`, with test-specific parameters (`s0`, randomisation count) in `parameters_json`. These live on the `Analysis`, not the `DifferentialResult`: every result of an analysis shares them, and `ARCHITECTURE.md` §4 already records the test's parameters there per this invariant. (The DDL previously placed `test` / `fdr_method` on `DifferentialResult`, contradicting §4; the §3 identity table surfaced the pre-existing discrepancy, resolved here — ONTOLOGY v1.6, ADR-0020.) Two defensible quantities on the same dataset differed by a factor of ~90 in usable sites; neither choice is recoverable from a published methods section, and that gap is what this platform exists to close.
 
 ---
 
@@ -624,10 +630,10 @@ Evidence
       -[ASSIGNMENT_SUPPORTED_BY]-> Analysis bzk:39c8bb…
 
   DifferentialResult bzk:2100ae…
-      log2fc 3.4, p 1.2e-5, adj_p 8.0e-4, test moderated_t_ebayes, fdr_method BH
+      log2fc 3.4, p 1.2e-5, adj_p 8.0e-4
       protein_adjusted "applied", adjustment_method "residual_vs_protein_lfc"
       -[ADJUSTED_BY]-> DifferentialResult bzk:7cf3d2…  (MX1 protein level)
-      -[WAS_GENERATED_BY]-> Analysis bzk:1e90fa…
+      -[WAS_GENERATED_BY]-> Analysis bzk:1e90fa…  (test moderated_t_ebayes, fdr_method BH)
 ```
 
 Before the knockout arm exists, the platform reports a diGly site with an ambiguous modifier. It does not report an ISGylation site. That distinction is the product.

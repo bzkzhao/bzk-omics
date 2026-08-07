@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.0 |
-| Last reviewed | 2026-08-06 |
+| Version | 1.1 |
+| Last reviewed | 2026-08-07 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
 | Authoritative for | Language and library choices, storage layout, module boundaries |
@@ -127,7 +127,7 @@ Practically this means the mapping UI is a write path into the graph, not a form
 
 ### Pluggable by construction
 
-**No statistical test is privileged by the schema.** `DifferentialResult.test` is a recorded string that nothing downstream branches on. Tests register against a common interface and are selected per analysis.
+**No statistical test is privileged by the schema.** `Analysis.test` is a recorded string that nothing downstream branches on. Tests register against a common interface and are selected per analysis — the test and its `fdr_method` are properties of the `Analysis`, not of each `DifferentialResult` (ONTOLOGY §5, I16, ADR-0020).
 
 This is not abstraction for its own sake — but the case for it was nearly made on a false premise, which is instructive.
 
