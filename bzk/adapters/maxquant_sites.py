@@ -34,9 +34,9 @@ decoys and contaminants → 2,056 at `Localization prob >= 0.75`):
 
 2. **A row with no razor pick is refused.** One row (`id` 1319, YWHAB/SFN) carries seven proteins,
    two leading proteins and an *empty* `Protein` column: MaxQuant declined to pick. Falling back to
-   the first leading protein would be inventing the pick it declined to make, and the two leading
-   candidates sit at different positions (11 and 11 — but 13 for the four others), so the choice is
-   not even cosmetic. Refused and counted.
+   the first leading protein would be inventing the pick it withheld, and the choice is not even
+   cosmetic — the group splits `11;13;13;13;13;11;11`, so which member is picked changes the
+   position the site is keyed at. Refused and counted.
 
 3. **Candidates that key nothing are not resolved.** Only the 1,054 distinct razor picks need a
    sequence; the 4,631 accessions named across `Proteins` need only a `Protein` node, which

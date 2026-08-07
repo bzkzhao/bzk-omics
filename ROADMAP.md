@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.7 |
+| Version | 1.8 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -103,7 +103,9 @@ From PXD018299 (`HAP1_USP18KO_GlyGlyKSites.txt`, MaxQuant site table, 2.8 MB), i
 | **Razor picks that are isoforms** | **6/20 (30%)** | Under the old key template ~30% of sites would key against a sequence they do not follow — most validating as K and silently wrong |
 | Position validation, isoform-stripping resolver | 18/20 | Both failures were resolver bugs, not data errors; they exposed the key defect |
 | **Razor pick lands on TrEMBL despite a reviewed entry in the set** | **4 of 8 sampled** | I17 added: reviewed preferred, recorded as `ProteinAssignment` basis |
-| Sequences amended since the ~2019 search | 1 of 20 (5%) — `H7BZW7`, updated June 2026 | ~114 of 2,298 sites at risk of silent drift. Amendment is ongoing, not historical, so flagging beats one-time reconciliation. Resolves `ARCHITECTURE.md` open question 1 |
+| Sequences amended since the ~2019 search | 1 of 20 (5%) — `H7BZW7`, updated June 2026 | ~114 of 2,298 sites at risk of silent drift. Amendment is ongoing, not historical, so flagging beats one-time reconciliation. Resolves `ARCHITECTURE.md` open question 1. **Superseded by measurement 2026-08-07: the realised cost is 40 of 2,056 sites (1.9%), not ~114 — see § Sequence drift below. The 5% figure counts sequences amended, which bounds sites broken rather than estimating it** |
+| **Sites whose residue no longer matches today's UniProt** | **40 of 2,056 (1.9%)**, over 16 proteins | Measured, not projected. Refused at ingestion and counted; drift is 2.8× likelier on unreviewed entries |
+| **Razor picks whose UniProt entry has since been deleted** | **25 accessions, 48 sites**, all `Inactive`, all unreviewed | The site cannot be keyed at all (I2). Strengthens I17: the TrEMBL pick is the one that disappears |
 | Reviewed entries in sample; sequence versions | 15/20 reviewed; versions 1–4 | Amendment is ongoing across the set, not historical |
 
 ### From author correspondence, 2026-08-06
@@ -193,6 +195,48 @@ significantly-changed proteins carries contaminants the reader is expected to fi
 in the paper — the column is right there — but it settles a design question: an analysis-output
 adapter cannot assume an export has been filtered, and `Analysis.filters_applied` describing what
 the *user says* they applied is exactly the `parameters_observed = false` distinction doing its job.
+
+### Sequence drift costs 40 of 2,056 sites, 2026-08-07
+
+The first measurement of what it costs to key 2019 site positions against 2026 UniProt, produced by
+running `bzk/adapters/maxquant_sites.py` over the deposit's GlyGly table
+(`python -m bzk.sources.pxd018299_sites`). The adapter validates every site's reported residue
+against the sequence version it pins and **refuses** the ones that disagree, so the count is the
+measurement rather than a by-product of it.
+
+| Stage | Rows | |
+|---|---|---|
+| `HAP1_USP18KO_GlyGlyKSites.txt` | 2,341 | |
+| − decoys and contaminants | −43 | 2,298, matching the figure already on record |
+| − `Localization prob < 0.75` | −242 | **2,056 considered** |
+| − no razor pick | −1 | `Protein` empty; MaxQuant declined to pick (row 1319) |
+| − protein unresolvable | −48 | 25 accessions, **all UniProt `Inactive`** — see below |
+| − **residue mismatch** | **−40** | **16 proteins. 1.9% of sites considered** |
+| = emitted | **1,967** | |
+
+**The prior estimate was ~114 of 2,298 and it was measuring something else.** That figure came from
+*1 of 20 sampled sequences amended since the search* (5%), extrapolated. The extrapolation is not
+wrong so much as answering a different question: a sequence can be amended without moving any
+particular lysine, so *sequences amended* is an upper bound on *sites broken*, not an estimate of
+it. Measured, the consequence is **1.9%**, about a third of the projection. The correction is worth
+keeping in both directions — the exposure is real and it is smaller than feared, and neither of
+those was knowable before an adapter existed to count it.
+
+**Drift concentrates in unreviewed entries, which is I17's argument made quantitative.** Of the
+1,053 distinct razor picks, 656 are reviewed Swiss-Prot and 397 are unreviewed TrEMBL. Of the 16
+proteins carrying a mismatch, 6 are reviewed and 10 are unreviewed — **0.9% of reviewed proteins
+against 2.5% of unreviewed**, a factor of 2.8. And every one of the 25 unresolvable accessions is
+unreviewed. So the razor picks that land on TrEMBL despite a reviewed entry in the set (already on
+record at 4 of 8 sampled) are the same picks most likely to be unkeyable or stale later. I17's
+*reviewed preferred* is not only about naming the better identifier; it is about picking the one
+that will still mean the same thing in five years.
+
+**The 48 unresolvable sites are deletions, not missing metadata.** All 25 accessions return UniProt
+`entryType: 'Inactive'` — entries deleted or demerged since the 2019 search, carrying no sequence
+and no version. The refusal reports them as *"no sequence_version, so no ProteinSequence can be
+keyed (I2)"*, which is true but understates it: the protein the search named no longer exists as a
+distinct entry. `bzk/resolve/uniprot.py` returns `status='ok'` for these, which is what makes the
+refusal message read as a metadata gap rather than a deletion; recorded in `HANDOFF.md` §8.
 
 ### The K-GG remnant set is three, not four, 2026-08-07
 

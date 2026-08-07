@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.1 |
+| Version | 1.2 |
 | Last reviewed | 2026-08-07 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -123,19 +123,25 @@ Follow `ROADMAP.md` § Milestones. This adds the granularity that document delib
    entirely offline-testable. Unresolved accessions are reported, not raised — the adapter decides
    whether a dead accession sinks a site. `residue_at` is the hook Slice 2's measurement needs.
 
-   **Slice 2 — the MaxQuant site adapter, and a measurement that must not be skipped.** On top of
-   `bzk/adapters/maxquant.py`'s reader: filtering, sample-name normalisation, `SiteObservation`
-   construction, and `resolve_to_nodes` injected. `Proteins` and `Positions within proteins` are
-   perfectly aligned in this file — 0 of 2,298 rows mismatched — so the (protein, position) pairs
-   are read directly rather than inferred.
+   **Slice 2 is done (2026-08-07)** — `bzk/adapters/maxquant_sites.py`, the first search-output
+   adapter, with `resolve_to_nodes` injected on its constructor. `Proteins` and `Positions within
+   proteins` are index-aligned on all 2,056 rows, and `Position` agrees with the aligned entry on
+   2,055 of 2,055 where the razor pick is in the list, so the pairs are read rather than inferred.
+   Run it with `python -m bzk.sources.pxd018299_sites` (needs `python -m bzk.sources.pride` first;
+   ~1,050 UniProt lookups on a cold cache, minutes, then cached).
 
-   **The residue check is a measured finding, not an implementation detail.** The resolver returns
-   *today's* UniProt; the search ran ~2019; ROADMAP already sizes the exposure at ~114 of 2,298
-   sites. So the adapter validates every site's residue against the sequence version it pins,
-   **refuses the ones that do not match**, and **reports the count**. That number belongs in
-   `ROADMAP.md` § Measured findings the day it exists — it is the first direct measurement of how
-   much sequence drift costs this dataset, and a run that quietly dropped or accepted the mismatches
-   would destroy it. Report it even if it is zero; especially if it is zero.
+   **The measurement the slice existed for: 40 of 2,056 sites (1.9%) fail the residue check** and
+   are refused — full breakdown in `ROADMAP.md` § Sequence drift. Two things worth carrying
+   forward. First, the prior ~114-of-2,298 estimate was **3× high and measuring a different
+   quantity**: it counted *sequences amended*, which bounds *sites broken* rather than estimating
+   it, since a sequence can be amended without moving any particular lysine. Second, drift is
+   **2.8× likelier on unreviewed entries** (2.5% vs 0.9%), and all 25 accessions whose UniProt
+   entry has been deleted outright are unreviewed — so I17's *reviewed preferred* is not only about
+   naming a better identifier, it is about picking the one that still resolves in five years.
+
+   Refusals are returned rather than logged: `ParsedObservations.refusals`, defaulting to empty so
+   `perseus.py` is unaffected. That channel *is* how the measurement exists — a `logging.warning`
+   would have left it uncountable.
 
    **Slice 3** — the `Modifier` seed from `schema.GG_REMNANT_MODIFIERS` plus `ModifierAssignment`
    (`inferred_default` / `ambiguous`) on every site, per §6.1.
@@ -262,6 +268,7 @@ All three cost time during exploration. All three are the same class: code that 
 | ~~**The K-GG remnant set was stated as four in two places**~~ **Closed by a guard 2026-08-07** | `ONTOLOGY.md` §6.1 and §9, `bzk/ontology/schema.py` | The prose claim *"ubiquitin, NEDD8, ISG15 and FAT10 all leave a K-GG remnant"* was wrong, and the correction is the interesting part of this row: verifying it against UniProt **canonical** sequences first gave the wrong answer for every modifier, because those are precursors — the C-terminus that matters is the **mature chain**, after the propeptide is cleaved. On mature chains the criterion is not "ends in GG" but "has K or R at −3", since trypsin cuts C-terminal to K/R and the remnant is everything after the last one. Three qualify: ubiquitin `P0CG48` (LRLR**GG**), NEDD8 `Q15843` (LALR**GG**), ISG15 `P05161` (LRLR**GG**), all 114.0429 Da. FAT10 `O15205` ends in GG but carries isoleucine at −3, leaving `GNLLFLACYCIGG` at 1,324.63 Da. **The correction was applied to §6.1 and the enum, and §9's worked example kept the four-item set for another hour** — a guard scoped to the section being fixed would have reported clean over it. `test_gg_remnant_modifiers_match_ontology_6_1` now scans the **whole document**: no accession outside `schema.GG_REMNANT_MODIFIERS` may appear on a `leaves_gg_remnant true` line, and no worked `candidate_modifiers` list may name one. Both halves mutation-tested. The guard cannot check the biology — that reasoning lives in §6.1 and beside the enum, because three accessions do not explain themselves. Resolved |
 | **`SITE_ON` is `MANY_MANY` against a key composing one parent — trigger fired, decision not taken** | `ONTOLOGY.md` §6.3, §4, `bzk/adapters/maxquant_sites.py` | §6.3 deferred this to *"the first search-output adapter"*, which now exists, so the trigger has fired and the evidence it was waiting for is in: the adapter emits **exactly one `SITE_ON` per site, on every one of the sites it produced**, because a `ModificationSite` key carries a protein-specific position and a peptide shared between two proteins sits at a different absolute position in each. Nothing in a real MaxQuant site table wants the second parent the DDL permits. That is the argument §6.3 already called the *narrowing* branch, now with a measurement behind it rather than a prediction. **Not taken here** because narrowing `MANY_MANY` → `MANY_ONE` is a normative DDL change and wants its own ADR alongside the `Majority protein IDs` question below, which touches the same paragraph — and this turn was scoped to the adapter. The adapter's behaviour is not blocked by it either way: one `SITE_ON` is legal under both readings. **Trigger: the next ONTOLOGY §6.3 amendment**, which should settle both together. No |
 | **Two pairs of relationships model one fact each — found building the first site adapter** | `ONTOLOGY.md` §5, §6.1, §1, `bzk/adapters/maxquant_sites.py` | The DDL declares `RESOLVES_TO_SITE(SiteObservation → ModificationSite, MANY_ONE)` **and** `MEASURED_AT(SiteObservation → ModificationSite, MANY_ONE)` — identical endpoints, identical multiplicity — and separately `REPORTED_BY(SiteObservation → Dataset, MANY_ONE)` alongside `REPORTS_SITE(Dataset → SiteObservation, ONE_MANY)`, which is the same fact read in the other direction. The document uses them inconsistently and that is the tell: §1's diagram and §9's worked example draw `MEASURED_AT`, while §3's identity table anchors on `RESOLVES_TO_SITE`, so a query written from the diagram and a query written from the identity table would traverse different edges over the same graph. This is `CLAUDE.md` § Single source of truth one level out — not a duplicated *fact*, a duplicated *relationship*, and the copies will diverge the same way. It surfaced only when an adapter had to decide which to emit; nothing in the schema mirror catches it, because both are legitimately declared. **The adapter emits the two §3 anchors and not their duplicates** — those are the pair a `SiteObservation` id is already a function of, so they cannot be dropped, whereas the other two carry nothing the first two do not. That is a local choice, not a resolution: which name survives is an ONTOLOGY amendment, and `MEASURED_AT` may well be the better one to keep given §1 and §9 use it. **Trigger: the next ONTOLOGY §5 amendment**, and it should be settled together with the `SITE_ON` multiplicity row above — both are the same paragraph's unfinished business. A guard is writable once the decision is made (no two relationships may share endpoints *and* multiplicity) but not before, since today it would fail on a schema the document declares. No |
+| **The resolver reports `status='ok'` for a deleted UniProt entry** | `bzk/resolve/uniprot.py`, `bzk/resolve/nodes.py` | Found by the first real adapter run: 25 of the site table's razor picks return `entryType: 'Inactive'` — UniProt entries deleted or demerged since the 2019 search — and `resolve` reports them `status='ok'` with `sequence_version=None` and no sequence, because the fetch succeeded and it only inspects `reviewed`/`sequence`/`entryAudit`. Nothing is *wrong* downstream: `resolve_to_nodes` refuses them for having no sequence version, and `maxquant_sites.py` refuses the 48 sites keyed on them, so no bad data is admitted. What is lost is the *reason*. The refusal reads *"no sequence_version, so no ProteinSequence can be keyed"*, which sounds like a metadata gap in a live entry; the truth is that the protein the search named no longer exists as a distinct entry, which is a different finding for a curator and a different fix (re-map to the merge target, not wait for UniProt to fill a field). **`entry_type` is already captured on `Resolution` and already carries `'Inactive'`** — nothing needs fetching, only a status the caller can branch on, so this is small. It is deferred here rather than done inline because it widens `Resolution.status`'s closed set, which `tests/test_resolve.py` and the recorded-response fixtures both pin. **Trigger: the next change to `resolve/uniprot.py`.** No |
 | ADRs 0004–0014 unwritten | `decisions/` | No — write during weeks 7–8 |
 | Search engine for the new USP18 dataset | Assumption A2 | Yes for that dataset only |
 | Where in his pipeline the handover belongs | `ROADMAP.md` § Open questions | No — ask at the meeting |
