@@ -29,8 +29,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CURATION_DIR = REPO_ROOT / "data" / "curation"
 NOTEBOOK = REPO_ROOT / "colab_reproducefigure.ipynb"
 
-# The three records that cite the deposit. Named explicitly rather than globbed: a new record that
-# cites this file should fail here until it is added, which is the point of the guard.
+# The three records that cite the deposit, named explicitly so the parametrised checks below have
+# a fixed list. A hardcoded list alone would leave a *fourth* record citing this file silently
+# unguarded, so `test_the_citing_records_are_exactly_these` discovers citers from disk and asserts
+# the two sets match — that is what makes adding a citer fail here until it is listed.
 CITING_RECORDS = (
     "curation_PXD018299.json",
     "analysis_PXD018299_KOIFN_vs_WTIFN.json",
@@ -40,6 +42,25 @@ CITING_RECORDS = (
 
 def _record(name: str) -> dict:
     return json.loads((CURATION_DIR / name).read_text())
+
+
+def _records_citing_the_deposit() -> set[str]:
+    """Every committed curation record whose `file` is this deposit, discovered rather than listed."""
+    found = set()
+    for path in CURATION_DIR.glob("*.json"):
+        if json.loads(path.read_text()).get("file") == PXD018299_SITES.filename:
+            found.add(path.name)
+    return found
+
+
+def test_the_citing_records_are_exactly_these() -> None:
+    """A new record citing this deposit must be added to CITING_RECORDS, not silently unchecked.
+
+    Without this the guard would be self-limiting: it protects the three files it already knows
+    about and says nothing about a fourth, which is how a partial back-fill escapes in the first
+    place.
+    """
+    assert _records_citing_the_deposit() == set(CITING_RECORDS)
 
 
 @pytest.mark.parametrize("name", CITING_RECORDS)
