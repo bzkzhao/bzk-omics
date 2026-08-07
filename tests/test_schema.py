@@ -156,6 +156,52 @@ def test_identity_table_matches_ddl() -> None:
         )
 
 
+def test_schema_identity_matches_ontology_table() -> None:
+    """`schema.IDENTITY` is the executable mirror of §3, as NODE_TABLES is of the DDL.
+
+    The key builder reads IDENTITY, so a divergence here would mint ids over a different tuple than
+    the normative table declares — silently, since every other guard checks §3 against the DDL
+    rather than against this. Compares identifying fields, anchors (type and relationship) and the
+    qualifying-child fold in both directions.
+    """
+    rows = _identity_rows()
+    assert set(schema.IDENTITY) == {label for label, *_ in rows}, (
+        f"IDENTITY covers {set(schema.IDENTITY) ^ {label for label, *_ in rows}} differently from §3"
+    )
+    for label, ident_col, anchors_col, _excl in rows:
+        spec = schema.IDENTITY[label]
+        doc_fields = set(re.findall(r"`([a-z][a-z0-9_]*)`", ident_col))
+        assert set(spec.fields) == doc_fields, (
+            f"IDENTITY[{label}].fields {set(spec.fields)} != §3 {doc_fields}"
+        )
+        doc_anchors = set(re.findall(r"`([A-Z]\w*)`\s*\(`([A-Z][A-Z0-9_]+)`\)", anchors_col))
+        assert set(spec.anchors) == doc_anchors, (
+            f"IDENTITY[{label}].anchors {set(spec.anchors)} != §3 {doc_anchors}"
+        )
+        # authority rows are exactly those §3 marks as having no composing field
+        assert spec.authority == ("authority-assigned" in ident_col), (
+            f"IDENTITY[{label}].authority disagrees with §3"
+        )
+
+    text = ONTOLOGY.read_text()
+    start = text.index("**Qualifying child fields.**")
+    block = text[start : text.index("\n\n", text.index("|---|", start))]
+    doc_children = {
+        (parent, child, rel, tuple(sorted(re.findall(r"`([a-z][a-z0-9_]*)`", fields))))
+        for parent, child, rel, fields in re.findall(
+            r"^\| `(\w+)` \| `(\w+)` \(`([A-Z][A-Z0-9_]+)`\) \| (.+?) \|\s*$", block, re.M
+        )
+    }
+    code_children = {
+        (label, child, rel, tuple(sorted(fields)))
+        for label, spec in schema.IDENTITY.items()
+        for child, rel, fields in spec.child_fields
+    }
+    assert code_children == doc_children, (
+        f"IDENTITY child folds {code_children} != §3 {doc_children}"
+    )
+
+
 def test_absent_identifying_fields_are_determined_not_contingent() -> None:
     """ADR-0021 — an identifying field may be absent only when its absence is DETERMINED.
 

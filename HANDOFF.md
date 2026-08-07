@@ -184,6 +184,33 @@ All three cost time during exploration. All three are the same class: code that 
 | Search engine for the new USP18 dataset | Assumption A2 | Yes for that dataset only |
 | Where in his pipeline the handover belongs | `ROADMAP.md` § Open questions | No — ask at the meeting |
 
+### The curation loader is blocked on two gaps in the committed records (2026-08-07)
+
+The key builder now exists (`bzk/ontology/keys.py`), so the loader has ids to mint with. But
+**neither committed curation record can yet produce a validating change-set**, and both reasons are
+the schema working rather than failing — under ADR-0021 a node cannot be minted without its
+identifying values, so the loader must refuse rather than invent.
+
+1. **No `content_hash`, so no `Dataset`.** `Dataset` identity *is* `content_hash` (§3), and its
+   absence is classified neither `determined` nor `curated`, so it must be present. Both records
+   identify their input by bare filename (`HAP1_USP18KO_GlyGlyKSites.txt`). This is the gap
+   `OPERATIONS.md` §2 already records; it now blocks rather than merely worries. It cascades: with
+   no `Dataset` there is no `USED` anchor for an `Analysis` and no `REPORTED_BY` for an observation.
+   **Fix:** back-fill the SHA-256 when the input file is next in hand — which is the same moment
+   `raw/` gets populated, so the two unblock together.
+2. **No `Project` or `Experiment`, so no `Sample`.** `curation_PXD018299.json`'s `mapping` carries
+   exactly `Sample`'s identifying fields — genotype, treatment, timepoint_h, replicate,
+   replicate_type, cell_line, organism_taxid — but `Sample` anchors on `Experiment` (`PERFORMED_ON`)
+   and `Experiment` on `Project` (`CONTAINS`), and the record names neither. `modality` is present
+   (an `Experiment` field); the titles are not. **Fix:** decide whether the curation record grows a
+   project/experiment block, or whether the loader mints a per-dataset `Experiment` from the
+   accession. The first is honest curation; the second invents a title, which `CLAUDE.md` forbids.
+   Settle before writing the loader — it determines the record format.
+
+Neither is a defect in the loader design; both are the record format meeting a rule that did not
+exist when the records were hand-written. `source_type` is a third, smaller instance: `Sample`
+requires it and the mapping entries imply it (`cell_line` present ⇒ `cell_line`) without stating it.
+
 ### The key builder's contract (audit 2026-08-07) — write this before the builder, not after
 
 The 2026-08-07 identity audit measured the value space of every identifying field in `ONTOLOGY.md`

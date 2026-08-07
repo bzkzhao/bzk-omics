@@ -48,6 +48,129 @@ QUANTITY_VALUES: frozenset[str] = frozenset(
 )
 
 
+@dataclass(frozen=True)
+class Identity:
+    """What a node's id is computed over (ONTOLOGY.md §3). Mirror of the identity table.
+
+    `fields` are the node's own identifying columns; `anchors` are (node type, relationship) pairs
+    whose *ids* enter the tuple; `child_fields` is the qualifying-child fold — (child type,
+    relationship, fields) whose *values* enter it (§3, the values-not-ids DAG argument).
+    `authority` marks a reference node whose id is the external identifier itself.
+    """
+
+    fields: tuple[str, ...] = ()
+    anchors: tuple[tuple[str, str], ...] = ()
+    child_fields: tuple[tuple[str, str, tuple[str, ...]], ...] = ()
+    authority: bool = False
+
+
+# Guarded against ONTOLOGY.md §3 by tests/test_schema.py — never edit one without the other.
+IDENTITY: dict[str, Identity] = {
+    # Reference nodes (§4)
+    "Gene": Identity(authority=True),
+    "Protein": Identity(fields=("accession",)),
+    "ProteinSequence": Identity(fields=("sequence_version",), anchors=(("Protein", "HAS_SEQUENCE"),)),
+    "ModificationSite": Identity(
+        fields=("residue", "position", "modification_type"),
+        anchors=(("ProteinSequence", "SITE_ON"),),
+    ),
+    "Modifier": Identity(authority=True),
+    "Pathway": Identity(authority=True),
+    "Disease": Identity(authority=True),
+    "Drug": Identity(authority=True),
+    "Publication": Identity(authority=True),
+    # Evidence nodes (§5-§6)
+    "Project": Identity(fields=("title",)),
+    "Experiment": Identity(
+        fields=("title", "modality", "organism_taxid"), anchors=(("Project", "CONTAINS"),)
+    ),
+    "Sample": Identity(
+        fields=(
+            "cell_line",
+            "model_system",
+            "source_type",
+            "genotype",
+            "treatment",
+            "timepoint_h",
+            "replicate",
+            "replicate_type",
+            "organism_taxid",
+        ),
+        anchors=(("Experiment", "PERFORMED_ON"),),
+    ),
+    "Dataset": Identity(fields=("content_hash",)),
+    "SiteObservation": Identity(
+        fields=("peptide_sequence",),
+        anchors=(("Dataset", "REPORTED_BY"), ("ModificationSite", "RESOLVES_TO_SITE")),
+    ),
+    "ProteinObservation": Identity(
+        anchors=(("Dataset", "REPORTS_PROTEIN"), ("Protein", "RESOLVES_TO_PROTEIN"))
+    ),
+    "Contrast": Identity(fields=("numerator", "denominator")),
+    "Analysis": Identity(
+        fields=(
+            "kind",
+            "basis",
+            "confidence",
+            "quantity",
+            "localization_threshold",
+            "filters_applied",
+            "test",
+            "fdr_method",
+            "external_tool",
+            "external_version",
+            "parameters_observed",
+            "parameters_json",
+        ),
+        anchors=(("Dataset", "USED"),),
+        child_fields=(
+            (
+                "Imputation",
+                "IMPUTATION_FOR",
+                ("method", "seed", "downshift_sd", "width_sd", "scope"),
+            ),
+        ),
+    ),
+    "Imputation": Identity(
+        fields=("method", "downshift_sd", "width_sd", "seed", "scope"),
+        anchors=(("Analysis", "IMPUTATION_FOR"),),
+    ),
+    "ModifierAssignment": Identity(
+        fields=("basis", "candidate_modifiers", "confidence"),
+        anchors=(
+            ("Modifier", "ASSIGNS"),
+            ("SiteObservation", "ASSIGNMENT_FOR"),
+            ("Analysis", "ASSIGNMENT_SUPPORTED_BY"),
+            ("Publication", "ASSIGNMENT_CITES"),
+        ),
+    ),
+    "EnzymeAssociation": Identity(
+        fields=("direction", "basis", "confidence"),
+        anchors=(
+            ("SiteObservation", "ASSOCIATION_FOR"),
+            ("Protein", "ASSOCIATION_ENZYME"),
+            ("Analysis", "ASSOCIATION_SUPPORTED_BY"),
+            ("Publication", "ASSOCIATION_CITES"),
+        ),
+    ),
+    "ProteinAssignment": Identity(
+        fields=("basis", "candidate_proteins", "confidence"),
+        anchors=(("SiteObservation", "PROTEIN_ASSIGNMENT_FOR"), ("Protein", "ASSIGNS_PROTEIN")),
+    ),
+    "DifferentialResult": Identity(
+        fields=("protein_adjusted", "adjustment_method"),
+        anchors=(
+            ("Analysis", "WAS_GENERATED_BY"),
+            ("SiteObservation", "RESULT_FOR_SITE"),
+            ("ProteinObservation", "RESULT_FOR_PROTEIN"),
+            ("Contrast", "RESULT_IN_CONTRAST"),
+        ),
+    ),
+    "Person": Identity(fields=("orcid", "name")),
+    "Software": Identity(fields=("name", "version")),
+}
+
+
 # ── Reference nodes (ONTOLOGY.md §4) ──
 NODE_TABLES: list[NodeTable] = [
     NodeTable(
