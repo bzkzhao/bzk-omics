@@ -2,7 +2,7 @@
   "dataset": "PXD018299",
   "file": "HAP1_USP18KO_GlyGlyKSites.txt",
   "contrast": "KO_IFN_vs_WT_IFN",
-  "quantity": "Intensity",
+  "quantity": "intensity_multiplicity_summed",
   "localization_threshold": 0.75,
   "filters_applied": [
     "reverse",
