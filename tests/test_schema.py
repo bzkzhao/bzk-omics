@@ -369,6 +369,39 @@ def test_reference_ids_on_disk_are_canonical() -> None:
     assert seen, "no reference ids found — guard would be vacuous"
 
 
+def test_pending_markers_point_at_values_that_are_actually_pending() -> None:
+    """A curation record's `pending` marker must agree with the record (HANDOFF §8).
+
+    The marker exists so the loader can refuse by field name rather than failing late on a null.
+    A marker and the value it describes are two homes for one fact, so they can drift: the risk is
+    a value being filled while its marker stays, after which the loader refuses a record that is
+    actually ready. Every listed path must therefore resolve to a null.
+
+    The converse — a null that no marker names — is NOT checkable here, because legitimate nulls
+    exist (`timepoint_h` is deliberately null where the methods section does not state one). Only
+    the loader, which knows which record fields become which identifying node fields, can close
+    that direction.
+    """
+    root = Path(__file__).resolve().parents[1]
+    checked = 0
+    for path in (root / "data/curation").rglob("*.json"):
+        record = json.loads(path.read_text())
+        for dotted, why in record.get("pending", {}).items():
+            checked += 1
+            cursor: object = record
+            for part in dotted.split("."):
+                assert isinstance(cursor, dict) and part in cursor, (
+                    f"{path.name}: pending path {dotted!r} does not exist in the record"
+                )
+                cursor = cursor[part]
+            assert cursor is None, (
+                f"{path.name}: {dotted!r} is marked pending but holds {cursor!r} — remove it from "
+                "`pending` once supplied, or the loader will refuse a record that is ready"
+            )
+            assert why.strip(), f"{path.name}: pending {dotted!r} carries no note"
+    assert checked, "no pending markers found — guard would be vacuous"
+
+
 def test_quantity_values_are_in_enum() -> None:
     """Every Analysis.quantity on disk must be in the closed enum (ONTOLOGY §5, schema.QUANTITY_VALUES).
 

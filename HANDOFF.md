@@ -225,8 +225,21 @@ identifying values, so the loader must refuse rather than invent.
    from the samples, so **one `Experiment` is one organism**, and cross-species work is two
    experiments rather than one with mixed samples.
 
-   Values are left null in `curation_PXD018299.json`, with the requirement recorded in that file's
-   own `unresolved` list. **The loader waits on them.**
+   **`source_type` resolved 2026-08-07** — `cell_line` on all twelve entries (HAP1 is a near-haploid
+   human cell line derived from KBM-7). The two titles remain the curator's to supply.
+
+   **Pending values carry a structured marker.** A record's top-level `pending` object maps the
+   dotted field path to a note: the keys are machine-detectable, so **the loader refuses by field
+   name rather than failing late on a null**, and the notes state the consequence at the point
+   someone will be editing — both titles are *identifying*, so supplying or changing one re-mints
+   the `Experiment` id and every `Sample` id beneath it. Cheap while the graph is empty (I9
+   regenerates it); not cosmetic afterwards. The `unresolved` prose is kept alongside because it
+   carries the reasoning a marker cannot — in particular *why the loader must not derive a title* —
+   which is what stops a later session quietly filling it in. Marker for detection, prose for
+   reasoning. `tests/test_schema.py` checks every marked path resolves to a null, so a filled value
+   cannot leave a stale marker behind and make the loader refuse a record that is ready.
+
+   **The loader waits on the two titles.**
 
 Neither is a defect in the loader design; both are the record format meeting a rule that did not
 exist when the records were hand-written. `source_type` is a third, smaller instance: `Sample`
