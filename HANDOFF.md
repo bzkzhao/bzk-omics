@@ -163,7 +163,15 @@ grouped by *how* they must be enforced, so a source-tree lint is not mistaken fo
 
 - **CS — write-time change-set check, not written.** **I1** (disjointness: reject locally-authored
   reference–reference edges; ref–ref edges carry `source`). **I8** (also WG: every `Sample` reaches a
-  curation `Analysis` via `SAMPLE_GENERATED_BY`).
+  curation `Analysis` via `SAMPLE_GENERATED_BY`). **Residue agreement across `SITE_ON`** (completes
+  I2, candidate new invariant): I2 pins the sequence version but never verifies the residue at the
+  site's position matches the parent `Protein`'s sequence — the write-time mirror of the resolver's
+  `validate_position`. It belongs in the write-time set: it would catch a site keyed at one
+  residue attached by `SITE_ON` to a protein where that position is a different residue (the
+  isoform-bug arithmetic, and exactly the malformed second `SITE_ON` the valid fixture now avoids).
+  It needs the `Protein.sequence` present in the change-set, which the label check does not yet
+  require, and it overlaps the resolver, so it is a graph-ingestion backstop rather than the first
+  line. Build with the first adapter, not before.
 - **WG — whole-graph / query-time, not written.** **I5** (provenance reachability; entities with no
   path to an `Analysis` flagged `unprovenanced` at query time, §7). **I8** (the reachability half).
 - **EX — export boundary, not written.** **I18** (embargo). *Trigger: I18 must land with the first

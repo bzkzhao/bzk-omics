@@ -328,3 +328,36 @@ def test_structure_duplicate_node_id_raises() -> None:
         validate(nodes, [])
     assert ei.value.invariant == "STRUCTURE"
     assert "duplicate node id" in str(ei.value)
+
+
+# ── ADR-0019 hole (v): multiplicity, from schema.RelTable.multiplicity ─────────────────────────
+
+
+def test_structure_many_one_source_appears_at_most_once() -> None:
+    # MEASURED_AT is SiteObservation -> ModificationSite, MANY_ONE: one observation, one site.
+    site_a = f"{MX1}#sv3#K48#{GG}"
+    site_b = f"{MX1}#sv3#K63#{GG}"
+    nodes = [
+        n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR"),
+        n("ModificationSite", id=site_a, residue="K", position=48, modification_type=GG),
+        n("ModificationSite", id=site_b, residue="K", position=63, modification_type=GG),
+    ]
+    edges = [e("MEASURED_AT", "bzk:obs1", site_a), e("MEASURED_AT", "bzk:obs1", site_b)]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, edges)
+    assert ei.value.invariant == "STRUCTURE"
+    assert "MANY_ONE" in str(ei.value)
+
+
+def test_structure_one_many_destination_appears_at_most_once() -> None:
+    # ENCODES is Gene -> Protein, ONE_MANY: a protein is encoded by at most one gene.
+    nodes = [
+        n("Gene", id="hgnc:1", symbol="A"),
+        n("Gene", id="hgnc:2", symbol="B"),
+        n("Protein", id=MX1, sequence_version=3),
+    ]
+    edges = [e("ENCODES", "hgnc:1", MX1), e("ENCODES", "hgnc:2", MX1)]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, edges)
+    assert ei.value.invariant == "STRUCTURE"
+    assert "ONE_MANY" in str(ei.value)

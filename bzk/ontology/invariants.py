@@ -7,7 +7,9 @@ The invariants of ONTOLOGY.md §8 are errors, not warnings (CLAUDE.md): a violat
   I2, I3, I4, I10, I14, I15, I16, I19 — one checker each — plus **change-set structural
   validation** (ADR-0019): every referent an edge names is present, every edge endpoint carries
   the node label `schema.py` declares for that relationship, every edge type is a relationship in
-  the DDL, and every node has a unique id. Structural failures raise ``STRUCTURE``, except a
+  the DDL, every relationship's multiplicity is respected (a MANY_ONE source or a ONE_MANY
+  destination appears at most once in the change-set), and every node has a unique id. Structural
+  failures raise ``STRUCTURE``, except a
   missing or mislabelled endpoint on a relationship a specific invariant owns (SITE_ON→I2,
   ASSIGNS→I3, ASSOCIATION_FOR→I10, ASSIGNS_PROTEIN→I14), which raises that invariant. Structural
   validation runs first and unconditionally, so the checks below never read a field off an absent
@@ -36,6 +38,7 @@ that consumes the contract (ONTOLOGY.md §10).
 
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -45,9 +48,10 @@ from bzk.ontology.schema import PROTEIN_ADJUSTED, STOCHASTIC_IMPUTATION
 Node = dict[str, Any]
 Edge = dict[str, Any]
 
-# Endpoint labels per relationship, and valid relationship names — derived from the schema, so
-# this module mirrors ONTOLOGY.md rather than becoming a second source of truth.
+# Endpoint labels, valid relationship names, and multiplicity per relationship — derived from the
+# schema, so this module mirrors ONTOLOGY.md rather than becoming a second source of truth.
 _REL_ENDPOINTS: dict[str, tuple[str, str]] = {t.name: (t.src, t.dst) for t in schema.REL_TABLES}
+_REL_MULT: dict[str, str | None] = {t.name: t.multiplicity for t in schema.REL_TABLES}
 
 # Relationships a write-time invariant consults; a structural failure on one is that invariant's.
 _REL_INVARIANT: dict[str, str] = {
@@ -91,6 +95,9 @@ def _validate_structure(nodes: list[Node], edges: list[Edge]) -> None:
         seen.add(node_id)
 
     by_id = {node["id"]: node for node in nodes if "id" in node}
+    # MANY_ONE / ONE_ONE constrain the source side; ONE_MANY / ONE_ONE the destination side.
+    seen_from: dict[str, set[Any]] = defaultdict(set)
+    seen_to: dict[str, set[Any]] = defaultdict(set)
     for edge in edges:
         rel = edge.get("type")
         if rel not in _REL_ENDPOINTS:
@@ -111,6 +118,23 @@ def _validate_structure(nodes: list[Node], edges: list[Edge]) -> None:
                     f"{rel} {role} {edge.get(role)!r} is labelled {referent.get('label')!r}, "
                     f"not {expected!r} as the schema declares",
                 )
+
+        # Multiplicity, from the same source as the endpoints (schema.RelTable.multiplicity).
+        mult = _REL_MULT.get(rel)
+        src, dst = edge.get("from"), edge.get("to")
+        if mult in ("MANY_ONE", "ONE_ONE"):
+            if src in seen_from[rel]:
+                raise InvariantError(
+                    "STRUCTURE", f"{rel} is {mult}: source {src!r} has more than one {rel} edge"
+                )
+            seen_from[rel].add(src)
+        if mult in ("ONE_MANY", "ONE_ONE"):
+            if dst in seen_to[rel]:
+                raise InvariantError(
+                    "STRUCTURE",
+                    f"{rel} is {mult}: destination {dst!r} has more than one {rel} edge",
+                )
+            seen_to[rel].add(dst)
 
 
 # ── One checker per invariant. Structural validation has already guaranteed that every edge

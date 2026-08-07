@@ -60,6 +60,14 @@ graph must be re-staged into any change-set that references it. This is redundan
 safe, because reference keys are content-derived (I7), so re-staging is idempotent — the cost of
 keeping the validator pure.
 
+**Fifth hole (multiplicity), added 2026-08-07.** The `RelTable.multiplicity` in `schema.py` — the
+same source as the endpoints — was initially unchecked, so two `MEASURED_AT` edges from one
+`SiteObservation` (declared `MANY_ONE`) passed. Structural validation now also enforces
+multiplicity within the change-set: for `MANY_ONE` a source id appears at most once for that
+relationship, for `ONE_MANY` a destination id at most once, for `ONE_ONE` both. Failures raise
+`STRUCTURE`. This is change-set-scoped — Kùzu enforces the same bound at write time across
+change-sets — but catches the malformed batch before it reaches the store.
+
 **Note.** This is the shape of the ingestion contract for the adapters (weeks 3-6): batch by a
 complete fact, not by node type.
 
