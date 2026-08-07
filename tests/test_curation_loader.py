@@ -28,6 +28,7 @@ from typing import Any, cast
 import pytest
 
 from bzk.adapters.base import SampleMapping
+from bzk.curation import loader
 from bzk.curation.loader import (
     CurationIncomplete,
     CurationInvalid,
@@ -35,7 +36,7 @@ from bzk.curation.loader import (
     load,
     load_path,
 )
-from bzk.ontology import invariants
+from bzk.ontology import invariants, schema
 from bzk.ontology.invariants import NODE_TYPE_KEY
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -43,6 +44,8 @@ REAL_RECORD = REPO_ROOT / "data" / "curation" / "curation_PXD018299.json"
 SYNTHETIC = REPO_ROOT / "tests" / "fixtures" / "curation_synthetic_loadable.json"
 PENDING = REPO_ROOT / "tests" / "fixtures" / "curation_synthetic_pending.json"
 MINTED_IDS = REPO_ROOT / "tests" / "fixtures" / "pxd018299_curation_ids.json"
+CURATION_DIR = REPO_ROOT / "data" / "curation"
+FIXTURES = REPO_ROOT / "tests" / "fixtures"
 
 
 def _record(path: Path) -> dict[str, Any]:
@@ -407,3 +410,51 @@ def test_sample_mapping_hands_the_adapter_the_analysis_id(loaded: LoadedCuration
     assert mapping.curation_analysis_id == loaded.analysis_id
     assert len(mapping.samples) == 4
     assert {s["id"] for s in mapping.samples} == set(loaded.sample_ids.values())
+
+
+def test_structural_keys_do_not_collide_with_ddl_columns() -> None:
+    """ADR-0019's reserved-namespace rule, applied to the second paired key space.
+
+    The change-set format was guarded against the DDL the day the rule was written; the curation
+    record's key space was left as a `HANDOFF.md` §8 note with a trigger of *"the second record
+    format"*. That was a deferral for something already checkable — a structural key either is a
+    column name or it is not — and the answer was, and is, that none collide. Prose that is true
+    today is indistinguishable from prose that stopped being true, which is the whole argument for
+    writing it down as an assertion.
+
+    A collision would make that column unwritable through the loader, exactly as `label` made six
+    node tables unwritable through the change-set.
+    """
+    columns = {c for t in schema.NODE_TABLES for c, _ in t.columns}
+    clash = loader.STRUCTURAL_KEYS & columns
+    assert not clash, (
+        f"curation structural key(s) {sorted(clash)} are also DDL column names; the column cannot "
+        "be written through the loader while the key means something else (ADR-0019)"
+    )
+
+
+def test_declared_structural_keys_are_all_really_used() -> None:
+    """Non-vacuity, so the guard above cannot pass over a list that has drifted into fiction.
+
+    Every declared key must appear in at least one record on disk — under `data/curation/` or in
+    the synthetic twins under `tests/fixtures/`. `HANDOFF.md` §8: a guard that can be vacuous
+    carries a non-vacuity assertion, which is what made the `pending`-marker guard detectable when
+    the curator supplied the last two titles and emptied it.
+    """
+    seen: set[str] = set()
+
+    def walk(obj: object) -> None:
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                seen.add(key)
+                walk(value)
+        elif isinstance(obj, list):
+            for item in obj:
+                walk(item)
+
+    records = sorted(CURATION_DIR.glob("*.json")) + sorted(FIXTURES.glob("curation_*.json"))
+    assert records, "no curation records found; this guard would pass over an empty loop"
+    for path in records:
+        walk(json.loads(path.read_text()))
+    missing = loader.STRUCTURAL_KEYS - seen
+    assert not missing, f"declared structural key(s) {sorted(missing)} appear in no record on disk"

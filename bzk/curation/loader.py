@@ -46,6 +46,38 @@ from bzk.ontology import invariants, schema
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.ontology.keys import evidence_id
 
+# The record's *structural* keys — the ones this module reads by name as control rather than as a
+# field value. ADR-0019's reserved-namespace rule applies to them exactly as it does to the
+# change-set's own `__label__` / `id`: a structural key that is also a DDL column name makes that
+# column unwritable through this path, which is how `label` broke six node tables.
+#
+# Declared here because this is the loader's contract and there is nowhere better; guarded against
+# `schema.NODE_TABLES` by `tests/test_curation_loader.py`, which also asserts each one still appears
+# in a record on disk so the list cannot rot into fiction. What the guard does *not* do is discover
+# a **new** structural key someone adds without declaring it here — that would need the loader to
+# read the record through one accessor, which it does not.
+#
+# Note what is deliberately excluded: the keys of the `mapping` object are sample column headers
+# (`Intensity WT_1`), which are data and may be spelled anything the search engine emits.
+STRUCTURAL_KEYS: frozenset[str] = frozenset(
+    {
+        "pending",  # dotted paths the curator marked as owed
+        "unresolved",  # values the curator could not determine
+        "corrections",  # supersession notes
+        "mapping",  # sample column header -> sample descriptor
+        "contrasts_of_interest",
+        "project",
+        "experiment",
+        "dataset",
+        "file",
+        "curated_by",
+        "curated_at",
+        "supersedes",
+        "note",
+        "synthetic",  # marks a fixture, never a real record
+    }
+)
+
 # Record key -> the node field it supplies, for the flat blocks. Sample fields come from `mapping`
 # and are named identically in both, so they need no table.
 _DATASET_FROM_RECORD = {
