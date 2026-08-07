@@ -6,8 +6,8 @@ outside world. The graph is byte-identical whether or not this runs — demonstr
 argued, since two replays that skipped it reproduced the same 11,389 ids as one that did not.
 
 They were welded because both were written in week 1 and both needed a cache path. The cost of that
-became visible when Slice 4a pinned 1,028 sequences: `rebuild()` went to **1,057 s, of which ~980 s
-was this check** — and a 17-minute command run after every schema change is a command that stops
+became visible when Slice 4a pinned 1,028 sequences: `rebuild()` went to **1,057 s, of which 973.7 s
+was this check** (measured, not estimated) — and a 17-minute command run after every schema change is a command that stops
 being run. `OPERATIONS.md` §5 asks for exactly that cadence; this session changed the schema twice
 and ran a full rebuild once, at the end, which is the evidence.
 
