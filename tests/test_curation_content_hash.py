@@ -1,12 +1,17 @@
-"""The PXD018299 digest is one fact stored in four places; these tests keep them agreeing.
+"""The PXD018299 digest is one fact stored in five places; these tests keep them agreeing.
 
 `CLAUDE.md` § Single source of truth: *"Duplicating a fact into a second document is a defect...
 The copies diverge within weeks and there is then no way to tell which is authoritative."* The
-`content_hash` for `HAP1_USP18KO_GlyGlyKSites.txt` is cited by three records in `data/curation/`
-and held by `bzk.sources.pride.PXD018299_SITES`. Nothing checked they agreed, so a deposit
-revision applied to two records out of three would have left the suite green — the exact
-copies-diverge failure, in the one value that decides whether a rebuild is working against the
-bytes the curation was written for.
+`content_hash` for `HAP1_USP18KO_GlyGlyKSites.txt` is cited by three records in `data/curation/`,
+by the baseline fixture in `tests/fixtures/`, and held by `bzk.sources.pride.PXD018299_SITES`.
+Nothing checked they agreed, so a deposit revision applied to two records out of three would have
+left the suite green — the exact copies-diverge failure, in the one value that decides whether a
+rebuild is working against the bytes the curation was written for.
+
+Discovery spans `data/curation/` **and** `tests/fixtures/`. Scoping it to the curation directory
+would have recreated the self-limiting gap `test_the_citing_records_are_exactly_these` exists to
+close, one directory out: the baseline fixture cites the digest on its face and would have been
+the fourth unguarded copy.
 
 `PXD018299_SITES` is treated as the home: records are checked against it, not against each other,
 so a revision has one place to be applied and a stale record is a failure rather than a tie.
@@ -28,30 +33,35 @@ from bzk.sources.pride import PXD018299_SITES
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CURATION_DIR = REPO_ROOT / "data" / "curation"
+FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
+SEARCHED_DIRS = (CURATION_DIR, FIXTURE_DIR)
 NOTEBOOK = REPO_ROOT / "colab_reproducefigure.ipynb"
 
-# The three records that cite the deposit, named explicitly so the parametrised checks below have
-# a fixed list. A hardcoded list alone would leave a *fourth* record citing this file silently
-# unguarded, so `test_the_citing_records_are_exactly_these` discovers citers from disk and asserts
-# the two sets match — that is what makes adding a citer fail here until it is listed.
+# The four records that cite the deposit, as repo-relative paths, named explicitly so the
+# parametrised checks below have a fixed list. A hardcoded list alone would leave a *fifth* record
+# citing this file silently unguarded, so `test_the_citing_records_are_exactly_these` discovers
+# citers from disk and asserts the two sets match — that is what makes adding a citer fail here
+# until it is listed.
 CITING_RECORDS = (
-    "curation_PXD018299.json",
-    "analysis_PXD018299_KOIFN_vs_WTIFN.json",
-    "resolution_PXD018299.json",
+    "data/curation/curation_PXD018299.json",
+    "data/curation/analysis_PXD018299_KOIFN_vs_WTIFN.json",
+    "data/curation/resolution_PXD018299.json",
+    "tests/fixtures/pxd018299_welch_baseline.json",
 )
 
 
 def _record(name: str) -> dict[str, Any]:
-    loaded: Any = json.loads((CURATION_DIR / name).read_text())
+    loaded: Any = json.loads((REPO_ROOT / name).read_text())
     return cast("dict[str, Any]", loaded)
 
 
 def _records_citing_the_deposit() -> set[str]:
-    """Every committed curation record whose `file` is this deposit, discovered rather than listed."""
+    """Every committed record whose `file` is this deposit, discovered rather than listed."""
     found = set()
-    for path in CURATION_DIR.glob("*.json"):
-        if json.loads(path.read_text()).get("file") == PXD018299_SITES.filename:
-            found.add(path.name)
+    for directory in SEARCHED_DIRS:
+        for path in directory.glob("*.json"):
+            if json.loads(path.read_text()).get("file") == PXD018299_SITES.filename:
+                found.add(path.relative_to(REPO_ROOT).as_posix())
     return found
 
 
@@ -75,10 +85,10 @@ def test_record_cites_the_module_digest(name: str) -> None:
 def test_record_cites_the_module_filename(name: str) -> None:
     """The filename and accession are duplicated alongside the digest and drift the same way.
 
-    The two record types spell the accession differently — the curation record keys it
-    `accession`, the derived analysis/resolution records key it `dataset`. Both hold `PXD018299`,
-    so this reads whichever is present rather than forcing a format change; the divergence is
-    noted in the commit, not silently normalised here.
+    The record types spell the accession differently — the curation record keys it `accession`,
+    the derived analysis/resolution records and the baseline fixture key it `dataset`. All hold
+    `PXD018299`, so this reads whichever is present rather than forcing a format change; the
+    divergence is noted in the commit, not silently normalised here.
     """
     record = _record(name)
     assert record["file"] == PXD018299_SITES.filename
@@ -86,7 +96,7 @@ def test_record_cites_the_module_filename(name: str) -> None:
     assert accession == PXD018299_SITES.accession
 
 
-def test_all_three_records_agree() -> None:
+def test_all_records_agree() -> None:
     """Stated directly as well: a partial back-fill leaves two values, and this names that."""
     hashes = {name: _record(name)["content_hash"] for name in CITING_RECORDS}
     assert len(set(hashes.values())) == 1, f"records disagree on content_hash: {hashes}"

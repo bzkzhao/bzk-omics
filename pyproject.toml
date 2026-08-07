@@ -16,6 +16,12 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    # Dev-only, and deliberately so. The 12-of-14 baseline was measured in a pandas notebook
+    # (`colab_reproducefigure.ipynb`), so `bzk/sources/pxd018299_baseline.py` transcribes it in
+    # pandas; the platform's own quantitative layer is polars + DuckDB (ARCHITECTURE.md §4).
+    # Pinned because it arrived transitively via streamlit and unpinned until 2026-08-07, which
+    # left the fixture's numbers resting on whatever version resolution happened to pick.
+    "pandas==3.0.5",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "ruff==0.16.1",
@@ -42,7 +48,10 @@ python_version = "3.12"
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["kuzu.*"]
+# None of these three ship type information. `pandas` and `scipy` join `kuzu` here when
+# `bzk/sources/pxd018299_baseline.py` imports them; the alternative — pinning `pandas-stubs` and
+# `scipy-stubs` — adds two more version-coupled pins to type-check one transcription module.
+module = ["kuzu.*", "pandas.*", "scipy.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
