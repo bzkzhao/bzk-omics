@@ -45,7 +45,17 @@ CURATION_CONFIDENCE: frozenset[str] = frozenset(CURATION_BASIS.values())
 # **Membership is "leaves GG after trypsin", not "ends in GG".** SUMO1/2/3 and FAT10 all end in GG,
 # but trypsin cuts C-terminal to K/R, so the remnant is everything after the modifier's last K or R
 # — and only a modifier with K or R at position -3 of its mature chain leaves the +114.0429 Da
-# diglycine. Verified against UniProt mature chains 2026-08-07:
+# diglycine.
+#
+# **Read the mature chain, not the canonical sequence.** Every modifier here is expressed as a
+# precursor and cleaved before conjugation, so a UniProt entry's canonical sequence ends in the
+# propeptide, not in the C-terminus that trypsin ever sees — ubiquitin's `P0CG48` canonical is a
+# polyubiquitin precursor, ISG15's carries a C-terminal extension. Checking canonical sequences
+# gives the wrong -3 residue for *every* row of the table below and so the wrong answer for all
+# of them; the `Chain` feature is the sequence to take. Recorded because this is the second way
+# the set has been got wrong, and the first attempt at the correction made exactly this mistake.
+#
+# Verified against UniProt mature chains 2026-08-07:
 #
 #   ubiquitin P0CG48  LRLRGG  -3=R  remnant GG                  114.04 Da
 #   NEDD8     Q15843  LALRGG  -3=R  remnant GG                  114.04 Da

@@ -522,22 +522,23 @@ def test_gg_remnant_modifiers_match_ontology_6_1() -> None:
         assert accession.startswith("uniprot:"), accession
         assert name.lower() in section.lower(), f"§6.1 does not name {name}"
 
-    # Beyond §6.1, because §6.1 was not where the stale four-item set survived. The worked example
-    # in §9 carried `O15205 (FAT10, leaves_gg_remnant true)` and a four-item candidate list through
-    # the correction, and a guard scoped to the section that was fixed would have reported clean.
-    # The class is "anywhere in this document that enumerates the remnant set", so check the
-    # document: no accession outside the enum may be asserted to leave a remnant, and no worked
-    # candidate list may name one.
-    outside = {"O15205", "P63165", "P61960"}
-    for line in text.splitlines():
-        if "leaves_gg_remnant true" in line:
-            named = set(re.findall(r"uniprot:(\w+)", line))
-            assert not named & outside, (
-                f"asserts a remnant for an excluded modifier: {line.strip()}"
-            )
-        if "candidate_modifiers [" in line:
-            listed = set(re.findall(r"\b([OPQ]\d\w{4})\b", line))
-            assert listed <= included, f"candidate list names a non-member: {line.strip()}"
+    # Beyond §6.1, and deliberately about the *token* rather than about any syntax.
+    #
+    # The correction was applied three times before this guard was right. §6.1 and the enum were
+    # fixed first; §9's worked example kept `O15205 (FAT10, leaves_gg_remnant true)` and a four-item
+    # candidate list, so the guard was widened to those two shapes; and §4's `Modifier.name` DDL
+    # comment still read `'ubiquitin' | 'NEDD8' | 'ISG15' | 'FAT10'`, which is neither shape. Each
+    # widening chased the last instance's syntax and would have missed the next one.
+    #
+    # So the rule is positional, not syntactic: **an excluded modifier may be named in this document
+    # only where the document is explaining its exclusion**, which is §6.1. Anywhere else is either
+    # a stale enumeration or a new claim needing §6.1 to be revisited first — and both should fail.
+    body = text[: text.index("### 6.1 Modifier ambiguity")] + text[text.index("### 6.2") :]
+    for token in ("FAT10", "O15205", "SUMO", "P63165", "UFM1", "P61960"):
+        assert token not in body, (
+            f"{token!r} appears outside §6.1. An excluded modifier is named only where its "
+            "exclusion is explained; elsewhere it is a stale copy of the four-item set."
+        )
 
 
 def test_schema_builds_on_kuzu() -> None:

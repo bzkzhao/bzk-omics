@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.9 |
+| Version | 1.10 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -67,7 +67,8 @@ bzk/
     loader.py
   adapters/      # ingestion; one module per search engine or analysis tool
     perseus.py   # analysis-output (ADR-0017); protein grain, no network in the parse path
-    maxquant.py  # the guarded table reader today; the adapter proper is weeks 5-6
+    maxquant.py  # the guarded table reader every MaxQuant module goes through
+    maxquant_sites.py  # search-output; site grain, resolver injected, refusals counted
     fragpipe.py
     diann.py
     base.py      # the adapter contract
@@ -100,6 +101,14 @@ every adapter test need a network stub; resolving *after* the adapter leaves it 
 all. Unresolved accessions are **reported, not raised** — at the site table's 4,815 distinct
 accessions a dead one is expected, and whether it sinks a site is the adapter's call, not the
 resolver's.
+
+**An adapter reports what it refused.** `ParsedObservations.refusals` carries one entry per input
+row that did not become a node, with a stable reason slug and a human-readable detail; it defaults
+to empty so an adapter with nothing to refuse says nothing. A change-set is a claim about what a
+file contained, and an adapter that filters silently makes that claim false — `CLAUDE.md` § Flag
+rather than hide. This is not bookkeeping: `maxquant_sites.py`'s residue check produces the
+sequence-drift measurement on record in `ROADMAP.md` § Measured findings entirely through this
+channel, and a `logging.warning` would have left it unmeasurable.
 
 **`ontology/store.py` is the only module that writes.** `invariants.py` is deliberately
 storage-free — a change-set is plain data, which is what lets every invariant be a pure function

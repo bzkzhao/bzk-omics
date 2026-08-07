@@ -46,6 +46,7 @@ contract at all: ``{**props}`` would have overwritten the node type. Every colum
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from typing import Any
@@ -220,16 +221,83 @@ def _check_confidence(nodes: list[Node], label: str, invariant: str) -> None:
 
 
 def _check_I2(nodes: list[Node], edges: list[Edge]) -> None:
-    """I2 — a ModificationSite's SITE_ON target (a ProteinSequence) must carry a sequence_version."""
+    """I2 — sequence pinning, in four clauses (ADR-0005; `HANDOFF.md` §8's three, plus the first).
+
+    The first clause has always been here. The other three landed with the first search-output
+    adapter, which is the trigger §8 recorded for them, and each closes a way for a position to
+    assert against one sequence while attaching to another:
+
+      2. the `sv` segment of the site key must equal the target's `sequence_version` — otherwise the
+         key says sv3 and the graph says sv4;
+      3. the residue at the site's position must be the residue the site claims, where the sequence
+         is in the change-set — the write-time mirror of the adapter's own check, and the backstop
+         for any future producer that skips it;
+      4. a `ProteinSequence`'s id must agree with its own `sequence_version` and with the accession
+         of the `Protein` it hangs from — a key and a column are two homes for one fact.
+
+    Clause 3 is skipped where the change-set carries no `sequence`, which is legal: a site may be
+    re-staged against a `ProteinSequence` already in the graph. It is a backstop, not the first line.
+    """
     by_id = _index(nodes)
     for edge in _edges(edges, "SITE_ON"):  # ModificationSite -> ProteinSequence
-        protein_sequence = by_id[edge["to"]]
-        if protein_sequence.get("sequence_version") is None:
+        site, protein_sequence = by_id[edge["from"]], by_id[edge["to"]]
+        version = protein_sequence.get("sequence_version")
+        if version is None:
             raise InvariantError(
                 "I2",
                 f"ModificationSite {edge['from']} sits on ProteinSequence {edge['to']} "
                 "which has no sequence_version; residue numbering is meaningless.",
             )
+        keyed = _sv_segment(str(site.get("id", "")))
+        if keyed is not None and keyed != int(version):
+            raise InvariantError(
+                "I2",
+                f"ModificationSite {site.get('id')} is keyed against sv{keyed} but its SITE_ON "
+                f"target {edge['to']} declares sequence_version {version}; the position would "
+                "assert against one sequence while attaching to another.",
+            )
+        sequence = protein_sequence.get("sequence")
+        position, residue = site.get("position"), site.get("residue")
+        if isinstance(sequence, str) and isinstance(position, int) and isinstance(residue, str):
+            actual = sequence[position - 1] if 1 <= position <= len(sequence) else None
+            if actual != residue.upper():
+                raise InvariantError(
+                    "I2",
+                    f"ModificationSite {site.get('id')} claims {residue!r} at position {position} "
+                    f"but {edge['to']} has {actual or 'nothing (past the end)'!r} there.",
+                )
+
+    accession_of = {
+        e["to"]: by_id[e["from"]].get("accession") for e in _edges(edges, "HAS_SEQUENCE")
+    }
+    for protein_sequence in _nodes(nodes, "ProteinSequence"):
+        node_id = str(protein_sequence.get("id", ""))
+        version = protein_sequence.get("sequence_version")
+        keyed = _sv_segment(node_id)
+        if version is not None and keyed is not None and keyed != int(version):
+            raise InvariantError(
+                "I2",
+                f"ProteinSequence {node_id} declares sequence_version {version}; its id says "
+                f"sv{keyed}. A key and a column are two homes for one fact.",
+            )
+        accession = accession_of.get(node_id)
+        if accession is not None and node_id.split("#")[0] != f"uniprot:{accession}":
+            raise InvariantError(
+                "I2",
+                f"ProteinSequence {node_id} is reached by HAS_SEQUENCE from a Protein with "
+                f"accession {accession!r}; the id names a different protein. An isoform keyed "
+                "against its canonical parent is exactly the substitution ADR-0005 forbids.",
+            )
+
+
+def _sv_segment(node_id: str) -> int | None:
+    """The `n` of an `#sv{n}` segment anywhere in an id, or `None` if it carries none.
+
+    `None` rather than an error: not every id passed here is a keyed one, and a caller that cannot
+    find a version should skip the comparison rather than invent one.
+    """
+    match = re.search(r"#sv(\d+)", node_id)
+    return int(match.group(1)) if match else None
 
 
 def _check_I3(nodes: list[Node], edges: list[Edge]) -> None:

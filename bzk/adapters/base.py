@@ -16,6 +16,7 @@ handling lives; downstream code sees only recorded fields, never branches on the
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import field as dc_field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -43,6 +44,25 @@ class SampleMapping:
 
 
 @dataclass(frozen=True)
+class Refusal:
+    """One input row that did not become a node, and why.
+
+    An adapter that filters is normal; an adapter that filters *silently* is the defect `CLAUDE.md`
+    § Flag rather than hide names. A change-set is a claim about what a file contained, and a file
+    of 2,056 rows that yields 1,900 sites has said something about the other 156 — sometimes the
+    most interesting thing in the run, as with sequence drift in `maxquant_sites.py`.
+
+    `reason` is a short stable slug so refusals can be counted by kind; `detail` is for the human
+    reading the report and may name values. Deliberately not an exception: one unusable row must not
+    sink a batch of thousands, and a per-row raise would make the count unobtainable.
+    """
+
+    row: str
+    reason: str
+    detail: str
+
+
+@dataclass(frozen=True)
 class ParsedObservations:
     """One adapter's output as a self-contained change-set (ADR-0019).
 
@@ -50,10 +70,13 @@ class ParsedObservations:
     every referent present, correctly labelled, multiplicity respected. Satisfies the `Observation`
     contract (ONTOLOGY.md §5.1) and makes no tryptic assumptions (I12): peptides need not end in
     K or R, may carry several modifications, and may map to more than one protein.
+
+    `refusals` defaults to empty, so an adapter that cannot refuse anything says nothing about it.
     """
 
     nodes: list[Node]
     edges: list[Edge]
+    refusals: list[Refusal] = dc_field(default_factory=list)
 
 
 @runtime_checkable

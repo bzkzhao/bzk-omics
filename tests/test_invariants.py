@@ -72,6 +72,83 @@ def test_I2_site_parent_sequence_needs_sequence_version() -> None:
     assert "sequence_version" in str(ei.value)
 
 
+def test_I2_site_key_version_must_match_its_target() -> None:
+    """Clause 2. The key says sv3, the target declares 4 — the position asserts against one
+    sequence while attaching to another, which is the whole failure I2 exists to prevent.
+
+    The sequence deliberately **has K at 48**, so clause 3 is satisfied and only clause 2 can fire.
+    Written flat first, with `M`*50, and mutation-testing caught it: clause 3 raised instead, and
+    the assertion passed anyway because the site's own id contains `sv3` and appears in *that*
+    message too. A red test that goes red for the wrong reason is the same defect as a green one
+    that passes vacuously — assert on text only one branch can produce.
+    """
+    site = f"{MX1}#sv3#K48#{GG}"
+    nodes = [
+        n(
+            "ProteinSequence",
+            id=f"{MX1}#sv4",
+            sequence_version=4,
+            sequence="M" * 47 + "K" + "M" * 2,
+        ),
+        n("ModificationSite", id=site, residue="K", position=48, modification_type=GG),
+    ]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("SITE_ON", site, f"{MX1}#sv4")], only="I2")
+    assert ei.value.invariant == "I2"
+    assert "attaching to another" in str(ei.value)
+
+
+def test_I2_site_residue_must_match_the_sequence_it_sits_on() -> None:
+    """Clause 3, the write-time mirror of the adapter's own check. `MAAKG…` has A at 2, not K."""
+    site = f"{MX1}#sv4#K2#{GG}"
+    nodes = [
+        n("ProteinSequence", id=f"{MX1}#sv4", sequence_version=4, sequence="MAAKGGKLLKR"),
+        n("ModificationSite", id=site, residue="K", position=2, modification_type=GG),
+    ]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("SITE_ON", site, f"{MX1}#sv4")], only="I2")
+    assert ei.value.invariant == "I2"
+    assert "'A'" in str(ei.value)
+
+
+def test_I2_a_change_set_without_the_sequence_skips_the_residue_check() -> None:
+    """Clause 3 is a backstop, not the first line: re-staging a site against a `ProteinSequence`
+    already in the graph is legal, and the change-set then carries no sequence to check against.
+    Asserted so a future tightening is a deliberate change rather than an accident."""
+    site = f"{MX1}#sv4#K2#{GG}"
+    nodes = [
+        n("ProteinSequence", id=f"{MX1}#sv4", sequence_version=4),
+        n("ModificationSite", id=site, residue="K", position=2, modification_type=GG),
+    ]
+    validate(nodes, [e("SITE_ON", site, f"{MX1}#sv4")], only="I2")  # must not raise
+
+
+def test_I2_protein_sequence_id_must_match_its_own_version() -> None:
+    """Clause 4, first half. A key and a column are two homes for one fact."""
+    nodes = [
+        n("Protein", id=MX1, accession="P20591"),
+        n("ProteinSequence", id=f"{MX1}#sv4", sequence_version=7),
+    ]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("HAS_SEQUENCE", MX1, f"{MX1}#sv4")], only="I2")
+    assert ei.value.invariant == "I2"
+    assert "sv4" in str(ei.value)
+
+
+def test_I2_protein_sequence_id_must_match_the_protein_it_hangs_from() -> None:
+    """Clause 4, second half — the isoform substitution ADR-0005 forbids, at write time. The
+    canonical `Protein` carrying the isoform's `ProteinSequence` is exactly how a K-GG position
+    resolves to the wrong residue while validating as a lysine (`HANDOFF.md` §6)."""
+    nodes = [
+        n("Protein", id="uniprot:P09914", accession="P09914"),
+        n("ProteinSequence", id=f"{IFIT1_2}#sv2", sequence_version=2),
+    ]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("HAS_SEQUENCE", "uniprot:P09914", f"{IFIT1_2}#sv2")], only="I2")
+    assert ei.value.invariant == "I2"
+    assert "different protein" in str(ei.value)
+
+
 def test_I3_ambiguous_assignment_may_not_name_a_modifier() -> None:
     nodes = [
         n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR"),

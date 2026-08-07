@@ -211,9 +211,11 @@ CREATE NODE TABLE ModificationSite(
 
 CREATE NODE TABLE Modifier(
   id STRING,                    -- CURIE, uniprot: of the modifier protein
-  name STRING,                  -- 'ubiquitin' | 'NEDD8' | 'ISG15' | 'FAT10'
-  c_terminal_motif STRING,      -- 'LRGG' etc.
-  leaves_gg_remnant BOOLEAN,    -- tryptic K-ε-GG remnant. See §6.
+  name STRING,                  -- 'ubiquitin' | 'NEDD8' | 'ISG15'
+  c_terminal_motif STRING,      -- mature chain, not canonical: 'LRLRGG', 'LALRGG'
+  leaves_gg_remnant BOOLEAN,    -- true for exactly the three above (§6.1). The table admits
+                                -- modifiers where it is false; none is seeded, since a modifier
+                                -- that leaves no GG remnant is invisible to this assay.
   PRIMARY KEY (id));
 
 CREATE NODE TABLE Pathway(id STRING, name STRING, source STRING, PRIMARY KEY (id));
@@ -531,7 +533,11 @@ Absence of a live non-ambiguous inference is a first-class state, never a defaul
 
 Ubiquitin, NEDD8 and ISG15 leave an identical K-ε-GG remnant (+114.0429 Da) on the acceptor lysine after tryptic digestion. Neither the precursor mass nor the MS² fragmentation distinguishes them.
 
-**Corrected 2026-08-07: three, not four.** An earlier revision read *"Ubiquitin, NEDD8, ISG15 and FAT10 all terminate in a diglycine motif"* and inferred an identical remnant from that. Terminating in GG is not the criterion. Trypsin cuts C-terminal to K/R, so the remnant is everything after the modifier's **last K or R** — a GG remnant therefore requires K or R at position −3 of the mature chain. Verified against UniProt mature chains: ubiquitin (`P0CG48`, LRLR**GG**), NEDD8 (`Q15843`, LALR**GG**) and ISG15 (`P05161`, LRLR**GG**) all have R at −3 and leave GG at 114.0429 Da. **FAT10** (`O15205`) ends in GG but has isoleucine at −3, so trypsin leaves `GNLLFLACYCIGG` — 1,324.63 Da, not a diglycine and not co-isolated by anti-K-GG enrichment. SUMO1 (`P63165`) is excluded for the same reason at 2,135.92 Da, and UFM1 (`P61960`) does not end in GG at all. The DDL example below always said three; the prose said four, and the prose was wrong.
+**Corrected 2026-08-07: three, not four.** An earlier revision read *"Ubiquitin, NEDD8, ISG15 and FAT10 all terminate in a diglycine motif"* and inferred an identical remnant from that. Terminating in GG is not the criterion. Trypsin cuts C-terminal to K/R, so the remnant is everything after the modifier's **last K or R** — a GG remnant therefore requires K or R at position −3 of the mature chain.
+
+**Read the mature chain, not the canonical sequence.** Every modifier here is expressed as a precursor and cleaved before it can be conjugated, so a UniProt entry's canonical sequence ends in the propeptide rather than in the C-terminus trypsin ever encounters — `P0CG48` is a polyubiquitin precursor, and ISG15 carries a C-terminal extension. Checking canonical sequences yields the wrong −3 residue for *every* modifier below, and so the wrong answer for all of them; the `Chain` feature is the sequence to take. This is recorded rather than assumed because the first attempt at the correction below made exactly this mistake before catching it.
+
+Verified against UniProt mature chains: ubiquitin (`P0CG48`, LRLR**GG**), NEDD8 (`Q15843`, LALR**GG**) and ISG15 (`P05161`, LRLR**GG**) all have R at −3 and leave GG at 114.0429 Da. **FAT10** (`O15205`) ends in GG but has isoleucine at −3, so trypsin leaves `GNLLFLACYCIGG` — 1,324.63 Da, not a diglycine and not co-isolated by anti-K-GG enrichment. SUMO1 (`P63165`) is excluded for the same reason at 2,135.92 Da, and UFM1 (`P61960`) does not end in GG at all. The DDL example below always said three; the prose said four, and the prose was wrong.
 
 The field's default assumption — that a K-GG site is ubiquitin — holds at baseline because ubiquitin conjugation dominates. Under type I interferon stimulation it does not: *ISG15* and *UBA7* are among the most strongly induced genes, and the ISGylated share of the K-GG population rises substantially. This is the exact condition the platform exists to analyse.
 
