@@ -1,0 +1,77 @@
+{
+  "synthetic": true,
+  "note": "SYNTHETIC — not a real deposit, not a curation of one. This exists so the loader's success path can be tested while data/curation/curation_PXD018299.json is still incomplete (HANDOFF.md §8: both titles, and the timepoint on the unstimulated arms, are the curator's to supply). Nothing here may be copied into data/curation/. `accession` is deliberately not a PXD accession and `file` is deliberately not a deposit filename, so this record can never be mistaken for one or picked up by the deposit-digest guard. `content_hash` is real and verifiable: it is sha256(b'bzk-omics synthetic curation fixture'). Four samples rather than twelve — enough to exercise two conditions, two replicates, the PERFORMED_ON / PRODUCED / SAMPLE_GENERATED_BY edges and id distinctness, while staying readable.",
+  "accession": "SYNTHETIC-0001",
+  "file": "SYNTHETIC_GlyGlyKSites.txt",
+  "content_hash": "sha256:b50c8b3b88781ec08bee0d3b62cecf96391f4ee86230941cf92150c92003664f",
+  "project": {
+    "title": "Synthetic loader fixture project"
+  },
+  "experiment": {
+    "title": "Synthetic loader fixture experiment",
+    "modality": "digly_proteomics",
+    "organism_taxid": 9606
+  },
+  "search_engine": "maxquant",
+  "search_engine_version": "1.5.5.1",
+  "acquisition_mode": "dda",
+  "instrument": "Q Exactive HF",
+  "basis": "publication_methods",
+  "confidence": "inferred",
+  "curated_by": null,
+  "curated_at": "2026-08-07",
+  "rationale": "Synthetic. Written to exercise the loader, not to describe an experiment anyone performed.",
+  "unresolved": [
+    "Nothing. A record with an open question does not belong in a success-path fixture — the refusal path is tested against the real record instead."
+  ],
+  "contrasts_of_interest": [
+    {
+      "id": "treated_vs_untreated",
+      "numerator": "treated",
+      "denominator": "untreated",
+      "note": "Read by the loader and deliberately NOT materialised as a Contrast node — the reference-vs-evidence placement is unsettled (ONTOLOGY.md §11 Q1) and the adapter constructs the contrast inline (HANDOFF.md §8)."
+    }
+  ],
+  "mapping": {
+    "Intensity CTRL_1": {
+      "genotype": "WT",
+      "treatment": "none",
+      "timepoint_h": 48,
+      "replicate": 1,
+      "replicate_type": "biological",
+      "source_type": "cell_line",
+      "cell_line": "HAP1",
+      "organism_taxid": 9606
+    },
+    "Intensity CTRL_2": {
+      "genotype": "WT",
+      "treatment": "none",
+      "timepoint_h": 48,
+      "replicate": 2,
+      "replicate_type": "biological",
+      "source_type": "cell_line",
+      "cell_line": "HAP1",
+      "organism_taxid": 9606
+    },
+    "Intensity TREAT_1": {
+      "genotype": "WT",
+      "treatment": "synthetic_treatment",
+      "timepoint_h": 48,
+      "replicate": 1,
+      "replicate_type": "biological",
+      "source_type": "cell_line",
+      "cell_line": "HAP1",
+      "organism_taxid": 9606
+    },
+    "Intensity TREAT_2": {
+      "genotype": "WT",
+      "treatment": "synthetic_treatment",
+      "timepoint_h": 48,
+      "replicate": 2,
+      "replicate_type": "biological",
+      "source_type": "cell_line",
+      "cell_line": "HAP1",
+      "organism_taxid": 9606
+    }
+  }
+}

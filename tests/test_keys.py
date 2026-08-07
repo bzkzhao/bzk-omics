@@ -204,8 +204,11 @@ def test_psi_mod_may_not_key_a_site() -> None:
 
 
 def test_protein_sequence_without_a_version_is_refused() -> None:
+    # No `type: ignore` here any more. One used to be needed, and it was the tell: a test asserting
+    # the I2 guard had to suppress the checker to reach it, because the signature claimed a state
+    # the guard exists to reject could not arrive (HANDOFF.md §8).
     with pytest.raises(KeyError_):
-        protein_sequence_key("uniprot:P20591", None)  # type: ignore[arg-type]
+        protein_sequence_key("uniprot:P20591", None)
 
 
 # ── The builder covers every label the schema declares ──────────────────────────────────────────

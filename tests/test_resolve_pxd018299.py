@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from bzk.resolve.uniprot import resolve, validate_position
 
@@ -46,7 +46,7 @@ class _FixtureSession:
 
 
 def _load() -> dict[str, Any]:
-    return json.loads(FIXTURE.read_text())
+    return cast("dict[str, Any]", json.loads(FIXTURE.read_text()))
 
 
 def _session(fx: dict[str, Any]) -> _FixtureSession:

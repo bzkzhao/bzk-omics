@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.4 |
+| Version | 1.5 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -61,7 +61,9 @@ The UniProt cache is not optional. Site position validation requires the exact s
 
 ```
 bzk/
-  ontology/      # schema DDL, node/edge dataclasses, invariant checks
+  ontology/      # schema DDL, node/edge dataclasses, invariant checks, the key builder
+  curation/      # data/curation/*.json -> change-set; the one non-derivable input (§2)
+    loader.py
   adapters/      # ingestion; one module per search engine
     maxquant.py
     fragpipe.py
@@ -73,9 +75,23 @@ bzk/
   quant/         # DuckDB layer, normalisation
   stats/         # moderated t-test, BH, protein-level adjustment
   provenance/    # PROV-O mapping, content hashing; raw_store.py is the content-addressed raw/
+  http.py        # the injected-HTTP protocols the three network-touching modules share
   api/           # FastAPI routes
 web/             # SvelteKit
 ```
+
+**`curation/` is separate from `adapters/` for the same reason `sources/` is.** An adapter is one
+module per search engine, reading a quantitative output file under the `ObservationAdapter`
+contract. A curation record is not an engine's output and carries no measurements: it is the human
+judgement about which raw file corresponds to which condition, which §5.3 models as an *activity*.
+It also runs first and produces the `SampleMapping` an adapter then consumes, so making it an
+adapter would make the contract circular.
+
+**`http.py` holds protocols, not a client.** Three modules take an injectable `session` so their
+logic is exercisable offline (`resolve/uniprot.py`, `sources/pride.py`, and `rebuild.py`, which
+passes one through). Each declared it `requests.Session`, which is stricter than the code needs;
+the requirement is structural, and two small `Protocol`s say so — one for a byte fetch, one for the
+REST surface. `requests` stays the only HTTP library and nothing wraps it.
 
 ### The adapter contract
 

@@ -35,6 +35,8 @@ from pathlib import Path
 
 import requests
 
+from bzk.http import RestSession
+
 UNIPROT_REST = "https://rest.uniprot.org/uniprotkb"
 DEFAULT_CACHE_DIR = Path.home() / ".bzk-omics" / "cache" / "uniprot"
 TIMEOUT = 30
@@ -91,7 +93,7 @@ def _seq_path(cache_dir: Path, accession: str, sv: int) -> Path:
     return cache_dir / "seq" / f"{accession}#sv{sv}.txt"
 
 
-def _fetch_entry(session: requests.Session, canonical: str) -> _Entry:
+def _fetch_entry(session: RestSession, canonical: str) -> _Entry:
     """Fetch canonical-entry metadata from the JSON endpoint (mirrors notebook Step 4)."""
     try:
         r = session.get(f"{UNIPROT_REST}/{canonical}.json", timeout=TIMEOUT)
@@ -118,9 +120,7 @@ def _fetch_entry(session: requests.Session, canonical: str) -> _Entry:
     )
 
 
-def _load_entry(
-    cache_dir: Path, canonical: str, *, refresh: bool, session: requests.Session
-) -> _Entry:
+def _load_entry(cache_dir: Path, canonical: str, *, refresh: bool, session: RestSession) -> _Entry:
     """Tier 1: return cached entry metadata, or fetch and cache it. Errors are never cached.
 
     Cache loading is tolerant of format drift: unknown keys are dropped and a record that cannot be
@@ -160,7 +160,7 @@ def _seq_cache_put(cache_dir: Path, accession: str, sv: int | None, sequence: st
 
 
 def _isoform_sequence(
-    session: requests.Session, cache_dir: Path, requested: str, sv: int | None
+    session: RestSession, cache_dir: Path, requested: str, sv: int | None
 ) -> tuple[str | None, str]:
     """Fetch the isoform sequence from the FASTA endpoint at its full accession (never stripped).
 
@@ -187,7 +187,7 @@ def resolve(
     *,
     cache_dir: Path = DEFAULT_CACHE_DIR,
     refresh: bool = False,
-    session: requests.Session | None = None,
+    session: RestSession | None = None,
 ) -> Resolution:
     """Resolve an accession to its sequence and metadata, honouring isoform suffixes.
 

@@ -37,7 +37,8 @@ class _StubSession:
     """Records the URL it was asked for, so the ftp→https conversion is observable."""
 
     def __init__(self, content: bytes = PAYLOAD) -> None:
-        self.content, self.urls = content, []
+        self.content = content
+        self.urls: list[str] = []
 
     def get(self, url: str, timeout: int = 0) -> Any:
         self.urls.append(url)

@@ -21,6 +21,47 @@ CONFIDENCE = frozenset({"ambiguous", "probable", "confirmed"})  # EvidencedInfer
 PROTEIN_ADJUSTED = frozenset({"applied", "not_applied", "native"})  # DifferentialResult (§8 I4)
 STOCHASTIC_IMPUTATION = frozenset({"downshifted_normal"})  # methods requiring a seed (§6.5, I15)
 
+# Curation's own vocabulary (§5.3) — a *separate* set from CONFIDENCE above, sharing no values with
+# it, which is why reusing that frozenset for `Analysis.confidence` would be wrong rather than
+# merely loose (HANDOFF.md §8, the key builder's contract). §5.3 states the confidence each basis
+# carries, so the mapping is the table: an `authoritative` basis is one the submitters or an SDRF
+# file stated, an `inferred` one is read off a paper or a filename. Both fields are identifying, so
+# a misspelling forks an `Analysis` id — hence a closed enum rather than a convention.
+CURATION_BASIS: dict[str, str] = {
+    "sdrf": "authoritative",
+    "author_correspondence": "authoritative",
+    "submitter_metadata": "inferred",
+    "publication_methods": "inferred",
+    "filename_inference": "inferred",
+}
+CURATION_CONFIDENCE: frozenset[str] = frozenset(CURATION_BASIS.values())
+
+# §3's absence classification, mirrored for code that must decide whether a null is legal.
+# ADR-0021: an identifying field may be null only where something *outside the moment of ingest*
+# fixes that null — `determined` by another recorded field or a stated structural fact, or
+# `curated` by a versioned human judgement. Anything else is `contingent`, which makes an id a
+# function of when the data was read, and is a defect to redesign rather than a state to declare.
+# A pair absent from this map may not be null at all. Guarded against §3 by tests/test_schema.py.
+ABSENCE: dict[tuple[str, str], str] = {
+    ("Sample", "cell_line"): "determined",
+    ("Sample", "model_system"): "determined",
+    ("Analysis", "basis"): "determined",
+    ("Analysis", "confidence"): "determined",
+    ("Analysis", "quantity"): "determined",
+    ("Analysis", "localization_threshold"): "determined",
+    ("Analysis", "test"): "determined",
+    ("Analysis", "fdr_method"): "determined",
+    ("Analysis", "external_tool"): "determined",
+    ("Analysis", "external_version"): "determined",
+    ("Analysis", "parameters_json"): "determined",
+    ("Imputation", "downshift_sd"): "determined",
+    ("Imputation", "width_sd"): "determined",
+    ("Imputation", "seed"): "determined",
+    ("Imputation", "scope"): "determined",
+    ("DifferentialResult", "adjustment_method"): "determined",
+    ("Person", "orcid"): "curated",
+}
+
 
 @dataclass(frozen=True)
 class NodeTable:

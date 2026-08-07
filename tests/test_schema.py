@@ -11,7 +11,9 @@ import json
 import re
 import shutil
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import kuzu
 
@@ -63,7 +65,7 @@ def test_schema_rel_tables_match_ontology() -> None:
     assert schema_rels == ontology_rels
 
 
-def _walk_nodes(obj: object):
+def _walk_nodes(obj: object) -> Iterator[dict[str, Any]]:
     """Yield every dict carrying an 'id' and a 'label' — the node shape, wherever it is nested."""
     if isinstance(obj, dict):
         if "id" in obj and "label" in obj:
@@ -251,7 +253,7 @@ def test_absent_identifying_fields_are_determined_not_contingent() -> None:
     for folder in ("tests/fixtures", "data/curation"):
         for path in (root / folder).rglob("*.json"):
             for node in _walk_nodes(json.loads(path.read_text())):
-                label = node.get("label")
+                label = str(node["label"])  # _walk_nodes only yields dicts carrying one
                 for field in identifying.get(label, ()):
                     if node.get(field) is None:
                         seen += 1
@@ -260,6 +262,27 @@ def test_absent_identifying_fields_are_determined_not_contingent() -> None:
                             f"{field!r}, which §3 does not classify as a determined absence"
                         )
     assert seen, "no absent identifying fields found — the data half would be vacuous"
+
+
+def test_schema_absence_matches_ontology_table() -> None:
+    """`schema.ABSENCE` is the code-side mirror of §3's absence classification.
+
+    The test above checks the *document's* table is internally sound and covers committed data.
+    This checks the mirror agrees with it in both directions, so a row added to §3 without the
+    corresponding entry here — or an entry here with no row in §3 — fails rather than quietly
+    letting `bzk/curation/loader.py` accept a null §3 never classified, or refuse one it did.
+    """
+    text = ONTOLOGY.read_text()
+    start = text.index("**Absence must be determined or curated, never contingent.**")
+    block = text[start : text.index("\n\n", text.index("|---|", start))]
+    rows = re.findall(r"^\| `(\w+)` \| `(\w+)` \| (\w+) \| (.+?) \|\s*$", block, re.MULTILINE)
+    assert rows, "absence-classification table not found in §3"
+    documented = {(label, field): kind for label, field, kind, _why in rows}
+    assert schema.ABSENCE == documented, (
+        f"schema.ABSENCE differs from ONTOLOGY §3: "
+        f"only in code {sorted(set(schema.ABSENCE) - set(documented))}; "
+        f"only in §3 {sorted(set(documented) - set(schema.ABSENCE))}"
+    )
 
 
 def test_qualifying_child_fields_match_ddl() -> None:
@@ -410,7 +433,7 @@ def test_quantity_values_are_in_enum() -> None:
     ids for one fact. This checks fixtures and curation records honour the closed vocabulary.
     """
 
-    def quantities(obj: object):
+    def quantities(obj: object) -> Iterator[str]:
         if isinstance(obj, dict):
             for k, v in obj.items():
                 if k == "quantity" and isinstance(v, str):
@@ -433,15 +456,45 @@ def test_quantity_values_are_in_enum() -> None:
     assert seen, "no quantity values found — guard would be vacuous"
 
 
+def test_curation_basis_enum_matches_ontology_5_3() -> None:
+    """`schema.CURATION_BASIS` mirrors §5.3's basis table, values *and* the confidence each carries.
+
+    Both fields are identifying on `Analysis` (§3), so a value outside the enum forks an id instead
+    of failing — which is why the loader checks against a closed set rather than a convention, and
+    why the set has to be checked against the document that closes it. `Analysis.confidence` is
+    curation's own vocabulary and shares no values with `schema.CONFIDENCE` (§6): asserting that
+    here stops a later session "tidying" the two together (HANDOFF.md §8).
+    """
+    text = ONTOLOGY.read_text()
+    start = text.index("### 5.3 Curation as an activity")
+    block = text[start : text.index("\n\n", text.index("|---|", start))]
+    rows = re.findall(r"^\| `(\w+)` \| .+? \| `(\w+)` \|\s*$", block, re.MULTILINE)
+    assert rows, "§5.3 basis table not found"
+    assert schema.CURATION_BASIS == dict(rows), (
+        f"schema.CURATION_BASIS {schema.CURATION_BASIS} != §5.3 {dict(rows)}"
+    )
+    assert schema.CURATION_CONFIDENCE == {c for _b, c in rows}
+    assert not (schema.CURATION_CONFIDENCE & schema.CONFIDENCE), (
+        "curation confidence and EvidencedInference confidence are different vocabularies (§5.3 "
+        "vs §6); an overlap means one has been collapsed into the other"
+    )
+
+
 def test_schema_builds_on_kuzu() -> None:
     tmp = tempfile.mkdtemp(prefix="schema_test_")
     try:
         conn = kuzu.Connection(kuzu.Database(str(Path(tmp) / "g.kuzu")))
         schema.create_schema(conn)
         result = conn.execute("CALL SHOW_TABLES() RETURN name")
+        # kuzu types both of these as unions — `execute` returns a list only for a multi-statement
+        # query, and `get_next` a dict only in a different result mode. Asserted rather than cast:
+        # a cast would hide it if kuzu ever did return the other arm here.
+        assert isinstance(result, kuzu.QueryResult)
         built = set()
         while result.has_next():
-            built.add(result.get_next()[0])
+            row = result.get_next()
+            assert isinstance(row, list)
+            built.add(row[0])
         assert built == schema.table_names()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

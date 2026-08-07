@@ -145,8 +145,18 @@ def protein_key(accession: str) -> str:
     return f"uniprot:{accession}"
 
 
-def protein_sequence_key(protein_id: str, sequence_version: int) -> str:
-    """`{Protein.id}#sv{n}` — n unpadded, per §4's canonicalization."""
+def protein_sequence_key(protein_id: str, sequence_version: int | str | None) -> str:
+    """`{Protein.id}#sv{n}` — n unpadded, per §4's canonicalization.
+
+    The declared type is widened from `int` to match the accepted domain, which the body always
+    had: `int(...)` is what performs §4's unpadding, so `'04'` and `4` both key `#sv4`, and
+    `tests/test_keys.py` depends on that. A version arrives as text — from a FASTA header, from a
+    cache path segment — far more often than as an int, and narrowing the signature to `int` would
+    push `int()` out to every caller, which is where a zero-padded value would survive into an id.
+    `None` is declared for the same reason: the I2 guard below exists to reject it loudly, and a
+    signature that pretended it could not arrive would make that guard look like dead code.
+    (`HANDOFF.md` §8 — this mismatch is what type-checking `tests/` surfaced.)
+    """
     if sequence_version is None:
         raise KeyError_(f"ProteinSequence of {protein_id} requires a sequence_version (I2)")
     return f"{protein_id}#sv{int(sequence_version)}"

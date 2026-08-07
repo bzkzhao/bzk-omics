@@ -27,8 +27,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import kuzu
-import requests
 
+from bzk.http import RestSession
 from bzk.ontology import schema
 from bzk.resolve.uniprot import resolve
 
@@ -90,7 +90,7 @@ def replay_ingestion(curation_dir: Path) -> int:
     return len(records)
 
 
-def drift_check(cache_dir: Path, *, session: requests.Session | None = None) -> list[Drift]:
+def drift_check(cache_dir: Path, *, session: RestSession | None = None) -> list[Drift]:
     """Compare each cached tier-2 sequence against a fresh UniProt fetch (ONTOLOGY.md §11 Q5).
 
     Fetching into a throwaway cache with ``refresh=True`` bypasses both cache tiers, so an isoform
@@ -129,7 +129,7 @@ def rebuild(
     *,
     home: Path = DEFAULT_HOME,
     curation_dir: Path = DEFAULT_CURATION_DIR,
-    session: requests.Session | None = None,
+    session: RestSession | None = None,
 ) -> RebuildReport:
     """Drop and reconstruct the derived stores, then drift-check the sequence cache."""
     log("dropping derived stores (graph.kuzu, quant.duckdb)")

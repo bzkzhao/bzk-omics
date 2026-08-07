@@ -9,7 +9,7 @@ in the isoform, so a test that reaches K at position 5 proves the isoform sequen
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import requests
 
@@ -42,7 +42,7 @@ class _FakeSession:
             if key in url:
                 if isinstance(resp, Exception):
                     raise resp
-                return resp
+                return cast("_Resp", resp)
         return _Resp(404)
 
 

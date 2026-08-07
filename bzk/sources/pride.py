@@ -17,6 +17,7 @@ from pathlib import Path
 
 import requests
 
+from bzk.http import BytesSession
 from bzk.provenance.raw_store import StoredFile, store
 
 FTP_HOST = "ftp://ftp.pride.ebi.ac.uk"
@@ -64,7 +65,7 @@ PXD018299_SITES = DepositFile(
 )
 
 
-def fetch_bytes(url: str, *, session: requests.Session | None = None, timeout: int = 600) -> bytes:
+def fetch_bytes(url: str, *, session: BytesSession | None = None, timeout: int = 600) -> bytes:
     sess = session or requests.Session()
     response = sess.get(to_https(url), timeout=timeout)
     response.raise_for_status()
@@ -75,7 +76,7 @@ def fetch(
     deposit: DepositFile,
     *,
     home: Path | None = None,
-    session: requests.Session | None = None,
+    session: BytesSession | None = None,
 ) -> StoredFile:
     """Fetch a deposit file into the content-addressed store, and report its SHA-256.
 
