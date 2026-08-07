@@ -74,7 +74,7 @@ Follow `ROADMAP.md` § Milestones. This adds the granularity that document delib
 
 *Only then* `bzk/adapters/perseus.py` (Weeks 3–4 below).
 
-**`raw/` does not persist across containers.** It lives under `~/.bzk-omics/` and is gitignored (`ARCHITECTURE.md` §2), so any session that needs the PXD018299 site table must run `python -m bzk.sources.pride` first — the fetch is idempotent and rewrites nothing if the bytes are already there. The durable link is the `content_hash` the three `data/curation/` records cite (`sha256:a4a503e3…`), not the file: it is what lets a session confirm it is working against the same bytes the curation was written for. A session that skips the fetch discovers this by failing.
+**`raw/` does not persist across containers.** It lives under `~/.bzk-omics/` and is gitignored (`ARCHITECTURE.md` §2), so any session that needs the PXD018299 site table must run `python -m bzk.sources.pride` first — the fetch is idempotent and rewrites nothing if the bytes are already there. The durable link is the `content_hash` the three `data/curation/` records cite (`sha256:a4a503e3…`), not the file: it is what lets a session confirm it is working against the same bytes the curation was written for. A session that skips the fetch discovers this by failing. Re-fetched on a second, empty container 2026-08-07 and the digest reproduced byte-for-byte (2,759,052 bytes) — the deposit is stable at that URL, so a hash mismatch should be read as a revised deposit or a truncated download, not as normal drift.
 
 ### Weeks 1–2
 
