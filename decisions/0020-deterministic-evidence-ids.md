@@ -50,8 +50,11 @@ The identifying fields and anchors for each evidence node type are enumerated in
 identity table in `ONTOLOGY.md` §3**. That table — not this ADR, and not the builder — is the source
 of truth for identity; the key builder mirrors it, guarded by a test against it when it lands.
 
-One key builder serves both reference and evidence nodes. This discharges the "single key builder"
-that I7 was recorded as waiting on (`HANDOFF.md` §8, CON class).
+One key builder serves both reference and evidence nodes. This is the decision that **will**
+discharge the "single key builder" I7 is recorded as waiting on (`HANDOFF.md` §8, CON class) — the
+builder is not yet written, and `invariants.py` still tracks I7 as pending. An earlier revision of
+this paragraph read "discharges", which would have told a reader that evidence ids are already
+deterministic in code. They are not.
 
 ## Consequences
 

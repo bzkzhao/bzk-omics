@@ -153,6 +153,32 @@ def test_identity_table_matches_ddl() -> None:
         )
 
 
+def test_qualifying_child_fields_match_ddl() -> None:
+    """§3's third identity component: a config child contributes its FIELD VALUES to its parent.
+
+    Checks the cited child is a node table, the cited relationship is declared between parent and
+    child, and every folded field is a column of the CHILD (not the parent). It cannot check the
+    config-vs-product judgement — that a folded child is configuration rather than something the
+    parent produced is a modelling call, and folding a product would pass here while being wrong.
+    """
+    nodes, rels = _parse_ontology()
+    text = ONTOLOGY.read_text()
+    start = text.index("**Qualifying child fields.**")
+    block = text[start : text.index("\n\n", text.index("|---|", start))]
+    rows = re.findall(r"^\| `(\w+)` \| `(\w+)` \(`([A-Z][A-Z0-9_]+)`\) \| (.+?) \|\s*$", block, re.M)
+    assert rows, "qualifying-child table not found in §3"
+    for parent, child, edge, fields in rows:
+        assert parent in nodes, f"§3 qualifying child: unknown parent {parent!r}"
+        assert child in nodes, f"§3 qualifying child: unknown child {child!r}"
+        assert edge in rels, f"§3 qualifying child: {edge!r} is not a rel table"
+        src, dst, _ = rels[edge]
+        assert {src, dst} == {parent, child}, (
+            f"§3 qualifying child: {edge} cited as {parent}↔{child}, DDL declares {src} → {dst}"
+        )
+        for field in re.findall(r"`([a-z][a-z0-9_]*)`", fields):
+            assert field in nodes[child], f"§3 qualifying child: {child}.{field} is not a column"
+
+
 def test_key_templates_cover_reference_nodes_and_name_real_fields() -> None:
     """§4's key templates were prose no test read — the surface the Protein defect hid on.
 

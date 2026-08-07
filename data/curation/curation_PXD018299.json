@@ -140,5 +140,12 @@
       "cell_line": "HAP1",
       "organism_taxid": 9606
     }
-  }
+  },
+  "corrections": [
+    {
+      "date": "2026-08-07",
+      "supersedes": "the quantity preference stated in `rationale`, which is retained above unedited",
+      "note": "The rationale prefers the 'Ratio mod/base' columns and states the raw 'Intensity' columns should not be used for this contrast. Measurement contradicts that preference. Ratio mod/base yields only 23 testable sites of 2,056 — stoichiometrically correct but unusable at this modification's occupancy — while Intensity with Perseus-style imputation yields thousands and recovers 12 of the 14 published targets (ROADMAP.md, Measured findings, 2026-08-06). The analysis actually run is recorded in analysis_PXD018299_KOIFN_vs_WTIFN.json with quantity 'intensity_multiplicity_summed'. The reasoning behind the original preference was sound — Intensity IS confounded by interferon-driven induction of the parent proteins — and that confound is now carried as protein_adjusted='not_applied', labelled stoichiometry-uncorrected wherever the result appears (I4), rather than by discarding the quantity. The mapping keys below still name the Ratio columns and are left untouched: they record which columns this curation was written against."
+    }
+  ]
 }

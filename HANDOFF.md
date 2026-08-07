@@ -184,6 +184,42 @@ All three cost time during exploration. All three are the same class: code that 
 | Search engine for the new USP18 dataset | Assumption A2 | Yes for that dataset only |
 | Where in his pipeline the handover belongs | `ROADMAP.md` § Open questions | No — ask at the meeting |
 
+### The key builder's contract (audit 2026-08-07) — write this before the builder, not after
+
+The 2026-08-07 identity audit measured the value space of every identifying field in `ONTOLOGY.md`
+§3. **Two of roughly forty-five are guarded**: `Analysis.quantity` (`QUANTITY_VALUES`, now checked at
+write time by `_check_I16` and on disk by `tests/test_schema.py`) and
+`DifferentialResult.protein_adjusted` (`PROTEIN_ADJUSTED`, checked by `_check_I4`). Everything else
+relies on adapters happening to emit canonical values, which is precisely the assumption ADR-0020's
+idempotent replay cannot make: two spellings of one fact mint two ids for one thing.
+
+**Do not patch this field by field.** `quantity` was closed one turn, `parameters_json` given a
+canonicalization rule another, and the audit found the remaining ~43 unguarded — the pattern is the
+defect. The fix is **one canonicalization discipline implemented once in the key builder**, covering
+three families:
+
+1. **Prose-closed, unguarded enums** (~15 fields): `Experiment.modality`; `Sample.source_type`,
+   `replicate_type`; `Analysis.kind`, `basis`, `test`, `fdr_method`, `external_tool`;
+   `Imputation.method`, `scope`; `DifferentialResult.adjustment_method`; and the `basis` of all three
+   `EvidencedInference` subtypes. Each is closed in a document and open in code. `Analysis.kind` is
+   the worst: `_check_I16` branches on `kind == 'curation'`, so a misspelling both forks the id *and*
+   silently escapes the quantity and filter checks. (`confidence` is now wired for the three
+   subtypes; `Analysis.confidence` uses curation's separate `authoritative` | `inferred` vocabulary,
+   which no frozenset models.)
+2. **Order-sensitive lists** (3 fields): `Analysis.filters_applied`,
+   `ModifierAssignment.candidate_modifiers`, `ProteinAssignment.candidate_proteins`. Element order
+   alone changes the id, and a search engine's candidate ordering is not canonical — at I14's
+   measured 82% multi-mapping this is the common path, not an edge case. Sort before hashing.
+3. **Unformatted floats** (4 fields): `Sample.timepoint_h`, `Analysis.localization_threshold`,
+   `Imputation.downshift_sd`, `width_sd`. `1.8` and `1.80` fork an id. **The `Analysis` qualifying-
+   child fold (§3) depends on this rule**, since it folds two of these floats.
+
+Also outstanding from the same audit: `parameters_json`'s canonicalization is documented in §3 and
+ADR-0020 but **implemented nowhere**, so today it behaves as open free text; and reference-key
+components have their own canonical forms now fixed in `ONTOLOGY.md` §4 (Unimod-only modification
+keys, unpadded `sv`, uppercase residue, lowercase CURIE prefix), checked against committed data but
+not against an ingested change-set.
+
 ### Unenforced invariants (audit 2026-08-07), by class
 
 The write-time change-set checks (I2, I3, I4, I10, I14, I15, I16, I19) and change-set structural

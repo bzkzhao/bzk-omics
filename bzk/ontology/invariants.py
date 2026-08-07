@@ -43,7 +43,12 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from bzk.ontology import schema
-from bzk.ontology.schema import PROTEIN_ADJUSTED, STOCHASTIC_IMPUTATION
+from bzk.ontology.schema import (
+    CONFIDENCE,
+    PROTEIN_ADJUSTED,
+    QUANTITY_VALUES,
+    STOCHASTIC_IMPUTATION,
+)
 
 Node = dict[str, Any]
 Edge = dict[str, Any]
@@ -141,6 +146,23 @@ def _validate_structure(nodes: list[Node], edges: list[Edge]) -> None:
 #    endpoint below is present and correctly labelled, so no referent-absence guard is needed. ──
 
 
+def _check_confidence(nodes: list[Node], label: str, invariant: str) -> None:
+    """Every EvidencedInference subtype draws `confidence` from the closed §6 enum.
+
+    Attributed to the invariant that consults the field for that subtype, per ADR-0019's
+    convention. Note this is the §6 vocabulary only: `Analysis.confidence` is curation's
+    'authoritative' | 'inferred', a different set, and is deliberately not checked here.
+    """
+    for node in _nodes(nodes, label):
+        value = node.get("confidence")
+        if value is not None and value not in CONFIDENCE:
+            raise InvariantError(
+                invariant,
+                f"{label} {node.get('id')} has confidence={value!r}, which is not in the closed "
+                f"enum (ONTOLOGY.md §6): {sorted(CONFIDENCE)}.",
+            )
+
+
 def _check_I2(nodes: list[Node], edges: list[Edge]) -> None:
     """I2 — a ModificationSite's SITE_ON target (a ProteinSequence) must carry a sequence_version."""
     by_id = _index(nodes)
@@ -156,6 +178,7 @@ def _check_I2(nodes: list[Node], edges: list[Edge]) -> None:
 
 def _check_I3(nodes: list[Node], edges: list[Edge]) -> None:
     """I3 — no bare modifier claim: an ambiguous ModifierAssignment may not ASSIGNS a modifier."""
+    _check_confidence(nodes, "ModifierAssignment", "I3")
     by_id = _index(nodes)
     for edge in _edges(edges, "ASSIGNS"):  # ModifierAssignment -> Modifier
         assignment = by_id[edge["from"]]
@@ -189,6 +212,7 @@ def _check_I4(nodes: list[Node], edges: list[Edge]) -> None:
 
 def _check_I10(nodes: list[Node], edges: list[Edge]) -> None:
     """I10 — an enzyme may be attributed to a site only through a *live* EnzymeAssociation."""
+    _check_confidence(nodes, "EnzymeAssociation", "I10")
     by_id = _index(nodes)
     for edge in _edges(edges, "ASSOCIATION_FOR"):  # EnzymeAssociation -> SiteObservation
         association = by_id[edge["from"]]
@@ -203,6 +227,7 @@ def _check_I10(nodes: list[Node], edges: list[Edge]) -> None:
 def _check_I14(nodes: list[Node], edges: list[Edge]) -> None:
     """I14 — a multi-mapping peptide is not rendered against one protein without a
     ProteinAssignment of confidence='confirmed'."""
+    _check_confidence(nodes, "ProteinAssignment", "I14")
     by_id = _index(nodes)
     for edge in _edges(edges, "ASSIGNS_PROTEIN"):  # ProteinAssignment -> Protein
         assignment = by_id[edge["from"]]
@@ -245,6 +270,12 @@ def _check_I16(nodes: list[Node], edges: list[Edge]) -> None:
         if an.get("quantity") is None:
             raise InvariantError(
                 "I16", f"Analysis {an.get('id')} does not declare which quantity it consumed."
+            )
+        if an["quantity"] not in QUANTITY_VALUES:
+            raise InvariantError(
+                "I16",
+                f"Analysis {an.get('id')} declares quantity {an['quantity']!r}, which is not in "
+                f"the closed enum (ONTOLOGY.md §5): {sorted(QUANTITY_VALUES)}.",
             )
         if an.get("filters_applied") is None:
             raise InvariantError(

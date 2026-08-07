@@ -177,6 +177,46 @@ def test_I15_stochastic_imputation_requires_a_seed() -> None:
     assert "without a seed" in str(ei.value)
 
 
+def test_I16_quantity_must_be_in_the_closed_enum() -> None:
+    # Membership, not merely presence. Before this was wired, validate() accepted any string and
+    # the only guard was a test over committed JSON that never sees an ingested change-set —
+    # the arrangement ADR-0019's rejected alternative (c) argues against.
+    nodes = [
+        n(
+            "Analysis",
+            id="bzk:an1",
+            kind="processing",
+            quantity="Intensity",  # right family, wrong spelling: two ids for one fact
+            filters_applied=["reverse"],
+            parameters_observed=True,
+        )
+    ]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [], only="I16")
+    assert ei.value.invariant == "I16"
+    assert "closed enum" in str(ei.value)
+
+
+def test_I3_confidence_must_be_in_the_closed_enum() -> None:
+    # schema.CONFIDENCE existed but was imported nowhere, so confidence looked guarded and was not.
+    nodes = [
+        n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR"),
+        n("Modifier", id=UBIQUITIN, name="ubiquitin", leaves_gg_remnant=True),
+        n(
+            "ModifierAssignment",
+            id="bzk:ma1",
+            candidate_modifiers=[UBIQUITIN],
+            basis="uba7_knockout",
+            confidence="likely",  # not in {ambiguous, probable, confirmed}
+            retracted_at=None,
+        ),
+    ]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("ASSIGNS", "bzk:ma1", UBIQUITIN)], only="I3")
+    assert ei.value.invariant == "I3"
+    assert "closed enum" in str(ei.value)
+
+
 def test_I16_analysis_must_declare_quantity() -> None:
     nodes = [
         n(

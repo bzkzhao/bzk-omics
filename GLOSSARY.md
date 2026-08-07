@@ -140,7 +140,7 @@ Additive only — terms are added, not removed. Where a definition here conflict
 
 **Class I site** — Field convention for a modification site with localisation probability ≥ 0.75.
 
-**Evidenced inference** — A defeasible claim the measurement does not directly support, carrying a basis, a confidence, and a supersession path. `ModifierAssignment`, `EnzymeAssociation` and pathway annotation are the three instances. The abstraction that lets a fourth inference layer be added in days.
+**Evidenced inference** — A defeasible claim the measurement does not directly support, carrying a basis, a confidence, and a supersession path. `ModifierAssignment`, `EnzymeAssociation` and `ProteinAssignment` are the three instances (`ONTOLOGY.md` §6.3). Pathway annotation is a related annotation carried by the `ANNOTATED_IN` edge, not a full subtype — it has no basis, confidence or supersession path. The abstraction that lets a fourth inference layer be added in days.
 
 **Enzyme association** — An inference about which enzyme conjugated or deconjugated a modification at a site. Not measurable by mass spectrometry; requires perturbation of the enzyme. A site without one is *unattributed*, never assumed to belong to the canonical writer or eraser.
 
