@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.11 |
+| Version | 1.12 |
 | Last reviewed | 2026-08-08 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -559,9 +559,10 @@ clause rather than by which was easier to write.
 
 | Clause | Mode | Why |
 |---|---|---|
-| §3 l.171 `parameters_json` *"normalized numeric forms"* | **Normalize** | `250` and `250.0` are the same JSON number — JSON has one number type — so there is no departure to refuse and refusing would reject valid input. `json.loads` preserves the written form and `json.dumps` writes it back, which is how the int/float boundary survived into the hash while float *spelling* already converged through the parse. Integral floats collapse to `int`; bools and integers past 2⁵³ are left alone, since collapsing those would merge values rather than spellings |
+| §3 l.171 `parameters_json` *"normalized numeric forms"* | **Normalize** | `250` and `250.0` are the same JSON number — JSON has one number type — so there is no departure to refuse and refusing would reject valid input. `json.loads` preserves the written form and `json.dumps` writes it back, which is how the int/float boundary survived into the hash while float *spelling* already converged through the parse. **Every** integral float collapses to `int`; bools are left alone because `isinstance(True, int)` is true in Python and JSON's `true` is not the number 1, and non-integral and non-finite floats never reach the collapse |
 | §4 l.265 accession uppercase | **Refuse** | A lowercase accession is not another spelling of a UniProt accession, it is a malformed one, and repairing it asserts more than the input supports (I19's discipline). Two concrete costs of normalizing: `resolve/nodes.py` writes `accession` into the node from the same raw string, so an uppercased id would sit on a node whose own column contradicted it; and a curator's typo becomes permanently invisible, because the repaired id is well-formed and resolves |
-| §4 l.266 CURIE prefix lowercase | **Refuse** | The values are node ids. `store.py` writes them as edge endpoints and as `candidate_proteins` elements from the raw change-set, so normalizing the hashed copy alone would leave the id correct and the content it identifies wrong — a worse state than the fork. The builder also cannot tell a CURIE from free text generically, so a blanket normalize is unavailable; the check fires only when a prefix case-folds onto a §3-map prefix, and once detection is that precise, refusal is precise too |
+| §4 l.266 **first** clause — CURIE prefix lowercase | **Refuse** | The values are node ids. `store.py` writes them as edge endpoints and as `candidate_proteins` elements from the raw change-set, so normalizing the hashed copy alone would leave the id correct and the content it identifies wrong — a worse state than the fork. The builder also cannot tell a CURIE from free text generically, so a blanket normalize is unavailable; the check fires only when a prefix case-folds onto a §3-map prefix, and once detection is that precise, refusal is precise too |
+| §4 l.266 **second** clause — the local part keeps its authority's casing | **Refuse, UniProt only** | Added 2026-08-08 as a correction, not a new clause: see the row below. A generic rule is unavailable and must not be invented, since §3's map spans authorities whose local parts are numeric (`hgnc:4053`, `unimod:121`, `pmid:21139048`), uppercase (`ensembl:ENSG…`, `mondo:MONDO_…`) or doubly prefixed (`chebi:CHEBI:15377`, `go:GO:0032020`), and §4 fixes a casing rule for exactly one of them. UniProt is also the only prefix in an identifying position today, so this is §4 l.265's existing accession clause reaching the second position l.266 names, rather than a rule with no home. Scoped to the segment before the first `#`, because a composed key continues past it in lowercase |
 
 The general rule the split follows: **normalize when both spellings are legal renderings of one
 value; refuse when one spelling is simply wrong.** Refusal is also this module's existing answer to
@@ -581,6 +582,39 @@ Each of the three has a two-spellings-one-id guard in `tests/test_keys.py`, and
 committed reference id, which it skipped while checking the prefix. **That on-disk guard is a weak
 net and must not be described as covering the class:** it sees 8 reference ids in total, because it
 scans committed JSON rather than the graph. The per-clause guards are the enforcement.
+
+**Corrected 2026-08-08 — §4 l.266 is two clauses and only one was closed, but the record said
+three of three.** `check_curie_case` implemented *"CURIE prefixes are lowercase"* and nothing
+implemented *"The local part keeps its authority's casing"*, so at 3ca5868
+`canonical_value(['uniprot:p05161'], 'STRING[]')` was accepted and the two spellings minted two
+`ModifierAssignment` ids. The position is the one that matters: `candidate_proteins` is identifying
+on four node types, `protein_key` refuses a mis-cased accession but sits **outside** the hashing
+path, and the argument for this whole class is that the builder must not depend on producers
+happening to emit canonical values. The UniProt half is now enforced inside the digest path and the
+row above records it. **This is the same shape as the two defects it corrects:** a stated reason
+more confident than the thing it justifies — here, "closed" asserted of a sentence whose second half
+nothing read.
+
+**Open clause, with a trigger: the local part of the other ten authorities.** Unenforced because §4
+fixes no casing for them, not because enforcement is hard — and guessing one would be inventing a
+fact with no home (`CLAUDE.md` § Working style). **Trigger: the first non-UniProt CURIE to enter an
+identifying field or an anchor.** At that point §4 must state the authority's casing before the
+builder enforces it, in that order. `tests/test_keys.py` records the boundary as an assertion rather
+than as prose, so the ten passing today is a stated decision rather than an untested assumption.
+
+**Corrected 2026-08-08 — the `2**53` cutoff in `_canonical_json_numbers` had a false reason.** Both
+this section and the code said collapsing integral floats above `2**53` "would merge values rather
+than spellings". It cannot: `int()` on an integral float is exact at any magnitude, since Python
+ints are arbitrary precision, and therefore injective — measured across `2**53`, `2**60`, `1e22` and
+`1e308`, with no two distinct floats collapsing together. Any precision loss happened at
+`json.loads`, before the function is reached. What the cutoff actually did was leave the int/float
+fork standing above the bound: `{"n": 1e16}` and `{"n": 10000000000000000}` hashed differently,
+which is C1's defect unfixed in a range. The cutoff is removed.
+
+**The wrong reason was the worse half of that defect,** and it is why this is recorded rather than
+quietly fixed. `s0` and a randomisation count will never approach `2**53`, so the unreachable fork
+cost nothing; a justification that reads as principled is what gets copied into the next boundary
+decision. Both instances corrected here shared that shape.
 
 ### Unenforced invariants (audit 2026-08-07), by class
 

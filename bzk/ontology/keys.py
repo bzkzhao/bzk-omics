@@ -17,8 +17,9 @@ spellings of one fact minting two ids. The three families the audit found:
   3. structured strings     — ``parameters_json`` is parsed and re-serialized with sorted keys and
      normalized numeric forms, so key order, spacing and the int/float boundary cannot fork an id
      (§3, ADR-0020);
-  4. mis-cased identifiers  — an accession or a CURIE prefix that departs from §4's fixed form is
-     **refused, not repaired** (2026-08-08; the reasoning is in `HANDOFF.md` §8).
+  4. mis-cased identifiers  — an accession, a CURIE prefix, or a UniProt CURIE's local part that
+     departs from §4's fixed form is **refused, not repaired** (2026-08-08; the reasoning, and the
+     one half of §4 l.266 that stays unenforced, are in `HANDOFF.md` §8).
 
 Families 1–3 converge by normalizing and family 4 by refusing, and the split is not arbitrary. A
 value normalizes when both spellings are legal renderings of one value — 250 and 250.0 are the same
@@ -53,10 +54,6 @@ _COLUMN_TYPES: dict[str, dict[str, str]] = {t.name: dict(t.columns) for t in sch
 #: built here rather than in `schema.py` so the mirror of the §3 *table* stays a mirror of it.
 _KNOWN_PREFIXES: frozenset[str] = schema.CURIE_PREFIXES | {"bzk"}
 
-#: Beyond this, a float can no longer represent every integer, so collapsing an integral float to
-#: an int would be the only lossless direction and going the other way would merge distinct values.
-_EXACT_INT = 2**53
-
 
 class KeyError_(ValueError):
     """A node cannot be keyed — a required identifying value is missing or malformed."""
@@ -90,15 +87,34 @@ def check_accession_case(accession: str) -> str:
 
 
 def check_curie_case(value: str) -> str:
-    """§4: *"CURIE prefixes are lowercase and spelled exactly as in the §3 map"*.
+    """§4 l.266, **which is two clauses**, enforced to different depths — deliberately.
 
-    Fires only when the prefix case-folds onto a *known* prefix but is not spelled the way the map
-    spells it. That is what makes the check safe to run over values that may not be CURIEs at all: a
-    `filters_applied` token has no colon, and a title beginning "Note: …" case-folds to a prefix the
-    map does not contain, so neither is touched. The cost of that precision is that it cannot catch
-    an unknown prefix, which is a §3-map question rather than a casing one.
+    *"CURIE prefixes are lowercase and spelled exactly as in the §3 map"* is enforced for every
+    prefix. It fires only when a prefix case-folds onto a *known* prefix but is not spelled the way
+    the map spells it, and that precision is what makes the check safe to run over values that may
+    not be CURIEs at all: a `filters_applied` token has no colon, and a title beginning "Note: …"
+    case-folds to a prefix the map does not contain, so neither is touched. The cost is that it
+    cannot catch an *unknown* prefix, which is a §3-map question rather than a casing one.
+
+    *"The local part keeps its authority's casing"* is enforced **for UniProt only**, and the
+    scoping is a decision rather than an omission. A generic rule is not available and must not be
+    invented: §3's map spans authorities whose local parts are numeric (`hgnc:4053`, `unimod:121`,
+    `pmid:21139048`), uppercase (`ensembl:ENSG…`, `mondo:MONDO_…`) or doubly prefixed
+    (`chebi:CHEBI:15377`, `go:GO:0032020`), and §4 states a casing rule for exactly one of them.
+    That one is the only prefix in an identifying position today — `candidate_proteins` is
+    identifying on four node types and holds `uniprot:` ids — so this is not a new rule but §4
+    l.265's existing accession clause reaching the second position where l.266 says it matters.
+    `protein_key` already refuses there, but `protein_key` sits *outside* the hashing path, and the
+    argument for this whole class of fix is that the builder must not depend on producers happening
+    to emit canonical values.
+
+    The remaining ten authorities are unenforced because the document fixes nothing to enforce, not
+    because enforcement is hard. Recorded as an open clause with a trigger in `HANDOFF.md` §8.
+
+    The local-part check is scoped to the segment before the first `#`, because a composed §4 key
+    continues past it in lowercase — `uniprot:P20591#sv4#K48#unimod:121` is canonical as written.
     """
-    prefix, separator, _ = value.partition(":")
+    prefix, separator, local = value.partition(":")
     if not separator:
         return value
     if prefix != prefix.lower() and prefix.lower() in _KNOWN_PREFIXES:
@@ -108,6 +124,10 @@ def check_curie_case(value: str) -> str:
             "normalizing the hashed copy would leave the raw string in the node's own column and "
             "in every edge endpoint, so the id and the content it identifies would disagree"
         )
+    if prefix == "uniprot":
+        # One home for the rule: the message names the accession segment, which is the part at
+        # fault. Refusal mode follows `check_accession_case` for the same reasons.
+        check_accession_case(local.split("#", 1)[0])
     return value
 
 
@@ -139,9 +159,26 @@ def _canonical_json_numbers(value: Any) -> Any:
     `json.loads` preserves the written form — `250` parses to `int` and `250.0` to `float` — and
     `json.dumps` writes each back as it found it, so the two survive into the hash as different
     bytes. JSON has a single number type and they are the same value, so this is normalized rather
-    than refused. Integral floats collapse to `int`; everything else keeps its parsed form, since
-    `repr` already gives a float its shortest round-trip spelling (`0.1`, `0.10` and `1e-1` all
-    reach `0.1` through the parse alone).
+    than refused. **Every** integral float collapses to `int`; everything else keeps its parsed
+    form, since `repr` already gives a float its shortest round-trip spelling (`0.1`, `0.10` and
+    `1e-1` all reach `0.1` through the parse alone).
+
+    **There was a `2**53` cutoff here, and its stated reason was false — removed 2026-08-08.** It
+    said collapsing above that bound "would merge values rather than spellings". It cannot:
+    `int()` on an integral float is exact at any magnitude (Python ints are arbitrary precision)
+    and therefore injective, so no two distinct floats can collapse together — measured across
+    `2**53`, `2**60`, `1e22` and `1e308`. Whatever precision was lost was lost at `json.loads`,
+    before this function is reached. The only pair the collapse *can* merge is an int and the
+    integral float of equal value, which JSON says is one number — the clause, not a defect.
+
+    What the cutoff actually did was leave the int/float fork standing above the bound: `1e16` and
+    `10000000000000000` hashed differently, which is the very defect this function exists to close,
+    unfixed in a range. **The wrong reason was the worse half.** `s0` and a randomisation count will
+    never approach `2**53`, so the unreachable fork cost nothing; a justification that reads as
+    principled is what gets copied into the next boundary decision.
+
+    Non-integral and non-finite floats are untouched: `0.1`, `inf` and `nan` all report
+    `is_integer()` false, and a JSON literal too large for a float (`1e400`) parses to `inf`.
     """
     if isinstance(value, dict):
         return {k: _canonical_json_numbers(v) for k, v in value.items()}
@@ -150,7 +187,7 @@ def _canonical_json_numbers(value: Any) -> Any:
     # bool before int: `isinstance(True, int)` is True, and JSON's true is not the number 1.
     if isinstance(value, bool):
         return value
-    if isinstance(value, float) and value.is_integer() and abs(value) < _EXACT_INT:
+    if isinstance(value, float) and value.is_integer():
         return int(value)
     return value
 

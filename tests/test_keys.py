@@ -113,11 +113,37 @@ def test_parameters_json_normalization_keeps_true_distinct_from_one() -> None:
 
 
 def test_parameters_json_normalization_does_not_merge_a_big_int_into_a_float() -> None:
-    # Beyond 2**53 a float cannot represent every integer, so collapsing would merge two values.
+    """Injectivity, which is what the removed `2**53` cutoff was wrongly said to protect.
+
+    `2**53 + 1` is not representable as a float, so the float literal denotes `2**53` — a genuinely
+    different number, and it must stay different. The collapse preserves that because `int()` on an
+    integral float is exact at any magnitude, not because anything above the bound is skipped.
+    """
     big = 2**53 + 1
     assert canonical_parameters_json(f'{{"n": {big}}}') != canonical_parameters_json(
         f'{{"n": {float(big)!r}}}'
     )
+
+
+def test_parameters_json_normalization_reaches_above_two_to_the_fifty_third() -> None:
+    """The fork the `2**53` cutoff left standing (corrected 2026-08-08).
+
+    `1e16` and `10000000000000000` are one JSON number written two ways, and above the old bound
+    they hashed differently — C1's defect, unfixed in a range, behind a reason that was false.
+    """
+    assert canonical_parameters_json('{"n": 1e16}') == canonical_parameters_json(
+        '{"n": 10000000000000000}'
+    )
+    assert canonical_parameters_json('{"n": 1e22}') == canonical_parameters_json(
+        '{"n": 10000000000000000000000}'
+    )
+
+
+def test_parameters_json_normalization_leaves_non_integral_and_non_finite_floats_alone() -> None:
+    # `0.1`, `inf` and `nan` all report `is_integer()` false, so the collapse never sees them; a
+    # literal too large for a float parses to `inf` rather than raising.
+    assert canonical_parameters_json('{"n": 0.1}') == '{"n":0.1}'
+    assert "Infinity" in canonical_parameters_json('{"n": 1e400}')
 
 
 def test_malformed_parameters_json_is_an_error_not_a_passthrough() -> None:
@@ -188,6 +214,54 @@ def test_the_curie_check_leaves_values_that_are_not_curies_alone() -> None:
     assert canonical_value(["reverse", "potential_contaminant"], "STRING[]")
     assert canonical_value(["Note:2 of 3 replicates"], "STRING[]")
     assert canonical_value(["Sample:A"], "STRING[]")
+
+
+def test_a_miscased_uniprot_local_part_is_refused_inside_the_digest_path() -> None:
+    """§4 l.266's **second** clause: *"The local part keeps its authority's casing"*.
+
+    Unenforced at 3ca5868 while the prefix half was called closed — `canonical_value` accepted
+    `['uniprot:p05161']` and the two spellings minted two `ModifierAssignment` ids. The position
+    matters: `candidate_proteins` is identifying on four node types, `protein_key` refuses there but
+    sits outside the hashing path, and the argument for this whole class is that the builder must
+    not rely on a producer emitting canonical values.
+    """
+    ma = {"basis": "literature", "confidence": "probable"}
+    assert canonical_value(["uniprot:P05161"], "STRING[]") == "[uniprot:P05161]"
+    with pytest.raises(KeyError_, match="not uppercase"):
+        canonical_value(["uniprot:p05161"], "STRING[]")
+    with pytest.raises(KeyError_, match="not uppercase"):
+        evidence_id("ModifierAssignment", dict(ma, candidate_modifiers=["uniprot:p05161"]))
+    with pytest.raises(KeyError_, match="not uppercase"):
+        evidence_id("ModifierAssignment", ma, {"Modifier": "uniprot:p05161"})
+
+
+def test_a_composed_reference_key_survives_the_local_part_check() -> None:
+    """The over-broad failure mode: a §4 composed key continues past the accession in lowercase.
+
+    `uniprot:P20591#sv4#K48#unimod:121` is canonical as written — `#sv4` and the trailing `unimod:`
+    are lowercase by the same section — so the check is scoped to the segment before the first `#`.
+    These ids reach the builder as anchors (`SiteObservation` anchors on `ModificationSite`), so an
+    unscoped check would refuse every site in the graph.
+    """
+    site = "uniprot:P20591#sv4#K48#unimod:121"
+    assert canonical_value([site, "uniprot:P09914-2#sv2"], "STRING[]")
+    assert evidence_id(
+        "SiteObservation",
+        {"candidate_proteins": ["uniprot:P20591"]},
+        {"Dataset": "bzk:abc123", "ModificationSite": site},
+    )
+
+
+def test_the_local_part_check_is_scoped_to_the_one_authority_section_4_fixes() -> None:
+    """Stated as a test because it is a decision, not an omission — see `HANDOFF.md` §8.
+
+    §3's map spans authorities whose local parts are numeric, uppercase or doubly prefixed, and §4
+    states a casing rule for UniProt alone. Enforcing a guessed rule for the other ten would be
+    inventing a fact with no home; the clause stays open for them, with a trigger recorded in §8.
+    """
+    assert canonical_value(["hgnc:4053", "pmid:21139048", "unimod:121"], "STRING[]")
+    assert canonical_value(["chebi:CHEBI:15377", "go:GO:0032020"], "STRING[]")
+    assert canonical_value(["doi:10.1038/s41416-021-01444-4"], "STRING[]")
 
 
 def test_a_null_list_element_still_renders_as_null_not_as_the_word() -> None:
