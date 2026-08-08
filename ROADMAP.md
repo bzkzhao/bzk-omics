@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.10 |
+| Version | 1.11 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -196,6 +196,95 @@ significantly-changed proteins carries contaminants the reader is expected to fi
 in the paper — the column is right there — but it settles a design question: an analysis-output
 adapter cannot assume an export has been filtered, and `Analysis.filters_applied` describing what
 the *user says* they applied is exactly the `parameters_observed = false` distinction doing its job.
+
+### Nine of fourteen, and the five misses are traceable, 2026-08-07
+
+Slice 4b ran the differential analysis over the population the graph holds, using `bzk/stats/`
+written from `ARCHITECTURE.md` §4 and `ONTOLOGY.md` §6.5 rather than from
+`colab_reproducefigure.ipynb` — the distinction being that copied arithmetic agreeing with itself is
+guaranteed. `python -m bzk.sources.pxd018299_differential`.
+
+| step | this route | notebook |
+|---|---|---|
+| rows in file | 2,341 | 2,341 |
+| after decoys and contaminants | 2,298 | 2,298 |
+| after `Localization prob >= 0.75` | 2,056 | 2,056 |
+| **ingested** | **1,967** (89 refused) | not applicable |
+| after `>=2 replicates in either group` | **1,321** | **1,375** |
+| significant up (adj p < 0.05, log2FC > 1) | **508** | **561** |
+| published targets recovered | **9 of 14** | **12 of 14** |
+
+**The populations differ by the refusals and by nothing else.** Of the 89 rows refused at
+ingestion, exactly **54** would have passed the presence rule, and **1,321 + 54 = 1,375**. That
+identity is what makes the comparison trustworthy: it could have come out otherwise, and had it
+not, the difference would have been somewhere unaccounted for. It also confirms in passing that
+this route's filtering and presence rule match the notebook's exactly, which nothing was designed
+to test.
+
+**All five misses are traceable, and three are not statistical.**
+
+| target | rows | refused | reason | outcome |
+|---|---|---|---|---|
+| **ADAR** | 7 | 7 | `unresolved_protein` | never tested |
+| **OAS2** | 8 | 8 | `residue_mismatch` | never tested |
+| **OAS1** | 2 | 2 | `residue_mismatch` | never tested |
+| DDX60 | 5 | 0 | — | tested, not significant |
+| PSMB9 | 1 | 0 | — | tested, not significant |
+
+The notebook's two misses were ADAR and PSMB9. This route misses the same two, plus OAS1 and OAS2
+to sequence drift and DDX60 at the threshold. **ADAR is missed by both routes for different
+reasons** — the notebook tested it and it fell short of the thresholds; here it was never tested,
+because its razor pick no longer exists in UniProt.
+
+**Every one of the three lost targets has a reviewed Swiss-Prot entry in its own candidate group.**
+
+| gene | razor pick | status of the pick | reviewed alternative in the same group |
+|---|---|---|---|
+| ADAR | `H0YCK3` | **`Inactive`** — deleted from UniProt | `P55265` Swiss-Prot sv4 |
+| OAS1 | `H0YI20` | TrEMBL | `P00973` Swiss-Prot sv4 |
+| OAS2 | `A0A087X0V5` | TrEMBL | `P29728` Swiss-Prot sv3 |
+
+That is I17 — *reviewed entries are preferred, and the preference is recorded* — which is specified
+in §6.3, classified `CON` in `HANDOFF.md` §8, and implemented nowhere. The earlier measurement that
+drift is 2.8× likelier on unreviewed entries, and that every deleted entry was unreviewed, now has
+a cost attached: three published targets.
+
+**9 is not a worse number than 12 and not a better one.** It is the answer for a different
+population — one that excludes sites whose positions cannot be validated against today's UniProt.
+Nothing here was tuned toward agreement, and a figure that had matched would have needed explaining
+as much as one that differs.
+
+### Pre-registration: what implementing I17 would mean, 2026-08-07
+
+**Written and committed before I17 exists in any form**, because this is the measurement with the
+strongest pull toward the answer we want. Three self-confirming measurements have been caught this
+session (`HANDOFF.md` §8), and each was found *after* the fact. Recording the interpretation of each
+outcome in advance is what stops the third outcome below being reported as the first.
+
+I17 promotes a reviewed Swiss-Prot entry over an unreviewed razor pick and records
+`basis = 'reviewed_preferred'` (§6.3). ADAR, OAS1 and OAS2 each have a reviewed entry in their own
+candidate group, so the case is reachable. Three outcomes, and what each licenses:
+
+1. **All three resolve to their reviewed entries and are recovered → 12 of 14.** The claim would
+   then be: *reviewed-preferred resolution recovers published targets that a razor pick loses.*
+   Stated here as the **hypothesis, before testing it** — so that if it holds, it is a prediction
+   confirmed and not a result narrated backwards into one.
+2. **They resolve but are not recovered.** Then the loss was the *refusal*, not the threshold, and
+   I17's value is that these sites become **testable**, not that they become significant. The
+   recovery figure would stay at 9 or move to 10–11, and the honest headline would be about
+   population rather than about significance. This outcome is worth as much as the first and reads
+   as a weaker result only if the hypothesis was never written down.
+3. **They do not resolve.** Then I17 *as specified* does not reach this case, and the reason is a
+   finding about the invariant rather than about the data — most likely that promotion needs review
+   status per candidate, which needs every candidate resolved, which §6.3 does not say and no
+   module does. Reporting this as anything other than a gap in I17 would be the failure this
+   pre-registration exists to prevent.
+
+A fourth possibility is not an outcome but a defect to watch for: **promotion changes which
+`ProteinSequence` a site keys against, so it re-mints `ModificationSite` and `SiteObservation` ids
+and can change the tested population well beyond these three genes.** If the population moves, the
+1,321 + 54 = 1,375 identity above no longer holds, and any recovery figure must be reported against
+the new population with that identity re-checked rather than assumed.
 
 ### The platform made an invisible analytical choice, 2026-08-07
 
