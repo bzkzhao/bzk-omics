@@ -26,6 +26,7 @@ This exists because a project with one developer and a compressed timeline will 
 | [0021](0021-no-contingent-identifying-fields.md) | An identifying field may be absent only when its absence is determined — no fallback keys |
 | [0022](0022-protein-group-ambiguity.md) | Multi-mapping is carried by the observation, at both grains |
 | [0023](0023-one-relationship-per-fact.md) | One relationship per fact: `SITE_ON` narrows to `MANY_ONE`; two duplicate names dropped |
+| [0024](0024-keying-is-not-assignment.md) | Keying a site is not assigning a protein; `reviewed_preferred` leaves the basis enum |
 
 ## Queued
 

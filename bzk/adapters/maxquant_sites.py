@@ -92,6 +92,19 @@ REQUIRED_COLUMNS = (
 FILTERS_APPLIED = ("reverse", "potential_contaminant", "localization_prob")
 
 
+def _residue_of(resolution: Resolution, position: int) -> str | None:
+    """The residue a resolution carries at a 1-based position, or `None` if it cannot be checked.
+
+    Used by the promotion pre-pass, which must know whether a *candidate* validates before the
+    change-set exists. `resolve.nodes.residue_at` answers the same question against an already
+    projected `ResolvedProteins`, which the pre-pass runs before.
+    """
+    sequence = resolution.sequence
+    if resolution.status != "ok" or not resolution.sequence_version or not sequence:
+        return None
+    return sequence[position - 1] if 1 <= position <= len(sequence) else None
+
+
 class MaxQuantSiteError(ValueError):
     """A MaxQuant site table cannot be ingested. Never downgraded to a warning (`CLAUDE.md`)."""
 
@@ -404,6 +417,14 @@ class MaxQuantSiteAdapter:
             if len(canonical) != 1:
                 continue
             accession, position = canonical[0]
+            # **Validity is a precondition, not a preference (ADR-0024 rule 1).** I2 makes a site
+            # keyed at a non-matching residue meaningless, so a promotion that would displace a
+            # valid keying with an invalid one is not a better choice — it is a worse one. The
+            # original stands. Measured on PXD018299: 4 of 526 promotions, TAP1 twice and PTBP1
+            # twice, where the reviewed entry has since been revised and the unreviewed one has not.
+            reported = row[column["Amino acid"]].strip().upper()
+            if _residue_of(resolve_one(accession), position) != reported:
+                continue
             promotions[row[column["id"]]] = Promotion(
                 row=row[column["id"]],
                 razor_pick=pick,
@@ -491,6 +512,13 @@ class MaxQuantSiteAdapter:
             "candidate_proteins": candidate_ids,
             "localization_prob": float(row[column["Localization prob"]]),
             "is_decoy": False,
+            # I17's *never silently*, recorded where ADR-0024 puts it. Keying is a choice
+            # ADR-0023's `MANY_ONE` forces, not an evidential claim, so it is **not** a
+            # `ProteinAssignment` — `reviewed_preferred` left that basis enum. Both fields are
+            # excluded from identity (§3): the `ModificationSite` anchor already encodes which
+            # sequence was chosen, so they explain the id rather than compose it.
+            "keying_basis": "reviewed_preferred" if promotion else "razor",
+            "displaced_protein": protein_key(promotion.razor_pick) if promotion else None,
         }
         if "Score" in column and row[column["Score"]].strip():
             observation["score"] = float(row[column["Score"]])
@@ -527,39 +555,6 @@ class MaxQuantSiteAdapter:
         nodes.append(self._node("ModifierAssignment", assignment_id, assignment))
         edges.append({"type": "ASSIGNMENT_FOR", "from": assignment_id, "to": observation_id})
 
-        if promotion is not None:
-            # **I17's record, and it deliberately carries no `ASSIGNS_PROTEIN`.** §6.3 gives
-            # `reviewed_preferred` a permitted confidence of `probable`, and I14 requires
-            # `confirmed` before a `ProteinAssignment` may reach `ASSIGNS_PROTEIN` from a
-            # multi-candidate set — which this always is, since promotion only happens when the
-            # group holds both an unreviewed pick and a reviewed alternative. So the two rules
-            # together permit recording the promotion and forbid asserting its conclusion, and
-            # that is the honest shape: the site is *keyed* against the reviewed entry because
-            # keying needs one protein (I14's site-grain clause), while the *claim* stays at
-            # `probable` with the weighed set named. Recorded in `HANDOFF.md` §8 — it is the same
-            # gap §6.3 already has for `Majority protein IDs` narrowing, reached from the other side.
-            protein_assignment: dict[str, object] = {
-                "candidate_proteins": sorted(protein_key(a) for a in promotion.weighed),
-                "basis": "reviewed_preferred",
-                "confidence": "probable",
-                "rationale": (
-                    f"razor pick {promotion.razor_pick} is not a live reviewed entry; "
-                    f"{promotion.promoted_to} is reviewed and in the same candidate set (I17, §6.3)"
-                ),
-                "asserted_at": None,
-                "retracted_at": None,
-            }
-            protein_assignment_id = evidence_id(
-                "ProteinAssignment", protein_assignment, {"SiteObservation": observation_id}
-            )
-            nodes.append(self._node("ProteinAssignment", protein_assignment_id, protein_assignment))
-            edges.append(
-                {
-                    "type": "PROTEIN_ASSIGNMENT_FOR",
-                    "from": protein_assignment_id,
-                    "to": observation_id,
-                }
-            )
         return nodes, edges
 
     @staticmethod

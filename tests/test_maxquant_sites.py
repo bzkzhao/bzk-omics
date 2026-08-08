@@ -470,3 +470,104 @@ def test_sniff_rejects_a_protein_groups_table(tmp_path: Path) -> None:
     groups.write_bytes(b"Protein IDs\tMajority protein IDs\tid\r\nP20591\tP20591\t0\r\n")
     assert not _adapter().sniff(groups)
     assert _adapter().sniff(_write(tmp_path, [_row()]))
+
+
+# ── ADR-0024: keying is recorded on the observation, not as a ProteinAssignment ──────────────────
+
+
+def test_an_unpromoted_site_records_the_razor_keying(tmp_path: Path) -> None:
+    """`keying_basis` is always set — a null-means-razor convention would make "not recorded" and
+    "recorded as the search engine's pick" indistinguishable, which is the silence I17 forbids."""
+    parsed = _adapter().parse(_write(tmp_path, [_row()]), _mapping())
+    observation = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "SiteObservation")
+    assert observation["keying_basis"] == "razor"
+    assert observation["displaced_protein"] is None
+    assert not [n for n in parsed.nodes if n[NODE_TYPE_KEY] == "ProteinAssignment"]
+
+
+def test_a_promotion_is_recorded_on_the_observation_not_as_an_assignment(tmp_path: Path) -> None:
+    """ADR-0024: `reviewed_preferred` left the `ProteinAssignment.basis` enum, because a reviewed
+    entry is better annotated and not better evidenced. The override still has to be recorded —
+    trading an over-claim for a silence would be worse than the conflict it resolved."""
+    unreviewed = Resolution(
+        status="ok",
+        requested=IFIT1,
+        canonical=IFIT1,
+        isoform=None,
+        is_isoform=False,
+        reviewed=False,
+        entry_type="UniProtKB unreviewed (TrEMBL)",
+        sequence=SYNTHETIC_SEQUENCE,
+        sequence_version=1,
+        last_seq_update=None,
+        gene=None,
+        sequence_source="canonical",
+    )
+    row = _row(proteins=f"{IFIT1};{MX1}", positions="4;4", pick=IFIT1, position="4")
+    adapter = _adapter({IFIT1: unreviewed, MX1: _ok(MX1)})
+    parsed = adapter.parse(_write(tmp_path, [row]), _mapping())
+
+    observation = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "SiteObservation")
+    assert observation["keying_basis"] == "reviewed_preferred"
+    assert observation["displaced_protein"] == f"uniprot:{IFIT1}"
+    assert not [n for n in parsed.nodes if n[NODE_TYPE_KEY] == "ProteinAssignment"]
+    site = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "ModificationSite")
+    assert site["id"].startswith(f"uniprot:{MX1}#"), "the site keys against the promoted entry"
+
+
+def test_promotion_is_refused_where_it_would_break_validity(tmp_path: Path) -> None:
+    """**The TAP1 case.** ADR-0024 rule 1: I2 makes a site keyed at a non-matching residue
+    meaningless, so preference cannot license an invalid keying. The unreviewed pick has K at 4;
+    the reviewed alternative has G there, so the original keying stands and the site survives.
+
+    Measured on the real deposit at 4 of 526 promotions — TAP1 twice, PTBP1 twice.
+    """
+    unreviewed = Resolution(
+        status="ok",
+        requested=IFIT1,
+        canonical=IFIT1,
+        isoform=None,
+        is_isoform=False,
+        reviewed=False,
+        entry_type="UniProtKB unreviewed (TrEMBL)",
+        sequence=SYNTHETIC_SEQUENCE,
+        sequence_version=1,
+        last_seq_update=None,
+        gene=None,
+        sequence_source="canonical",
+    )
+    # MX1's synthetic sequence has G at position 5, not K — promoting there would refuse the site.
+    row = _row(proteins=f"{IFIT1};{MX1}", positions="4;5", pick=IFIT1, position="4")
+    adapter = _adapter({IFIT1: unreviewed, MX1: _ok(MX1)})
+    parsed = adapter.parse(_write(tmp_path, [row]), _mapping())
+
+    assert parsed.refusals == [], "the site must survive rather than be refused"
+    observation = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "SiteObservation")
+    assert observation["keying_basis"] == "razor"
+    site = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "ModificationSite")
+    assert site["id"].startswith(f"uniprot:{IFIT1}#"), "the original keying stands"
+
+
+def test_two_distinct_canonical_reviewed_proteins_block_promotion(tmp_path: Path) -> None:
+    """ADR-0024 rule 3, and OAS1's case: `F8VXY3` and `P00973` are both canonical and both
+    reviewed. Choosing between two genuinely different reviewed proteins is a claim about peptide
+    origin — the search engine's job, and what I14 forbids resolution from asserting."""
+    unreviewed = Resolution(
+        status="ok",
+        requested="Q00000",
+        canonical="Q00000",
+        isoform=None,
+        is_isoform=False,
+        reviewed=False,
+        entry_type="UniProtKB unreviewed (TrEMBL)",
+        sequence=SYNTHETIC_SEQUENCE,
+        sequence_version=1,
+        last_seq_update=None,
+        gene=None,
+        sequence_source="canonical",
+    )
+    row = _row(proteins=f"Q00000;{MX1};{IFIT1}", positions="4;4;4", pick="Q00000", position="4")
+    adapter = _adapter({"Q00000": unreviewed, MX1: _ok(MX1), IFIT1: _ok(IFIT1)})
+    parsed = adapter.parse(_write(tmp_path, [row]), _mapping())
+    observation = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "SiteObservation")
+    assert observation["keying_basis"] == "razor", "two canonical reviewed candidates: no promotion"

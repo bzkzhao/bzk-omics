@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.8 |
+| Version | 1.9 |
 | Last reviewed | 2026-08-07 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -166,7 +166,14 @@ Follow `ROADMAP.md` § Milestones. This adds the granularity that document delib
    on `content_hash` — the loader from the record, the adapter by hashing the bytes — so their ids
    converge (I7) and every site hangs off the dataset the curation describes. Asserted, not assumed.
 
-   **The graph, as of the 2026-08-07 rebuild after I17 (`python -m bzk.rebuild`, 60 s):** 2,025
+   **The graph, as of the 2026-08-07 rebuild after ADR-0024 (`python -m bzk.rebuild`):** 2,029
+   `SiteObservation`s, 27 refused, 11,743 nodes and 9,229 edges, and **no `ProteinAssignment` at
+   all** — ADR-0024 removed `reviewed_preferred` from that basis enum, so the 522 promotions are
+   recorded as `keying_basis` / `displaced_protein` on the observations instead. Two independent
+   replays reproduce **11,730 ids identically**, re-run against the post-I17 keying rather than
+   carried over. The paragraph below describes the superseded pre-ADR-0024 state.
+
+   **Superseded — the graph after I17 and before ADR-0024:** 2,025
    `SiteObservation`s with 2,025 `ModifierAssignment`s and 2,025 `ModificationSite`s, 522
    `ProteinAssignment`s (the I17 promotions that survived to a site — 526 were computed, and the
    four whose promoted entry failed the residue check produced no site), 4,558 `Protein`s, 1,063

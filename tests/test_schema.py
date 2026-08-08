@@ -653,3 +653,31 @@ def test_schema_builds_on_kuzu() -> None:
         assert built == schema.table_names()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_keying_basis_matches_ontology_6_3() -> None:
+    """`schema.KEYING_BASIS` is the executable mirror of §6.3's keying rules (ADR-0024).
+
+    The same mirror-plus-guard idiom as `CURATION_BASIS` against §5.3. Two directions, and the
+    second is the one that matters: `reviewed_preferred` was removed from the
+    `ProteinAssignment.basis` enum by ADR-0024, so this also asserts it has not crept back — a
+    value living in both enums would resurrect the I14 conflict the ADR exists to dissolve.
+    """
+    text = ONTOLOGY.read_text()
+    section = text[text.index("### 6.3 Protein assignment") : text.index("### 6.4")]
+
+    for value in schema.KEYING_BASIS:
+        assert f"`{value}`" in section, f"§6.3 does not name keying basis {value!r}"
+
+    # The ProteinAssignment basis enum is the table rows carrying a permitted confidence.
+    basis_rows = set(
+        re.findall(
+            r"^\| `(\w+)` \| .+ \| `(?:ambiguous|probable|confirmed)` \|", section, re.MULTILINE
+        )
+    )
+    assert basis_rows, "§6.3's basis enum table not found"
+    assert "reviewed_preferred" not in basis_rows, (
+        "reviewed_preferred is back in the ProteinAssignment basis enum; ADR-0024 removed it "
+        "because keying is not an evidential claim, and its return revives the I14 conflict"
+    )
+    assert "reviewed_preferred" in schema.KEYING_BASIS

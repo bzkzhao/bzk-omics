@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.12 |
+| Version | 1.13 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -253,6 +253,59 @@ a cost attached: three published targets.
 population — one that excludes sites whose positions cannot be validated against today's UniProt.
 Nothing here was tuned toward agreement, and a figure that had matched would have needed explaining
 as much as one that differs.
+
+### Validity-conditional promotion: 12 of 14 — the same count as the notebook, not the same twelve, 2026-08-07
+
+ADR-0024 rule 1 (validity is a precondition of promotion, not a preference within it), implemented
+after the ADR and read against the pre-registration below.
+
+| | I17 as first written | + validity precondition |
+|---|---|---|
+| promotions applied | 526 | **522** (the 4 declined) |
+| ingested | 2,025 | **2,029** |
+| refused | 31 | **27** |
+| after presence rule | 1,358 | **1,362** |
+| significant up | 524 | **516** |
+| **published targets recovered** | **11 of 14** | **12 of 14** |
+
+**Pre-registered outcome A.** TAP1 returned. The claim is the narrow one written in advance:
+*validity must dominate preference* — worth exactly four rows on this deposit. It is **not** evidence
+that reviewed-preference is safe; the 522 unaffected promotions carry that and were already counted.
+This is I17 **repaired**, not I17 confirmed.
+
+**Outcome D ruled out, by the check the pre-registration demanded.** Four rows were eligible and the
+population moved by exactly four (2,025 → 2,029). The identity holds a third time, with a third
+split: **1,362 + 13 refused-but-testable = 1,375.**
+
+**`significant_up` fell, 524 → 516, while four more sites were tested.** Not a defect: BH adjusts
+against the size of the tested set, so adding four rows re-ranks every p-value. Recorded because a
+count moving *down* as the population moves *up* looks like an error and is not.
+
+#### The twelve are not the notebook's twelve
+
+The count matches. **The membership does not**, and the pre-registration said a matching result
+would need explaining as much as a differing one.
+
+| | misses |
+|---|---|
+| notebook (12 of 14) | **ADAR**, PSMB9 |
+| this route (12 of 14) | **OAS1**, PSMB9 |
+
+Both miss PSMB9 — it falls short of the thresholds in both, which is a real agreement. Beyond that
+the routes **disagree in both directions**: this route recovers ADAR, which the notebook tested and
+found below threshold, and loses OAS1, which the notebook recovered.
+
+- **ADAR** is recovered *because* of I17. Its razor pick `H0YCK3` is deleted from UniProt; promotion
+  to `P55265` made it testable and it cleared the thresholds. The notebook, keying against the 2019
+  FASTA, tested it and got adj p 0.24.
+- **OAS1** is lost to ADR-0024 rule 3. Its group holds two distinct canonical reviewed proteins,
+  `F8VXY3` and `P00973`, so the platform declines to promote, the razor pick `H0YI20` fails the
+  residue check, and the site is refused. The notebook had no residue check and tested it.
+
+So *"12 of 14"* is a coincidence of arithmetic between two populations that differ by 13 sites and
+two published targets. **Reporting it as agreement would be the error this section exists to
+prevent.** The amended v0.1 exit criterion asks for the population and the traced misses precisely
+because the number alone would have read as a reproduction.
 
 ### I17 implemented: 11 of 14, three gained and one lost, 2026-08-07
 

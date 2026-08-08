@@ -112,7 +112,7 @@ The identity **model** is identical for both: a node's identity is its label, it
 | `Experiment` | `title`, `modality`, `organism_taxid` | `Project` (`CONTAINS`) | — |
 | `Sample` | `cell_line` / `model_system`, `source_type`, `genotype`, `treatment`, `timepoint_h`, `replicate`, `replicate_type`, `organism_taxid` | `Experiment` (`PERFORMED_ON`) | `label` |
 | `Dataset` | `content_hash` | — (the SHA-256 of the raw file is itself the anchor) | `label`, `source`, `external_accession`, `acquisition_mode`, `instrument`, `search_engine`, `search_engine_version`, `library_type`, `library_prediction_model`, `fasta_release`, `embargo_holder`, `embargo_reference`, `embargo_released_at` |
-| `SiteObservation` | `candidate_proteins` | `Dataset` (`REPORTS_SITE`), `ModificationSite` (`MEASURED_AT`) | `peptide_sequence`, `localization_prob`, `score`, `is_decoy`, `n_imputed`, `quant_ref` |
+| `SiteObservation` | `candidate_proteins` | `Dataset` (`REPORTS_SITE`), `ModificationSite` (`MEASURED_AT`) | `peptide_sequence`, `localization_prob`, `score`, `is_decoy`, `n_imputed`, `quant_ref`, `keying_basis`, `displaced_protein` |
 | `ProteinObservation` | `candidate_proteins` | `Dataset` (`REPORTS_PROTEIN`) | `quant_ref`, `n_peptides` |
 | `Contrast` | `numerator`, `denominator` | — (placement unsettled — §11 Q1) | `label` |
 | `Analysis` | `kind`, `basis`, `confidence`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `parameters_json` | `Dataset` (`USED`) — one or more; for a curation analysis the asserted content stands in for it | `label`, `rationale`, `started_at`, `ended_at`, `workflow_id`, `workflow_revision` |
@@ -338,6 +338,12 @@ CREATE NODE TABLE SiteObservation(
   is_decoy BOOLEAN,
   n_imputed INT64,              -- values generated rather than measured; see §6.5
   quant_ref STRING,             -- key into columnar store; see §2
+  keying_basis STRING,          -- 'razor' | 'reviewed_preferred'. Which rule chose the
+                                -- ProteinSequence this site keys against (§6.3, ADR-0024).
+                                -- Always set: 'razor' is the search engine's own pick.
+  displaced_protein STRING,     -- CURIE of the accession the search picked, where the platform
+                                -- keyed against a different one. NULL when keying_basis =
+                                -- 'razor', because nothing was displaced.
   PRIMARY KEY (id));
 
 CREATE NODE TABLE ProteinObservation(
@@ -650,8 +656,36 @@ CREATE REL TABLE ASSIGNS_PROTEIN(FROM ProteinAssignment TO Protein, MANY_ONE);
 | `unique_peptide` | Distinguishing peptide observed elsewhere in the dataset | `confirmed` |
 | `leading` | Search engine's leading-protein subset | `probable` |
 | `razor` | Search engine's razor-rule pick | `ambiguous` |
-| `reviewed_preferred` | Reviewed Swiss-Prot entry chosen over TrEMBL in the same candidate set | `probable` |
 | `orthogonal_evidence` | Isoform-specific knockdown, transcript evidence | `confirmed` |
+
+**Keying a site is not assigning a protein (ADR-0024, 2026-08-07).** `reviewed_preferred` was a row
+in the basis enum above until this amendment removed it. A reviewed entry is better *annotated*, not
+better *evidenced* — Swiss-Prot curation says nothing about which protein a shared tryptic peptide
+came from — so it cannot be the basis of an evidential claim. What promotion decides is **which
+`ProteinSequence` the `ModificationSite` keys against**, which since ADR-0023 is a choice the schema
+*forces*: a site key embeds exactly one sequence and the position differs per protein. A forced
+choice is not a claim about the world, and listing it beside `unique_peptide` and
+`orthogonal_evidence` was a category error. It also produced an unresolvable conflict — §6.3 gave it
+confidence `probable` while I14 requires `confirmed` before an assignment may reach
+`ASSIGNS_PROTEIN` from a multi-candidate set, which promotion always is.
+
+**The choice is recorded on the observation, in `keying_basis` and `displaced_protein` (§5).**
+I17's *"never silently"* is binding and unchanged; only the location moved. Trading an over-claim
+for a silence would be worse than the conflict.
+
+**Three keying rules, normative:**
+
+1. **Validity is a precondition, not a preference.** I2 makes a site keyed at a non-matching residue
+   meaningless, so promotion applies only where the promoted entry's residue at its own aligned
+   position matches what the search reported. Where it does not, **the original keying stands**.
+   Measured on PXD018299: of 526 promotions, 522 validate and 4 would have displaced a valid keying
+   with an invalid one — TAP1 twice and PTBP1 twice.
+2. **Prefer a canonical accession over an isoform.** §6.3 said *"the reviewed Swiss-Prot entry"*,
+   singular; ADAR's group holds five (`P55265` and four of its isoforms).
+3. **Where more than one distinct canonical reviewed protein remains, do not promote.** Choosing
+   between two genuinely different reviewed proteins is a claim about peptide origin — the search
+   engine's job, and what I14 forbids resolution from asserting. OAS1 is the case: `F8VXY3` and
+   `P00973` are both canonical and both reviewed, so its keying stays with the search engine's pick.
 
 **Reviewed entries are preferred, and the preference is recorded.** Measured on PXD018299: in 4 of 8 sampled sites the search engine's razor pick was an unreviewed TrEMBL accession while a reviewed Swiss-Prot entry sat in the same candidate set — `A0A087WXQ8` over `P49720`, `H0YKK0` over `P09661`, `J3KTA4` over `P17844`, `F8VNX8` over `O14545`. Half of protein assignments therefore land on entries with no curator annotation when a well-annotated alternative exists. Resolution promotes the reviewed entry and records `basis = 'reviewed_preferred'`; it never does so silently.
 
@@ -749,7 +783,7 @@ Normative. Violations are ingestion errors, not warnings.
 - **I13 — Pipeline metadata is data.** `acquisition_mode`, `search_engine`, `library_type` and `test` are recorded fields, never branch conditions. Any conditional on their value outside `adapters/` or the statistics registry is a defect — it is how the abstraction leaks and how the next pipeline change becomes a rewrite.
 - **I14 — No false singletons.** An **observation** whose `candidate_proteins` names several proteins is never rendered against one of them without a `ProteinAssignment` of confidence `confirmed`. Where assignment is `razor` or `leading`, views and exports name the candidate set. Measured prevalence is 82% at site grain and 72–77% at protein grain (`ROADMAP.md` § Measured findings), so this is the default path, not an exception. Phrased on the observation rather than on *a peptide* since ADR-0022: a `ProteinObservation` has no peptide, which is why the protein grain went uncovered until `perseus.py` met it. **Enforced at write time in two places** — a `ProteinAssignment` reaching `ASSIGNS_PROTEIN` from a multi-candidate set must be `confirmed`, and a `ProteinObservation` naming several candidates must carry `RESOLVES_TO_PROTEIN` to *every* one of them rather than to a subset. At site grain `MEASURED_AT` (`RESOLVES_TO_SITE` until ADR-0023) remains `MANY_ONE` and the single site it names is not treated as a violation: a `ModificationSite` key carries a protein-specific position, so pointing at all candidates is not available, and making the pick an ingestion error would reject 82% of sites with no satisfying alternative — `razor` is `ambiguous` by §6.3's own table. That half stays a display and export obligation, which is what *rendered* has always meant.
 - **I15 — Imputation is declared.** Every `Analysis` producing differential results links to an `Imputation`, including `method = 'none'`. Stochastic methods record a seed; without one the analysis is irreproducible from its own inputs and I9 fails. Results whose underlying values are more than half generated are labelled *substantially imputed* wherever they appear.
-- **I17 — Reviewed preferred, never silently.** Where a candidate protein set contains both reviewed (Swiss-Prot) and unreviewed (TrEMBL) entries, resolution promotes the reviewed entry and records `ProteinAssignment.basis = 'reviewed_preferred'`. Measured on PXD018299, the search engine's razor pick was unreviewed in 4 of 8 sampled sites despite a reviewed alternative being present. The promotion is an inference and is recorded as one.
+- **I17 — Reviewed preferred, never silently.** Where a candidate protein set contains both reviewed (Swiss-Prot) and unreviewed (TrEMBL) entries, and the reviewed entry is **valid at the site's position**, the site keys against it and the observation records `keying_basis = 'reviewed_preferred'` with the displaced accession in `displaced_protein` (§5, §6.3). Measured on PXD018299, the search engine's razor pick was unreviewed in 4 of 8 sampled sites despite a reviewed alternative being present. **Reworded 2026-08-07 by ADR-0024**, whose last sentence read *"The promotion is an inference and is recorded as one."* It is not an inference — it is a keying rule, and calling it an inference is what put it in the `ProteinAssignment` basis enum and into conflict with I14. *Never silently* is the binding half and is unchanged.
 - **I18 — Embargo is enforced at the boundary.** No `Dataset` with `source = 'embargoed'` and `embargo_released_at IS NULL` may contribute to any export, report, figure file or shared artifact. Queries and views within the local instance are unrestricted. The check sits at the export boundary, not at query time, so the data remains fully usable to its holder while being incapable of leaking.
 - **I19 — Observed and reported provenance are distinguished.** Every `Analysis` sets `parameters_observed`. Where `false`, the analysis was run outside the platform and its parameters are as stated by the user rather than as executed; every derived `DifferentialResult` is labelled accordingly in views and exports. An externally computed result is never presented with the same provenance standing as one the platform produced.
 - **I16 — Quantity and test are declared.** Every `Analysis` records which quantity it consumed and the filters applied, including the localisation threshold, and — where it runs one — the statistical `test` and its `fdr_method`, with test-specific parameters (`s0`, randomisation count) in `parameters_json`. These live on the `Analysis`, not the `DifferentialResult`: every result of an analysis shares them, and `ARCHITECTURE.md` §4 already records the test's parameters there per this invariant. (The DDL previously placed `test` / `fdr_method` on `DifferentialResult`, contradicting §4; the §3 identity table surfaced the pre-existing discrepancy, resolved here — ONTOLOGY v1.6, ADR-0020.) Two defensible quantities on the same dataset differed by a factor of ~90 in usable sites; neither choice is recoverable from a published methods section, and that gap is what this platform exists to close. The declared quantity is drawn from the **closed enum in §5** and must name the *specific* quantity, not just its family: a MaxQuant modification-site source uses `intensity_multiplicity_summed`, and bare `intensity` — legal only where there is no multiplicity axis (protein- or precursor-level) — is invalid there. A value that hid the multiplicity treatment would be the same invisible-choice defect as `intensity` vs `ratio_mod_base`. Because quantity is an identifying field (§3, ADR-0020), two spellings of one quantity would mint two `Analysis` ids for one fact; the closed enum forecloses that. The 12-of-14 baseline was computed on multiplicity-summed intensity (ROADMAP § Deposit and supplementary survey).

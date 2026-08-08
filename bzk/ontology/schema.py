@@ -86,6 +86,11 @@ GG_REMNANT_MODIFIERS: dict[str, GgRemnantModifier] = {
     "uniprot:P05161": GgRemnantModifier("ISG15", "LRLRGG"),
 }
 
+# Which rule chose the `ProteinSequence` a site keys against (§6.3, ADR-0024). Not a
+# `ProteinAssignment.basis`: keying is a choice ADR-0023's `MANY_ONE` *forces*, and a forced choice
+# is not an evidential claim. Guarded against §6.3 by tests/test_schema.py.
+KEYING_BASIS: frozenset[str] = frozenset({"razor", "reviewed_preferred"})
+
 # §3's absence classification, mirrored for code that must decide whether a null is legal.
 # ADR-0021: an identifying field may be null only where something *outside the moment of ingest*
 # fixes that null — `determined` by another recorded field or a stated structural fact, or
@@ -391,6 +396,8 @@ NODE_TABLES: list[NodeTable] = [
             ("is_decoy", "BOOLEAN"),
             ("n_imputed", "INT64"),
             ("quant_ref", "STRING"),
+            ("keying_basis", "STRING"),
+            ("displaced_protein", "STRING"),
         ],
     ),
     NodeTable(
