@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.18 |
+| Version | 1.19 |
 | Last reviewed | 2026-08-08 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -544,6 +544,57 @@ Outcome 1 is the one to watch, and not because it is unlikely. It is the outcome
 number in the report is identical to the numbers the defective net produced, so nothing in the
 output distinguishes a repaired net from the broken one — only the planting does, which is why the
 mutations at each granularity are part of this change and not a follow-up to it.
+
+### Pre-registration: what building the quantitative layer would mean, 2026-08-08
+
+**Written and committed before `bzk/quant/` exists as anything but a docstring.** I11 has been the
+unmet invariant blocking the most since Slice 4b, and closing it touches every `SiteObservation` in
+the graph. The temptation this pre-registration exists against is the one every previous round hit:
+reporting the ids as unchanged when nothing was ever capable of changing them, and calling that a
+confirmation.
+
+**The prediction rests on a premise that is verifiable rather than assumed, and the premise is
+stated first.** `quant_ref` is in the *Excluded columns* cell for both observation types in §3's
+identity table (`ONTOLOGY.md` §3, the `SiteObservation` and `ProteinObservation` rows), and
+`tests/test_schema.py` asserts that identifying ∪ excluded partitions every node's columns. So
+populating it *cannot* enter an identity tuple — checked directly:
+`schema.IDENTITY['SiteObservation'].fields` is `('candidate_proteins',)` and holds no `quant_ref`.
+A prediction of no movement is therefore a prediction about the code doing what the guarded
+partition says, not a hope.
+
+**The prediction.** After the layer lands and a full rebuild runs:
+
+* symmetric difference **0** over **11,730** node ids and **9,217** edges, across all 24 labels and
+  33 relationships;
+* refusals unchanged at **27**;
+* **2,029** `SiteObservation` and **4,561** `Protein`;
+* wall clock within ~10% of **69.0 s**, which is the baseline **measured on the unchanged tree today**
+  rather than the 119.9 s recorded in §8 from a different container — quoting the stale figure would
+  make any comparison a statement about hardware.
+
+**How it will be tested, stated in advance:** a full rebuild into a separate database, then a
+per-label id diff against `~/.bzk-omics/graph.kuzu`. *Not* by re-reading §3's partition or
+`schema.IDENTITY`, which is what produced the premise; a partition cannot test the code that is
+supposed to respect it.
+
+Four outcomes, and what each licenses:
+
+1. **Nothing moves.** The expected outcome and the weakest. It licenses "the layer is additive at
+   the graph", nothing more — in particular it says nothing about whether the matrix is *correct*,
+   which is a separate claim tested by reading values back rather than by ids not moving.
+2. **An id moves.** Then `quant_ref` reached an identity tuple despite the partition, which would
+   make the §3 guard itself unsound, and that is the finding — larger than the layer.
+3. **The rebuild refuses, or the refusal count moves off 27.** Then writing the matrix changed what
+   the adapter admits, which means the matrix write is not additive to ingestion and the two are
+   entangled where the scope assumed they are not.
+4. **Wall clock moves by much more than 10%.** Then the columnar write is not the cheap part the
+   design assumes, and the "re-read from the deposit every run" cost this replaces was mis-stated.
+
+Outcome 1 is the one to watch, and the reason is specific rather than generic: **the ids could not
+have moved.** The partition guarantees it, so a report of "0 differing" carries almost no
+information about this turn's work, and every temptation is to present it as though it did. The
+claim that carries information is the one about values read back out of DuckDB, and it must not be
+allowed to borrow the id diff's authority.
 
 ### The platform made an invisible analytical choice, 2026-08-07
 
