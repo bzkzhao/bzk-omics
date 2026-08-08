@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.16 |
+| Version | 1.17 |
 | Last reviewed | 2026-08-08 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -491,6 +491,53 @@ Four outcomes, and what each licenses:
 Outcome 3 is the one to watch, because a criterion built to catch three known instances will catch
 them by construction — so the run that matters is the one over instances nobody has named yet, and
 that run cannot report a miss it does not know about.
+
+### Pre-registration: what repairing the sweep's own surface would mean, 2026-08-08
+
+**Written and committed before the widened net is written.** `tests/test_tautology_sweep.py`
+declares that it examines every matching assertion in `tests/`, and examines the first comparison of
+each assert and no other, while counting one assert twice. It is the third artefact in a row to land
+inside the class it was built to close, and the numbers about to move are the ones it reports about
+itself — a net measuring its own reach.
+
+**One number in this prediction was handed to me and is not mine.** An audit removed the `break`
+alone and reported 82 matches, an identical set, 0 added and 0 gone. I will re-run it, but I am
+recording that I knew the answer before predicting it; a prediction made after the fact is worth
+naming as such rather than presenting as foresight. The widening below is broader than that change,
+so the run is not the same run.
+
+**The prediction.** Matches stay at **82**. Asserts fall from 633 to **632**, the single duplicate
+being `test_rebuild.py:250` inside `_resolve` nested in `_resolver_for`. Modules stay at **19**. The
+three edges the net does not reach today — an `AsyncFunctionDef`, an assert outside any function, a
+`.py` file in `tests/` that is not `test_*.py` — are each measured at zero, so covering them moves
+nothing now and is done for what the declaration says rather than for what the tree contains.
+
+**How it will be tested, stated in advance:** the net's own reach is tested by *planting*, at each
+granularity at which the surface can shrink, and observing the module go red — not by re-reading the
+match set, which is the artefact under suspicion. The counts are read off the repaired net; the
+reach is not.
+
+Four outcomes, and what each licenses:
+
+1. **Matches unchanged at 82.** The expected outcome, and the one with the most ways to be
+   misread. It licenses exactly this: *today*, no second-or-later comparison in `tests/` matches
+   Pass C or D. It does **not** license "the gap was empty" as a statement about the gap — a planted
+   instance went undetected, so the gap demonstrably admitted one — and it does not license "the net
+   is now complete". The five second comparisons that exist are four comprehension filters neither
+   pass matches by construction and one attribute-against-attribute compare Pass D excludes on form;
+   that is a fact about the criteria meeting today's tree, and the two zeros this module has already
+   over-read are recorded in `HANDOFF.md` and in the section above.
+2. **Matches grow.** Then the gap was hiding matches, the reported 82 was wrong as a description of
+   `tests/`, and every classification resting on it is reopened.
+3. **Matches shrink.** Then the widening broke a criterion. That is a finding about the net, not
+   about `tests/`, and no count from that run may be reported.
+4. **Asserts do not fall to exactly 632.** Then the double-count is not the single site measured,
+   and the counter's defect is larger than one nested function.
+
+Outcome 1 is the one to watch, and not because it is unlikely. It is the outcome under which every
+number in the report is identical to the numbers the defective net produced, so nothing in the
+output distinguishes a repaired net from the broken one — only the planting does, which is why the
+mutations at each granularity are part of this change and not a follow-up to it.
 
 ### The platform made an invisible analytical choice, 2026-08-07
 
