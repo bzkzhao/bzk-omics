@@ -79,6 +79,12 @@ REQUIRED_COLUMNS = (
 )
 
 
+#: The row filters this adapter applies, recorded on the ingestion `Analysis` (I16). Named here
+#: rather than written into the node literal so the list and the code that applies it are one edit
+#: apart — `drop_decoys_and_contaminants` is where the first two happen, `_filter` the third.
+FILTERS_APPLIED = ("reverse", "potential_contaminant", "localization_prob")
+
+
 class MaxQuantSiteError(ValueError):
     """A MaxQuant site table cannot be ingested. Never downgraded to a warning (`CLAUDE.md`)."""
 
@@ -224,6 +230,41 @@ class MaxQuantSiteAdapter:
         nodes.append(self._node("Dataset", dataset_id, dataset))
         for sample in mapping.samples:
             edges.append({"type": "PRODUCED", "from": sample["id"], "to": dataset_id})
+
+        # **The ingestion Analysis — I16, and the reason this exists.** This adapter drops rows:
+        # decoys, contaminants, and everything below `localization_threshold` (242 of 2,298 on
+        # PXD018299). Until 2026-08-07 it recorded none of that, and I16 did not fire — not because
+        # the field was wrong but because there was no `Analysis` to check, so an invariant written
+        # for exactly this case iterated over an empty set. `ROADMAP.md` § The platform made an
+        # invisible analytical choice records it as a finding rather than a bug.
+        #
+        # `kind = 'processing'`, not `'external'`, and `parameters_observed = true`. The distinction
+        # is I19's: this `Analysis` is the *filtering the platform performed*, every parameter of
+        # which the platform chose and executed — so it observed them. What it did **not** witness
+        # is the MaxQuant search, and those parameters (`search_engine`, its version,
+        # `acquisition_mode`) live on the `Dataset` above, which is where I13 already puts recorded
+        # pipeline metadata. Calling this one `external` would claim the platform had merely been
+        # told its own threshold.
+        analysis = {
+            "label": f"ingest {path.name}",
+            "kind": "processing",
+            "quantity": self.declared.quantity,
+            "localization_threshold": self.declared.localization_threshold,
+            "filters_applied": sorted(FILTERS_APPLIED),
+            "parameters_observed": True,
+            # Determined by `kind`: `basis` and `confidence` are curation's fields (§3, §5.3).
+            "basis": None,
+            "confidence": None,
+            # This analysis filters; it runs no test. §3 classifies both absences as determined.
+            "test": None,
+            "fdr_method": None,
+            "external_tool": None,
+            "external_version": None,
+            "parameters_json": None,
+        }
+        analysis_id = evidence_id("Analysis", analysis, {"Dataset": dataset_id})
+        nodes.append(self._node("Analysis", analysis_id, analysis))
+        edges.append({"type": "USED", "from": analysis_id, "to": dataset_id})
 
         refusals: list[Refusal] = []
         emitted = 0
