@@ -12,6 +12,7 @@ responses, and staleness is tested by passing `now` rather than by waiting or by
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -162,3 +163,20 @@ def test_an_empty_archive_says_there_is_nothing_to_check(tmp_path: Any) -> None:
     home = tmp_path / "home"
     (home / "cache" / "uniprot").mkdir(parents=True)
     assert "nothing to drift-check" in drift.staleness_line(home)
+
+
+def test_the_staleness_threshold_mirrors_operations() -> None:
+    """`OPERATIONS.md` §5 owns cadence, so it owns this number; `drift.py` mirrors it.
+
+    The same mirror-plus-guard idiom as `schema.py` against `ONTOLOGY.md` §4–§7, `CURATION_BASIS`
+    against §5.3 and `GG_REMNANT_MODIFIERS` against §6.1. Before this the constant merely *cited*
+    §5 as its owner in a comment, which is not an arrangement — the value lived in one place and
+    the authority in another, and either could move without the other noticing.
+    """
+    text = (Path(__file__).resolve().parents[1] / "OPERATIONS.md").read_text()
+    stated = re.search(r"\*\*Staleness threshold: (\d+) days\.\*\*", text)
+    assert stated, "OPERATIONS.md §5 no longer states a staleness threshold"
+    assert drift.STALE_AFTER_DAYS == int(stated.group(1)), (
+        f"drift.STALE_AFTER_DAYS is {drift.STALE_AFTER_DAYS} but OPERATIONS.md §5 says "
+        f"{stated.group(1)}; §5 owns the number"
+    )

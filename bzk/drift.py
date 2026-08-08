@@ -45,8 +45,13 @@ from bzk.resolve.uniprot import resolve
 DEFAULT_HOME = Path.home() / ".bzk-omics"
 RECEIPT_NAME = ".drift"
 
-#: How long a drift check stays fresh before `rebuild` starts saying so. Not enforced anywhere —
-#: nothing refuses on it — so it is a reporting threshold, and `OPERATIONS.md` §5 owns the cadence.
+#: How long a drift check stays fresh before `rebuild` starts saying so. **`OPERATIONS.md` §5 owns
+#: this number** — that section owns cadence — and this is its mirror, guarded by
+#: `tests/test_drift.py` exactly as `schema.py` is guarded against `ONTOLOGY.md` §4–§7. It was a
+#: constant here *citing* §5 as owner, which is a comment rather than an arrangement: the value
+#: lived in one place and the authority in another, so either could move without the other.
+#: Nothing refuses on it; it is a reporting threshold, and the obligation that would give staleness
+#: teeth is the I18 export predicate recorded in `HANDOFF.md` §8.
 STALE_AFTER_DAYS = 7
 
 

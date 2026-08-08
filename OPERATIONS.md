@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.6 |
+| Version | 0.7 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `ARCHITECTURE.md`, `ONTOLOGY.md` |
 | Authoritative for | Backup, cache policy, dependency pinning, rebuild discipline |
@@ -84,7 +84,9 @@ The same discipline applies to DuckDB and Polars, though both are more stable.
 
 **Run it weekly, and after every schema change.** The claim in I9 — that schema change is a compute cost rather than a migration — is true only while this is verified. An untested rebuild path is an assumption, not an invariant.
 
-**Two commands since 2026-08-07, with different cadences.** `bzk rebuild` reconstructs and is cheap (119.9 s on PXD018299, and dominated by the write path rather than by anything irreducible); run it after every schema change, as above. `bzk drift` validates the sequence archive against UniProt and is expensive (**973.7 s measured** for 1,029 sequences, zero drift on 2026-08-07); run it **weekly**. They were one command until the archive grew past a thousand sequences and the combined cost reached 17.6 minutes — at which point the honest thing and the convenient thing diverged, and the convenient thing won: the session that introduced the cost changed the schema twice and ran a full rebuild once, at the end.
+**Two commands since 2026-08-07, with different cadences.** `bzk rebuild` reconstructs and is cheap (119.9 s on PXD018299, and dominated by the write path rather than by anything irreducible); run it after every schema change, as above. `bzk drift` validates the sequence archive against UniProt and is expensive (**973.7 s measured** for 1,029 sequences on 2026-08-07); run it **weekly**. That first run reported zero drift and **that number means nothing about the archive**: it was populated at 15:39 and checked at 17:28 the same afternoon, so it compared a fetch against a fetch under two hours older. It is evidence the check runs, not evidence the sequences are stable. **The first meaningful drift run is one over an archive that has aged** — weeks at least, since UniProt releases roughly monthly — and until then no conclusion about exposure may be drawn from a clean result. They were one command until the archive grew past a thousand sequences and the combined cost reached 17.6 minutes — at which point the honest thing and the convenient thing diverged, and the convenient thing won: the session that introduced the cost changed the schema twice and ran a full rebuild once, at the end.
+
+**Staleness threshold: 7 days.** A receipt older than that is reported as `STALE` by every `bzk rebuild`. This document owns the number because this section owns cadence; `bzk/drift.py`'s `STALE_AFTER_DAYS` mirrors it and `tests/test_drift.py` asserts the two agree, the same way `schema.py` is guarded against `ONTOLOGY.md` §4–§7. It was a constant in the code citing this section as its owner, which is a comment rather than an arrangement — the number lived in one place and the authority in another.
 
 `bzk drift` leaves a receipt in `cache/uniprot/.drift`, and every `bzk rebuild` reports how stale it is. **Rebuild never refuses on staleness** — it is the disaster-recovery path, and a network check standing in front of recovery would be worse than a stale check. The obligation that gives staleness teeth belongs at the export boundary with I18 and is recorded in `HANDOFF.md` §8; until it exists, the receipt is a report and not a control.
 
