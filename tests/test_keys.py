@@ -139,11 +139,30 @@ def test_parameters_json_normalization_reaches_above_two_to_the_fifty_third() ->
     )
 
 
-def test_parameters_json_normalization_leaves_non_integral_and_non_finite_floats_alone() -> None:
-    # `0.1`, `inf` and `nan` all report `is_integer()` false, so the collapse never sees them; a
-    # literal too large for a float parses to `inf` rather than raising.
+def test_parameters_json_normalization_leaves_non_integral_floats_alone() -> None:
+    # `0.1` reports `is_integer()` false, so the collapse never sees it.
     assert canonical_parameters_json('{"n": 0.1}') == '{"n":0.1}'
-    assert "Infinity" in canonical_parameters_json('{"n": 1e400}')
+
+
+def test_a_non_finite_number_is_refused_at_the_same_door_as_malformed_json() -> None:
+    """Decided 2026-08-08. This test replaces one that pinned the lax output as expected.
+
+    The previous assertion was `"Infinity" in canonical_parameters_json('{"n": 1e400}')`, which
+    recorded a choice nobody had made: the function refused input that was not JSON and emitted
+    output that was not JSON. Both literals and overflow-to-`inf` are covered, which is why the
+    check is `allow_nan=False` on the way out rather than `parse_constant` on the way in.
+
+    Note what this does *not* establish. Nothing in the repository can put a value into
+    `parameters_json` today, so no real path reaches either branch.
+    """
+    for raw in ('{"n": Infinity}', '{"n": -Infinity}', '{"n": NaN}', '{"n": 1e400}'):
+        with pytest.raises(KeyError_, match="non-finite"):
+            canonical_parameters_json(raw)
+    # Nesting, since the check must not be a shallow scan of top-level values.
+    with pytest.raises(KeyError_, match="non-finite"):
+        canonical_parameters_json('{"grid": {"reps": [1, NaN]}}')
+    # And a finite payload still canonicalizes, so the refusal is not a blanket one.
+    assert canonical_parameters_json('{"s0": 0.1, "n": 250.0}') == '{"n":250,"s0":0.1}'
 
 
 def test_malformed_parameters_json_is_an_error_not_a_passthrough() -> None:

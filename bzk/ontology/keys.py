@@ -16,7 +16,10 @@ spellings of one fact minting two ids. The three families the audit found:
      and 1.80 and the integer 8 and 8.0 agree;
   3. structured strings     — ``parameters_json`` is parsed and re-serialized with sorted keys and
      normalized numeric forms, so key order, spacing and the int/float boundary cannot fork an id
-     (§3, ADR-0020);
+     (§3, ADR-0020). **This one both normalizes and refuses**, and the boundary is stated at the
+     raise: numeric *forms* normalize, because two spellings of one JSON number are one value;
+     malformed JSON and **non-finite numbers** are refused, because neither can be canonically
+     re-serialized *as JSON*, which is what this function's contract says it produces;
   4. mis-cased identifiers  — an accession, a CURIE prefix, or a UniProt CURIE's local part that
      departs from §4's fixed form is **refused, not repaired** (2026-08-08; the reasoning, and the
      one half of §4 l.266 that stays unenforced, are in `HANDOFF.md` §8).
@@ -196,8 +199,38 @@ def canonical_parameters_json(raw: str | None) -> str:
     """Parse and re-serialize with sorted keys and normalized numbers (§3).
 
     Malformed JSON is an error rather than a passthrough: hashing it as raw text is precisely the
-    behaviour §3 forbids, and silently doing so would reintroduce the defect for the one field most
-    likely to carry it (`s0` and the randomisation count).
+    behaviour §3 forbids, and silently doing so would reintroduce the defect for the field §5.4
+    leaves open — the DDL says *"test-specific parameters, **e.g.** s0, n_randomisations"*, so the
+    value space is whatever a test declares, not those two.
+
+    **Non-finite values are refused at the same door — decided 2026-08-08.** Until then this
+    function refused input that was not JSON and emitted output that was not JSON: Python's parser
+    accepts `Infinity` and `NaN` as an extension, `json.dumps` writes them straight back, and
+    `{"n": 1e400}` overflows to `inf` with no literal involved at all. No *fork* resulted — the
+    parse is symmetric, `Infinity` and `1e400` converge, and distinct non-finite values stay
+    distinct — so the defect was never a second id for one fact. It was that the function's stated
+    contract, a canonical *JSON* re-serialization, produced a string no JSON parser accepts, and a
+    test pinned that output as expected while nothing recorded it as a choice.
+
+    Refused rather than accepted, for reasons beyond symmetry. `NaN` is `determined`/`curated`
+    absence wearing a value's clothes (ADR-0021): it is identifying, it means *not a number*, and
+    two analyses whose parameter failed to compute would converge on one id — asserting they are
+    the same analysis when the data says only that both are broken. And family 4's rule applies:
+    refuse when one spelling is simply wrong, and `NaN` is not a spelling of a parameter value.
+
+    **The mechanism is `allow_nan=False` at the exit, not `parse_constant` at the entrance**, and
+    that is deliberate: `parse_constant` fires only for the literals `Infinity`/`-Infinity`/`NaN`
+    and never sees a decimal that overflows to `inf`, so it would leave `1e400` through. Checking on
+    the way out catches both, at any nesting depth, with no second traversal that could drift from
+    the first.
+
+    **Reachability today is nil, and that is stated rather than hidden.** No code in this repository
+    puts anything into `parameters_json`: `maxquant_sites.py` writes `None`, the curation loader
+    never touches it, and `perseus.py` passes through a caller-supplied `DeclaredAnalysis` whose
+    only constructors are in `tests/`. So this refusal — like the test it replaces — pins behaviour
+    on an input no path produces, and establishes less than its name suggests. It is written for the
+    producer that arrives next, and `json.dumps` defaults to `allow_nan=True`, so any producer
+    serialising a params dict that holds a computed `nan` emits `{"s0": NaN}` without noticing.
     """
     if raw is None:
         return _NULL
@@ -205,7 +238,18 @@ def canonical_parameters_json(raw: str | None) -> str:
         parsed = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise KeyError_(f"parameters_json is not valid JSON, so it cannot be canonicalized: {exc}")
-    return json.dumps(_canonical_json_numbers(parsed), sort_keys=True, separators=(",", ":"))
+    try:
+        return json.dumps(
+            _canonical_json_numbers(parsed), sort_keys=True, separators=(",", ":"), allow_nan=False
+        )
+    except ValueError as exc:
+        raise KeyError_(
+            f"parameters_json holds a non-finite number, so it cannot be canonically re-serialized "
+            f"as JSON: {exc}. Refused at the same door as malformed JSON — Python accepts "
+            "`Infinity` and `NaN` as an extension and a decimal can overflow to `inf`, but neither "
+            "is JSON, and a `NaN` in an identifying field is an absence wearing a value's clothes "
+            "(ADR-0021)"
+        )
 
 
 def identity_tuple(

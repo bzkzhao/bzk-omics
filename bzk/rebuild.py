@@ -77,8 +77,11 @@ Drift = drift.Drift
 @dataclass(frozen=True)
 class ReplayReport:
     curation_records: int
-    nodes_written: int
-    edges_written: int
+    #: Statements *issued*, not nodes/edges created — see `store.WriteReport`. `MERGE` plus
+    #: ADR-0019's self-contained change-sets means a node staged by two change-sets is counted
+    #: twice here and exists once in the graph. Renamed from `nodes_written` 2026-08-08.
+    nodes_staged: int
+    edges_staged: int
     #: Deposits an adapter recognised and ingested. Zero on a machine where `raw/` is empty.
     deposits_ingested: int = 0
     #: `SiteObservation`s written — the ingested population, which is NOT the file's row count.
@@ -92,8 +95,9 @@ class ReplayReport:
 class RebuildReport:
     tables_created: int
     curation_records: int
-    nodes_written: int
-    edges_written: int
+    #: Statements issued, as `ReplayReport` above — never the graph's size.
+    nodes_staged: int
+    edges_staged: int
     deposits_ingested: int = 0
     site_observations: int = 0
     refusals: list[Refusal] = field(default_factory=list)
@@ -219,9 +223,12 @@ def replay_ingestion(
                 f"curation export (I9). Fix the record or remove it from the export.\n{exc}"
             ) from exc
         written = store.write_change_set(conn, loaded.nodes, loaded.edges)
-        nodes += written.nodes_written
-        edges += written.edges_written
-        log(f"replayed {path.name}: {written.nodes_written} nodes, {written.edges_written} edges")
+        nodes += written.nodes_staged
+        edges += written.edges_staged
+        log(
+            f"replayed {path.name}: {written.nodes_staged} node statement(s), "
+            f"{written.edges_staged} edge statement(s)"
+        )
 
         source = _deposit_for(loaded, home)
         if source is None:
@@ -233,8 +240,8 @@ def replay_ingestion(
             continue
         parsed = adapter.parse(source, loaded.sample_mapping())
         written = store.write_change_set(conn, parsed.nodes, parsed.edges)
-        nodes += written.nodes_written
-        edges += written.edges_written
+        nodes += written.nodes_staged
+        edges += written.edges_staged
         deposits += 1
         refusals.extend(parsed.refusals)
         report = adapter.report
@@ -242,18 +249,18 @@ def replay_ingestion(
         observations += emitted
         log(
             f"  ingested {source.name} via {adapter.name}: {emitted} site(s), "
-            f"{len(parsed.refusals)} refused, {written.nodes_written} nodes, "
-            f"{written.edges_written} edges"
+            f"{len(parsed.refusals)} refused, {written.nodes_staged} node statement(s), "
+            f"{written.edges_staged} edge statement(s)"
         )
     log(
         f"ingestion replay: {len(records)} curation record(s), {deposits} deposit(s), "
         f"{observations} site observation(s), {len(refusals)} refusal(s), "
-        f"{nodes} nodes, {edges} edges"
+        f"{nodes} node statement(s), {edges} edge statement(s)"
     )
     return ReplayReport(
         curation_records=len(records),
-        nodes_written=nodes,
-        edges_written=edges,
+        nodes_staged=nodes,
+        edges_staged=edges,
         deposits_ingested=deposits,
         site_observations=observations,
         refusals=refusals,
@@ -286,14 +293,14 @@ def rebuild(
     log(
         f"done: {tables} tables, {replay.curation_records} curation record(s), "
         f"{replay.deposits_ingested} deposit(s), {replay.site_observations} site observation(s), "
-        f"{len(replay.refusals)} refused, {replay.nodes_written} nodes, "
-        f"{replay.edges_written} edges"
+        f"{len(replay.refusals)} refused, {replay.nodes_staged} node statement(s), "
+        f"{replay.edges_staged} edge statement(s)"
     )
     return RebuildReport(
         tables_created=tables,
         curation_records=replay.curation_records,
-        nodes_written=replay.nodes_written,
-        edges_written=replay.edges_written,
+        nodes_staged=replay.nodes_staged,
+        edges_staged=replay.edges_staged,
         deposits_ingested=replay.deposits_ingested,
         site_observations=replay.site_observations,
         refusals=replay.refusals,

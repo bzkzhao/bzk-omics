@@ -37,9 +37,61 @@ def n(node_type: str, node_id: str, **props: object) -> dict[str, object]:
 def test_writes_nodes_and_edges(conn: kuzu.Connection) -> None:
     nodes = [n("Protein", MX1, accession="P20591"), n("Protein", USP18, accession="O43593")]
     report = store.write_change_set(conn, nodes, [])
-    assert report.nodes_written == 2
+    assert report.nodes_staged == 2
     assert store.count_nodes(conn) == {"Protein": 2}
     assert store.ids_by_label(conn) == {"Protein": sorted([MX1, USP18])}
+
+
+def test_the_report_counts_statements_issued_not_nodes_and_edges_created(
+    conn: kuzu.Connection,
+) -> None:
+    """The detector for the rename (2026-08-08): reported count against the graph's *change*.
+
+    A comparison against a constant cannot see this. `test_writes_nodes_and_edges` above asserts
+    `nodes_staged == 2` and passes whichever quantity the field holds, because on a first write into
+    an empty graph the two agree. The divergence is only visible on a re-write, which `MERGE` makes
+    a no-op while the count stays the same — and ADR-0019's self-contained change-sets make that
+    re-write mandatory rather than hypothetical.
+
+    So this pins the semantics rather than the name: it fails if the fields are ever re-meant to
+    count what landed without the names following.
+    """
+    nodes = [n("Protein", MX1, accession="P20591")]
+    edges: list[dict[str, object]] = []
+
+    before = sum(store.count_nodes(conn).values())
+    first = store.write_change_set(conn, nodes, edges)
+    after_first = sum(store.count_nodes(conn).values())
+    second = store.write_change_set(conn, nodes, edges)
+    after_second = sum(store.count_nodes(conn).values())
+
+    assert first.nodes_staged == second.nodes_staged == 1, "the count is len(staged), both times"
+    assert after_first - before == 1, "the first write creates the node"
+    assert after_second - after_first == 0, "the second creates nothing — MERGE"
+    assert second.nodes_staged != after_second - after_first, (
+        "reported count and graph delta diverge on a re-write; that divergence is what the name "
+        "`nodes_staged` states and `nodes_written` denied"
+    )
+
+
+def test_the_edge_report_counts_statements_issued_too(conn: kuzu.Connection) -> None:
+    """The two fields are one defect and are pinned together — `WriteReport` builds both from
+    `len()` in one expression, so a fix reaching only one of them would be the same defect left
+    half-closed."""
+    nodes = [
+        n("Analysis", "bzk:an1", kind="curation", parameters_observed=True),
+        n("Dataset", "bzk:ds1", content_hash="sha256:" + "0" * 64),
+    ]
+    edges = [{"type": "USED", "from": "bzk:an1", "to": "bzk:ds1"}]
+
+    first = store.write_change_set(conn, nodes, edges)
+    after_first = sum(store.count_edges(conn).values())
+    second = store.write_change_set(conn, nodes, edges)
+    after_second = sum(store.count_edges(conn).values())
+
+    assert first.edges_staged == second.edges_staged == 1
+    assert after_first == 1 and after_second == 1, "the second write creates no edge"
+    assert second.edges_staged != after_second - after_first
 
 
 def test_rewriting_the_same_change_set_converges(conn: kuzu.Connection) -> None:

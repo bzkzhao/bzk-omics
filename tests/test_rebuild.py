@@ -96,7 +96,9 @@ def test_rebuild_creates_schema_and_leaves_the_archive_alone(tmp_path: Any) -> N
     report = rebuild(home=home, curation_dir=CURATION_DIR)
     assert report.tables_created == 57  # 24 node + 33 rel tables (ADR-0023 dropped two)
     assert report.curation_records == 1  # data/curation/curation_PXD018299.json
-    assert (report.nodes_written, report.edges_written) == (16, 38)
+    # Statements issued, not the graph's size — the two agree here only because this replay finds
+    # no deposit, so nothing is staged twice (`store.WriteReport`).
+    assert (report.nodes_staged, report.edges_staged) == (16, 38)
     assert (home / "graph.kuzu").exists()
     assert (home / "cache" / "uniprot" / "seq" / "P09914-2#sv2.txt").exists()  # archive untouched
     assert not hasattr(report, "drifts"), "rebuild no longer performs the drift check"

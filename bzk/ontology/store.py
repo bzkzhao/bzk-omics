@@ -45,8 +45,30 @@ class StoreError(RuntimeError):
 
 @dataclass(frozen=True)
 class WriteReport:
-    nodes_written: int
-    edges_written: int
+    """What a write *issued*, not what it landed. **Renamed from `nodes_written` 2026-08-08.**
+
+    Both fields are the length of the staged collection, and both write paths are `MERGE`, so
+    anything staged a second time issues a statement and creates nothing. ADR-0019 requires a
+    change-set to be self-contained, which makes re-staging **mandatory rather than incidental** —
+    on PXD018299 the adapter re-stages the `Dataset` and all 12 `Sample`s the curation record
+    already wrote, so the divergence is systematic, not an edge case.
+
+    The old names asserted a property the code does not have, and it was read as true: `HANDOFF.md`
+    §8 recorded "11,743 nodes and 9,229 edges" for a graph holding 11,730 and 9,217.
+
+    Renamed rather than re-meant, for two reasons beyond cost. **What the graph holds already has a
+    home** — `count_nodes` below, which is where §3's composition list comes from — so re-meaning
+    these would put one fact in two places, which `CLAUDE.md` calls a defect rather than
+    redundancy. And **statements issued has no other home and is load-bearing**: §8's performance
+    row is denominated in it ("20,294 statements … 225 statements/second"), and that row already
+    used the correct word one line below the sentence that did not.
+
+    `tests/test_store.py` pins the divergence rather than the name: one change-set written twice
+    reports the same count both times while the graph grows only once.
+    """
+
+    nodes_staged: int
+    edges_staged: int
 
 
 def _coerce(value: Any, column_type: str) -> Any:
@@ -154,7 +176,7 @@ def write_change_set(
             statement += " SET " + ", ".join(assignments)
         _query(conn, statement, parameters)
 
-    return WriteReport(nodes_written=len(nodes), edges_written=len(edges))
+    return WriteReport(nodes_staged=len(nodes), edges_staged=len(edges))
 
 
 # ── Reading back, for the rebuild report and for I9's reproducibility check ──────────────────────

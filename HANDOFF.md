@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.12 |
+| Version | 1.13 |
 | Last reviewed | 2026-08-08 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -232,7 +232,10 @@ deposit or the archive has moved and that is the finding, not a setup problem.
    converge (I7) and every site hangs off the dataset the curation describes. Asserted, not assumed.
 
    **The graph, as of the 2026-08-07 rebuild after ADR-0024 (`python -m bzk.rebuild`):** 2,029
-   `SiteObservation`s, 27 refused, 11,743 nodes and 9,229 edges, and **no `ProteinAssignment` at
+   `SiteObservation`s, 27 refused, **11,730 nodes and 9,217 edges in the graph** — corrected
+   2026-08-08 from 11,743 and 9,229, which are the *statements issued* (`nodes_staged`), 13 nodes
+   and 12 edges higher because the adapter re-stages the `Dataset`, the 12 `Sample`s and their
+   `PRODUCED` edges as ADR-0019 requires — and **no `ProteinAssignment` at
    all** — ADR-0024 removed `reviewed_preferred` from that basis enum, so the 522 promotions are
    recorded as `keying_basis` / `displaced_protein` on the observations instead. Two independent
    replays reproduce **11,730 ids identically**, re-run against the post-I17 keying rather than
@@ -559,7 +562,7 @@ clause rather than by which was easier to write.
 
 | Clause | Mode | Why |
 |---|---|---|
-| §3 l.171 `parameters_json` *"normalized numeric forms"* | **Normalize** | `250` and `250.0` are the same JSON number — JSON has one number type — so there is no departure to refuse and refusing would reject valid input. `json.loads` preserves the written form and `json.dumps` writes it back, which is how the int/float boundary survived into the hash while float *spelling* already converged through the parse. **Every** integral float collapses to `int`; bools are left alone because `isinstance(True, int)` is true in Python and JSON's `true` is not the number 1, and non-integral and non-finite floats never reach the collapse |
+| §3 l.171 `parameters_json` *"normalized numeric forms"* | **Normalize** | `250` and `250.0` are the same JSON number — JSON has one number type — so there is no departure to refuse and refusing would reject valid input. `json.loads` preserves the written form and `json.dumps` writes it back, which is how the int/float boundary survived into the hash while float *spelling* already converged through the parse. **Every** integral float collapses to `int`; bools are left alone because `isinstance(True, int)` is true in Python and JSON's `true` is not the number 1, and non-integral floats never reach the collapse. **This clause both normalizes and refuses, and the boundary is stated 2026-08-08:** numeric *forms* normalize, while malformed JSON **and non-finite numbers** are refused — see the row below, and the raise in `canonical_parameters_json` |
 | §4 l.265 accession uppercase | **Refuse** | A lowercase accession is not another spelling of a UniProt accession, it is a malformed one, and repairing it asserts more than the input supports (I19's discipline). Two concrete costs of normalizing: `resolve/nodes.py` writes `accession` into the node from the same raw string, so an uppercased id would sit on a node whose own column contradicted it; and a curator's typo becomes permanently invisible, because the repaired id is well-formed and resolves |
 | §4 l.266 **first** clause — CURIE prefix lowercase | **Refuse** | The values are node ids. `store.py` writes them as edge endpoints and as `candidate_proteins` elements from the raw change-set, so normalizing the hashed copy alone would leave the id correct and the content it identifies wrong — a worse state than the fork. The builder also cannot tell a CURIE from free text generically, so a blanket normalize is unavailable; the check fires only when a prefix case-folds onto a §3-map prefix, and once detection is that precise, refusal is precise too |
 | §4 l.266 **second** clause — the local part keeps its authority's casing | **Refuse, UniProt only** | Added 2026-08-08 as a correction, not a new clause: see the row below. A generic rule is unavailable and must not be invented, since §3's map spans authorities whose local parts are numeric (`hgnc:4053`, `unimod:121`, `pmid:21139048`), uppercase (`ensembl:ENSG…`, `mondo:MONDO_…`) or doubly prefixed (`chebi:CHEBI:15377`, `go:GO:0032020`), and §4 fixes a casing rule for exactly one of them. UniProt is also the only prefix in an identifying position today, so this is §4 l.265's existing accession clause reaching the second position l.266 names, rather than a rule with no home. Scoped to the segment before the first `#`, because a composed key continues past it in lowercase |
@@ -615,6 +618,99 @@ which is C1's defect unfixed in a range. The cutoff is removed.
 quietly fixed. `s0` and a randomisation count will never approach `2**53`, so the unreachable fork
 cost nothing; a justification that reads as principled is what gets copied into the next boundary
 decision. Both instances corrected here shared that shape.
+
+**Decided 2026-08-08 — `canonical_parameters_json` refuses non-finite numbers.** It refused input
+that was not JSON and emitted output that was not JSON: Python's parser accepts `Infinity` and `NaN`
+as an extension, `json.dumps` writes them back, and `{"n": 1e400}` overflows to `inf` with no
+literal involved. Measured before deciding: **no fork resulted** — the parse is symmetric,
+`Infinity` and `1e400` converge on one string, and distinct non-finite values stay distinct. The
+defect was that a function whose contract is a canonical *JSON* re-serialization produced a string
+no JSON parser accepts, and that a test pinned the lax output as expected while nothing recorded it
+as a choice.
+
+Refused rather than accepted, and the reasons are not symmetry alone. **`NaN` is an absence wearing
+a value's clothes (ADR-0021):** it is identifying, it means *not a number*, and two analyses whose
+parameter failed to compute would converge on one id — asserting they are the same analysis when the
+data says only that both are broken. Family 4's rule then applies: refuse when one spelling is
+simply wrong. The mechanism is `allow_nan=False` at the exit rather than `parse_constant` at the
+entrance, because the latter sees literals only and would let `1e400` through.
+
+**Reachability is nil today, and the guard is weaker than its name for that reason.** Nothing in the
+repository puts a value into `parameters_json`: `maxquant_sites.py` writes `None`, the curation
+loader never touches it, and `perseus.py` passes through a caller-supplied `DeclaredAnalysis` whose
+only constructors are in `tests/`. So both the refusal and the test it replaces pin behaviour on an
+input no path produces. The decision is recorded for the producer that arrives next — and
+`json.dumps` defaults to `allow_nan=True`, so a producer serialising a params dict holding a
+computed `nan` emits `{"s0": NaN}` without noticing. Note also that the earlier bound on this
+field's value space was too narrow: §5's DDL says *"test-specific parameters, **e.g.** s0,
+n_randomisations"*, so it is whatever a test declares.
+
+#### `nodes_written` / `edges_written` renamed to `nodes_staged` / `edges_staged`, 2026-08-08
+
+**The names asserted a property the code does not have.** `store.WriteReport` builds both from the
+length of the staged collection in one expression, and both write paths are `MERGE`, so anything
+staged a second time issues a statement and creates nothing. ADR-0019 requires a change-set to be
+self-contained, which makes re-staging **mandatory rather than incidental**: on PXD018299 the site
+adapter re-stages the `Dataset` and all 12 `Sample`s the curation record already wrote, plus the 12
+`PRODUCED` edges over them, so the divergence is systematic and its size is exactly 13 and 12.
+
+The full surface was three declarations (`store.WriteReport`, `rebuild.ReplayReport`,
+`rebuild.RebuildReport`), one construction, four log strings — one of which closes
+`replay_ingestion` rather than `rebuild`, so a caller invoking replay directly ends on a different
+line — and three committed tests.
+
+**Renamed rather than re-meant, and not on cost.** What the graph holds already has a home in
+`store.count_nodes`, which is where §3's composition list comes from, so re-meaning these would put
+one fact in two places — a defect rather than redundancy. Statements issued has no other home and is
+load-bearing: the `store.py` performance row above is denominated in it (*"20,294 statements … 225
+statements/second"*), and that row already used the correct word one line below the sentence that
+did not.
+
+**The detector is written, not deferred.** `tests/test_store.py` compares the reported count against
+the graph's *change* across a write rather than against a constant: one change-set written twice
+reports the same count both times while the graph grows only once. A constant comparison cannot see
+this, because on a first write into an empty graph the two quantities agree — which is why
+`test_writes_nodes_and_edges` passed either way. Both fields are pinned, since they are one defect.
+
+**Corrected figures.** The sentence in §3 recording the post-ADR-0024 rebuild said *"11,743 nodes
+and 9,229 edges"*. Both are correct numbers about statements issued and wrong about the graph, which
+holds **11,730 nodes and 9,217 edges** — measured per label, and the difference is exactly the 13
+re-staged nodes and 12 re-staged edges above. Both figures entered in one commit (`12ea998`), four
+lines from a sentence in the same paragraph giving 11,730 for the ids, so this was one paragraph
+asserting both rather than two sessions disagreeing.
+
+#### A committed assertion that could not fail, and the sweep for its shape
+
+`tests/test_perseus.py` asserted `report.nodes_written == len(parsed.nodes)`, which is the
+expression `store.WriteReport` is built from — a tautology that could not fail under any change to
+the code it appeared to test. **The same class as the two above:** the code was correct and the
+artefact describing it was false, here a test's presence in a green suite asserting that a property
+is guarded when it is not. It is the ADR-0019 vacuous-check family, not a new one. Replaced with the
+claim it looked like it was making — this adapter's change-set stages nothing twice, so all 18 node
+statements and 24 edge statements land as distinct rows — which fails the moment the adapter starts
+re-staging a referent, as the site adapter legitimately does.
+
+**Swept for the shape over a stated surface: all 19 modules in `tests/`, 627 `assert` statements.**
+Pass A took every equality with `len()` on one side — **46 matches: 42 against an integer literal,
+2 uniqueness claims (`len(set(x)) == len(x)`), 2 needing reading.** Pass B took every
+`<obj>.<attr> == <non-constant expression>` and checked whether the expression is rooted in the same
+name — **32 matches, 0 sharing a root.** Of the two read by hand,
+`test_pxd018299_baseline.py:87` compares fixture rows against a committed curation record, which are
+independent sources.
+
+**One other instance, reported and not fixed:** `tests/test_drift.py:108`,
+`receipt.sequences_checked == len(drift.archived_sequences(home))`, where `drift.run` sets that
+field to exactly that expression. It is weaker than a full tautology — the re-derivation goes
+through a second call, so a change to `archived_sequences` alone would still be caught — but it
+cannot fail while `run` computes the field that way. **Trigger: the per-sequence sampling deferred
+above**, which is the change that would make the field stop equalling the archive's length and turn
+this into a substantive claim.
+
+What the sweep does **not** cover, stated because the surface is the point: "a value compared
+against the expression that produced it" is not decidable syntactically in general. The two passes
+bound it to the `len()` form and to attribute-versus-same-root, which between them catch
+re-derivation that is textually visible in the assertion, and miss re-derivation laundered through
+an intermediate variable or a helper.
 
 ### Unenforced invariants (audit 2026-08-07), by class
 
