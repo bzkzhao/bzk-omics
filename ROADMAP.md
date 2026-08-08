@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.15 |
+| Version | 1.16 |
 | Last reviewed | 2026-08-08 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -446,6 +446,51 @@ The re-derivation is a different check from the three scans that produced the pr
 the point of specifying it in advance: the scans read the graph's stored values, while this ran the
 whole adapter over the raw deposit through the changed builder. A scan cannot see a value the old
 code refused, reshaped, or never reached.
+
+### Pre-registration: what widening the tautology sweep would mean, 2026-08-08
+
+**Written and committed before the widened passes are written or run.** The 2026-08-08 sweep
+reported 46 Pass A matches, 32 Pass B matches and *"one other instance"*, and closed on Pass B's
+zero as evidence the surface was covered. An audit then produced three instances by hand, two of
+which no pass could have matched, so the previous count was a property of the criterion rather than
+of `tests/`. A widened criterion is about to produce four new numbers to set against 46, 32, 78 and
+one, and every one of them will be produced by a criterion I chose — the same shape as a scan
+testing itself.
+
+**The criterion, fixed in advance.** Pass C: every `assert` containing an `==` where one side
+contains a call expression and the other side is neither a literal nor a display of literals.
+Matches are then read by hand and classified as instances or not, where an instance is an assertion
+whose call is the expression the producing code used to compute the value on the other side.
+
+**The prediction, in three parts.** Pass C matches strictly more than Pass A's 46. It matches all
+three hand-found instances — `test_drift.py:108`, `test_drift.py:110`, `test_perseus.py:228`. And
+the classified instance count is **greater than three**, because three came from an unaided read of
+a 627-assert surface and an unaided read is not exhaustive.
+
+**How it will be tested, stated in advance:** each classified instance is confirmed by mutating the
+function its call names and showing the assertion's own module stays green. *Not* by re-reading the
+match list — the list is what produced the classification, and a classification cannot test itself.
+Instances are counted twice over: those whose mutation the whole suite survives, and those another
+test catches independently, since the second kind is a tautology whose defect is covered elsewhere
+and the distinction changes what the count means.
+
+Four outcomes, and what each licenses:
+
+1. **Pass C matches all three and finds no fourth.** The audit's list was complete and the boundary
+   is three. Weakest outcome: it confirms someone else's count, and the criterion was built knowing
+   the three it had to catch.
+2. **Pass C matches all three and finds more.** The expected outcome, and the one that says the
+   previous "one" was a criterion artefact rather than a miscount. The number itself is then only
+   as good as the hand classification, which must be reported as such.
+3. **Pass C misses one of the three.** Then the finding is about the criterion, not the count, and
+   no number from that run may be reported — including a reassuring one.
+4. **Pass C's match count is so large the classification is not readable by hand.** Then the
+   criterion is a net rather than a detector, and what gets committed is the net with its
+   classification pinned, not a claim that the class is enumerated.
+
+Outcome 3 is the one to watch, because a criterion built to catch three known instances will catch
+them by construction — so the run that matters is the one over instances nobody has named yet, and
+that run cannot report a miss it does not know about.
 
 ### The platform made an invisible analytical choice, 2026-08-07
 
