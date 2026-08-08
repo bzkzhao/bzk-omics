@@ -61,7 +61,14 @@ from bzk.ontology import invariants, schema, seed
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.ontology.keys import evidence_id, modification_site_key, protein_key
 from bzk.provenance.raw_store import content_hash
-from bzk.resolve.nodes import ResolvedProteins, Resolver, residue_at, resolve_to_nodes
+from bzk.resolve.nodes import (
+    ResolvedProteins,
+    Resolver,
+    default_resolver,
+    residue_at,
+    resolve_to_nodes,
+)
+from bzk.resolve.uniprot import Resolution
 
 #: The Unimod accession for the GlyGly remnant. §4 pins Unimod as the sole key authority — a
 #: PSI-MOD spelling of the same modification would fragment the site into a second node (I7).
@@ -126,6 +133,22 @@ class DeclaredSiteAnalysis:
 
 
 @dataclass(frozen=True)
+class Promotion:
+    """One I17 promotion: a reviewed entry chosen over the search engine's unreviewed razor pick.
+
+    §6.3: *"Resolution promotes the reviewed entry and records `basis = 'reviewed_preferred'`; it
+    never does so silently."* This carries what is needed to record it — what was picked, what was
+    chosen instead, and the reviewed subset that was weighed.
+    """
+
+    row: str
+    razor_pick: str
+    promoted_to: str
+    position: int
+    weighed: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class SiteIngestReport:
     """What the file contained and what became of it. Every number here is a finding.
 
@@ -140,6 +163,8 @@ class SiteIngestReport:
     refused_no_razor_pick: int
     refused_unresolved_protein: int
     refused_residue_mismatch: int
+    #: I17 promotions: rows keyed against a reviewed entry rather than the unreviewed razor pick.
+    promoted_reviewed: int = 0
     #: accession → why no `ProteinSequence` could be keyed, straight from `resolve_to_nodes`.
     unresolved: dict[str, str] = field(default_factory=dict)
 
@@ -210,10 +235,28 @@ class MaxQuantSiteAdapter:
         column = {name: i for i, name in enumerate(table.header)}
 
         kept, dropped_decoy, dropped_loc = self._filter(table, column)
-        resolved = resolve_to_nodes(
-            {row[column["Protein"]] for row in kept if row[column["Protein"]]},
-            resolver=self.resolver,
-        )
+        # I17 first: which rows key against a promoted reviewed entry rather than the razor pick.
+        # Computed before resolution so only the accessions actually keyed get `ProteinSequence`
+        # nodes — a candidate weighed and not chosen was observed, not pinned.
+        # Memoised across both phases: the promotion pre-pass and `resolve_to_nodes` ask about
+        # overlapping accessions, and without this every razor pick would be fetched twice.
+        underlying = self.resolver if self.resolver is not None else default_resolver()
+        seen_resolutions: dict[str, Resolution] = {}
+
+        def resolve_one(accession: str) -> Resolution:
+            if accession not in seen_resolutions:
+                seen_resolutions[accession] = underlying(accession)
+            return seen_resolutions[accession]
+
+        promotions = self._promotions(kept, column, resolve_one)
+        keyed = {
+            promotions[row[column["id"]]].promoted_to
+            if row[column["id"]] in promotions
+            else row[column["Protein"]]
+            for row in kept
+            if row[column["Protein"]] or row[column["id"]] in promotions
+        }
+        resolved = resolve_to_nodes(keyed, resolver=resolve_one)
 
         nodes: list[Node] = _sample_nodes(mapping) + seed.modifier_nodes() + list(resolved.nodes)
         edges: list[Edge] = list(resolved.edges)
@@ -269,7 +312,9 @@ class MaxQuantSiteAdapter:
         refusals: list[Refusal] = []
         emitted = 0
         for row in kept:
-            outcome = self._site(row, column, resolved, dataset_id)
+            outcome = self._site(
+                row, column, resolved, dataset_id, promotions.get(row[column["id"]])
+            )
             if isinstance(outcome, Refusal):
                 refusals.append(outcome)
                 continue
@@ -290,6 +335,7 @@ class MaxQuantSiteAdapter:
             refused_no_razor_pick=sum(r.reason == "no_razor_pick" for r in refusals),
             refused_unresolved_protein=sum(r.reason == "unresolved_protein" for r in refusals),
             refused_residue_mismatch=sum(r.reason == "residue_mismatch" for r in refusals),
+            promoted_reviewed=len(promotions),
             unresolved=dict(resolved.unresolved),
         )
         return ParsedObservations(nodes=nodes, edges=edges, refusals=refusals)
@@ -311,12 +357,69 @@ class MaxQuantSiteAdapter:
         kept = [r for r in after_decoys if r[index].strip() and float(r[index]) >= threshold]
         return kept, len(table.rows) - len(after_decoys), len(after_decoys) - len(kept)
 
+    def _promotions(
+        self, kept: list[list[str]], column: dict[str, int], resolve_one: Resolver
+    ) -> dict[str, Promotion]:
+        """I17, computed per row before anything is keyed: reviewed entries are preferred (§6.3).
+
+        Runs only for rows whose razor pick is **not** a live reviewed entry, which on PXD018299 is
+        614 of 2,056 — so the extra resolution is bounded by the problem rather than by the file.
+
+        **§6.3's phrasing does not survive the data, and the tie-break is stated rather than
+        assumed.** It says *"the reviewed Swiss-Prot entry"*, singular, as though one alternative
+        exists. ADAR's group holds five (`P55265` and four isoforms of it), so promoting requires
+        choosing among reviewed candidates — which is a razor pick of exactly the kind I14 forbids
+        *asserting*. The rule here: prefer a canonical accession (no isoform suffix); if that leaves
+        more than one distinct canonical protein, **do not promote**, because picking between two
+        genuinely different reviewed proteins is the search engine's job and not resolution's.
+        """
+        promotions: dict[str, Promotion] = {}
+        reviewed: dict[str, bool] = {}
+
+        def is_live_reviewed(accession: str) -> bool:
+            if accession not in reviewed:
+                result = resolve_one(accession)
+                reviewed[accession] = bool(
+                    result.status == "ok" and result.reviewed and result.sequence_version
+                )
+            return reviewed[accession]
+
+        for row in kept:
+            pick = row[column["Protein"]].strip()
+            # An empty `Protein` is MaxQuant declining to pick (row 1319). Promoting there would
+            # invent the inference it withheld — the same refusal `_site` already makes — so the
+            # row stays refused rather than being rescued by I17 through the back door.
+            if not pick or is_live_reviewed(pick):
+                continue
+            candidates = [a.strip() for a in row[column["Proteins"]].split(";") if a.strip()]
+            positions = [p.strip() for p in row[column["Positions within proteins"]].split(";")]
+            if len(candidates) != len(positions):
+                continue
+            options = [
+                (a, int(pos))
+                for a, pos in zip(candidates, positions, strict=True)
+                if a != pick and pos.isdigit() and is_live_reviewed(a)
+            ]
+            canonical = [(a, pos) for a, pos in options if "-" not in a]
+            if len(canonical) != 1:
+                continue
+            accession, position = canonical[0]
+            promotions[row[column["id"]]] = Promotion(
+                row=row[column["id"]],
+                razor_pick=pick,
+                promoted_to=accession,
+                position=position,
+                weighed=tuple(sorted(a for a, _ in options)),
+            )
+        return promotions
+
     def _site(
         self,
         row: list[str],
         column: dict[str, int],
         resolved: ResolvedProteins,
         dataset_id: str,
+        promotion: Promotion | None,
     ) -> tuple[list[Node], list[Edge]] | Refusal:
         """One row into its nodes and edges, or the reason it cannot become any.
 
@@ -325,7 +428,10 @@ class MaxQuantSiteAdapter:
         sequence drift.
         """
         row_id = row[column["id"]]
-        pick = row[column["Protein"]].strip()
+        # I17: where a reviewed entry was promoted, *it* is what the site keys against, and its own
+        # position out of `Positions within proteins` — the position differs per protein (ADR-0023),
+        # so carrying the razor pick's position onto a different protein would key the wrong residue.
+        pick = promotion.promoted_to if promotion else row[column["Protein"]].strip()
         if not pick:
             return Refusal(
                 row=row_id,
@@ -349,7 +455,7 @@ class MaxQuantSiteAdapter:
                 ),
             )
 
-        position = int(row[column["Position"]])
+        position = promotion.position if promotion else int(row[column["Position"]])
         reported = row[column["Amino acid"]].strip().upper()
         actual = residue_at(resolved, pick, position)
         if actual != reported:
@@ -420,6 +526,40 @@ class MaxQuantSiteAdapter:
         )
         nodes.append(self._node("ModifierAssignment", assignment_id, assignment))
         edges.append({"type": "ASSIGNMENT_FOR", "from": assignment_id, "to": observation_id})
+
+        if promotion is not None:
+            # **I17's record, and it deliberately carries no `ASSIGNS_PROTEIN`.** §6.3 gives
+            # `reviewed_preferred` a permitted confidence of `probable`, and I14 requires
+            # `confirmed` before a `ProteinAssignment` may reach `ASSIGNS_PROTEIN` from a
+            # multi-candidate set — which this always is, since promotion only happens when the
+            # group holds both an unreviewed pick and a reviewed alternative. So the two rules
+            # together permit recording the promotion and forbid asserting its conclusion, and
+            # that is the honest shape: the site is *keyed* against the reviewed entry because
+            # keying needs one protein (I14's site-grain clause), while the *claim* stays at
+            # `probable` with the weighed set named. Recorded in `HANDOFF.md` §8 — it is the same
+            # gap §6.3 already has for `Majority protein IDs` narrowing, reached from the other side.
+            protein_assignment: dict[str, object] = {
+                "candidate_proteins": sorted(protein_key(a) for a in promotion.weighed),
+                "basis": "reviewed_preferred",
+                "confidence": "probable",
+                "rationale": (
+                    f"razor pick {promotion.razor_pick} is not a live reviewed entry; "
+                    f"{promotion.promoted_to} is reviewed and in the same candidate set (I17, §6.3)"
+                ),
+                "asserted_at": None,
+                "retracted_at": None,
+            }
+            protein_assignment_id = evidence_id(
+                "ProteinAssignment", protein_assignment, {"SiteObservation": observation_id}
+            )
+            nodes.append(self._node("ProteinAssignment", protein_assignment_id, protein_assignment))
+            edges.append(
+                {
+                    "type": "PROTEIN_ASSIGNMENT_FOR",
+                    "from": protein_assignment_id,
+                    "to": observation_id,
+                }
+            )
         return nodes, edges
 
     @staticmethod

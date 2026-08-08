@@ -29,7 +29,7 @@ One ingestion path, one dataset, one statistical test, no web frontend.
 | Capability | Note |
 |---|---|
 | **Perseus result-table adapter** | The collaborating group's workflow. A flat table of proteins, differences and significance values — no localisation or razor-pick complexity |
-| **MaxQuant site-table adapter** | PXD018299, the validated regression fixture. Required to keep 12-of-14 verifiable |
+| **MaxQuant site-table adapter** | PXD018299, the validated regression fixture. Required to keep the published-target recovery verifiable — see the amended exit criterion: the figure is 9 of 14 through this route, and the criterion is that every miss is traced, not that the number is 12 |
 | UniProtKB resolution | Sequence-version pinning, isoform-aware, position validation, persistent cache |
 | Evidence graph in Kùzu | `Observation` and `EvidencedInference` contracts defined even though few subtypes ship |
 | Quantitative matrices in DuckDB | I11 — retained permanently, never only derived statistics |
@@ -474,7 +474,17 @@ Perseus result-table adapter. Curation record ingestion. `Analysis.kind = 'exter
 ### Weeks 5–6 — raw path and statistics
 MaxQuant site-table adapter. DuckDB quantitative layer. **`welch_t` with BH first**, reproducing 12 of 14 exactly; then `perseus_s0` with permutation FDR, its recovery number recorded as a separate baseline. `ModifierAssignment`, `ProteinAssignment` and `Imputation` including supersession and retraction.
 
-*Exit:* PXD018299 ingested end to end, 12 of 14 recovered through the real pipeline rather than a notebook. A site moves from ambiguous to `basis = uba7_knockout, confidence = confirmed`, and the superseded assignment remains inspectable.
+*Exit, amended 2026-08-07 — the old wording asserted a number the two routes cannot share.* It read *"12 of 14 recovered through the real pipeline rather than a notebook"*, which assumes the pipeline sees the same sites the notebook did. **It does not, and it should not:** ingestion refuses 89 rows for reasons the notebook could not detect — residue drift against today's UniProt, deleted entries, a razor pick MaxQuant withheld — and 54 of those would have been tested. Measured, this route recovers 9 of 14 (§ Nine of fourteen). Holding "12" as the exit criterion would make passing it a matter of *reducing the refusals*, which is the opposite of the point: the criterion would be satisfied by ingesting sites the platform cannot validate.
+
+*Exit:* PXD018299 ingested end to end and analysed through the platform's own statistics layer rather than a notebook, with
+
+- **the population reported at every step**, and any divergence from the notebook's 1,375 accounted for exactly rather than approximately — today `1,321 + 54 refused-but-testable = 1,375`;
+- **every unrecovered published target traced** to refusal or to threshold, so a miss is explained rather than counted;
+- **the recovery figure recorded with its population**, whatever it is. A number is not the criterion; an unexplained number is the failure.
+
+A site moves from ambiguous to `basis = uba7_knockout, confidence = confirmed`, and the superseded assignment remains inspectable.
+
+Two things the old wording also assumed and that are **not yet true**, both blocking a literal reading of "through the real pipeline": gene symbols never enter the graph (`Gene` has no nodes, `Protein.name` is null on all 4,441), so target identification still reads the deposit's `Gene names`; and I11 is unmet — `quant_ref` is null on every observation and `quant.duckdb` is never created, so the matrix is re-read rather than retained.
 
 ### Weeks 7–8 — output and consolidation
 Minimal Streamlit or notebook interface: query, volcano, provenance panel. Ambiguity and correction status visible everywhere a number appears. ADRs 0004–0014 written. Rebuild tested against the full dataset.
