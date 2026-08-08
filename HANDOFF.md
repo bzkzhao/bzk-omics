@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.15 |
+| Version | 1.16 |
 | Last reviewed | 2026-08-08 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -756,15 +756,27 @@ the loop). `test_raw_store.py:52`/`:53`/`:116`/`:161` fail under the `content_ha
 the same strength as `:108`, not weaker.
 
 **The sweep is committed and re-runs** (`tests/test_tautology_sweep.py`), which the previous report
-said it would not. It pins the **match set** — module plus normalized source, not line numbers —
-rather than a count, because a count is satisfied by deleting one substantive assertion and adding
-one tautological assertion in the same module. A new match fails the module with instructions to
-classify it; a pinned match that disappears fails too, so the pin cannot drift into describing a
-suite that no longer exists. Two things it cannot do, stated rather than implied: it cannot decide
-whether a call *is* the producing expression, which is why the classification is pinned data and not
-a verdict the test computes; and it excludes itself from its own surface, since its assertions
-compare a computed match set against a pinned constant and a module that swept itself would pin its
-own pin.
+said it would not. It pins a **multiset** — module, normalized source and occurrence count, not
+line numbers. **Re-keyed from a set 2026-08-08**, and the argument that justified the set is the
+reason: it said a count is satisfied by deleting one substantive assertion and adding one
+tautological assertion in the same module, which is true, and left unsaid that a *set* is satisfied
+by duplicating any pinned assertion, which is equally true. The two arguments each covered the
+other's hole; one of them was stated as though it settled the question. Confirmed by planting before
+the re-key: a second copy of `test_drift.py`'s confirmed instance, as its own standalone assert,
+left the module green at 633 asserts, 82 matches, 0 new. A new match, a new occurrence of one, a
+lost occurrence and a lost match all fail now — one mutation each, all four caught.
+
+**Three things it cannot do**, which was two until this finding made it three:
+
+1. It cannot decide whether a call *is* the producing expression — that needs the producer's body,
+   which is why the classification is pinned data rather than a verdict the test computes.
+2. It excludes itself from its own surface, since its assertions compare a computed match set
+   against a pinned constant and a module that swept itself would pin its own pin.
+3. **The key is scope-blind.** It records how many times an expression text occurs in a module,
+   never where. Established rather than inferred, by running the net over synthetic source: the same
+   matching assert in `f` and in `g` produces an identical multiset either way, and two assertions
+   reading `x == h(y)` where `h` is bound to a different callable in each scope are one entry with a
+   count of two and therefore one classification for both.
 
 Writing it surfaced two of its own matches — the widened `test_store.py` guards asserted
 `report.nodes_staged == len(staged) == 3`, whose first conjunct is the expression `WriteReport` is
@@ -777,9 +789,13 @@ mutation could not have found it: **every mutation offered as confirmation acted
 whole-module granularity, and both defects live below an assert and inside the counter.**
 
 **The loop.** An unconditional `break` sat outside the `if hit:` block, so only the first `Compare`
-in each assert was examined. Planted and confirmed before repair: a confirmed instance's exact
-expression, added as a second conjunct in `test_drift.py`, left `tests/test_tautology_sweep.py`
-green over an instance of the class it exists to catch.
+in each assert was examined. **The plant that was recorded here established nothing and is replaced,
+2026-08-08:** it used a confirmed instance's *exact* expression as a second conjunct, which unparses
+to a string already in `PINNED` for that module, so a set-keyed record was blind to it under the
+broken net and the repaired one alike — confirmed against both. The discriminating plant is a
+**novel** expression in the same position, `receipt.checked_at == drift.latest_stamp(home)`: green
+under the restored `break`, red without it, naming the new match. The repair holds; the evidence
+first offered for it did not.
 
 **The counter.** `for func in ast.walk(tree)` yields nested `FunctionDef`s, and the enclosing
 function's own walk has already reached their asserts — so one assert was counted and examined
@@ -837,6 +853,17 @@ somewhere does. Both directions of the mechanism were mutation-tested: deriving 
 independently makes the evidence test fail with the row named, and an `old` text that no longer
 occurs exactly once fails before any run, because evidence pointing at code that has moved describes
 a mutation nobody can apply.
+
+**Corrected 2026-08-08 — "with the row named" was true by accident.** The two `test_drift.py` rows
+shared one `Evidence`, and the consumer sorted by `(module, source)` and skipped an `Evidence`
+already seen; `archive_digest` sorts before `sequences_checked`, so a change bearing on the
+*`sequences_checked`* row failed naming the *`archive_digest`* row, with an instruction that was
+wrong for the row it named. **Separability was established by running rather than argued:**
+`archive_digest` is called by the second assertion and not the first, and mutating its truncation
+leaves the whole suite green — so each row now carries a mutation of the code its own value depends
+on, the de-duplication is gone, and the same change now names `sequences_checked`. The cost of a
+fourth distinct mutation is one more whole-suite run in a copy, measured at **30.2 s for the
+module** against 26.0 s before, and the whole suite at **36.7 s** against 24.5 s.
 
 ### Unenforced invariants (audit 2026-08-07), by class
 

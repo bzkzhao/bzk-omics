@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.17 |
+| Version | 1.18 |
 | Last reviewed | 2026-08-08 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -521,9 +521,15 @@ Four outcomes, and what each licenses:
 
 1. **Matches unchanged at 82.** The expected outcome, and the one with the most ways to be
    misread. It licenses exactly this: *today*, no second-or-later comparison in `tests/` matches
-   Pass C or D. It does **not** license "the gap was empty" as a statement about the gap — a planted
-   instance went undetected, so the gap demonstrably admitted one — and it does not license "the net
-   is now complete". The five second comparisons that exist are four comprehension filters neither
+   Pass C or D. It does **not** license "the gap was empty" as a statement about the gap, and it
+   does not license "the net is now complete". **Corrected 2026-08-08: the licensing argument here
+   originally rested on a plant that established nothing.** The planted second conjunct unparsed to
+   a string already in `PINNED`, so a set-keyed record could not register it under the broken net or
+   the repaired one, and the sentence that read "a planted instance went undetected, so the gap
+   demonstrably admitted one" was drawing a conclusion its plant could not support. The gap did
+   admit one — shown afterwards by a *novel* expression in the same position, green under the
+   restored `break` and red without it — so the conclusion survives and the evidence for it does
+   not. The five second comparisons that exist are four comprehension filters neither
    pass matches by construction and one attribute-against-attribute compare Pass D excludes on form;
    that is a fact about the criteria meeting today's tree, and the two zeros this module has already
    over-read are recorded in `HANDOFF.md` and in the section above.

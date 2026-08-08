@@ -19,9 +19,20 @@ a non-`test_*.py` module. `assert a == 0 and <a confirmed instance>` passed. Bot
 counter were one decision about what "the surface" means and are converged together; the count the
 floor is denominated in moved from 633 to 632 as a result.
 
-**Pinning the match set rather than a count is deliberate.** A count is satisfied by deleting one
-substantive assertion and adding one tautological assertion in the same module, which is precisely
-the drift this exists to catch.
+**The demonstration that repair originally rested on was worthless, and is replaced — 2026-08-08.**
+It planted `assert receipt.drifts == 0 and <a confirmed instance>`, whose second conjunct unparses
+to a string already in `PINNED` for that module, so under a set key it added nothing and passed the
+broken net and the repaired one alike. Confirmed against both. A **novel** expression in the same
+second-conjunct position discriminates: `receipt.checked_at == drift.latest_stamp(home)` is green
+under the restored `break` and red without it, naming the new match. That is what establishes the
+loop repair, and the earlier plant established nothing.
+
+**The record is a multiset, and neither a set nor a count would do.** A count is satisfied by
+deleting one substantive assertion and adding one tautological assertion in the same module; a set
+is satisfied by duplicating any pinned assertion, which was planted and confirmed. The module used
+to state the first of those as though it settled the question, while the second went unmentioned —
+two arguments each covering the other's hole. A multiset is one key rather than a pair, so its own
+limit is stated below instead of inferred from the pair's.
 
 **This module excludes itself from its own surface**, because its assertions compare a computed
 match set against a pinned constant — the shape the net matches — and a module that swept itself
@@ -37,6 +48,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from dataclasses import dataclass
 
 TESTS = pathlib.Path(__file__).resolve().parent
@@ -95,7 +107,7 @@ def _enclosing_function(tree: ast.AST) -> dict[int, ast.AST]:
     return owner
 
 
-def sweep(directory: pathlib.Path | None = None) -> tuple[set[tuple[str, str]], int, int]:
+def sweep(directory: pathlib.Path | None = None) -> tuple[Counter[tuple[str, str]], int, int]:
     """Return `{(module, normalized source)}` plus the module and assert counts of the surface.
 
     **Pass C** — one side of an `==` contains a call and another side is not a literal display.
@@ -112,8 +124,10 @@ def sweep(directory: pathlib.Path | None = None) -> tuple[set[tuple[str, str]], 
     half-closure this module exists to catch:
 
       * **only the first `Compare` in each assert was examined.** A `break` sat outside the `if`,
-        so `assert a == 0 and <a confirmed instance>` passed. Planted and confirmed: the module
-        stayed green over an instance of the class it exists to catch.
+        so `assert a == 0 and <a second matching comparison>` passed. Established by a plant that
+        **discriminates** — a novel expression, green under the `break` and red without it. The
+        plant first used here did not: its second conjunct was already in `PINNED`, so a set key
+        could not have registered it either way.
       * **one assert was counted and examined twice**, per `_enclosing_function` above.
       * **three edges were unreachable by construction** — an `AsyncFunctionDef`, an assert outside
         any function, and a `.py` file in `tests/` that is not `test_*.py`. All three measure zero
@@ -121,7 +135,7 @@ def sweep(directory: pathlib.Path | None = None) -> tuple[set[tuple[str, str]], 
         *every assertion in `tests/`* and a surface that silently excludes a shape is this class
         whether or not the shape is currently present.
     """
-    found: set[tuple[str, str]] = set()
+    found: Counter[tuple[str, str]] = Counter()
     modules = 0
     asserts = 0
     directory = TESTS if directory is None else directory
@@ -130,12 +144,12 @@ def sweep(directory: pathlib.Path | None = None) -> tuple[set[tuple[str, str]], 
             continue
         modules += 1
         matched, counted = analyse(path.name, path.read_text(encoding="utf-8"))
-        found |= matched
+        found.update(matched)
         asserts += counted
     return found, modules, asserts
 
 
-def analyse(name: str, source: str) -> tuple[set[tuple[str, str]], int]:
+def analyse(name: str, source: str) -> tuple[Counter[tuple[str, str]], int]:
     """The net over one module's source. Split out so it can be planted with synthetic input.
 
     That split is the point rather than tidiness: the three mutations offered as confirmation on
@@ -145,7 +159,7 @@ def analyse(name: str, source: str) -> tuple[set[tuple[str, str]], int]:
     what it claims — so `test_the_net_reaches_every_granularity_it_declares` runs this over source
     that contains each shape deliberately.
     """
-    found: set[tuple[str, str]] = set()
+    found: Counter[tuple[str, str]] = Counter()
     asserts = 0
     tree = ast.parse(source)
     owner = _enclosing_function(tree)
@@ -177,170 +191,207 @@ def analyse(name: str, source: str) -> tuple[set[tuple[str, str]], int]:
                     bool(non_literal)
                 )
             if hit:
-                found.add((name, ast.unparse(cmp_)))
+                found[name, ast.unparse(cmp_)] += 1
     return found, asserts
 
 
-#: Every assertion in `tests/` matching Pass C or Pass D, as `(module, normalized source)`.
+#: Every match, as `(module, normalized source, occurrences)` — a **multiset**, because a set
+#: cannot see a pinned expression duplicated and a count cannot see one swapped for another.
 #: Normalized source rather than a line number, so unrelated edits above it do not churn the pin.
 #: Regenerate with `python -c "from tests.test_tautology_sweep import sweep;
 #: print(sorted(sweep()[0]))"` **after** classifying whatever is new.
-PINNED: frozenset[tuple[str, str]] = frozenset(
+PINNED: frozenset[tuple[str, str, int]] = frozenset(
     {
         (
             "test_curation_content_hash.py",
             "_record(name)['content_hash'] == PXD018299_SITES.expected_content_hash",
+            1,
         ),
-        ("test_curation_content_hash.py", "_records_citing_the_deposit() == set(CITING_RECORDS)"),
-        ("test_curation_content_hash.py", "accession == PXD018299_SITES.accession"),
+        (
+            "test_curation_content_hash.py",
+            "_records_citing_the_deposit() == set(CITING_RECORDS)",
+            1,
+        ),
+        ("test_curation_content_hash.py", "accession == PXD018299_SITES.accession", 1),
         (
             "test_curation_loader.py",
             "len(set(loaded.sample_ids.values())) == len(loaded.sample_ids)",
+            1,
         ),
-        ("test_curation_loader.py", "load(changed).dataset_id == loaded.dataset_id"),
+        ("test_curation_loader.py", "load(changed).dataset_id == loaded.dataset_id", 1),
         (
             "test_curation_loader.py",
             "set(_record(MINTED_IDS)['samples']) == set(_record(REAL_RECORD)['mapping'])",
+            1,
         ),
         (
             "test_curation_loader.py",
             "set(load(changed).sample_ids.values()) == set(loaded.sample_ids.values())",
+            1,
         ),
-        ("test_curation_loader.py", "sources == set(loaded.sample_ids.values())"),
+        ("test_curation_loader.py", "sources == set(loaded.sample_ids.values())", 1),
         (
             "test_curation_loader.py",
             "{n['label'] for n in _nodes(loaded, 'Sample')} == set(loaded.sample_ids)",
+            1,
         ),
         (
             "test_curation_loader.py",
             "{s['id'] for s in mapping.samples} == set(loaded.sample_ids.values())",
+            1,
         ),
-        ("test_drift.py", "drift.STALE_AFTER_DAYS == int(stated.group(1))"),
-        ("test_drift.py", "drift.read_receipt(home) == receipt"),
+        ("test_drift.py", "drift.STALE_AFTER_DAYS == int(stated.group(1))", 1),
+        ("test_drift.py", "drift.read_receipt(home) == receipt", 1),
         (
             "test_drift.py",
             "receipt.archive_digest == drift.archive_digest(drift.archived_sequences(home))",
+            1,
         ),
-        ("test_drift.py", "receipt.sequences_checked == len(drift.archived_sequences(home))"),
+        ("test_drift.py", "receipt.sequences_checked == len(drift.archived_sequences(home))", 1),
         (
             "test_keys.py",
             "canonical_parameters_json('{\"n\": 1e16}') == canonical_parameters_json('{\"n\": 10000000000000000}')",
+            1,
         ),
         (
             "test_keys.py",
             "canonical_parameters_json('{\"n\": 1e22}') == canonical_parameters_json('{\"n\": 10000000000000000000000}')",
+            1,
         ),
-        ("test_keys.py", "canonical_value(8, 'DOUBLE') == canonical_value(8.0, 'DOUBLE') == '8.0'"),
+        (
+            "test_keys.py",
+            "canonical_value(8, 'DOUBLE') == canonical_value(8.0, 'DOUBLE') == '8.0'",
+            1,
+        ),
         (
             "test_keys.py",
             "evidence_id('Analysis', SITE_ANALYSIS, child_values=a) == evidence_id('Analysis', SITE_ANALYSIS, child_values=b)",
+            1,
         ),
         (
             "test_keys.py",
             "evidence_id('Analysis', SITE_ANALYSIS, child_values={'Imputation': [one, two]}) == evidence_id('Analysis', SITE_ANALYSIS, child_values={'Imputation': [two, one]})",
+            1,
         ),
-        ("test_keys.py", "evidence_id('Analysis', a) == evidence_id('Analysis', b)"),
+        ("test_keys.py", "evidence_id('Analysis', a) == evidence_id('Analysis', b)", 4),
         (
             "test_keys.py",
             "evidence_id('Analysis', dict(SITE_ANALYSIS, localization_threshold=0.75)) == evidence_id('Analysis', dict(SITE_ANALYSIS, localization_threshold=0.75))",
+            1,
         ),
         (
             "test_keys.py",
             "evidence_id('Analysis', protein) == evidence_id('Analysis', dict(protein))",
+            1,
         ),
-        ("test_keys.py", "protein == 'uniprot:P20591'"),
-        ("test_keys.py", "sequence == 'uniprot:P20591#sv4'"),
-        ("test_keys.py", "site == 'uniprot:P20591#sv4#K48#unimod:121'"),
-        ("test_maxquant.py", "accessions == ['P20591', 'P19525']"),
-        ("test_maxquant_sites.py", "set(modifiers) == set(schema.GG_REMNANT_MODIFIERS)"),
-        ("test_perseus.py", "dataset['content_hash'] == content_hash(TABLE.read_bytes())"),
+        ("test_keys.py", "protein == 'uniprot:P20591'", 1),
+        ("test_keys.py", "sequence == 'uniprot:P20591#sv4'", 1),
+        ("test_keys.py", "site == 'uniprot:P20591#sv4#K48#unimod:121'", 1),
+        ("test_maxquant.py", "accessions == ['P20591', 'P19525']", 1),
+        ("test_maxquant_sites.py", "set(modifiers) == set(schema.GG_REMNANT_MODIFIERS)", 1),
+        ("test_perseus.py", "dataset['content_hash'] == content_hash(TABLE.read_bytes())", 1),
         (
             "test_perseus.py",
             "ids == {'uniprot:P20591', 'uniprot:P19525', 'uniprot:O43593', 'uniprot:P05161'}",
+            1,
         ),
-        ("test_perseus.py", "mx1['adj_p_value'] == pytest.approx(0.0012)"),
-        ("test_perseus.py", "mx1['log2fc'] == pytest.approx(3.42)"),
-        ("test_perseus.py", "p_values[0] == pytest.approx(10 ** (-5.02))"),
-        ("test_perseus.py", "result['adj_p_value'] == pytest.approx(0.0012)"),
-        ("test_perseus.py", "result['p_value'] == pytest.approx(3.0902e-05)"),
-        ("test_perseus.py", "store.ids_by_label(conn) == before"),
-        ("test_protein_groups.py", "[asdict(m) for m in measured] == _pinned()"),
+        ("test_perseus.py", "mx1['adj_p_value'] == pytest.approx(0.0012)", 1),
+        ("test_perseus.py", "mx1['log2fc'] == pytest.approx(3.42)", 1),
+        ("test_perseus.py", "p_values[0] == pytest.approx(10 ** (-5.02))", 1),
+        ("test_perseus.py", "result['adj_p_value'] == pytest.approx(0.0012)", 1),
+        ("test_perseus.py", "result['p_value'] == pytest.approx(3.0902e-05)", 1),
+        ("test_perseus.py", "store.ids_by_label(conn) == before", 1),
+        ("test_protein_groups.py", "[asdict(m) for m in measured] == _pinned()", 1),
         (
             "test_protein_groups.py",
             "m['multi_fraction'] == pytest.approx(m['multi_accession'] / m['rows'], abs=5e-05)",
+            1,
         ),
         (
             "test_pxd018299_baseline.py",
             "getattr(row, field) == pytest.approx(want[field], rel=FLOAT_RTOL)",
+            1,
         ),
-        ("test_pxd018299_baseline.py", "len(_rows()) == _record()['n_expected_total']"),
-        ("test_pxd018299_baseline.py", "recovered == _record()['n_expected_recovered']"),
+        ("test_pxd018299_baseline.py", "len(_rows()) == _record()['n_expected_total']", 1),
+        ("test_pxd018299_baseline.py", "recovered == _record()['n_expected_recovered']", 1),
         (
             "test_pxd018299_baseline.py",
             "tuple((row['gene'] for row in _rows() if not row['recovered'])) == NOT_RECOVERED",
+            1,
         ),
         (
             "test_pxd018299_baseline.py",
             "tuple((row['gene'] for row in _rows())) == EXPECTED_TARGETS",
+            1,
         ),
-        ("test_pxd018299_baseline.py", "{row.gene for row in rederived.targets} == set(expected)"),
-        ("test_raw_store.py", "again.path.read_bytes() == PAYLOAD"),
-        ("test_raw_store.py", "content_hash(PAYLOAD) == f'sha256:{sha256_hex(PAYLOAD)}'"),
+        (
+            "test_pxd018299_baseline.py",
+            "{row.gene for row in rederived.targets} == set(expected)",
+            1,
+        ),
+        ("test_raw_store.py", "again.path.read_bytes() == PAYLOAD", 1),
+        ("test_raw_store.py", "content_hash(PAYLOAD) == f'sha256:{sha256_hex(PAYLOAD)}'", 1),
         (
             "test_raw_store.py",
             "fetch(pinned, home=tmp_path, session=_StubSession()).content_hash == content_hash(PAYLOAD)",
+            1,
         ),
         (
             "test_raw_store.py",
             "store(PAYLOAD, 'sites.txt', home=tmp_path).content_hash == content_hash(PAYLOAD)",
+            1,
         ),
-        ("test_raw_store.py", "stored.content_hash == content_hash(PAYLOAD)"),
-        ("test_raw_store.py", "stored.path.read_bytes() == PAYLOAD"),
-        ("test_raw_store.py", "to_https(ftp) == https"),
-        ("test_raw_store.py", "to_https(https) == https"),
+        ("test_raw_store.py", "stored.content_hash == content_hash(PAYLOAD)", 1),
+        ("test_raw_store.py", "stored.path.read_bytes() == PAYLOAD", 1),
+        ("test_raw_store.py", "to_https(ftp) == https", 1),
+        ("test_raw_store.py", "to_https(https) == https", 1),
         (
             "test_raw_store.py",
             "verify(stored.content_hash, filename='sites.txt', home=tmp_path) == stored.path",
+            1,
         ),
-        ("test_rebuild.py", "first == second"),
-        ("test_rebuild.py", "store.count_edges(conn) == EXPECTED_EDGES"),
-        ("test_rebuild.py", "store.count_nodes(conn) == EXPECTED_NODES"),
-        ("test_rebuild.py", "store.ids_by_label(conn) == before"),
+        ("test_rebuild.py", "first == second", 1),
+        ("test_rebuild.py", "store.count_edges(conn) == EXPECTED_EDGES", 1),
+        ("test_rebuild.py", "store.count_nodes(conn) == EXPECTED_NODES", 2),
+        ("test_rebuild.py", "store.ids_by_label(conn) == before", 1),
         (
             "test_rebuild.py",
             "store.ids_by_label(open_graph(home)) == {'Project': [pinned['project']], 'Experiment': [pinned['experiment']], 'Dataset': [pinned['dataset']], 'Analysis': [pinned['analysis']], 'Sample': sorted(pinned['samples'].values())}",
+            1,
         ),
-        ("test_resolve_nodes.py", "set(protein) == {NODE_TYPE_KEY, 'id', 'accession'}"),
-        ("test_schema.py", "accession == accession.upper()"),
-        ("test_schema.py", "built == schema.table_names()"),
-        ("test_schema.py", "code_children == doc_children"),
-        ("test_schema.py", "included == {'P0CG48', 'Q15843', 'P05161'}"),
-        ("test_schema.py", "len(listed) == len(set(listed))"),
-        ("test_schema.py", "named == {e for _, e in pairs}"),
-        ("test_schema.py", "prefix == prefix.lower()"),
-        ("test_schema.py", "schema.CURATION_BASIS == dict(rows)"),
-        ("test_schema.py", "schema.CURIE_PREFIXES == _curie_prefixes()"),
-        ("test_schema.py", "schema_nodes == ontology_nodes"),
-        ("test_schema.py", "schema_rels == ontology_rels"),
-        ("test_schema.py", "set(authority) & set(composed) == set()"),
-        ("test_schema.py", "set(authority) | set(composed) == _reference_node_tables()"),
-        ("test_schema.py", "set(listed) == set(nodes)"),
-        ("test_schema.py", "set(schema.IDENTITY) == {label for label, *_ in rows}"),
-        ("test_schema.py", "set(spec.anchors) == doc_anchors"),
-        ("test_schema.py", "set(spec.fields) == doc_fields"),
-        ("test_stats.py", "benjamini_hochberg(np.array([0.031]))[0] == pytest.approx(0.031)"),
+        ("test_resolve_nodes.py", "set(protein) == {NODE_TYPE_KEY, 'id', 'accession'}", 1),
+        ("test_schema.py", "accession == accession.upper()", 1),
+        ("test_schema.py", "built == schema.table_names()", 1),
+        ("test_schema.py", "code_children == doc_children", 1),
+        ("test_schema.py", "included == {'P0CG48', 'Q15843', 'P05161'}", 1),
+        ("test_schema.py", "len(listed) == len(set(listed))", 1),
+        ("test_schema.py", "named == {e for _, e in pairs}", 1),
+        ("test_schema.py", "prefix == prefix.lower()", 1),
+        ("test_schema.py", "schema.CURATION_BASIS == dict(rows)", 1),
+        ("test_schema.py", "schema.CURIE_PREFIXES == _curie_prefixes()", 1),
+        ("test_schema.py", "schema_nodes == ontology_nodes", 1),
+        ("test_schema.py", "schema_rels == ontology_rels", 1),
+        ("test_schema.py", "set(authority) & set(composed) == set()", 1),
+        ("test_schema.py", "set(authority) | set(composed) == _reference_node_tables()", 1),
+        ("test_schema.py", "set(listed) == set(nodes)", 1),
+        ("test_schema.py", "set(schema.IDENTITY) == {label for label, *_ in rows}", 1),
+        ("test_schema.py", "set(spec.anchors) == doc_anchors", 1),
+        ("test_schema.py", "set(spec.fields) == doc_fields", 1),
+        ("test_stats.py", "benjamini_hochberg(np.array([0.031]))[0] == pytest.approx(0.031)", 1),
         (
             "test_stats.py",
             "drawn.mean() == pytest.approx(observed.mean() - 1.8 * observed.std(ddof=1), rel=0.02)",
+            1,
         ),
         (
             "test_stats.py",
             "drawn.std(ddof=1) == pytest.approx(0.3 * observed.std(ddof=1), rel=0.05)",
+            1,
         ),
-        ("test_stats.py", "got.log2fc[0] == pytest.approx(0.0)"),
-        ("test_stats.py", "got.p_value[0] == pytest.approx(1.0)"),
-        ("test_stats.py", "welch_t(a, b).log2fc[0] == pytest.approx(2.0)"),
-        ("test_store.py", "store.ids_by_label(conn) == {'Protein': sorted([MX1, USP18])}"),
+        ("test_stats.py", "got.log2fc[0] == pytest.approx(0.0)", 1),
+        ("test_stats.py", "got.p_value[0] == pytest.approx(1.0)", 1),
+        ("test_stats.py", "welch_t(a, b).log2fc[0] == pytest.approx(2.0)", 1),
+        ("test_store.py", "store.ids_by_label(conn) == {'Protein': sorted([MX1, USP18])}", 1),
     }
 )
 
@@ -389,10 +440,25 @@ _LOADER_TEST = (
     "tests/test_curation_loader.py::test_sample_mapping_hands_the_adapter_the_analysis_id"
 )
 
-_DRIFT_EVIDENCE = Evidence(
+#: **Split into two on 2026-08-08, after establishing the rows are separable.** One shared
+#: `Evidence` made the reported row an artefact of alphabetical order: the consumer sorted by
+#: `(module, source)` and skipped an `Evidence` already seen, `archive_digest` sorts before
+#: `sequences_checked`, and so a change to the *`sequences_checked`* row's property failed naming
+#: the *`archive_digest`* row — correct verdict, wrong row, and an instruction that was wrong for
+#: the row it named. Separability was established by running, not argued: `archive_digest` is
+#: called by the second assertion and not the first, and mutating it leaves the whole suite green.
+_SEQUENCES_CHECKED_EVIDENCE = Evidence(
     target="bzk/drift.py",
     old="    return found\n",
     new="    return found[:-1]\n",
+    green_scope=("-q",),
+    red_scope=None,
+)
+
+_ARCHIVE_DIGEST_EVIDENCE = Evidence(
+    target="bzk/drift.py",
+    old='    return "sha256:" + hashlib.sha256(joined.encode("utf-8")).hexdigest()[:32]',
+    new='    return "sha256:" + hashlib.sha256(joined.encode("utf-8")).hexdigest()[:16]',
     green_scope=("-q",),
     red_scope=None,
 )
@@ -402,12 +468,12 @@ INSTANCES: frozenset[tuple[str, str, Evidence]] = frozenset(
         (
             "test_drift.py",
             "receipt.sequences_checked == len(drift.archived_sequences(home))",
-            _DRIFT_EVIDENCE,
+            _SEQUENCES_CHECKED_EVIDENCE,
         ),
         (
             "test_drift.py",
             "receipt.archive_digest == drift.archive_digest(drift.archived_sequences(home))",
-            _DRIFT_EVIDENCE,
+            _ARCHIVE_DIGEST_EVIDENCE,
         ),
         (
             "test_perseus.py",
@@ -470,32 +536,55 @@ def _run_in_a_mutated_copy(evidence: Evidence, scope: tuple[str, ...]) -> int:
         return result.returncode
 
 
-def test_the_match_set_has_not_grown_unreviewed() -> None:
-    """A new assertion of the shape must be classified before it lands.
+def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
+    """A new matching expression, **or a new occurrence of one**, must be classified before it lands.
 
-    Pinning the *set* rather than a count is what makes this bite: a count is satisfied by deleting
-    one substantive assertion and adding one tautological assertion in the same module.
+    **Re-keyed from a set to a multiset, 2026-08-08.** The record was `(module, normalized source)`,
+    and the module argued that pinning the set rather than a count was deliberate because *"a count
+    is satisfied by deleting one substantive assertion and adding one tautological assertion in the
+    same module"*. That is true and its converse is equally true: **a set is satisfied by
+    duplicating any pinned assertion.** Planted and confirmed before the re-key — a second copy of
+    `test_drift.py`'s confirmed instance, as its own standalone assert, left the module green with
+    `sweep()` reporting 633 asserts, 82 matches, 0 new. The two arguments each covered the other's
+    hole and neither covered its own, and the module stated one of them as though it settled the
+    question.
+
+    A multiset is one key rather than two guards, so its own limit can be stated instead of inferred
+    from a pair: **it is scope-blind.** It records how many times an expression text occurs in a
+    module, never where, so two occurrences that differ only in what their names are bound to are
+    one entry with a count of two. Where that matters — Pass D's shape depends on the enclosing
+    scope's assignments — a non-matching occurrence simply is not counted, so the count still moves;
+    what it cannot separate is two *matching* occurrences whose classifications would differ.
+
+    The re-key also surfaced four occurrences the set had been collapsing silently: 86 occurrences
+    across 82 expressions, `evidence_id('Analysis', a) == evidence_id('Analysis', b)` appearing four
+    times in `test_keys.py` and `store.count_nodes(conn) == EXPECTED_NODES` twice in
+    `test_rebuild.py`.
     """
     found, modules, asserts = sweep()
-    # Denominated at the exact current surface, 2026-08-08. It read `asserts >= 600` against
-    # 633, which tolerated deleting a twentieth of the suite's assertions — the case its own
-    # failure message names. A legitimate reduction lowers these numbers in the same change,
-    # the same discipline PINNED already carries; additions never trip it.
+    # Denominated at the exact current surface, 2026-08-08. It read `asserts >= 600` against 633,
+    # which tolerated deleting a twentieth of the suite's assertions — the case its own failure
+    # message names. A legitimate reduction lowers these numbers in the same change, the same
+    # discipline the multiset carries; additions never trip it, because an added *match* is caught
+    # by the multiset rather than by this floor.
     assert modules >= 19 and asserts >= 632, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
-    new = found - PINNED
-    gone = PINNED - found
+    observed = {(module, source, count) for (module, source), count in found.items()}
+    new = observed - PINNED
+    gone = PINNED - observed
     assert not new, (
-        f"{len(new)} assertion(s) match the tautology sweep and are not classified: {sorted(new)}. "
-        "Read each one: if its call is the expression that produced the other side it is an "
-        "instance and belongs in INSTANCES with its mutation evidence; otherwise add it to PINNED."
+        f"{len(new)} matching expression(s) or occurrence count(s) are not classified: "
+        f"{sorted(new)}. Each entry is (module, expression, occurrences). Read each one: if its "
+        "call is the expression that produced the other side it is an instance and belongs in "
+        "INSTANCES with its Evidence; otherwise add it to PINNED with its count."
     )
     assert not gone, (
-        f"{len(gone)} pinned assertion(s) no longer exist: {sorted(gone)}. Remove them from PINNED "
-        "(and from INSTANCES) in the same change that removed the assertion, so the pin cannot "
-        "drift into describing a suite that no longer exists."
+        f"{len(gone)} pinned entr(ies) no longer match the tree: {sorted(gone)}. A count that fell "
+        "means an occurrence was removed; an entry that vanished means the expression was. Update "
+        "PINNED (and INSTANCES) in the same change, so the pin cannot drift into describing a "
+        "suite that no longer exists."
     )
 
 
@@ -581,14 +670,30 @@ def test_a_non_test_module_is_still_swept(tmp_path: pathlib.Path) -> None:
 
 
 def test_every_classified_instance_is_still_present() -> None:
-    """An instance must not leave the record by being deleted or edited without a decision."""
+    """An instance must not leave the record by being deleted or edited without a decision.
+
+    **This check is keyed on the expression, not on an occurrence of it, and the failure message
+    was corrected on 2026-08-08 to stop describing a state the key cannot see.** It said *"if it was
+    fixed, remove it from INSTANCES"*, which reads as though presence-or-absence tracked whether the
+    instance had been repaired. It does not: an instance whose producing code is fixed keeps its
+    text and stays present here. What catches a fixed instance is
+    `test_every_classified_instance_re_runs_its_recorded_evidence`, whose mutation stops leaving the
+    named scope green. And duplication of an instance is caught by `PINNED`'s multiset, which counts
+    occurrences. So this check has exactly one job — the text is gone, or it is not — and no second
+    guard is added for either state, because both already have one.
+    """
     found, _, _ = sweep()
+    pinned_pairs = {(module, source) for module, source, _count in PINNED}
     for module, source, _evidence in sorted(INSTANCES, key=lambda i: (i[0], i[1])):
         assert (module, source) in found, (
-            f"{module} no longer contains {source!r}. If it was fixed, remove it from INSTANCES "
-            "and say so where the trigger is recorded (HANDOFF.md §8)."
+            f"{module} no longer contains {source!r} at all — the text was deleted or edited. This "
+            "says nothing about whether the instance was *fixed*: a repaired instance keeps its "
+            "text, and the evidence re-run is what notices that. Remove the row and say so where "
+            "the trigger is recorded (HANDOFF.md §8)."
         )
-        assert (module, source) in PINNED, f"{module}: {source!r} is an instance but not pinned"
+        assert (module, source) in pinned_pairs, (
+            f"{module}: {source!r} is an instance but not pinned"
+        )
 
 
 def test_every_classified_instance_re_runs_its_recorded_evidence() -> None:
@@ -600,11 +705,11 @@ def test_every_classified_instance_re_runs_its_recorded_evidence() -> None:
     independently would have left the prose intact, the module green, and the record describing a
     mutation result that no longer held.
     """
-    seen: set[Evidence] = set()
     for module, source, evidence in sorted(INSTANCES, key=lambda i: (i[0], i[1])):
-        if evidence in seen:  # two `test_drift.py` rows share one mutation
-            continue
-        seen.add(evidence)
+        # No de-duplication by `Evidence` any more. It existed because the two `test_drift.py` rows
+        # shared one mutation, and it made the row named in a failure a function of sort order
+        # rather than of which row the mutation bears on. Every row now carries a mutation of the
+        # code *its own* value depends on, so the row named is the row at fault.
         green = _run_in_a_mutated_copy(evidence, evidence.green_scope)
         assert green == 0, (
             f"{module}: {source!r} is recorded as an instance because {evidence.green_scope} stays "
