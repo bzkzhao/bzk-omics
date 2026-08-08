@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.14 |
+| Version | 1.15 |
 | Last reviewed | 2026-08-08 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -427,6 +427,25 @@ Three outcomes, and what each licenses:
 
 Outcome 3 is the one to watch, for the same reason outcome D was on I17: it is the one the
 preparatory work cannot see.
+
+**Result, 2026-08-08 — outcome 1, and it is the weakest of the three.** The three fixes landed, then
+a full rebuild from the four I9 inputs into a separate database (57 s) produced **11,730 node ids
+and 9,217 edges, 0 differing from the graph on disk** — per label: 4,561 `Protein`, 2,029
+`ModificationSite`, 2,029 `SiteObservation`, 2,029 `ModifierAssignment`, 1,062 `ProteinSequence`, 12
+`Sample`, 3 `Modifier`, 2 `Analysis`, and one each of `Project`, `Experiment`, `Dataset`. Refusals
+stayed at 27, the count already recorded, so outcome 3 did not occur either.
+
+What that licenses and what it does not. It confirms a prediction; it discovers nothing. The
+divergences were a window that had not been walked through, and the fixes cost nothing **today** —
+which is a fact about a graph produced by one adapter reading one UniProt-sourced deposit, and every
+value in it is canonical because that adapter emits canonical values. A second search engine, a
+Perseus run carrying a declared `s0`, or a curator-typed accession each closes the window
+independently, and the guards are what make that closing cheap rather than the clean scan.
+
+The re-derivation is a different check from the three scans that produced the prediction, which is
+the point of specifying it in advance: the scans read the graph's stored values, while this ran the
+whole adapter over the raw deposit through the changed builder. A scan cannot see a value the old
+code refused, reshaped, or never reached.
 
 ### The platform made an invisible analytical choice, 2026-08-07
 

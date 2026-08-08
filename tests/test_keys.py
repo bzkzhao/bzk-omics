@@ -7,6 +7,8 @@ patching field by field is what the audit named as the defect.
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from bzk.ontology import schema
@@ -20,6 +22,7 @@ from bzk.ontology.keys import (
     protein_key,
     protein_sequence_key,
 )
+from bzk.resolve import uniprot
 
 SITE_ANALYSIS = {
     "kind": "processing",
@@ -80,10 +83,136 @@ def test_parameters_json_key_order_and_spacing_do_not_change_an_id() -> None:
     assert evidence_id("Analysis", a) == evidence_id("Analysis", b)
 
 
+def test_parameters_json_int_and_float_spellings_of_one_number_do_not_change_an_id() -> None:
+    """§3 l.171 says *"normalized numeric forms"*; only key order and spacing were normalized.
+
+    `json.loads` keeps the written form — `250` becomes an `int`, `250.0` a `float` — and
+    `json.dumps` writes each back as it found it, so the int/float boundary survived into the hash.
+    JSON has one number type, so these are one value and normalizing is right; there is nothing to
+    refuse. Float *spelling* already converged through the parse, which is why the clause read as
+    met (`test_...key_order_and_spacing...` above passes on both sides of this defect).
+    """
+    a = dict(
+        SITE_ANALYSIS, test="perseus_s0", parameters_json='{"s0": 0.1, "n_randomisations": 250}'
+    )
+    b = dict(
+        SITE_ANALYSIS, test="perseus_s0", parameters_json='{"s0": 0.1, "n_randomisations": 250.0}'
+    )
+    assert evidence_id("Analysis", a) == evidence_id("Analysis", b)
+
+
+def test_parameters_json_number_normalization_reaches_nested_values() -> None:
+    a = dict(SITE_ANALYSIS, parameters_json='{"grid": {"reps": [10, 20.0]}}')
+    b = dict(SITE_ANALYSIS, parameters_json='{"grid": {"reps": [10.0, 20]}}')
+    assert evidence_id("Analysis", a) == evidence_id("Analysis", b)
+
+
+def test_parameters_json_normalization_keeps_true_distinct_from_one() -> None:
+    # `isinstance(True, int)` is True in Python; JSON's `true` is not the number 1.
+    assert canonical_parameters_json('{"x": true}') != canonical_parameters_json('{"x": 1}')
+
+
+def test_parameters_json_normalization_does_not_merge_a_big_int_into_a_float() -> None:
+    # Beyond 2**53 a float cannot represent every integer, so collapsing would merge two values.
+    big = 2**53 + 1
+    assert canonical_parameters_json(f'{{"n": {big}}}') != canonical_parameters_json(
+        f'{{"n": {float(big)!r}}}'
+    )
+
+
 def test_malformed_parameters_json_is_an_error_not_a_passthrough() -> None:
     # Hashing it as raw text is exactly what §3 forbids; failing loudly is the point.
     with pytest.raises(KeyError_):
         canonical_parameters_json("{not json")
+
+
+# ── Family 4: mis-cased identifiers — refused, not repaired ─────────────────────────────────────
+
+
+def test_a_lowercase_accession_is_refused_rather_than_uppercased() -> None:
+    """§4 l.265: *"`accession` keeps UniProt's own casing, uppercase"*.
+
+    `protein_key` interpolated its argument verbatim, so `p20591` and `P20591` minted two `Protein`
+    ids, two `ProteinSequence` ids and two `ModificationSite` ids for one lysine. Refused rather
+    than uppercased: `resolve/nodes.py` writes `accession` into the node from the same raw string,
+    so a repaired id would sit on a node whose own column contradicted it.
+    """
+    assert protein_key("P20591") == "uniprot:P20591"
+    with pytest.raises(KeyError_, match="not uppercase"):
+        protein_key("p20591")
+
+
+def test_the_isoform_suffix_survives_the_accession_case_check() -> None:
+    # `-2` is unaffected by `.upper()`, so the check must not reject a legitimate isoform.
+    assert protein_key("P09914-2") == "uniprot:P09914-2"
+
+
+def test_a_miscased_curie_prefix_in_an_identifying_list_is_refused() -> None:
+    """§4 l.266: *"CURIE prefixes are lowercase and spelled exactly as in the §3 map"*.
+
+    Nothing implemented this inside the digest path, so `uniprot:P05161` and `UniProt:P05161`
+    hashed to two `ModifierAssignment` ids for one assignment.
+    """
+    ma = {"basis": "literature", "confidence": "probable"}
+    good = dict(ma, candidate_modifiers=["uniprot:P05161"])
+    assert evidence_id("ModifierAssignment", good, {"Modifier": "uniprot:P05161"})
+    with pytest.raises(KeyError_, match="CURIE prefix"):
+        canonical_value(["UniProt:P05161"], "STRING[]")
+    with pytest.raises(KeyError_, match="CURIE prefix"):
+        evidence_id(
+            "ModifierAssignment",
+            dict(ma, candidate_modifiers=["UniProt:P05161"]),
+            {"Modifier": "uniprot:P05161"},
+        )
+
+
+def test_a_miscased_curie_prefix_in_an_anchor_id_is_refused() -> None:
+    ma = {
+        "basis": "literature",
+        "confidence": "probable",
+        "candidate_modifiers": ["uniprot:P05161"],
+    }
+    with pytest.raises(KeyError_, match="CURIE prefix"):
+        evidence_id("ModifierAssignment", ma, {"Modifier": "UNIPROT:P05161"})
+    with pytest.raises(KeyError_, match="CURIE prefix"):
+        evidence_id("Experiment", {"title": "t"}, {"Project": "BZK:abc123"})
+
+
+def test_the_curie_check_leaves_values_that_are_not_curies_alone() -> None:
+    """The check's precision is what makes it safe to run over every list element.
+
+    A `filters_applied` token has no colon. A prefix that case-folds to something the §3 map does
+    not contain is not a CURIE the clause governs, so it passes — which also states the check's
+    limit: it cannot catch an *unknown* prefix, which is a §3-map question, not a casing one.
+    """
+    assert canonical_value(["reverse", "potential_contaminant"], "STRING[]")
+    assert canonical_value(["Note:2 of 3 replicates"], "STRING[]")
+    assert canonical_value(["Sample:A"], "STRING[]")
+
+
+def test_a_null_list_element_still_renders_as_null_not_as_the_word() -> None:
+    # Routing elements through the CURIE check must not route them through `str()` on the way:
+    # `str(None)` is "None", which would collide with the literal string and lose §3's null/empty
+    # distinction one level down inside a list.
+    assert canonical_value([None], "STRING[]") != canonical_value(["None"], "STRING[]")
+
+
+def test_the_accession_case_clause_covers_the_sequence_cache_path(tmp_path: Any) -> None:
+    """C10's second consequence, and it does not depend on UniProt's behaviour at all.
+
+    `resolve` builds `entry/{canonical}.json` and `seq/{accession}#sv{n}.txt` from the accession
+    verbatim — canonical there means isoform-stripped, not case-folded — so a casing departure
+    forks the sequence archive and the drift receipt's digest as well as the graph, and forks them
+    differently by platform: a case-insensitive volume hands both spellings one cache file while
+    two ids are still minted. Lives beside `protein_key`'s guard rather than in `test_resolve.py`
+    because it is the same §4 clause, and this file is organised by clause rather than by module.
+
+    Asserting *no file is written* is the load-bearing half: a check that raised after building a
+    path would leave the fork in place on disk and only refuse the id.
+    """
+    with pytest.raises(KeyError_, match="not uppercase"):
+        uniprot.resolve("p20591", cache_dir=tmp_path)
+    assert list(tmp_path.rglob("*")) == [], "a refused accession must not touch the cache"
 
 
 # ── Absence, and the null/empty distinction ─────────────────────────────────────────────────────

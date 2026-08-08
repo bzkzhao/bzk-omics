@@ -36,6 +36,7 @@ from pathlib import Path
 import requests
 
 from bzk.http import RestSession
+from bzk.ontology.keys import check_accession_case
 
 UNIPROT_REST = "https://rest.uniprot.org/uniprotkb"
 DEFAULT_CACHE_DIR = Path.home() / ".bzk-omics" / "cache" / "uniprot"
@@ -196,7 +197,14 @@ def resolve(
     cache (used by `rebuild.py` for drift detection).
     """
     sess = session if session is not None else requests.Session()
-    requested = str(accession).strip()
+    # §4's accession-casing clause, enforced here as well as in `keys.protein_key`, because both
+    # cache tiers below build their paths from this string verbatim: `entry/{canonical}.json` and
+    # `seq/{accession}#sv{n}.txt`. Canonical there means isoform-stripped, not case-folded, so
+    # without this a casing departure forks the sequence archive and the drift receipt's digest as
+    # well as the graph — and forks them differently by platform, since a case-insensitive volume
+    # would hand both spellings one cache file while the graph still minted two ids. Checked before
+    # `requested` is used for anything, so no path is built and no file is written on the way out.
+    requested = check_accession_case(str(accession).strip())
     is_isoform = "-" in requested
     canonical = requested.split("-", 1)[0]
     isoform = requested.split("-", 1)[1] if is_isoform else None

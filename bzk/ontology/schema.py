@@ -91,6 +91,31 @@ GG_REMNANT_MODIFIERS: dict[str, GgRemnantModifier] = {
 # is not an evidential claim. Guarded against §6.3 by tests/test_schema.py.
 KEYING_BASIS: frozenset[str] = frozenset({"razor", "reviewed_preferred"})
 
+# §3's CURIE prefix map, mirrored so the key builder can enforce §4's *"CURIE prefixes are lowercase
+# and spelled exactly as in the §3 map"*. The map is the authority; this is its executable copy and
+# `tests/test_schema.py` asserts the two agree, the same idiom as `ABSENCE` ↔ §3 and
+# `GG_REMNANT_MODIFIERS` ↔ §6.1. Added 2026-08-08: the clause had no implementation at all, so
+# `uniprot:P05161` and `UniProt:P05161` hashed to two ids for one protein.
+#
+# `bzk` is deliberately absent — the §3 table lists external *authorities*, and the locally
+# generated namespace is defined in §3's prose instead. `keys.py` adds it where it needs the union,
+# rather than putting a non-authority row in a mirror of the authority table.
+CURIE_PREFIXES: frozenset[str] = frozenset(
+    {
+        "uniprot",
+        "hgnc",
+        "ensembl",
+        "unimod",
+        "mod",
+        "reactome",
+        "go",
+        "mondo",
+        "chebi",
+        "doi",
+        "pmid",
+    }
+)
+
 # §3's absence classification, mirrored for code that must decide whether a null is legal.
 # ADR-0021: an identifying field may be null only where something *outside the moment of ingest*
 # fixes that null — `determined` by another recorded field or a stated structural fact, or

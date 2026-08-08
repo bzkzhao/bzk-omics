@@ -475,6 +475,16 @@ def test_reference_ids_on_disk_are_canonical() -> None:
                 prefix = node_id.split(":", 1)[0]
                 assert prefix in prefixes, f"{node_id}: prefix {prefix!r} not in the §3 map"
                 assert prefix == prefix.lower(), f"{node_id}: CURIE prefix must be lowercase"
+                # The local part, which this guard skipped while checking the prefix (2026-08-08).
+                # §4 pins the *accession* segment at UniProt's uppercase casing; the rest of a
+                # composed id is not uppercase and must not be asserted to be — `#sv4` and the
+                # trailing `unimod:` are both lowercase by the same section. So the assertion is
+                # scoped to the segment before the first `#`, and it generalises only to
+                # authorities whose casing §4 actually fixes, which today is UniProt alone.
+                accession = node_id.split(":", 1)[1].split("#", 1)[0]
+                assert accession == accession.upper(), (
+                    f"{node_id}: accession segment {accession!r} is not uppercase (§4)"
+                )
                 if label == "ProteinSequence":
                     sv = re.search(r"#sv(\d+)$", node_id)
                     assert sv, f"{node_id}: ProteinSequence id must end in #sv<n>"
@@ -488,6 +498,27 @@ def test_reference_ids_on_disk_are_canonical() -> None:
                         f"{m.group(3)!r} is a cross-reference only"
                     )
     assert seen, "no reference ids found — guard would be vacuous"
+    # Stated rather than implied: `seen` is 8. This scans committed JSON, not the graph, so it is a
+    # weak net — it catches a canonicalization defect only where a fixture happens to carry the
+    # shape. It is not coverage of the class, and the per-clause guards in `tests/test_keys.py` are
+    # what actually enforce §4 at the point of construction.
+
+
+def test_curie_prefixes_mirror_the_ontology_map() -> None:
+    """`schema.CURIE_PREFIXES` is the executable copy of §3's prefix map, which owns the list.
+
+    The same mirror-plus-guard idiom as `ABSENCE` ↔ §3 and `GG_REMNANT_MODIFIERS` ↔ §6.1. The
+    builder refuses a mis-cased prefix by testing membership of this set, so a prefix that drifts
+    out of the mirror silently stops being checked — the check would pass a value it should refuse.
+    """
+    assert schema.CURIE_PREFIXES == _curie_prefixes(), (
+        f"schema.CURIE_PREFIXES {set(schema.CURIE_PREFIXES)} != §3's map {_curie_prefixes()}; "
+        "§3 owns the list"
+    )
+    assert "bzk" not in schema.CURIE_PREFIXES, (
+        "§3's table lists external authorities; the locally generated namespace is prose, and "
+        "keys.py forms the union it needs"
+    )
 
 
 def test_pending_markers_point_at_values_that_are_actually_pending() -> None:

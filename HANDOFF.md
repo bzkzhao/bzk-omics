@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.10 |
+| Version | 1.11 |
 | Last reviewed | 2026-08-08 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -522,9 +522,17 @@ three families:
    `ModifierAssignment.candidate_modifiers`, `ProteinAssignment.candidate_proteins`. Element order
    alone changes the id, and a search engine's candidate ordering is not canonical — at I14's
    measured 82% multi-mapping this is the common path, not an edge case. Sort before hashing.
-3. **Unformatted floats** (4 fields): `Sample.timepoint_h`, `Analysis.localization_threshold`,
-   `Imputation.downshift_sd`, `width_sd`. `1.8` and `1.80` fork an id. **The `Analysis` qualifying-
-   child fold (§3) depends on this rule**, since it folds two of these floats.
+3. ~~**Unformatted floats** (4 fields): `Sample.timepoint_h`, `Analysis.localization_threshold`,
+   `Imputation.downshift_sd`, `width_sd`. `1.8` and `1.80` fork an id.~~ **Closed, and this item was
+   stale rather than open — corrected 2026-08-08.** The rule shipped with the key builder
+   (`keys.py`'s `DOUBLE` branch) and carries three tests, including one for the fold. What was
+   actually missing was a *home*: `ONTOLOGY.md` §3 said the rule was "stated nowhere yet and
+   unimplemented", and this item repeated it, so both documents asserted a gap that code had closed.
+   §3 now states the rule normatively. **A false claim of a gap has no mechanical detector** — code
+   contradicts a false claim about what code does, but nothing contradicts a claim about what code
+   *does not* do, and no test fails when the gap closes. That is why this survived eight revisions
+   of the surrounding paragraph. **The `Analysis` qualifying-child fold (§3) depends on this rule**,
+   since it folds two of these floats.
 
 **Fallback keys are now forbidden outright (ADR-0021)**, so the builder never has to reconcile one:
 an identifying field may be absent only when its absence is *determined by the data*, never when it
@@ -535,11 +543,44 @@ left unclassified. `Software` now keys on `name` + `version` (the digest is non-
 builder can treat every identifying field as either present or determinedly null, with no
 provisional state and no merge step.
 
-Also outstanding from the same audit: `parameters_json`'s canonicalization is documented in §3 and
-ADR-0020 but **implemented nowhere**, so today it behaves as open free text; and reference-key
-components have their own canonical forms now fixed in `ONTOLOGY.md` §4 (Unimod-only modification
-keys, unpadded `sv`, uppercase residue, lowercase CURIE prefix), checked against committed data but
-not against an ingested change-set.
+Also from the same audit, both now closed: `parameters_json`'s canonicalization was documented in §3
+and ADR-0020 and **implemented nowhere**; and reference-key components have their own canonical
+forms fixed in `ONTOLOGY.md` §4 (Unimod-only modification keys, unpadded `sv`, uppercase residue,
+uppercase accession, lowercase CURIE prefix), which were checked against committed data but not at
+construction. See the convergence below.
+
+#### Normalize or refuse — the key builder's fourth family, decided 2026-08-08
+
+A sweep of every canonicalization clause in `ONTOLOGY.md` §3 and §4 against `keys.py` found three
+clauses of one class: **an identifying value has a canonical form asserted in the normative
+document, and the builder neither normalizes to that form nor refuses a departure from it, so two
+spellings of one fact mint two ids.** Converging can mean either, and the mode was decided per
+clause rather than by which was easier to write.
+
+| Clause | Mode | Why |
+|---|---|---|
+| §3 l.171 `parameters_json` *"normalized numeric forms"* | **Normalize** | `250` and `250.0` are the same JSON number — JSON has one number type — so there is no departure to refuse and refusing would reject valid input. `json.loads` preserves the written form and `json.dumps` writes it back, which is how the int/float boundary survived into the hash while float *spelling* already converged through the parse. Integral floats collapse to `int`; bools and integers past 2⁵³ are left alone, since collapsing those would merge values rather than spellings |
+| §4 l.265 accession uppercase | **Refuse** | A lowercase accession is not another spelling of a UniProt accession, it is a malformed one, and repairing it asserts more than the input supports (I19's discipline). Two concrete costs of normalizing: `resolve/nodes.py` writes `accession` into the node from the same raw string, so an uppercased id would sit on a node whose own column contradicted it; and a curator's typo becomes permanently invisible, because the repaired id is well-formed and resolves |
+| §4 l.266 CURIE prefix lowercase | **Refuse** | The values are node ids. `store.py` writes them as edge endpoints and as `candidate_proteins` elements from the raw change-set, so normalizing the hashed copy alone would leave the id correct and the content it identifies wrong — a worse state than the fork. The builder also cannot tell a CURIE from free text generically, so a blanket normalize is unavailable; the check fires only when a prefix case-folds onto a §3-map prefix, and once detection is that precise, refusal is precise too |
+
+The general rule the split follows: **normalize when both spellings are legal renderings of one
+value; refuse when one spelling is simply wrong.** Refusal is also this module's existing answer to
+a key-authority clause — `modification_site_key` raises on a PSI-MOD accession rather than
+translating it — and `perseus.py`'s answer to an unrecognised column.
+
+**The accession clause covers the cache path, not only the id.** `resolve/uniprot.py` builds
+`cache/uniprot/entry/{canonical}.json` and `cache/uniprot/seq/{accession}#sv{n}.txt` from the
+accession verbatim, where canonical means isoform-stripped and *not* case-folded. So a casing
+departure forks the sequence archive — an I9 input — and the drift receipt's digest, and forks them
+**differently by platform**: on a case-insensitive volume the two spellings share one cache file
+while the graph still mints two ids. `resolve` therefore runs the same check before it builds any
+path, and `tests/test_keys.py` asserts that a refused accession leaves the cache directory empty.
+
+Each of the three has a two-spellings-one-id guard in `tests/test_keys.py`, and
+`test_reference_ids_on_disk_are_canonical` was extended to assert the accession segment of every
+committed reference id, which it skipped while checking the prefix. **That on-disk guard is a weak
+net and must not be described as covering the class:** it sees 8 reference ids in total, because it
+scans committed JSON rather than the graph. The per-clause guards are the enforcement.
 
 ### Unenforced invariants (audit 2026-08-07), by class
 
