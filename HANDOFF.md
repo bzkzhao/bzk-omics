@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.14 |
+| Version | 1.15 |
 | Last reviewed | 2026-08-08 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -723,8 +723,8 @@ same. The zero was the result that should have prompted the look.
 widening the tautology sweep would mean). Pass C — one side of an `==` contains a call, another side
 is not a literal display — matched all three hand-found instances, so the pre-registration's
 outcome 3 did not occur. Pass D covers what C cannot see: no call anywhere in the comparison, but a
-side bound earlier from one. Over 19 modules and 633 asserts the two passes match **82** assertions,
-against 46 / 32 / 78 before.
+side bound earlier from one. Over 19 modules and **632** asserts the two passes match **82**
+assertions, against 46 / 32 / 78 before.
 
 **Four instances, not one, and they are not all the same strength.** Each was confirmed by mutating
 the producing code, with the behavioural edit read back before any result was trusted — one mutation
@@ -743,8 +743,9 @@ first two and is counted separately rather than folded in. **Trigger, and it now
 rather than `:108` alone:** any change that would make one of these fields stop equalling the
 expression it is compared against — for the two `test_drift.py` rows that is the per-sequence
 sampling deferred above; for the other two it is any change to how the field is derived. All four
-are listed in `tests/test_tautology_sweep.py::INSTANCES` with their mutation evidence, so the
-trigger is enforced rather than remembered.
+are listed in `tests/test_tautology_sweep.py::INSTANCES`, each with an `Evidence` the suite
+**re-runs** — see the correction below, because when that sentence was written the evidence was
+prose and "enforced rather than remembered" was not true of it.
 
 Five candidates were excluded **by running**, not by reading: `test_drift.py:111` (a corrupted
 receipt round-trip reddens it), `test_maxquant_sites.py:215` (dropping a modifier from
@@ -768,6 +769,74 @@ own pin.
 Writing it surfaced two of its own matches — the widened `test_store.py` guards asserted
 `report.nodes_staged == len(staged) == 3`, whose first conjunct is the expression `WriteReport` is
 built from. Deleted; the literal carries the claim and the exclusions carry the rest.
+
+#### The sweep's own surface was narrower than the surface it declared — corrected 2026-08-08
+
+Third artefact in a row landing inside the class it was built to close, and the first two rounds of
+mutation could not have found it: **every mutation offered as confirmation acted at whole-assert or
+whole-module granularity, and both defects live below an assert and inside the counter.**
+
+**The loop.** An unconditional `break` sat outside the `if hit:` block, so only the first `Compare`
+in each assert was examined. Planted and confirmed before repair: a confirmed instance's exact
+expression, added as a second conjunct in `test_drift.py`, left `tests/test_tautology_sweep.py`
+green over an instance of the class it exists to catch.
+
+**The counter.** `for func in ast.walk(tree)` yields nested `FunctionDef`s, and the enclosing
+function's own walk has already reached their asserts — so one assert was counted and examined
+twice. Measured: 633 walked against 632 distinct, the duplicate `test_rebuild.py:250` in `_resolve`
+nested inside `_resolver_for`. Both are one decision about what "the surface" means and are
+converged together; the floor was denominated in the inflated number, so it moves in the same edit.
+
+**The floor.** `asserts >= 600` against 633 tolerated deleting a twentieth of the suite's
+assertions — the case its own failure message names. Re-denominated at the exact current surface, 19
+modules and 632 asserts, with the same discipline `PINNED` already carries: a legitimate reduction
+lowers the number in the change that makes it, and additions never trip it.
+
+**Three edges were covered although all three measure zero today** — an `AsyncFunctionDef`, an
+assert outside any function, a `.py` file in `tests/` that is not `test_*.py`. Covered because the
+declaration says *every assertion in `tests/`*, and a surface that silently excludes a shape belongs
+to this class whether or not the shape is currently present.
+
+**The counts did not move, and that was pre-registered as the outcome hardest to read** (`ROADMAP.md`
+§ Pre-registration: what repairing the sweep's own surface would mean). Matches stayed at **82**,
+identical set, 0 added and 0 gone; asserts fell to 632 exactly as predicted; modules stayed at 19.
+Under that outcome every number is the same one the defective net produced, so nothing in the output
+distinguishes a repaired net from a broken one — **only planting does**, which is why the net was
+split so it can be run over synthetic source. `PLANTED` carries a second-comparison instance, a
+nested-function assert, an async assert, a module-level assert, a call on the left-hand side, and a
+Pass D shape; `test_the_net_reaches_every_granularity_it_declares` asserts what the net must find in
+it, and that expectation caught two of my own errors before the net did — a miscount of the planted
+asserts, and a case written as two matching comparisons that were `call == literal` and match
+neither pass.
+
+**Nine granularities at which the examined surface can shrink, one mutation each, all nine caught:**
+module dropped; a function's asserts skipped; every fifth assert skipped; only the first comparison
+examined; only the left side allowed to carry the call; nested asserts counted twice via the old
+walk-every-function structure; `AsyncFunctionDef` bodies skipped; module-level asserts skipped; the
+glob narrowed back to `test_*.py`.
+
+#### `INSTANCES`' evidence was prose nothing re-ran — corrected 2026-08-08
+
+`test_every_classified_instance_is_still_present` bound the third element to `_evidence` and never
+read it, so *"archived_sequences → found[:-1]: whole suite green"* was asserted by the record and
+checked by nothing. Changing `drift.run` to derive `sequences_checked` from a source the mutation
+does not shorten would have left the sentence intact, the module green, and the record holding a
+mutation result that no longer held.
+
+**Whether it is re-runnable was established by building it, not decided by judgement, and the cost
+is measured rather than estimated.** Copying the repository without `.venv`, `.git` and the caches
+costs **0.08 s** with `__pycache__` carried (1.22 s cold); one whole-suite run inside the copy,
+self-deselected to avoid re-entry, **12.4 s**; one module **1.3 s**; one test **0.3 s**. The five
+runs the four instances require total **~15 s**, taking the suite from ~9 s to **26.0 s measured**.
+That cost is paid: the record is now true rather than asserted.
+
+One reduction was taken and is named rather than absorbed — `content_hash`'s *"suite red elsewhere"*
+is checked against `tests/test_raw_store.py` rather than the whole suite. That saves ~12 s and makes
+the claim **more** precise, since it names where the mutation is caught instead of asserting that
+somewhere does. Both directions of the mechanism were mutation-tested: deriving `sequences_checked`
+independently makes the evidence test fail with the row named, and an `old` text that no longer
+occurs exactly once fails before any run, because evidence pointing at code that has moved describes
+a mutation nobody can apply.
 
 ### Unenforced invariants (audit 2026-08-07), by class
 
