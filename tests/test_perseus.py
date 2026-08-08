@@ -358,16 +358,16 @@ def test_the_change_set_stores(
     # to test. Replaced 2026-08-08, and what the replacement does and does not establish is worth
     # stating, because overclaiming it would be the same defect one turn on.
     #
-    # The literals are the load-bearing half: 18 and 24 are this adapter's output on this fixture,
-    # and they fail if it emits a different change-set. The staged-versus-landed comparison catches
-    # a **silent write failure** — a statement issued against the wrong table that matches nothing,
-    # which is the shape of the ISG15 bug — confirmed by mutation. It does *not* generally guard
-    # staged > landed, because ADR-0019's structural check already refuses a duplicate (label, id)
-    # inside one change-set, so for a single validated change-set into an empty graph the two
-    # quantities cannot diverge upward. The divergence the rename is about needs two change-sets,
-    # and `tests/test_store.py` is where that is pinned.
-    assert report.nodes_staged == sum(store.count_nodes(conn).values()) == 18
-    assert report.edges_staged == sum(store.count_edges(conn).values()) == 24
+    # The `sum(...)` terms were deleted on 2026-08-08 and the reason is worth keeping. They replaced
+    # a tautology (`report.nodes_written == len(parsed.nodes)`), and were offered as catching a
+    # silent write failure that the per-label dicts below do not. They do not: `sum(...) == 18` is
+    # entailed by a dict of literals summing to 18, so no state fails the sum while the dict passes,
+    # and the silent-skip mutation that "confirmed" the reach fails the dict too — which additionally
+    # names the missing label. What survived deletion is the one conjunct the dicts do not entail:
+    # the *staged* count against a literal. Its reach is this adapter's change-set size and nothing
+    # more; the divergence the rename is about needs two change-sets and lives in test_store.py.
+    assert report.nodes_staged == 18
+    assert report.edges_staged == 24
     assert store.count_nodes(conn) == {
         "Protein": 4,
         "ProteinObservation": 4,

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.13 |
+| Version | 1.14 |
 | Last reviewed | 2026-08-08 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -388,7 +388,7 @@ All three cost time during exploration. All three are the same class: code that 
 | **The resolver reports `status='ok'` for a deleted UniProt entry** | `bzk/resolve/uniprot.py`, `bzk/resolve/nodes.py` | Found by the first real adapter run: 25 of the site table's razor picks return `entryType: 'Inactive'` — UniProt entries deleted or demerged since the 2019 search — and `resolve` reports them `status='ok'` with `sequence_version=None` and no sequence, because the fetch succeeded and it only inspects `reviewed`/`sequence`/`entryAudit`. Nothing is *wrong* downstream: `resolve_to_nodes` refuses them for having no sequence version, and `maxquant_sites.py` refuses the 48 sites keyed on them, so no bad data is admitted. What is lost is the *reason*. The refusal reads *"no sequence_version, so no ProteinSequence can be keyed"*, which sounds like a metadata gap in a live entry; the truth is that the protein the search named no longer exists as a distinct entry, which is a different finding for a curator and a different fix (re-map to the merge target, not wait for UniProt to fill a field). **`entry_type` is already captured on `Resolution` and already carries `'Inactive'`** — nothing needs fetching, only a status the caller can branch on, so this is small. It is deferred here rather than done inline because it widens `Resolution.status`'s closed set, which `tests/test_resolve.py` and the recorded-response fixtures both pin. **Trigger: the next change to `resolve/uniprot.py`.** No |
 | ~~**A change-set could not hold `Protein` and `Modifier` for one accession**~~ **Fixed 2026-08-07 — ADR-0019 corrected** | `bzk/ontology/invariants.py`, `bzk/ontology/store.py`, ADR-0019 | Found by the first real run that seeded `Modifier` nodes: §3 keys **both `Protein` and `Modifier` on bare `uniprot:`**, so ISG15 is `uniprot:P05161` under both — the protein a diGly search reports as a razor pick, and the modifier its K-GG remnant might have come from. That is this project's anchor domain, not an edge case. ADR-0019 said node ids are unique within a change-set and the code read that as unique *globally*; Kùzu stores the two in separate tables and was never troubled. Corrected to **(label, id)** in three places, and the second and third are the dangerous ones: `store.py` resolved an edge's endpoint labels through `{id: node}`, so a collision would have picked the wrong label, `MATCH`ed the wrong table and **written nothing** — the silent failure its own comment already warned about; and `_index` was global, so I2's `HAS_SEQUENCE` clause would have read `.get('accession')` off a `Modifier`, got `None`, and **skipped the check** rather than raising. Both are the shape this repository keeps meeting: a check reporting clean because it never ran. Edges still name endpoints by bare id, which is unambiguous only because no relationship admits both labels in one role — now asserted by `test_no_relationship_role_admits_two_labels_that_can_share_an_id`, mutation-tested, so the day that stops being true is a red test rather than a wrong answer. Resolved |
 | **ADR-0019 has become the change-set format specification, not a decision record** | `decisions/0019-changeset-structural-validation.md`, `ARCHITECTURE.md` §3 | It now carries **five dated amendments** — the fifth hole (multiplicity), the sixth (node type declared at all), the `__label__` rename, the reserved-namespace rule, and the (label, id) correction — and between them they *are* the format: what a node is, what an edge is, which keys are structural, how endpoints resolve. `decisions/README.md` says a record is *"never edited; a changed decision gets a new record"*, and the dated-section style is the compromise that keeps the trail readable, which is the rule's purpose. But a living specification is not a decision, and the two want different homes: a decision is read once to learn why, a specification is read repeatedly to learn what. **Eventually the format moves to `ARCHITECTURE.md` §3 and ADR-0019 keeps only its original decision** — change-sets are self-contained, structural validation precedes invariants — with the amendments becoming the specification's history rather than the ADR's. **Trigger: the next amendment.** A sixth is the point at which the trail stops being a trail. Not done now: moving it while it is still accumulating would mean moving it twice. No |
-| **`store.py` writes one statement per node and per edge — measured at scale 2026-08-07** | `bzk/ontology/store.py` | Flagged as fine at 16 nodes and untested beyond that. Now measured on the real deposit: **90.3 s to write 20,294 statements** (11,386 nodes + 8,908 edges), **4.45 ms each, 225 statements/second**. For context in the same run, the adapter's `parse` — reading 2.8 MB, resolving 1,054 accessions off a warm cache, validating the whole change-set — takes **0.75 s**. So the write is **120× the cost of producing what it writes**, and it is the whole of the replay's wall clock. Not optimised here, deliberately: `MERGE` per statement is what makes replay idempotent (I7/I9), and batching changes the write path's semantics, not just its speed. The obvious move is one parameterised `UNWIND` per label and per relationship, which preserves `MERGE` and should collapse 20,294 round trips into ~21. **That would bring the write "under 10 s" — and that figure is an extrapolation from 225 statements/second, not a benchmark.** It is flagged here because, as of 2026-08-07, **it is the only unmeasured number left in the document set**: the drift check's ~980 s became 973.7 s measured, the rebuild's cost became 119.9 s measured, the archive's size became 8.3 MB measured, and the sequence-drift exposure became 40 of 2,056 measured. An estimate that is the last of its kind is one nobody re-examines, because there is no longer a habit of re-examining estimates — so it is named as the last one rather than left to become quietly permanent. **It stays an extrapolation until someone benchmarks the `UNWIND` form**, and no decision should rest on the 10 s. **Trigger: the second dataset, or any interactive path that rebuilds.** At one dataset, 90 s is tolerable; at ten it is 15 minutes and nobody re-runs it. No |
+| **`store.py` writes one statement per node and per edge — measured at scale 2026-08-07** | `bzk/ontology/store.py` | Flagged as fine at 16 nodes and untested beyond that. Now measured on the real deposit: **90.3 s to write 20,294 statements** (11,386 node statements + 8,908 edge statements — corrected 2026-08-08; the parenthetical said *nodes* and *edges*, decomposing a total of statements with the two words the rename removed, in the row cited as the reason to rename), **4.45 ms each, 225 statements/second**. For context in the same run, the adapter's `parse` — reading 2.8 MB, resolving 1,054 accessions off a warm cache, validating the whole change-set — takes **0.75 s**. So the write is **120× the cost of producing what it writes**, and it is the whole of the replay's wall clock. Not optimised here, deliberately: `MERGE` per statement is what makes replay idempotent (I7/I9), and batching changes the write path's semantics, not just its speed. The obvious move is one parameterised `UNWIND` per label and per relationship, which preserves `MERGE` and should collapse 20,294 round trips into ~21. **That would bring the write "under 10 s" — and that figure is an extrapolation from 225 statements/second, not a benchmark.** It is flagged here because, as of 2026-08-07, **it is the only unmeasured number left in the document set**: the drift check's ~980 s became 973.7 s measured, the rebuild's cost became 119.9 s measured, the archive's size became 8.3 MB measured, and the sequence-drift exposure became 40 of 2,056 measured. An estimate that is the last of its kind is one nobody re-examines, because there is no longer a habit of re-examining estimates — so it is named as the last one rather than left to become quietly permanent. **It stays an extrapolation until someone benchmarks the `UNWIND` form**, and no decision should rest on the 10 s. **Trigger: the second dataset, or any interactive path that rebuilds.** At one dataset, 90 s is tolerable; at ten it is 15 minutes and nobody re-runs it. No |
 | ~~**The rebuild's drift check now refetches every cached sequence**~~ **Split out 2026-08-07 — `bzk drift`** | `bzk/drift.py`, `bzk/rebuild.py`, `OPERATIONS.md` §1/§5 | The drift check was never a rebuild step: rebuild reconstructs derived state from the I9 inputs, this validates one of those inputs against the outside world, and the graph is byte-identical either way — shown rather than argued, since two replays that skipped it reproduced the same 11,389 ids as one that did not. Welded, it cost ~980 s of a 1,057 s rebuild; split and both measured end to end, **`rebuild` is 119.9 s and `bzk drift` is 973.7 s** over 1,029 sequences. That run reported zero drift, which says only that the check runs — the archive was hours old (see the self-guaranteeing-measurement row below). Nothing about the check is weakened — it still refetches every archived sequence with `refresh=True`, because §11 Q5's failure is invisible to anything that trusts the version number. **What answers *"what stops someone rebuilding for a year without ever drift-checking"* is the receipt**, not the split: `bzk drift` writes `~/.bzk-omics/cache/uniprot/.drift` (timestamp, count, digest of the set checked, outcome), and `rebuild` reports staleness from it every run. It never *refuses* — rebuild is the disaster-recovery path (`OPERATIONS.md` §1) and a network check in front of recovery is worse than a stale check. The digest is load-bearing: a check that covered 20 sequences yesterday says nothing about the 1,028 ingested this morning, and "checked 1 day ago" would be true and misleading. Resolved |
 | **The site adapter applies a localisation threshold and records it nowhere (I16)** | `bzk/adapters/maxquant_sites.py`, `ONTOLOGY.md` §5.4/§8 I16 | New with Slice 4a, and created by it: 242 of 2,298 rows are dropped at `Localization prob >= 0.75`, and the graph holds **one `Analysis`, of kind `curation`** — nothing records the threshold, the quantity, or that a filter was applied at all. I16 says *"every `Analysis` records which quantity it consumed and the filters applied, including the localisation threshold"*, and it is not violated only because the adapter emits no `Analysis` to violate it: the check iterates over nodes that do not exist. That is the invisible-choice defect I16 exists to prevent, arriving through the gap rather than through the field. The fix is a search-output `Analysis` — `kind = 'external'`, `external_tool = 'maxquant'`, `parameters_observed = false` (I19), `quantity = 'intensity_multiplicity_summed'`, `localization_threshold`, `filters_applied` — which the observations attach to. Deliberately not added in Slice 4a, which was scoped to wiring: it touches I15's `Imputation` requirement and I19's flag, both decisions rather than plumbing. Now also `ROADMAP.md` § The platform made an invisible analytical choice, because 10.5% of a dataset removed by an unrecorded number is a measured finding about this platform, not only a task. **Trigger: before any result is derived from these observations**, i.e. the first thing Slice 4b does. **Yes** — for Slice 4b, no for the ingestion standing as it is |
 | **I18 obligation: an export must state its sequence-archive staleness** | export boundary, `bzk/drift.py`, `ONTOLOGY.md` §8 I18 | **A named obligation on unbuilt work, recorded rather than assumed.** The drift split makes staleness *visible* (a line in `rebuild`'s output) but not *consequential* — a console line is ignorable by construction. What makes it consequential is the export boundary, where this project already refuses embargoed datasets (I18) and flags `unprovenanced` results: **an export, figure or report derived from `ModificationSite` positions whose archive was last drift-checked more than N days ago must state so, in the same channel and by the same rule.** N is `OPERATIONS.md`'s to set; `drift.STALE_AFTER_DAYS` is 7 today and is a *reporting* threshold only, enforced nowhere. This is written down because the strongest half of an accepted proposal depended on it, and a dependency on unbuilt work that is not named is a dependency that quietly does not happen. **Trigger: the first export, report or figure-writing path** — the same trigger I18 itself already carries, so the two land together or neither does. No — but the drift split is materially weaker until it does |
@@ -663,14 +663,30 @@ line — and three committed tests.
 `store.count_nodes`, which is where §3's composition list comes from, so re-meaning these would put
 one fact in two places — a defect rather than redundancy. Statements issued has no other home and is
 load-bearing: the `store.py` performance row above is denominated in it (*"20,294 statements … 225
-statements/second"*), and that row already used the correct word one line below the sentence that
-did not.
+statements/second"*). **The claim that followed is withdrawn, 2026-08-08.** It read *"and that row
+already used the correct word one line below the sentence that did not"*, and the row did not: its
+total said *statements* while its own parenthetical decomposed that total as "11,386 nodes + 8,908
+edges", on the same line. The exhaustive figure search of 2026-08-08 returned that line — the search
+was not what failed; reading it as already correct was — so the row cited as the reason to rename
+was carrying the defect the rename exists to remove. Corrected above, and the same withdrawal is in
+`store.WriteReport`'s docstring, which made the identical claim.
 
-**The detector is written, not deferred.** `tests/test_store.py` compares the reported count against
-the graph's *change* across a write rather than against a constant: one change-set written twice
-reports the same count both times while the graph grows only once. A constant comparison cannot see
-this, because on a first write into an empty graph the two quantities agree — which is why
-`test_writes_nodes_and_edges` passed either way. Both fields are pinned, since they are one defect.
+**The detector is written, and was widened 2026-08-08 after admitting the re-meaning it was
+offered against.** Its first version wrote one change-set twice and asserted the reported count
+diverged from the graph *delta* — the one alternative it was built around, so nothing could have
+made it survive. Re-meaning **both** fields to `sum(count_nodes(conn).values())` — the very design
+`store.WriteReport`'s docstring rejects — passed the entire suite, both detectors included, because
+each evaluated `1 != 0` exactly as under the correct code.
+
+The widened tests arrange a scenario in which every candidate quantity takes a **different value**,
+and exclude each by name: `len(staged)` = 3, graph delta = 1, total after = 5, total before = 4,
+transposed field = 0, and no constant satisfies both tests at once. Each of those six re-meanings
+was written into `store.py` and run, with a live probe confirming the mutant changed what the report
+returns before any red or green was read; all six now fail. Two candidates stay unexcluded and are
+named in the test rather than left implicit — distinct staged `(label, id)`, which no *validated*
+write can separate from `len(staged)` because ADR-0019 refuses duplicates inside a change-set, and
+rows-actually-changed, which Kùzu does not expose. Both fields are covered, since `WriteReport`
+builds them in one expression and the surviving re-meaning mutated both together.
 
 **Corrected figures.** The sentence in §3 recording the post-ADR-0024 rebuild said *"11,743 nodes
 and 9,229 edges"*. Both are correct numbers about statements issued and wrong about the graph, which
@@ -685,32 +701,73 @@ asserting both rather than two sessions disagreeing.
 expression `store.WriteReport` is built from — a tautology that could not fail under any change to
 the code it appeared to test. **The same class as the two above:** the code was correct and the
 artefact describing it was false, here a test's presence in a green suite asserting that a property
-is guarded when it is not. It is the ADR-0019 vacuous-check family, not a new one. Replaced with the
-claim it looked like it was making — this adapter's change-set stages nothing twice, so all 18 node
-statements and 24 edge statements land as distinct rows — which fails the moment the adapter starts
-re-staging a referent, as the site adapter legitimately does.
+is guarded when it is not. It is the ADR-0019 vacuous-check family, not a new one.
 
-**Swept for the shape over a stated surface: all 19 modules in `tests/`, 627 `assert` statements.**
-Pass A took every equality with `len()` on one side — **46 matches: 42 against an integer literal,
-2 uniqueness claims (`len(set(x)) == len(x)`), 2 needing reading.** Pass B took every
-`<obj>.<attr> == <non-constant expression>` and checked whether the expression is rooted in the same
-name — **32 matches, 0 sharing a root.** Of the two read by hand,
-`test_pxd018299_baseline.py:87` compares fixture rows against a committed curation record, which are
-independent sources.
+**The replacement over-claimed in turn, and is corrected 2026-08-08.** It read
+`report.nodes_staged == sum(count_nodes(conn).values()) == 18`, offered as catching a silent write
+failure the per-label dicts below it do not. It does not: those dicts are literals summing to 18 and
+24, so `sum(...) == 18` is entailed by them and no state fails the sum while the dict passes — the
+silent-skip mutation that "confirmed" the reach fails the dict too, and the dict additionally names
+the missing label. The `sum(...)` terms are deleted. What survives is the one conjunct the dicts do
+not entail, the *staged* count against a literal, whose reach is this adapter's change-set size and
+nothing further.
 
-**One other instance, reported and not fixed:** `tests/test_drift.py:108`,
-`receipt.sequences_checked == len(drift.archived_sequences(home))`, where `drift.run` sets that
-field to exactly that expression. It is weaker than a full tautology — the re-derivation goes
-through a second call, so a change to `archived_sequences` alone would still be caught — but it
-cannot fail while `run` computes the field that way. **Trigger: the per-sequence sampling deferred
-above**, which is the change that would make the field stop equalling the archive's length and turn
-this into a substantive claim.
+**Swept twice, and the first sweep's numbers were a property of its criterion.** Pass A took every
+equality with `len()` on one side (46 matches) and Pass B every `<obj>.<attr>` against an expression
+rooted in the same name (32 matches, **0 hits**), and that zero was read as coverage. It was not: an
+audit then produced by hand three instances, two of which **neither pass could have matched** —
+`test_drift.py:110` has no `len()` for A and no shared root for B, and `test_perseus.py:228` the
+same. The zero was the result that should have prompted the look.
 
-What the sweep does **not** cover, stated because the surface is the point: "a value compared
-against the expression that produced it" is not decidable syntactically in general. The two passes
-bound it to the `len()` form and to attribute-versus-same-root, which between them catch
-re-derivation that is textually visible in the assertion, and miss re-derivation laundered through
-an intermediate variable or a helper.
+**Widened and re-run 2026-08-08, pre-registered first** (`ROADMAP.md` § Pre-registration: what
+widening the tautology sweep would mean). Pass C — one side of an `==` contains a call, another side
+is not a literal display — matched all three hand-found instances, so the pre-registration's
+outcome 3 did not occur. Pass D covers what C cannot see: no call anywhere in the comparison, but a
+side bound earlier from one. Over 19 modules and 633 asserts the two passes match **82** assertions,
+against 46 / 32 / 78 before.
+
+**Four instances, not one, and they are not all the same strength.** Each was confirmed by mutating
+the producing code, with the behavioural edit read back before any result was trusted — one mutation
+in this round reported "applied" on a marker while its real edit silently missed, and produced a
+green run indistinguishable from a guard that does not fire.
+
+| Instance | Producing code | Mutation | Own module | Whole suite |
+|---|---|---|---|---|
+| `test_drift.py:108` | `drift.run` ← `archived_sequences` | `found[:-1]` | green | **green** |
+| `test_drift.py:110` | `drift.run` ← `archive_digest(archived_sequences(…))` | `found[:-1]` | green | **green** |
+| `test_perseus.py:228` | `perseus.py:180` ← `content_hash` | `hash(data + b"X")` | green (21 passed) | red elsewhere |
+| `test_curation_loader.py:412` | `sample_mapping` ← `sample_ids` | `Sample` id + `"X"` | its own test green | red via a sibling |
+
+The last two are tautologies whose defect another test catches, which is a different thing from the
+first two and is counted separately rather than folded in. **Trigger, and it now covers all four
+rather than `:108` alone:** any change that would make one of these fields stop equalling the
+expression it is compared against — for the two `test_drift.py` rows that is the per-sequence
+sampling deferred above; for the other two it is any change to how the field is derived. All four
+are listed in `tests/test_tautology_sweep.py::INSTANCES` with their mutation evidence, so the
+trigger is enforced rather than remembered.
+
+Five candidates were excluded **by running**, not by reading: `test_drift.py:111` (a corrupted
+receipt round-trip reddens it), `test_maxquant_sites.py:215` (dropping a modifier from
+`seed.modifier_nodes` reddens it), `test_curation_loader.py:312` (a constant `label` reddens the
+module), `test_schema.py:684` (a round-trip through a live Kùzu database), and
+`test_protein_groups.py:71` (internal consistency of a pinned record, where no producing code is in
+the loop). `test_raw_store.py:52`/`:53`/`:116`/`:161` fail under the `content_hash` mutation and are
+the same strength as `:108`, not weaker.
+
+**The sweep is committed and re-runs** (`tests/test_tautology_sweep.py`), which the previous report
+said it would not. It pins the **match set** — module plus normalized source, not line numbers —
+rather than a count, because a count is satisfied by deleting one substantive assertion and adding
+one tautological assertion in the same module. A new match fails the module with instructions to
+classify it; a pinned match that disappears fails too, so the pin cannot drift into describing a
+suite that no longer exists. Two things it cannot do, stated rather than implied: it cannot decide
+whether a call *is* the producing expression, which is why the classification is pinned data and not
+a verdict the test computes; and it excludes itself from its own surface, since its assertions
+compare a computed match set against a pinned constant and a module that swept itself would pin its
+own pin.
+
+Writing it surfaced two of its own matches — the widened `test_store.py` guards asserted
+`report.nodes_staged == len(staged) == 3`, whose first conjunct is the expression `WriteReport` is
+built from. Deleted; the literal carries the claim and the exclusions carry the rest.
 
 ### Unenforced invariants (audit 2026-08-07), by class
 

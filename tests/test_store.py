@@ -42,56 +42,74 @@ def test_writes_nodes_and_edges(conn: kuzu.Connection) -> None:
     assert store.ids_by_label(conn) == {"Protein": sorted([MX1, USP18])}
 
 
-def test_the_report_counts_statements_issued_not_nodes_and_edges_created(
-    conn: kuzu.Connection,
-) -> None:
-    """The detector for the rename (2026-08-08): reported count against the graph's *change*.
+def test_the_node_count_is_len_staged_and_no_other_quantity(conn: kuzu.Connection) -> None:
+    """**Widened 2026-08-08.** The first version admitted the re-meaning it was written against.
 
-    A comparison against a constant cannot see this. `test_writes_nodes_and_edges` above asserts
-    `nodes_staged == 2` and passes whichever quantity the field holds, because on a first write into
-    an empty graph the two agree. The divergence is only visible on a re-write, which `MERGE` makes
-    a no-op while the count stays the same — and ADR-0019's self-contained change-sets make that
-    re-write mandatory rather than hypothetical.
+    It wrote one node twice and asserted the count diverged from the graph *delta*. That excluded
+    exactly one alternative — the one the test was built around — and `WriteReport` re-meant to
+    `sum(count_nodes(conn).values())` passed the whole suite, which is the alternative
+    `store.WriteReport`'s own docstring names as the rejected design.
 
-    So this pins the semantics rather than the name: it fails if the fields are ever re-meant to
-    count what landed without the names following.
+    The scenario below is arranged so **every candidate quantity takes a different value**, and each
+    is excluded by name rather than by implication. Enumerated before the test was written:
+
+      * `len(staged)`     = 3  — correct
+      * graph delta       = 1  — nodes this write created
+      * total after       = 5  — what `count_nodes` reports, the rejected re-meaning
+      * total before      = 4  — the same quantity read one statement earlier
+      * `len(edges)`      = 0  — the transposed field
+      * any constant        — excluded by the four above disagreeing
+
+    Two candidates are **not** excludable here and are named rather than left implicit. Counting
+    *distinct* staged `(label, id)` pairs equals `len(staged)` for any change-set that passes
+    validation, because ADR-0019 refuses a duplicate inside one change-set — so no validated write
+    can separate them. And counting rows a statement actually changed is not exposed by Kùzu: a
+    second `MERGE` of an identical node still runs its `SET`.
     """
-    nodes = [n("Protein", MX1, accession="P20591")]
-    edges: list[dict[str, object]] = []
-
+    seeded = [n("Protein", f"uniprot:SEED{i}", accession=f"SEED{i}") for i in range(4)]
+    store.write_change_set(conn, seeded, [])
     before = sum(store.count_nodes(conn).values())
-    first = store.write_change_set(conn, nodes, edges)
-    after_first = sum(store.count_nodes(conn).values())
-    second = store.write_change_set(conn, nodes, edges)
-    after_second = sum(store.count_nodes(conn).values())
 
-    assert first.nodes_staged == second.nodes_staged == 1, "the count is len(staged), both times"
-    assert after_first - before == 1, "the first write creates the node"
-    assert after_second - after_first == 0, "the second creates nothing — MERGE"
-    assert second.nodes_staged != after_second - after_first, (
-        "reported count and graph delta diverge on a re-write; that divergence is what the name "
-        "`nodes_staged` states and `nodes_written` denied"
-    )
+    # Two referents the graph already holds, re-staged as ADR-0019 requires, plus one new node.
+    staged = [seeded[0], seeded[1], n("Protein", MX1, accession="P20591")]
+    report = store.write_change_set(conn, staged, [])
+    after = sum(store.count_nodes(conn).values())
+    delta = after - before
+
+    assert (len(staged), delta, before, after) == (3, 1, 4, 5), "the scenario separates all four"
+    assert report.nodes_staged == 3, "the correct quantity, len(staged)"
+    assert report.nodes_staged != delta, "not the graph delta"
+    assert report.nodes_staged != after, "not the total `count_nodes` reports"
+    assert report.nodes_staged != before, "not the total before the write"
+    assert report.edges_staged == 0 != report.nodes_staged, "not transposed with the edge field"
 
 
-def test_the_edge_report_counts_statements_issued_too(conn: kuzu.Connection) -> None:
-    """The two fields are one defect and are pinned together — `WriteReport` builds both from
-    `len()` in one expression, so a fix reaching only one of them would be the same defect left
-    half-closed."""
-    nodes = [
-        n("Analysis", "bzk:an1", kind="curation", parameters_observed=True),
-        n("Dataset", "bzk:ds1", content_hash="sha256:" + "0" * 64),
-    ]
-    edges = [{"type": "USED", "from": "bzk:an1", "to": "bzk:ds1"}]
+def test_the_edge_count_is_len_staged_and_no_other_quantity(conn: kuzu.Connection) -> None:
+    """The edge half of the same widening. `WriteReport` builds both fields in one expression, so a
+    guard reaching one of them is the half-closure its docstring names — and the re-meaning that
+    passed the suite mutated both together, so both have to exclude it."""
+    hashes = [f"sha256:{i:064d}" for i in range(4)]
+    analysis = n("Analysis", "bzk:an1", kind="curation", parameters_observed=True)
+    datasets = [n("Dataset", f"bzk:ds{i}", content_hash=hashes[i]) for i in range(4)]
 
-    first = store.write_change_set(conn, nodes, edges)
-    after_first = sum(store.count_edges(conn).values())
-    second = store.write_change_set(conn, nodes, edges)
-    after_second = sum(store.count_edges(conn).values())
+    def edge(i: int) -> dict[str, object]:
+        return {"type": "USED", "from": "bzk:an1", "to": f"bzk:ds{i}"}
 
-    assert first.edges_staged == second.edges_staged == 1
-    assert after_first == 1 and after_second == 1, "the second write creates no edge"
-    assert second.edges_staged != after_second - after_first
+    store.write_change_set(conn, [analysis, *datasets[:2]], [edge(0), edge(1)])
+    before = sum(store.count_edges(conn).values())
+
+    staged_nodes = [analysis, datasets[0], datasets[2], datasets[3]]
+    staged_edges = [edge(0), edge(2), edge(3)]  # one re-staged, two new
+    report = store.write_change_set(conn, staged_nodes, staged_edges)
+    after = sum(store.count_edges(conn).values())
+    delta = after - before
+
+    assert (len(staged_edges), delta, before, after) == (3, 2, 2, 4), "all four separated"
+    assert report.edges_staged == 3, "the correct quantity, len(staged)"
+    assert report.edges_staged != delta, "not the graph delta"
+    assert report.edges_staged != after, "not the total `count_edges` reports"
+    assert report.edges_staged != before, "not the total before the write"
+    assert report.nodes_staged == 4 != report.edges_staged, "not transposed with the node field"
 
 
 def test_rewriting_the_same_change_set_converges(conn: kuzu.Connection) -> None:

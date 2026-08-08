@@ -60,11 +60,23 @@ class WriteReport:
     home** — `count_nodes` below, which is where §3's composition list comes from — so re-meaning
     these would put one fact in two places, which `CLAUDE.md` calls a defect rather than
     redundancy. And **statements issued has no other home and is load-bearing**: §8's performance
-    row is denominated in it ("20,294 statements … 225 statements/second"), and that row already
-    used the correct word one line below the sentence that did not.
+    row is denominated in it ("20,294 statements … 225 statements/second").
 
-    `tests/test_store.py` pins the divergence rather than the name: one change-set written twice
-    reports the same count both times while the graph grows only once.
+    **Corrected 2026-08-08:** this paragraph used to add *"and that row already used the correct
+    word one line below the sentence that did not"*. It did not. The row's total said *statements*
+    and its own parenthetical decomposed that total as "11,386 nodes + 8,908 edges" — the two words
+    the rename removes, on the same line as the word that replaces them. The row was cited as the
+    reason to rename and was itself carrying the defect; §8 is fixed and the claim of cleanliness is
+    withdrawn rather than moved.
+
+    `tests/test_store.py` excludes, by name and by separate value, every quantity these fields could
+    otherwise hold: the graph delta, the total `count_nodes` reports, that total one statement
+    earlier, the transposed field, and any constant. **Widened 2026-08-08** — the first version
+    excluded only the graph delta, which is the alternative it was built around, so re-meaning both
+    fields to `sum(count_nodes(conn).values())` passed the entire suite. Two candidates stay
+    unexcluded and are named there rather than left implicit: distinct staged `(label, id)`, which
+    no validated write can separate from `len(staged)` because ADR-0019 refuses duplicates inside a
+    change-set, and rows-actually-changed, which Kùzu does not expose.
     """
 
     nodes_staged: int
