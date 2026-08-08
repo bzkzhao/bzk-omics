@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.11 |
+| Version | 1.12 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -253,6 +253,59 @@ a cost attached: three published targets.
 population — one that excludes sites whose positions cannot be validated against today's UniProt.
 Nothing here was tuned toward agreement, and a figure that had matched would have needed explaining
 as much as one that differs.
+
+### I17 implemented: 11 of 14, three gained and one lost, 2026-08-07
+
+**Read against the pre-registration below, which was committed at `8ed3e90` before any I17 code
+existed, and the implementation at `77dd515` before this result was known.**
+
+| | before I17 | after I17 |
+|---|---|---|
+| ingested | 1,967 | **2,025** |
+| refused | 89 (40 drift · 48 unresolvable · 1 no pick) | **31** (19 · 11 · 1) |
+| promotions applied | — | **526** |
+| after presence rule | 1,321 | **1,358** |
+| significant up | 508 | **524** |
+| **published targets recovered** | **9 of 14** | **11 of 14** |
+
+**The population identity holds under the new keying**, which the pre-registration required to be
+re-checked rather than assumed: **1,358 + 17 refused-but-testable = 1,375**. The split changed (54
+→ 17) while the total did not, so promotion moved sites across the refusal boundary without
+inventing or losing any.
+
+**Each pre-registered outcome occurred, for a different gene.** That is why they were written per
+outcome rather than as one prediction.
+
+| gene | pre-registered outcome | what happened |
+|---|---|---|
+| **ADAR** | **1** — resolves and is recovered | `H0YCK3` (`Inactive`) → `P55265`. Recovered. |
+| **OAS2** | **1** — resolves and is recovered | `A0A087X0V5` (TrEMBL) → `P29728`. Recovered. |
+| **PSMB9** | **2** — resolves, not recovered | `A2ACR0` → `P28065`, tested, still below threshold. The notebook missed it too. |
+| **OAS1** | **3** — I17 as specified does not reach it | **Not promoted.** Its group holds *two distinct canonical reviewed* proteins, `F8VXY3` and `P00973`. §6.3 says *"the reviewed Swiss-Prot entry"*, singular; the data has two, and choosing between two genuinely different reviewed proteins is the search engine's job. The implementation declines, by a rule stated before the run. |
+
+So the hypothesis — *reviewed-preferred resolution recovers targets a razor pick loses* — **holds for
+two of the three targets it was written about**, fails to apply to the third for a reason that is a
+gap in the invariant rather than in the data, and picked up DDX60 besides (previously tested and
+below threshold; the changed keying moved it above).
+
+**And it lost TAP1 — the fourth possibility, realised.**
+
+TAP1 was recovered at 9-of-14 and is refused at 11-of-14. Its razor pick `A0A140T9T7` is an
+unreviewed 808-residue entry with **K at both 449 and 458**. Promotion moved it to `Q03518`, the
+reviewed Swiss-Prot entry, which is **748 residues** today and carries **L at 449 and V at 458** —
+so the residue check refused both rows. MaxQuant's own `Positions within proteins` gives 449/458 for
+*both* accessions, so the 2019 FASTA held a Q03518 of the same length as the TrEMBL form; the
+reviewed entry has since been revised by sixty residues and the unreviewed one has not.
+
+**This is the counterexample to a statistic already on record.** § Sequence drift measures drift as
+2.8× likelier on unreviewed entries, and every deleted entry was unreviewed. Both remain true and
+both are population statistics. TAP1 is the case that runs the other way: **reviewed-preferred is
+not uniformly safer, and I17 can cost a validated site.** Nothing in §6.3 anticipates this, and the
+adapter is right to refuse — the alternative is keying a published target at a position that is a
+leucine.
+
+Net: three gained (ADAR, OAS2, DDX60), one lost (TAP1), 9 → 11. The gain is real and the loss is
+not noise; both belong in any statement of the number.
 
 ### Pre-registration: what implementing I17 would mean, 2026-08-07
 
