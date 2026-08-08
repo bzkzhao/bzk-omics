@@ -20,6 +20,8 @@ from dataclasses import field as dc_field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
+from bzk.quant import store as quant_store
+
 # A change-set node is `{invariants.NODE_TYPE_KEY: <node type>, "id", **columns}` and an edge is
 # `{"type", "from", "to", **properties}` — the format ADR-0019 governs and `invariants.py` enforces.
 # The node-type key is `__label__`, not `label`, because `label` is a real DDL column on six node
@@ -77,6 +79,16 @@ class ParsedObservations:
     nodes: list[Node]
     edges: list[Edge]
     refusals: list[Refusal] = dc_field(default_factory=list)
+    #: The per-sample values I11 requires retained, as `(observation label, cells)` — the columnar
+    #: half of `ONTOLOGY.md` §2's boundary, which the change-set cannot carry because a change-set
+    #: is graph content and these are one-per-entity-per-sample (ADR-0004).
+    #:
+    #: **The adapter is the writer, and that is what settles pre- versus post-imputation.**
+    #: `ARCHITECTURE.md` § *Imputation is part of the statistics layer, not the adapter* says
+    #: adapters emit measured values and nulls; since the values leave through here, that sentence
+    #: governs directly rather than being re-decided (ADR-0013). Empty for an adapter that reports
+    #: no per-sample values, which is a different state from reporting nulls.
+    cells: list[tuple[str, list[quant_store.Cell]]] = dc_field(default_factory=list)
 
 
 @runtime_checkable

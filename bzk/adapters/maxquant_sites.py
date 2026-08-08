@@ -51,7 +51,8 @@ I13 holds: `search_engine` and the rest are recorded on the `Dataset`, never bra
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import math
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -61,6 +62,7 @@ from bzk.ontology import invariants, schema, seed
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.ontology.keys import evidence_id, modification_site_key, protein_key
 from bzk.provenance.raw_store import content_hash
+from bzk.quant import store as quant_store
 from bzk.resolve.nodes import (
     ResolvedProteins,
     Resolver,
@@ -115,6 +117,69 @@ class MaxQuantSiteError(ValueError):
 _SAMPLE_COLUMNS = frozenset(
     c for t in schema.NODE_TABLES if t.name == "Sample" for c, _ in t.columns
 )
+
+
+#: Which deposit column prefix carries which of §5's closed quantities. One home for the mapping,
+#: so a new quantity is a row here rather than a string in the reader.
+QUANTITY_COLUMNS: dict[str, str] = {
+    "intensity_multiplicity_summed": "Intensity ",
+    "ratio_mod_base": "Ratio mod/base ",
+}
+
+
+def _sample_columns(mapping: SampleMapping, column: Mapping[str, int]) -> list[tuple[str, str]]:
+    """`(Sample.id, run label)` per mapped sample, with the run label recovered from its column.
+
+    The curation maps each sample to a **column name** — `Ratio mod/base WT_1` on PXD018299 — so the
+    run label is that name minus its quantity prefix. Recovered rather than assumed, and a key
+    carrying no recognised prefix raises: a mapping the adapter cannot place is a curation problem,
+    and silently skipping the sample would drop it from the matrix while leaving its `Sample` node
+    in the graph, which is I11 unmet in a shape nothing would notice.
+    """
+    placed = []
+    for sample in mapping.samples:
+        key = str(sample.get("mapping_key", ""))
+        prefix = next((p for p in QUANTITY_COLUMNS.values() if key.startswith(p)), None)
+        if prefix is None:
+            raise MaxQuantSiteError(
+                f"sample mapping key {key!r} names no column this adapter recognises; expected one "
+                f"of {sorted(QUANTITY_COLUMNS.values())} followed by the run label"
+            )
+        label = key[len(prefix) :]
+        if not any(f"{p}{label}" in column for p in QUANTITY_COLUMNS.values()):
+            raise MaxQuantSiteError(
+                f"run label {label!r} (from mapping key {key!r}) matches no quantitative column in "
+                "the deposit, so this sample's values cannot be retained (I11)"
+            )
+        placed.append((str(sample["id"]), label))
+    return placed
+
+
+def _cell_value(row: Sequence[str], column: Mapping[str, int], name: str) -> float | None:
+    """One measured value, or `None` where the search reported nothing.
+
+    Three spellings of "nothing reported" all become `None`, and one lookalike deliberately does
+    not. Blank, unparseable and **MaxQuant's literal `NaN`** are absences — measured on PXD018299,
+    the `Ratio mod/base` columns are `NaN` for 196 of the first 200 rows, and letting `float()`
+    accept that text would store a NaN *value* where the deposit means no value. **A reported `0`
+    stays `0`**: MaxQuant writes zero for an undetected intensity, and reading that convention as
+    absence is an interpretation the adapter has no licence to make (I19) — it is the statistics
+    layer's to make and record.
+
+    Stored rather than skipped, so "not measured" stays distinguishable from "not ingested"
+    (ADR-0013): an absent row cannot say which it was.
+    """
+    index = column.get(name)
+    if index is None:
+        return None
+    text = row[index].strip()
+    if not text:
+        return None
+    try:
+        value = float(text)
+    except ValueError:
+        return None
+    return None if math.isnan(value) else value
 
 
 def _sample_nodes(mapping: SampleMapping) -> list[Node]:
@@ -323,17 +388,25 @@ class MaxQuantSiteAdapter:
         edges.append({"type": "USED", "from": analysis_id, "to": dataset_id})
 
         refusals: list[Refusal] = []
+        cells: list[quant_store.Cell] = []
+        sample_columns = _sample_columns(mapping, column)
         emitted = 0
         for row in kept:
             outcome = self._site(
-                row, column, resolved, dataset_id, promotions.get(row[column["id"]])
+                row,
+                column,
+                resolved,
+                dataset_id,
+                promotions.get(row[column["id"]]),
+                sample_columns,
             )
             if isinstance(outcome, Refusal):
                 refusals.append(outcome)
                 continue
-            site_nodes, site_edges = outcome
+            site_nodes, site_edges, site_cells = outcome
             nodes.extend(site_nodes)
             edges.extend(site_edges)
+            cells.extend(site_cells)
             emitted += 1
 
         nodes = self._deduplicate(nodes)
@@ -351,7 +424,12 @@ class MaxQuantSiteAdapter:
             promoted_reviewed=len(promotions),
             unresolved=dict(resolved.unresolved),
         )
-        return ParsedObservations(nodes=nodes, edges=edges, refusals=refusals)
+        return ParsedObservations(
+            nodes=nodes,
+            edges=edges,
+            refusals=refusals,
+            cells=[("SiteObservation", cells)] if cells else [],
+        )
 
     # ── internals ───────────────────────────────────────────────────────────────────────────────
 
@@ -441,8 +519,9 @@ class MaxQuantSiteAdapter:
         resolved: ResolvedProteins,
         dataset_id: str,
         promotion: Promotion | None,
-    ) -> tuple[list[Node], list[Edge]] | Refusal:
-        """One row into its nodes and edges, or the reason it cannot become any.
+        sample_columns: list[tuple[str, str]],
+    ) -> tuple[list[Node], list[Edge], list[quant_store.Cell]] | Refusal:
+        """One row into its nodes, edges and per-sample cells, or the reason it cannot become any.
 
         Three refusals, deliberately distinguished rather than merged into one "bad row" count:
         they are three different findings about the data and only one of them is a measurement of
@@ -519,6 +598,11 @@ class MaxQuantSiteAdapter:
             # sequence was chosen, so they explain the id rather than compose it.
             "keying_basis": "reviewed_preferred" if promotion else "razor",
             "displaced_protein": protein_key(promotion.razor_pick) if promotion else None,
+            # I11's witness at the node (ADR-0004). Names the columnar *table*, not a join key —
+            # the join is on `id`, per §2 — and `NULL` would mean no values retained, which is the
+            # violation state. Set unconditionally here because the cells below are always emitted,
+            # including where every one of them is null.
+            "quant_ref": quant_store.quant_ref("SiteObservation"),
         }
         if "Score" in column and row[column["Score"]].strip():
             observation["score"] = float(row[column["Score"]])
@@ -555,7 +639,26 @@ class MaxQuantSiteAdapter:
         nodes.append(self._node("ModifierAssignment", assignment_id, assignment))
         edges.append({"type": "ASSIGNMENT_FOR", "from": assignment_id, "to": observation_id})
 
-        return nodes, edges
+        # I11: the per-sample values, measured or null, one cell per sample. Emitted for every
+        # sample the curation maps — including where the search reported nothing — because an
+        # absent row cannot distinguish "not measured" from "not ingested" (ADR-0013).
+        # **Every quantity the deposit reports, not only the one the `Analysis` declares.** I11 says
+        # *its per-sample quantitative values*, and PXD018299 reports two per sample; keeping one
+        # would discard a matrix at ingestion, and would leave ADR-0004's `quantity` key column
+        # justified by a case it did not handle. The declared quantity says what this ingestion
+        # consumed (I16); the store says what was reported.
+        cells = [
+            quant_store.Cell(
+                observation_id=observation_id,
+                sample_id=sample_id,
+                quantity=quantity,
+                value=_cell_value(row, column, f"{prefix}{label}"),
+            )
+            for sample_id, label in sample_columns
+            for quantity, prefix in sorted(QUANTITY_COLUMNS.items())
+            if f"{prefix}{label}" in column
+        ]
+        return nodes, edges, cells
 
     @staticmethod
     def _node(label: str, node_id: str, props: Mapping[str, object]) -> Node:

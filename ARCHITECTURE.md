@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.12 |
-| Last reviewed | 2026-08-07 |
+| Version | 1.13 |
+| Last reviewed | 2026-08-08 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
 | Authoritative for | Language and library choices, storage layout, module boundaries |
@@ -47,7 +47,7 @@ The boundary is defined normatively in `ONTOLOGY.md` §2. Concretely:
                          # human-authored inputs, version-controlled (OPERATIONS.md §2, §1)
 ```
 
-`SiteObservation.quant_ref` is the join key into `quant.duckdb`. Nothing per-sample enters the graph.
+**The observation id is the join key into `quant.duckdb`** — `SiteObservation.id = site_values.observation_id`, `ProteinObservation.id = protein_values.observation_id` — exactly as `ONTOLOGY.md` §2 says. **Corrected 2026-08-08 (ADR-0004):** this line read *"`SiteObservation.quant_ref` is the join key"*, which contradicted §2 and named only one of the two grains. Both cannot be the join key; if the store is keyed by the id then `quant_ref` duplicates it. `quant_ref` instead names the **table** an observation's values are in, and `NULL` means none are retained — the I11 violation state, readable at the node without opening DuckDB. Nothing per-sample enters the graph: `quant_ref` is one-per-entity, which is the side of §2's own rule that belongs on the node.
 
 The split is deliberate: everything under `~/.bzk-omics/` is derived and rebuildable (I9), so it is per-machine and gitignored; `data/curation/` holds the one class of content that cannot be recomputed — human judgement — so it lives in the repository and survives a disk failure independently (OPERATIONS.md §1). `rebuild.py` reads the curation export from here.
 

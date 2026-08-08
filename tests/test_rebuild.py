@@ -232,13 +232,18 @@ _SYNTHETIC_SEQUENCE = "MAAKGGKLLKR"  # K at 4, 7, 10 — synthetic, and labelled
 
 def _synthetic_site_table() -> bytes:
     """A two-row MaxQuant site table, CRLF as the deposit is. One row is a residue mismatch."""
+    # The two quantitative columns the synthetic curation maps to. Added 2026-08-08 with
+    # `bzk/quant/`: the adapter refuses a mapping key whose run label names no column, because a
+    # sample skipped from the matrix while its `Sample` node stays in the graph is I11 unmet in a
+    # shape nothing would notice. `NaN` on the refused row is deliberate — it is never reached.
     header = (
         "Proteins\tPositions within proteins\tLeading proteins\tProtein\tPosition\t"
-        "Amino acid\tLocalization prob\tScore\tReverse\tPotential contaminant\tid"
+        "Amino acid\tLocalization prob\tScore\tReverse\tPotential contaminant\tid\t"
+        "Intensity CTRL_1\tIntensity CTRL_2\tIntensity TREAT_1\tIntensity TREAT_2"
     )
     rows = [
-        "P20591\t4\tP20591\tP20591\t4\tK\t0.99\t80.5\t\t\t0",
-        "P20591\t5\tP20591\tP20591\t5\tK\t0.99\t70.1\t\t\t1",  # position 5 is G — refused
+        "P20591\t4\tP20591\tP20591\t4\tK\t0.99\t80.5\t\t\t0\t150520\tNaN\t210300\t198450",
+        "P20591\t5\tP20591\tP20591\t5\tK\t0.99\t70.1\t\t\t1\t0\t0\t0\t0",  # position 5 is G — refused
     ]
     return ("\r\n".join([header, *rows]) + "\r\n").encode("utf-8")
 

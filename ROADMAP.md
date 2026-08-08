@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.19 |
+| Version | 1.20 |
 | Last reviewed | 2026-08-08 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -596,6 +596,36 @@ information about this turn's work, and every temptation is to present it as tho
 claim that carries information is the one about values read back out of DuckDB, and it must not be
 allowed to borrow the id diff's authority.
 
+**Result, 2026-08-08 — outcome 1 on the graph, and outcome 4 on the clock.**
+
+Everything predicted about the graph held: **11,730 node ids, symmetric difference 0** across all 24
+labels; **9,217 edges, none differing** across 33 relationships; refusals **27**; **2,029**
+`SiteObservation`; **4,561** `Protein`. As pre-registered, this licenses "the layer is additive at
+the graph" and nothing more — the partition guaranteed it, so the number is a check that the code
+respected a guard, not a finding.
+
+**The wall clock is the finding, and it is outcome 4.** The first implementation took the rebuild
+from **69.0 s to 235.2 s**, far outside the ±10% band. Attributed rather than guessed: the adapter's
+`parse` is **3.45 s** and the columnar write was **165.2 s for 48,696 cells — 3.4 ms each**, which
+is the *same* per-row cost `HANDOFF.md` §8 measured for the graph's per-statement write. The write
+used `executemany` and its docstring cited that very measurement as the reason to batch; it was one
+round trip per row against the primary key's index all the same. Replaced with a single
+`INSERT OR REPLACE … SELECT` over a registered frame: **1.43 s**, and the rebuild returns to
+**62.2 s**. So the design's assumption that the columnar write is cheap is true of the bulk path and
+was false of the code that claimed to take it.
+
+**The claim that carries information, kept separate from the id diff as pre-registered.** All 24
+cells of one real observation were read back out of DuckDB and each was found in its own column of
+the deposit — **24 of 24**, 12 of them null where MaxQuant wrote `NaN`. `quant_ref` is `site_values`
+on all 2,029 observations and **NULL on none**, which is I11's violation state absent.
+
+**Regenerability, established by running rather than inherited from `OPERATIONS.md` §1: value-for-
+value, not byte-for-byte.** Two rebuilds produce different file digests and identical row digests;
+deleting `quant.duckdb` and rebuilding reproduces the content exactly. The distinction matters
+because a DuckDB file carries metadata and free-space layout that byte equality would compare too,
+so byte-for-byte is the wrong question to ask of this store — `OPERATIONS.md` §1 is amended to say
+which one it means.
+
 ### The platform made an invisible analytical choice, 2026-08-07
 
 **The clearest finding of the project, because it is the project's own failure mode.** `VISION.md`
@@ -794,7 +824,7 @@ MaxQuant site-table adapter. DuckDB quantitative layer. **`welch_t` with BH firs
 
 A site moves from ambiguous to `basis = uba7_knockout, confidence = confirmed`, and the superseded assignment remains inspectable.
 
-Two things the old wording also assumed and that are **not yet true**, both blocking a literal reading of "through the real pipeline": gene symbols never enter the graph (`Gene` has no nodes, `Protein.name` is null on all 4,441), so target identification still reads the deposit's `Gene names`; and I11 is unmet — `quant_ref` is null on every observation and `quant.duckdb` is never created, so the matrix is re-read rather than retained.
+Two things the old wording also assumed and that are **not yet true**, both blocking a literal reading of "through the real pipeline": gene symbols never enter the graph (`Gene` has no nodes, `Protein.name` is null on all 4,441), so target identification still reads the deposit's `Gene names`; and — until 2026-08-08 — I11 was unmet, which it no longer is: `quant_ref` is `site_values` on all 2,029 observations, `quant.duckdb` holds 48,696 cells, and the matrix is retained rather than re-read (ADR-0004, ADR-0013). Gene symbols remain the blocker on that reading.
 
 ### Weeks 7–8 — output and consolidation
 Minimal Streamlit or notebook interface: query, volcano, provenance panel. Ambiguity and correction status visible everywhere a number appears. ADRs 0004–0014 written. Rebuild tested against the full dataset.

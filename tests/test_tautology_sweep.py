@@ -344,6 +344,19 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_raw_store.py", "stored.content_hash == content_hash(PAYLOAD)", 1),
         ("test_raw_store.py", "stored.path.read_bytes() == PAYLOAD", 1),
         ("test_raw_store.py", "to_https(ftp) == https", 1),
+        (
+            "test_quant.py",
+            (
+                "back == [quant.Cell('bzk:obs1', 'bzk:s1', "
+                "'intensity_multiplicity_summed', 150520.0), "
+                "quant.Cell('bzk:obs1', 'bzk:s2', 'intensity_multiplicity_summed', 0.0), "
+                "quant.Cell('bzk:obs1', 'bzk:s1', 'ratio_mod_base', None)]"
+            ),
+            1,
+        ),
+        ("test_quant.py", "never_ingested == []", 1),
+        ("test_quant.py", "quant.count_cells(connection) == first == {'site_values': 4}", 1),
+        ("test_quant.py", "quant.digest_rows(first) == quant.digest_rows(second)", 1),
         ("test_raw_store.py", "to_https(https) == https", 1),
         (
             "test_raw_store.py",
@@ -567,7 +580,7 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # message names. A legitimate reduction lowers these numbers in the same change, the same
     # discipline the multiset carries; additions never trip it, because an added *match* is caught
     # by the multiset rather than by this floor.
-    assert modules >= 19 and asserts >= 632, (
+    assert modules >= 20 and asserts >= 655, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

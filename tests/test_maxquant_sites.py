@@ -70,6 +70,11 @@ HEADER = [
     "Reverse",
     "Potential contaminant",
     "id",
+    # The per-sample quantitative columns I11 retains. Added 2026-08-08 with `bzk/quant/`: the
+    # adapter now refuses a mapping key whose run label names no column, so a fixture without
+    # them is a mapping the adapter cannot place rather than a fixture with nothing to retain.
+    "Intensity WT_1",
+    "Ratio mod/base WT_1",
 ]
 
 
@@ -94,6 +99,8 @@ def _row(
     reverse: str = "",
     contaminant: str = "",
     row_id: str = "0",
+    intensity: str = "150520",
+    ratio: str = "NaN",
 ) -> list[str]:
     return [
         proteins,
@@ -107,6 +114,8 @@ def _row(
         reverse,
         contaminant,
         row_id,
+        intensity,
+        ratio,
     ]
 
 
@@ -571,3 +580,43 @@ def test_two_distinct_canonical_reviewed_proteins_block_promotion(tmp_path: Path
     parsed = adapter.parse(_write(tmp_path, [row]), _mapping())
     observation = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "SiteObservation")
     assert observation["keying_basis"] == "razor", "two canonical reviewed candidates: no promotion"
+
+
+# ── I11: the per-sample values the adapter retains (ADR-0004, ADR-0013) ─────────────────────────
+
+
+def test_every_observation_carries_its_quant_ref_and_its_cells(tmp_path: Path) -> None:
+    """I11's positive obligation at this grain, both halves: the witness on the node and the cells.
+
+    `quant_ref` names the table, not a join key — the join is on `id` (§2, ADR-0004) — and a `None`
+    there would mean no values retained, which is the violation state.
+    """
+    parsed = _adapter().parse(_write(tmp_path, [_row()]), _mapping())
+    observations = [n for n in parsed.nodes if n[NODE_TYPE_KEY] == "SiteObservation"]
+    assert observations and all(o["quant_ref"] == "site_values" for o in observations)
+
+    assert [label for label, _ in parsed.cells] == ["SiteObservation"]
+    cells = parsed.cells[0][1]
+    assert {(c.observation_id, c.quantity) for c in cells} == {
+        (observations[0]["id"], "intensity_multiplicity_summed"),
+        (observations[0]["id"], "ratio_mod_base"),
+    }
+    assert all(c.sample_id == "bzk:sample1" for c in cells)
+
+
+def test_maxquant_s_literal_nan_becomes_a_null_and_a_zero_does_not(tmp_path: Path) -> None:
+    """Measured on PXD018299: `Ratio mod/base` is the text `NaN` for 196 of the first 200 rows, and
+    `float()` accepts it — so without this the store would hold a NaN *value* where the deposit
+    means no value. A reported `0` is a different thing and stays (I19)."""
+    parsed = _adapter().parse(_write(tmp_path, [_row(intensity="0", ratio="NaN")]), _mapping())
+    by_quantity = {c.quantity: c.value for c in parsed.cells[0][1]}
+    assert by_quantity["ratio_mod_base"] is None, "NaN is an absence"
+    assert by_quantity["intensity_multiplicity_summed"] == 0.0, "a reported zero is a measurement"
+
+
+def test_a_refused_row_contributes_no_cells(tmp_path: Path) -> None:
+    """The matrix must not outlive the observation it belongs to: a row the adapter refuses has no
+    `SiteObservation` id to key cells against, so orphan rows would be unreachable by construction."""
+    parsed = _adapter().parse(_write(tmp_path, [_row(residue="R")]), _mapping())
+    assert [r.reason for r in parsed.refusals] == ["residue_mismatch"]
+    assert parsed.cells == []

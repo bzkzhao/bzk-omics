@@ -60,6 +60,7 @@ from bzk.curation.loader import CurationError, LoadedCuration, load_path
 from bzk.ontology import schema, store
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.provenance import raw_store
+from bzk.quant import store as quant
 from bzk.resolve.nodes import Resolver
 
 DEFAULT_HOME = Path.home() / ".bzk-omics"
@@ -82,6 +83,9 @@ class ReplayReport:
     #: twice here and exists once in the graph. Renamed from `nodes_written` 2026-08-08.
     nodes_staged: int
     edges_staged: int
+    #: Per-sample cells written to `quant.duckdb` (I11). Staged, like the two above: the writer
+    #: uses `INSERT OR REPLACE`, so a re-ingested deposit rewrites rather than accumulates.
+    cells_staged: int = 0
     #: Deposits an adapter recognised and ingested. Zero on a machine where `raw/` is empty.
     deposits_ingested: int = 0
     #: `SiteObservation`s written — the ingested population, which is NOT the file's row count.
@@ -98,6 +102,7 @@ class RebuildReport:
     #: Statements issued, as `ReplayReport` above — never the graph's size.
     nodes_staged: int
     edges_staged: int
+    cells_staged: int = 0
     deposits_ingested: int = 0
     site_observations: int = 0
     refusals: list[Refusal] = field(default_factory=list)
@@ -211,7 +216,12 @@ def replay_ingestion(
     argument makes the omission a type error.
     """
     records = sorted(curation_dir.glob("curation_*.json")) if curation_dir.exists() else []
-    nodes = edges = 0
+    nodes = edges = cells = 0
+    # Opened unconditionally, so `quant.duckdb` exists with its tables even where no deposit is
+    # ingested. An absent file and an empty one are different states, and only the second says
+    # "the layer ran and there was nothing to retain" (`OPERATIONS.md` §1 calls it regenerable,
+    # which presumes it is generated).
+    quant_connection = quant.connect(home)
     observations = deposits = 0
     refusals: list[Refusal] = []
     for path in records:
@@ -242,6 +252,11 @@ def replay_ingestion(
         written = store.write_change_set(conn, parsed.nodes, parsed.edges)
         nodes += written.nodes_staged
         edges += written.edges_staged
+        # I11's columnar half (ADR-0004/0013). Written here rather than inside `write_change_set`
+        # because a change-set is graph content by definition (`ONTOLOGY.md` §2) and these values
+        # are one-per-entity-per-sample — the side of §2's rule that is not a graph property.
+        for label, batch in parsed.cells:
+            cells += quant.write_cells(quant_connection, label, batch).cells_staged
         deposits += 1
         refusals.extend(parsed.refusals)
         report = adapter.report
@@ -250,17 +265,20 @@ def replay_ingestion(
         log(
             f"  ingested {source.name} via {adapter.name}: {emitted} site(s), "
             f"{len(parsed.refusals)} refused, {written.nodes_staged} node statement(s), "
-            f"{written.edges_staged} edge statement(s)"
+            f"{written.edges_staged} edge statement(s), "
+            f"{sum(len(b) for _, b in parsed.cells):,} quantitative cell(s)"
         )
     log(
         f"ingestion replay: {len(records)} curation record(s), {deposits} deposit(s), "
         f"{observations} site observation(s), {len(refusals)} refusal(s), "
-        f"{nodes} node statement(s), {edges} edge statement(s)"
+        f"{nodes} node statement(s), {edges} edge statement(s), {cells:,} quantitative cell(s)"
     )
+    quant_connection.close()
     return ReplayReport(
         curation_records=len(records),
         nodes_staged=nodes,
         edges_staged=edges,
+        cells_staged=cells,
         deposits_ingested=deposits,
         site_observations=observations,
         refusals=refusals,
@@ -294,13 +312,14 @@ def rebuild(
         f"done: {tables} tables, {replay.curation_records} curation record(s), "
         f"{replay.deposits_ingested} deposit(s), {replay.site_observations} site observation(s), "
         f"{len(replay.refusals)} refused, {replay.nodes_staged} node statement(s), "
-        f"{replay.edges_staged} edge statement(s)"
+        f"{replay.edges_staged} edge statement(s), {replay.cells_staged:,} quantitative cell(s)"
     )
     return RebuildReport(
         tables_created=tables,
         curation_records=replay.curation_records,
         nodes_staged=replay.nodes_staged,
         edges_staged=replay.edges_staged,
+        cells_staged=replay.cells_staged,
         deposits_ingested=replay.deposits_ingested,
         site_observations=replay.site_observations,
         refusals=replay.refusals,

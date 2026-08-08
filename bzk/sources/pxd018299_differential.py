@@ -19,11 +19,12 @@ which is the shape `HANDOFF.md` §8 catalogues three times over.
    4,441, so "which of the 14 published targets" is unanswerable from stored content and the symbol
    is read from the file's `Gene names` column here. `ROADMAP.md`'s v0.1 exit criterion is
    *"12-of-14 through the real pipeline"*; the pipeline is real, the *identification* is not yet.
-2. **The quantitative matrix is not stored (I11).** `SiteObservation.quant_ref` is null on all
-   1,967 and `quant.duckdb` is never created, so the values are re-read from the deposit rather
-   than from the columnar store. I11 says no stage may discard the matrix after computing a result;
-   nothing here discards it, but nothing retains it either, and until it does the statistical layer
-   is pluggable in principle and not in fact.
+2. **The quantitative matrix is now stored (I11) — corrected 2026-08-08.** This said
+   `quant_ref` was null and `quant.duckdb` never created. Both are false since `bzk/quant/`
+   (ADR-0004, ADR-0013): `quant_ref` is `site_values` on every observation and the store holds
+   48,696 measured-or-null cells. **This module still re-reads the deposit**, which is now a
+   property of this module rather than of the platform — reading from the columnar store instead is
+   what the retention was built to allow.
 """
 
 from __future__ import annotations

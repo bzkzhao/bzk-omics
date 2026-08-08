@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.16 |
+| Version | 1.17 |
 | Last reviewed | 2026-08-08 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -102,10 +102,11 @@ step, divergence accounted for exactly, every miss traced*. That part is met. Th
    one, so "which of the 14 targets" is unanswerable from stored content — the differential run
    reads the deposit's `Gene names` column. Until this lands, *"through the real pipeline"* is
    false for the identification step, whatever the pipeline does.
-3. **I11 is unmet.** `SiteObservation.quant_ref` is null on all 2,029 and `quant.duckdb` is never
-   created, so the matrix is re-read from the deposit each run. I11 says no stage may discard it
-   after computing a result; nothing discards it and nothing retains it, which makes the statistics
-   layer pluggable in principle and not in fact.
+3. ~~**I11 is unmet.**~~ **Met 2026-08-08** — `bzk/quant/`, ADR-0004 and ADR-0013. `quant.duckdb` is created by `rebuild`, `quant_ref` is `site_values` on all 2,029 `SiteObservation`s, and **48,696 measured-or-null cells** are retained (2,029 sites × 12 samples × 2 quantities). The matrix is no longer
+   re-read from the deposit each run, and the statistics layer is pluggable in fact rather than in
+   principle: an alternative test is recomputable from stored values. Values are **measured and
+   null, pre-imputation** (ADR-0013), so the imputation mask stays reconstructible from a seeded
+   `Imputation` rather than lost to `n_imputed`'s count.
 
 Of the three, **(3) blocks the most**: recomputation and the comparison capability
 (`ARCHITECTURE.md` §4's stated purpose for the registry) both need a retained matrix, and (1) is
@@ -113,9 +114,9 @@ worth little without it since the point of a second test is running it over the 
 
 #### The next action
 
-**Write the DuckDB quantitative layer (I11).** `bzk/quant/`, `SiteObservation.quant_ref` populated
-by the adapter, `quant.duckdb` created by `rebuild`. Then `perseus_s0` over the retained matrix, and
-gene symbols last — it is the smallest of the three and the least entangled.
+~~**Write the DuckDB quantitative layer (I11).**~~ **Done 2026-08-08.** `bzk/quant/store.py`,
+`quant_ref` populated by the adapter, `quant.duckdb` created by `rebuild`. Two remain of the three:
+`perseus_s0` over the retained matrix, and gene symbols.
 
 Before starting, run `python -m bzk.rebuild` and confirm it reports 2,029 sites; if it does not, the
 deposit or the archive has moved and that is the finding, not a setup problem.
@@ -294,7 +295,7 @@ deposit or the archive has moved and that is the finding, not a setup problem.
 
 **`bzk/adapters/maxquant.py`** — port the filtering logic from `colab_seethedata.ipynb` Step 7 and `colab_reproducefigure.ipynb` Steps 2–4.
 
-**`bzk/quant/`** — DuckDB layer, I11.
+**`bzk/quant/`** — DuckDB layer, I11. Written 2026-08-08 (ADR-0004, ADR-0013): `store.py` holds the two matrices, keyed `(observation_id, sample_id, quantity)`.
 
 **`bzk/stats/perseus_s0.py`** — see §5 below, which contains a warning.
 
@@ -865,6 +866,31 @@ on, the de-duplication is gone, and the same change now names `sequences_checked
 fourth distinct mutation is one more whole-suite run in a copy, measured at **30.2 s for the
 module** against 26.0 s before, and the whole suite at **36.7 s** against 24.5 s.
 
+#### The columnar write cost the same per row as the graph write it cited — 2026-08-08
+
+`bzk/quant/store.py`'s first `write_cells` used `executemany` and its docstring named §8's
+per-statement graph measurement (4.45 ms) as the reason to batch. It then cost the same thing:
+**165.2 s for 48,696 cells, 3.4 ms each**, taking the rebuild from **69.0 s to 235.2 s** — the
+pre-registered outcome 4. `executemany` is one round trip per row against the primary key's index;
+it is a loop with a shorter spelling, not a bulk path.
+
+Replaced with a single `INSERT OR REPLACE … SELECT` over a registered polars frame: **1.43 s** for
+the same 48,696 cells, and the rebuild returns to **62.2 s**. The semantics are unchanged — the
+upsert is still per key — so this is not speed traded for the convergence I9 needs.
+
+Two things worth carrying. **The attribution was measured, not guessed**: adapter `parse` is 3.45 s
+and the write was the other 165 s, so there was never a question of which half to look at. And
+**citing a measurement is not the same as heeding it** — the docstring quoted the right number and
+the code did the wrong thing, which is why the number is now in the docstring beside what it cost.
+
+#### I11's remaining reach, stated because "met" is not "met everywhere"
+
+Met for the two live observation subtypes. `ProteinObservation` has its table, `protein_values`, and
+its `quant_ref` path, but **no adapter populates it today** — `perseus.py` emits `ProteinObservation`
+nodes and no cells, so `quant_ref` is null there. That is the violation state the column exists to
+show, and it is visible rather than hidden. `PeptideObservation` and `EnrichmentObservation` are
+deferred subtypes with no table at all, so I11 does not reach them.
+
 ### Unenforced invariants (audit 2026-08-07), by class
 
 The write-time change-set checks (I2, I3, I4, I10, I14, I15, I16, I19) and change-set structural
@@ -931,7 +957,7 @@ grouped by *how* they must be enforced, so a source-tree lint is not mistaken fo
 - **write-path, not written.** **I6** (append-only assertions: reject in-place edits of
   `ModifierAssignment` / `DifferentialResult`; supersession creates a new node; retraction
   propagation is a v0.2 action-layer concern).
-- **data layer, pending.** **I11** (quantitative retention: every observation keeps its per-sample
+- ~~**data layer, pending.**~~ **I11 met 2026-08-08** (quantitative retention: every observation keeps its per-sample
   matrix in DuckDB — needs the `quant/` layer).
 - **OP — operational, partial.** **I9** (reproducible rebuild — exercised by `rebuild.py` for schema
   recreation; full regeneration pending adapters).

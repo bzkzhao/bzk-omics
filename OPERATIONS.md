@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.8 |
+| Version | 0.9 |
 | Last reviewed | 2026-08-08 |
 | Depends on | `ARCHITECTURE.md`, `ONTOLOGY.md` |
 | Authoritative for | Backup, cache policy, dependency pinning, rebuild discipline |
@@ -26,7 +26,15 @@ Not everything. Invariant I9 states that the graph is derived, so most of it is 
 | `raw/` source files | **Only if the deposit is unchanged** — re-fetchable from PRIDE, not reproducible | High for embargoed data, **high** otherwise |
 | `cache/uniprot/` | **No** — captured external state, see below | **High.** An I9 input since 2026-08-07 |
 | `graph.kuzu/` | Yes, from the four I9 inputs | Low |
-| `quant.duckdb` | Yes | Low |
+| `quant.duckdb` | Yes — **value-for-value, established by running 2026-08-08**, not byte-for-byte | Low |
+
+**What "regenerable" means for `quant.duckdb`, measured rather than assumed (2026-08-08).** Two
+rebuilds produce **different file digests and identical row digests**, and deleting the file and
+rebuilding reproduces its content exactly. Byte equality is the wrong question to ask of a DuckDB
+file — it carries metadata and free-space layout that a byte comparison would compare as well — so
+the claim this table makes is over content, and `bzk/quant/store.py::digest_rows` is what checks it.
+Established by running because the row two above is the correction of a regenerability
+classification that was asserted and wrong.
 
 **The asymmetry is the point.** A few megabytes of JSON are irreplaceable; tens of gigabytes of graph and matrices are a compute cost. Backing up the small irreplaceable set frequently is both cheaper and more effective than snapshotting everything occasionally.
 

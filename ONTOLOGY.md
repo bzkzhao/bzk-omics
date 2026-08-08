@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.24 |
+| Version | 1.25 |
 | Last reviewed | 2026-08-08 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -337,7 +337,9 @@ CREATE NODE TABLE SiteObservation(
   score DOUBLE,
   is_decoy BOOLEAN,
   n_imputed INT64,              -- values generated rather than measured; see §6.5
-  quant_ref STRING,             -- key into columnar store; see §2
+  quant_ref STRING,             -- the columnar TABLE holding this observation's per-sample
+                                -- values, or NULL if none are retained (I11's violation
+                                -- state). The join key is `id`, not this — §2, ADR-0004
   keying_basis STRING,          -- 'razor' | 'reviewed_preferred'. Which rule chose the
                                 -- ProteinSequence this site keys against (§6.3, ADR-0024).
                                 -- Always set: 'razor' is the search engine's own pick.
@@ -427,7 +429,7 @@ Kùzu has no inheritance, so the supertype is a **contract**, not a table. Every
 | Field / edge | Meaning |
 |---|---|
 | `id` | `bzk:` + deterministic content-derived digest (§3, ADR-0020) |
-| `quant_ref` | Key into the columnar store (§2) |
+| `quant_ref` | The columnar **table** holding this observation's per-sample values — `site_values` or `protein_values`. **Not the join key**, which is the observation id (§2, ADR-0004). `NULL` means no values are retained, which is I11's violation state |
 | `Dataset → REPORTS_SITE` | Which dataset reported it |
 | `RESOLVES_TO → <reference node>` | The external entity it measures |
 | `WAS_DERIVED_FROM` reachability | Provenance path to an `Analysis` (I5) |
