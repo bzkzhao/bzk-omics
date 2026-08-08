@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.22 |
+| Version | 1.23 |
 | Last reviewed | 2026-08-07 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -657,6 +657,19 @@ CREATE REL TABLE ASSIGNS_PROTEIN(FROM ProteinAssignment TO Protein, MANY_ONE);
 | `leading` | Search engine's leading-protein subset | `probable` |
 | `razor` | Search engine's razor-rule pick | `ambiguous` |
 | `orthogonal_evidence` | Isoform-specific knockdown, transcript evidence | `confirmed` |
+
+**No current adapter emits a `ProteinAssignment`, and that is the design rather than a gap
+(2026-08-07).** A reader meeting this node type should know that it is deliberately empty. The one
+search-output adapter that exists reads a MaxQuant site table, and such a table supports a **keying
+choice** — which sequence a site is pinned to, forced by ADR-0023 — not an **origin inference**,
+which is what this node records. The bases that would populate it need evidence the table does not
+carry: `unique_peptide` needs a distinguishing peptide observed elsewhere in the dataset,
+`orthogonal_evidence` needs isoform-specific knockdown or transcript data, `unambiguous` needs a
+group of one (18% of rows, and there the pick is not an inference either). `razor` and `leading`
+are the search engine's own picks, which §6.3 records as *not ground truth*; emitting an assignment
+that merely restates the razor column would manufacture an inference the platform did not make.
+So the table stays empty until a dataset supplies the evidence, and an empty `ProteinAssignment`
+table is the honest state of a graph built from one site table. See ADR-0024 and `HANDOFF.md` §8.
 
 **Keying a site is not assigning a protein (ADR-0024, 2026-08-07).** `reviewed_preferred` was a row
 in the basis enum above until this amendment removed it. A reviewed entry is better *annotated*, not

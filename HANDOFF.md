@@ -54,17 +54,75 @@ Record the resolved Kùzu version in `ARCHITECTURE.md` §1 the moment you have i
 
 Follow `ROADMAP.md` § Milestones. This adds the granularity that document deliberately omits.
 
-### Status, 2026-08-07 — read this first
+### Status, end of 2026-08-07 — read this first
 
-**Weeks 1–2 are complete.** On disk and committed:
+**A fresh session should read this block, then `ROADMAP.md` § Measured findings, then start at
+"The next action" below.** Everything above the line in this section is history; this is state.
 
-- `bzk/ontology/schema.py` — structured DDL emitter, 56 tables, mirrors `ONTOLOGY.md` §4–6; guarded by `tests/test_schema.py` (parses the normative DDL, asserts agreement, builds on Kùzu 0.11.3).
-- `bzk/ontology/invariants.py` — write-time checks I2, I3, I4, I10, I14, I15, I16, I19 plus change-set **structural validation (ADR-0019, incl. multiplicity)**, derived from `schema.py`.
-- `bzk/resolve/uniprot.py` — isoform-aware resolver, two-tier immutable cache, 20/20 on PXD018299 offline.
-- `bzk/rebuild.py` — drop / create-schema / replay / drift-check, and `bzk/ontology/store.py`, the change-set write path. **I9 is no longer vacuous as of 2026-08-07:** the replay loads `data/curation/`, writes it, and a second rebuild reproduces the same 16 nodes and 38 edges with the same ids — checked against `tests/fixtures/pxd018299_curation_ids.json`, which predates the writer, as well as against itself.
-- `bzk/adapters/base.py` — the `ObservationAdapter` contract, `SampleMapping`, `ParsedObservations`; `tests/test_adapters_base.py` pins it against `tests/fixtures/valid_changeset.json`.
+**What runs today, end to end:**
 
-`perseus.py` is **not** written. Do not start it first.
+```
+python -m bzk.sources.pride                     # fetch the deposit into the content store
+python -m bzk.rebuild                           # graph from the four I9 inputs, ~120 s
+python -m bzk.drift                             # validate the sequence archive, ~16 min, weekly
+python -m bzk.sources.pxd018299_differential    # the differential run and its populations
+```
+
+**The graph** (rebuilt 2026-08-07, post-ADR-0024): 2,029 `SiteObservation`s each with a
+`ModifierAssignment`, 2,029 `ModificationSite`s, 4,561 `Protein`s, 1,062 `ProteinSequence`s, 3
+`Modifier`s, 12 `Sample`s, 2 `Analysis` (curation + ingestion), **0 `ProteinAssignment`** — see
+§6.3, deliberately empty. 27 rows refused. Two independent replays reproduce **11,730 ids
+identically**.
+
+**Slice 4b's result: 12 of 14 published targets, which is *not* the notebook's twelve.** Both routes
+miss PSMB9; this one recovers ADAR (the notebook found it below threshold) and loses OAS1 (two
+canonical reviewed candidates, so ADR-0024 rule 3 declines to promote and the razor pick fails the
+residue check). Populations differ by 13 sites. `ROADMAP.md` § Validity-conditional promotion is
+authoritative; **do not quote 12 of 14 as a reproduction.**
+
+**Schema is 57 tables** (24 node + 33 rel) since ADR-0023 dropped two duplicates.
+
+#### What is left of ROADMAP's v0.1 exit
+
+The criterion was amended 2026-08-07 — it is no longer a number, it is *population reported at every
+step, divergence accounted for exactly, every miss traced*. That part is met. Three things are not:
+
+1. **`perseus_s0` is unwritten.** `ARCHITECTURE.md` §4 makes it **default and required**; only
+   `welch_t` (the sanity check) exists, and §4 is explicit the two are not interchangeable — the
+   `s0` curvature changes which sites pass. Needs permutation FDR too, which is also unwritten.
+   Its recovery number is a **separate baseline** and will not necessarily be 12.
+2. **Gene symbols never enter the graph.** `Gene` has 0 nodes and `Protein.name` is null on every
+   one, so "which of the 14 targets" is unanswerable from stored content — the differential run
+   reads the deposit's `Gene names` column. Until this lands, *"through the real pipeline"* is
+   false for the identification step, whatever the pipeline does.
+3. **I11 is unmet.** `SiteObservation.quant_ref` is null on all 2,029 and `quant.duckdb` is never
+   created, so the matrix is re-read from the deposit each run. I11 says no stage may discard it
+   after computing a result; nothing discards it and nothing retains it, which makes the statistics
+   layer pluggable in principle and not in fact.
+
+Of the three, **(3) blocks the most**: recomputation and the comparison capability
+(`ARCHITECTURE.md` §4's stated purpose for the registry) both need a retained matrix, and (1) is
+worth little without it since the point of a second test is running it over the same values.
+
+#### The next action
+
+**Write the DuckDB quantitative layer (I11).** `bzk/quant/`, `SiteObservation.quant_ref` populated
+by the adapter, `quant.duckdb` created by `rebuild`. Then `perseus_s0` over the retained matrix, and
+gene symbols last — it is the smallest of the three and the least entangled.
+
+Before starting, run `python -m bzk.rebuild` and confirm it reports 2,029 sites; if it does not, the
+deposit or the archive has moved and that is the finding, not a setup problem.
+
+**Two habits this project runs on, both learned the hard way and both cheap to lose:**
+
+- **Before quoting any number, ask what would have had to be different for it to come out
+  otherwise.** Three self-confirming measurements were caught here (§8); the fourth will not
+  announce itself.
+- **Pre-register anything that could move a headline figure.** Write down what each outcome would
+  mean *before* running it. `ROADMAP.md` § Pre-registration is the worked example, and it is what
+  stopped 12-of-14 being reported as a reproduction.
+
+---
 
 **The next action is documents, in this exact order — three separate turns:**
 
