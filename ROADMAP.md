@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.13 |
-| Last reviewed | 2026-08-07 |
+| Version | 1.14 |
+| Last reviewed | 2026-08-08 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
 
@@ -391,6 +391,42 @@ A fourth possibility is not an outcome but a defect to watch for: **promotion ch
 and can change the tested population well beyond these three genes.** If the population moves, the
 1,321 + 54 = 1,375 identity above no longer holds, and any recovery figure must be reported against
 the new population with that identity re-checked rather than assumed.
+
+### Pre-registration: what converging the canonicalization divergences would mean, 2026-08-08
+
+**Written and committed before any of C1, C10 or C11 is implemented.** The 2026-08-08 sweep closed
+by asserting every fix is free, and this turn is about to test that assertion. The assertion has the
+shape the three caught self-confirming measurements had — a number produced by the same reasoning
+that predicts it — so the prediction is recorded before the test rather than after.
+
+**The prediction: no existing id moves.** All 11,730 ids a replay currently reproduces are unchanged
+after the three fixes land. It rests on three scans of the current graph: 0 of 4,561 `Protein`
+accessions carry a lowercase letter; 0 of 14,371 CURIE values inside identifying `STRING[]` fields
+have a non-lowercase prefix; `Analysis.parameters_json` is NULL on both `Analysis` nodes.
+
+**How it will be tested, stated in advance:** rebuild from the four I9 inputs into a fresh database
+with the new code, extract every node id by label, and diff against `~/.bzk-omics/graph.kuzu`. *Not*
+by re-running the three scans — they produced the prediction, and a scan cannot test itself.
+
+Three outcomes, and what each licenses:
+
+1. **No id moves.** The scans were right, the divergences were a window that had not yet been walked
+   through, and the fixes cost nothing. This is the expected outcome and the weakest of the three:
+   it confirms a prediction rather than discovering anything, and it must be reported that way.
+2. **An id moves.** Then the scans were wrong and the graph already contains two spellings of one
+   fact — a live fragmentation, not a closing window. That is a larger finding than the sweep's,
+   because it means some fraction of the 2,029 sites are duplicated or keyed against the wrong
+   protein, and the fix is a re-mint with a migration rather than a free change. The headline would
+   be the fragmentation, not the fix.
+3. **The rebuild refuses.** Distinct from (2) and **not excluded by any scan**, because C10 and C11
+   converge by refusing rather than normalizing, and every scan above measured the *graph* — which
+   by construction holds only values that already got through. A value in `raw/` or the curation
+   export that the new checks reject would never have reached a node to be counted. The finding
+   would then be about the input, the refusal count is the measurement, and the correct response is
+   to read what was refused before deciding whether the check or the input is wrong.
+
+Outcome 3 is the one to watch, for the same reason outcome D was on I17: it is the one the
+preparatory work cannot see.
 
 ### The platform made an invisible analytical choice, 2026-08-07
 
