@@ -166,10 +166,20 @@ Follow `ROADMAP.md` § Milestones. This adds the granularity that document delib
    on `content_hash` — the loader from the record, the adapter by hashing the bytes — so their ids
    converge (I7) and every site hangs off the dataset the curation describes. Asserted, not assumed.
 
-   The graph now holds **1,967 `SiteObservation`s** with 1,967 `ModifierAssignment`s, 1,967
-   `ModificationSite`s, 4,441 `Protein`s, 1,028 `ProteinSequence`s, 3 `Modifier`s, 12 `Sample`s and
-   one each of `Project` / `Experiment` / `Dataset` / `Analysis`. Two independent replays reproduce
-   **11,389 ids identically**. `python -m bzk.rebuild` does it end to end.
+   **The graph, as of the 2026-08-07 rebuild after I17 (`python -m bzk.rebuild`, 60 s):** 2,025
+   `SiteObservation`s with 2,025 `ModifierAssignment`s and 2,025 `ModificationSite`s, 522
+   `ProteinAssignment`s (the I17 promotions that survived to a site — 526 were computed, and the
+   four whose promoted entry failed the residue check produced no site), 4,558 `Protein`s, 1,063
+   `ProteinSequence`s, 3 `Modifier`s, 12 `Sample`s, **2** `Analysis` (curation and ingestion), and
+   one each of `Project` / `Experiment` / `Dataset`. Before I17 it held 1,967 sites and 11,389 ids
+   reproduced across two independent replays; the reproducibility check has not been re-run against
+   the new keying.
+
+   The rebuild also exercised the drift receipt's archive digest against real data for the first
+   time: I17's extra resolutions grew the archive from 1,029 to 2,845 sequences, and the staleness
+   line correctly reported *"last drift-checked 0 day(s) ago over a DIFFERENT set (1,029 then,
+   2,845 now)"* rather than the flattering "0 days ago". That is the guard doing exactly what it
+   was written for — a fresh timestamp over a stale scope.
 
    **The ingested population is 1,967, and it is not the notebook's 1,375 nor the file's 2,341.**
    2,341 rows → 43 decoys and contaminants → 242 below the localisation threshold → 2,056
