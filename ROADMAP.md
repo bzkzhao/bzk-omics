@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.39 |
+| Version | 1.40 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -1961,6 +1961,76 @@ already carrying a 39-minute rebuild, and §5 records that a run over an archive
 compares fetches against fetches of the same release — this archive was written hours ago. The
 second cold rebuild is the better instrument for the question anyway: it re-fetched all 3,013
 sequences into an empty tree and the comparison is over the whole archive rather than a sample.
+
+
+### Pre-registration: what writing computed differential results would mean, 2026-08-09
+
+**Written and committed before any code.** `query.differential_table` returns `NOT_STORED` because
+nothing writes `DifferentialResult` rows: `perseus.py` emits them and has no real input, and
+`pxd018299_differential.py` computes them and writes none. This closes the gap for the `welch_t`
+run, which § *v0.1 — in scope* records as implemented first for a stated reason.
+
+**The starting state, measured before predicting anything.** `python -m bzk.rebuild`: **1 m 55.2 s**,
+2,029 sites, 27 refusals, 12,782 node and 10,283 edge statements, 48,696 cells. Graph: `Gene` 1,039,
+`ENCODES` 1,054, `gene_absence` 1,054 / 3,492 / 15 / 0, **12,769 ids over twelve labels** captured
+before the rebuild dropped them. All five queries run: `differential_table` `NOT_STORED` on both
+analyses, `unprovenanced` `DifferentialResult: (0, 0)`, `refusals` `NOT_RETAINED`,
+`imputation_state` `NOT_STORED` on both, `Contrast` / `Imputation` / `DifferentialResult` all **0**.
+
+**Step 0 is answered and needs no work.** `differential_table` **already surfaces the test**:
+`DifferentialRow` carries `quantity`, `test` and `fdr_method`, read off the `Analysis` at
+`graph.py:326` where I16 puts them. So a caller can tell a `welch_t`/BH row from a
+`perseus_s0`/permutation one, and ADR-0015's *will not match their numbers* concern is answerable at
+the row. One gap is at the **screen** rather than in the query: `app.py`'s table renders `test` and
+not `fdr_method`, so a reader sees half of the pair the concern turns on.
+
+**`moderated_t_ebayes`'s absence changes nothing this turn writes.** Under I16 a second test is a
+second `Analysis` with its own recovery number; adding one is not registered here and would put two
+recovery figures in the graph on the turn that puts the first one in.
+
+**Structure established by probing before predicting, because a prediction about output cannot catch
+a wrong premise about structure.** `store.write_change_set` builds `labels_by_id` from the
+change-set's **own** nodes, so an edge to an observation that is not in the batch raises rather than
+matching the stored one — ADR-0019's self-containment, enforced. Run against the validator, the
+minimal batch that passes is: the `SiteObservation`, **its `ModifierAssignment`** (I3 refuses the
+observation alone), the `Analysis`, an `Imputation` (I15 refuses an analysis producing results
+without one), the `Contrast`, and the `DifferentialResult`. Both refusals were seen, not reasoned
+about. The observation, its assignment and the `Dataset` are taken from the adapter's own parse
+output rather than re-keyed, so their ids cannot be wrong and the `MERGE … SET` rewrites identical
+values.
+
+**Predictions.**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| **No existing id moves**: 0 lost on all twelve labels; `Analysis` gains exactly 1 and no other populated label gains any | per-label set diff against the pre-rebuild capture | exact set equality per label |
+| `DifferentialResult` = **1,362**, one per tested row — 2,029 ingested, presence rule ≥2 of 3 in either arm, and whole-matrix imputation leaves every admitted row with a computable statistic so `tested == after presence rule` | Cypher count | exact integer; falsified if `tested < 1,362` |
+| `Contrast` **1**, `Imputation` **1**, `Analysis` **3** | Cypher count | exact |
+| Edges: `WAS_GENERATED_BY` **1,362**, `RESULT_FOR_SITE` **1,362**, `RESULT_IN_CONTRAST` **1,362**, `IMPUTATION_FOR` **1**, `USED` **3** | Cypher count | exact |
+| Refusals **27**, sites **2,029**, `gene_absence` **1,054 / 3,492 / 15 / 0** — unchanged, since nothing re-ingests | rebuild report and Cypher | exact |
+| `differential_table(new)` → **1,362 rows**, absence **`None`**, every row `test='welch_t'`, `fdr_method='BH'`, `protein_adjusted='not_applied'`, `substantially_imputed=None` | the query | exact |
+| `differential_table(curation analysis)` → `[]` with **`NONE_FOUND`**, not `NOT_STORED` — the table is no longer empty, so the same empty list means the other thing | the query | exact enum identity |
+| `unprovenanced` → `DifferentialResult (0, 1362)`; `Dataset (0, 1)`; `SiteObservation (0, 2029)` | the query | exact |
+| `imputation_state(new)` → methods `('downshifted_normal',)`, seeds `(0,)`, absence `None`, `satisfies_i15` **True**; the two older analyses move `NOT_STORED` → **`NONE_FOUND`** | the query | exact |
+| `refusals` → **`NOT_RETAINED`**, unchanged; `gene_symbols` → **12 of 14**, unchanged; `site_keying` → 2,029 with a basis, 522 displaced, unchanged | the queries | exact |
+
+**No prediction about the wall clock**, per this section's rule.
+
+**The recovery figure gets the sharpest fence yet, because this turn puts a number in the graph that
+looks exactly like it.** § *Validity-conditional promotion* fixes **12 of 14 as identifiability, not
+recovery** — how many published symbols are answerable from stored `Gene.symbol`. What this turn
+writes has a **recovery** count, under `welch_t` and BH, against a published comparison of 9 of 14
+through this route with every miss traced. **This turn does not compare the two, does not recompute
+the comparison, and writes nothing near either that could blur which quantity is which.** The
+identification route is not switched: `pxd018299_differential.py` keeps reading `Gene names`, for
+the reason recorded in its own docstring, and that decision is not revisited here.
+
+**Decisions to be argued in the records rather than assumed here.** Which `kind` a computed analysis
+takes from `'processing' | 'curation' | 'external'` and what `parameters_observed = true` then
+obliges under I19; where a module that computes a statistic and emits a change-set lives, given that
+`sources/` fetches, `adapters/` parses and `store.py` writes; whether one computed analysis over one
+dataset forces §11 Q1's `Contrast` placement. **Nothing new is built beyond the write path** — no
+second test, no volcano, no read-layer additions.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07
