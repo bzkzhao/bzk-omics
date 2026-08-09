@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.36 |
+| Version | 1.37 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -1811,6 +1811,98 @@ partition did not move, as registered. `OPERATIONS.md` §5 was half discharged a
 exit code means. `schema.py:131` and `app.py:28–29` were the two that had diverged. Recording which
 items were already discharged is the practice this list adopted after the previous one was stated
 unconditionally when it was not.
+
+
+### Pre-registration: what a second cold rehearsal would mean, 2026-08-09
+
+**Written and committed before the clone.** The first cold rebuild differed from the warm one and
+the difference was explained: the entry cache served a parse the code had stopped producing. That
+explanation makes a prediction it did not make when it was written — **a second cold run should
+reproduce the first cold graph exactly**, because the first-match rule is gone from the code that
+writes the cache. If it does not, the explanation is incomplete and whatever else moves is the
+finding. Four things changed under it since — `graph.py:545–548`, `rebuild.py:383`,
+`.streamlit/config.toml`, `schema.py:131` — and none of them writes to the graph.
+
+**The first cold tree, measured before predicting anything.** `Analysis` 2, `Dataset` 1,
+`Experiment` 1, `Gene` 1,039, `ModificationSite` 2,029, `Modifier` 3, `ModifierAssignment` 2,029,
+`Project` 1, `Protein` 4,561, `ProteinSequence` 1,062, `Sample` 12, `SiteObservation` 2,029 —
+**12,769 ids over twelve labels**. Edges: `ASSIGNMENT_FOR` 2,029, `CONTAINS` 1, `ENCODES` 1,054,
+`HAS_SEQUENCE` 1,062, `MEASURED_AT` 2,029, `PERFORMED_ON` 12, `PRODUCED` 12, `REPORTS_SITE` 2,029,
+`SAMPLE_GENERATED_BY` 12, `SITE_ON` 2,029, `USED` 2. `gene_absence` 1,054 / 3,492 / 15 / 0. Cache:
+**2,260** entry snapshots, **3,013** sequences, **2,182** pins, **7** carrying `AMBIGUOUS`. Four
+objects in `raw/`. `ONTOLOGY.md` §8 and `HANDOFF.md` §3 record **12,774** and are correct about the
+warm tree; the five-id gap is exactly the five `Gene` nodes the histone finding accounts for, and
+neither numeral is edited by this run unless this run moves one of them.
+
+**Predictions.**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| Step 5: per-label id sets identical on **all twelve** labels, **12,769** ids, symmetric difference 0 | per-label set diff against the capture above | exact set equality |
+| `Gene` **1,039**, `ENCODES` **1,054**, partition **1,054 / 3,492 / 15 / 0**, refusals **27**, sites **2,029** | the rebuild's report and Cypher | exact integers |
+| Cache: **2,260** entries, **3,013** sequences, **2,182** pins, **7** `AMBIGUOUS`; every shared sequence byte-identical and every shared pin identical, **0** version movements; entry snapshots differing in `fetched_at` **only** | file-set diff plus byte comparison, field-wise JSON diff on the snapshots | exact counts, exact bytes |
+| Fetch count **5,273** — 2,260 entry + 3,013 sequence round trips | count the files the run writes into an empty cache | exact integer |
+| Suite in the cold clone: **391** tests, **0** skipped with the graph present, **10** skipped with no `~/.bzk-omics` | `pytest -q -rs` | exact integers |
+| `bzk rebuild` against an empty content store: exit **1**, an `INCOMPLETE:` line, `graph.kuzu` and `quant.duckdb` both written | shell exit status, then `ls` | exact |
+| Panel two over a **DDL-only** graph: fourteen `NOT_STORED`, **0** `UNATTRIBUTABLE` | `gene_symbols` return values | exact enum identity |
+| Panel two over the **full** cold graph: **12 of 14** present, `DDX58` and `OAS1` `UNATTRIBUTABLE` | `AppTest` | exact |
+| `.streamlit/config.toml` is **present in the fresh checkout** at the repository root with `server.address = "localhost"` and `gatherUsageStats = false` | read the file in the clone before anything runs | exact strings |
+
+**No prediction about the wall clock**, per this section's own rule and because `OPERATIONS.md` §5
+records that a regression smaller than the spread cannot be seen at all. The falsifiable half is the
+**fetch count** above, which an instrument does resolve, and the shape: fetch-dominated, CPU in the
+single-digit percent.
+
+**About step 2, which is the part of the procedure that has never been executed as written.** §4.1
+was written *from* the first rehearsal, so this is the first run that tests the text rather than
+producing it. Predicted: both prerequisites are already present here — `uv` 0.8.17 and
+`/usr/bin/python3.12` — so **:144's surprise does not surprise on this container**, and the honest
+report is that the sentence was not tested rather than that it was confirmed. Predicted gap: `uv`'s
+cache is warm at 1.1 GB, so following the text exactly measures the warm figure and the cold-cache
+number at :150 is not re-measurable without deliberately emptying `UV_CACHE_DIR`, which the text
+does not tell anyone to do.
+
+**The four outcomes.**
+
+1. **Identical.** The histone explanation holds and cold-to-cold reproducibility has its first
+   evidence. **This is the weakest useful outcome and the registration says so before the run:** the
+   two cold runs are hours apart, UniProt releases roughly monthly (§5), so an unchanged UniProt is
+   the most likely explanation of an identical result and it establishes nothing about a release
+   boundary. What it *would* establish is narrower and still worth having — that nothing internal is
+   unstable, which is exactly what the first rehearsal could not separate from an external cause.
+2. **A changed refusal count with no id movement.** `OPERATIONS.md` §1 (`:45`): content amended under
+   an unchanged version number moves no key and shows only as a refusal delta that reads like drift.
+   **Accepted as that, at any size, if and only if every extra refusal carries a sequence-content
+   reason *and* the accession's freshly fetched bytes differ from the copy preserved in the first
+   cold tree's archive.** That archive is the discriminator and it is why `~/.bzk-omics` is moved
+   rather than deleted. A refusal whose accession's bytes are unchanged is not drift; it is a defect.
+   **Expected delta 0** — hours, not weeks.
+3. **A different `Gene` or `ENCODES` count.** `OPERATIONS.md` §3.1 (`:103–106`) classifies this as
+   accepted by decision: it moves no id, cascades into no digest, and changes a visible count.
+   **That clause covers a cross-reference genuinely changing at UniProt, and this registration adds a
+   distinction it does not carry** — a count moving for an *internal* reason is what the histone
+   finding was, and it is **not** accepted. The discriminator is the payload: if the freshly fetched
+   HGNC cross-reference list for the affected accession differs from the first cold tree's snapshot,
+   it is §3.1's accepted case; if the payload is the same and the count moved, the cause is inside
+   this repository and the outcome is a defect — report and stop. Recorded here as an addition to
+   `:103–106` rather than as a reading of it.
+4. **A moved id.** The failure the pin exists to prevent and which a cold tree has no pin against:
+   every pin here is written by the fetch under test, which is `:120`'s window sentence applied to a
+   tree that has no earlier capture at all. **Report size and location and stop** — which labels, how
+   many ids, and whether the movement reaches `ModificationSite` and the `bzk:` digests anchored on
+   it.
+
+**`bzk drift` is not run, named here rather than left unmentioned.** §5 measures 2,069.8 s for 2,845
+sequences and says the cost scales with the archive; at 3,013 that is above 35 minutes on a turn
+already carrying a 37-minute rebuild. The decision is not only about cost: §5 also records that a
+drift run over an archive that has not aged compares fetches against fetches of the same UniProt
+release, and this archive was written hours ago, so a third clean result would move no sentence.
+**The second cold rebuild is a stronger instrument for this turn's question than `bzk drift` is** —
+it re-fetches every sequence into an empty tree and the byte comparison in step 5 is over the whole
+archive rather than a sample.
+
+**Nothing is built.** No features, no panels, no read-layer additions, no new guards. A figure
+falsified by a measurement here is corrected and the files that reached are enumerated.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07
