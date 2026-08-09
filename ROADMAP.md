@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.25 |
+| Version | 1.26 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -967,6 +967,107 @@ carrying an HGNC cross-reference. The full re-fetch gives **2,102 with an id and
 explicit null** — inside the interval and two off the point estimate. Recorded because the sample
 was drawn to decide whether the capture was worth its cost, and this is the only chance to find out
 whether it was any good.
+
+### Pre-registration: what minting `Gene` and `ENCODES` would mean, 2026-08-09
+
+**Written and committed before any code changes.** The blockers are cleared, which is the hazard:
+the previous three turns each ended by naming a reason not to build, and a turn that finally builds
+is the one most likely to accept its own projection as a result.
+
+**Confirmed first — and the baseline id set captured before the rebuild dropped it**, which is the
+instrument this file records losing on the last turn. `11,730` ids across 11 non-empty labels of 24
+node tables, held outside the tree: `Analysis` 2, `Dataset` 1, `Experiment` 1, `ModificationSite`
+2,029, `Modifier` 3, `ModifierAssignment` 2,029, `Project` 1, `Protein` 4,561, `ProteinSequence`
+1,062, `Sample` 12, `SiteObservation` 2,029. The rebuild then reported **2,029 sites, 27 refusals,
+11,743 node and 9,229 edge statements, 48,696 cells**, and the graph **4,561 `Protein`, 0 named,
+0 `Gene`, 0 `ENCODES`** — all unmoved. Wall clock **96.1 s**, one draw.
+
+**The residual of 1 is `P20591`, and it was reported in conversation and written down nowhere.**
+The `hgnc_id` census over the 2,261 snapshots is **2,102 with an id, 158 with an explicit null, 1
+with the key absent**, and the last is MX1: `fetched_at` 2026-08-07T15:39, `gene` MX1, `sv` 4,
+Swiss-Prot. It appears **0 times** in the deposit and has no `Protein` node, so the rebuild has
+never had reason to ask for it and the widening never reached it. It is in the cache because it was
+looked up by hand — the accession this repository's worked example is written around.
+
+**Step 0's decision, registered before implementation: `Gene.id` may be derived from a snapshot
+field, and the guarantee sentence was a description of its contents rather than a principle.**
+
+*Option 1 — move `hgnc_id` to the pin — is rejected as **wrong**, not as harder.* The pin's whole
+property is that it is written once. A pin created before the field existed carries no `hgnc_id`
+key, and there are 2,183 of them; filling one means **rewriting a write-once record**, which is not
+a cost but the negation of the thing. It does **not** reopen the backfill window, and the reason is
+worth separating from the refusal: that window was about preserving the *original* capture, and
+`hgnc_id` was never captured at ingestion, so there is no earlier value to lose. What breaks is
+write-once itself, not the window. Independently, the pin is keyed `{canonical}#sv{n}` — an HGNC id
+has no relation to a sequence version, so a version bump would mint a second pin whose `hgnc_id` is
+a fresh capture presented with the standing of a pinned one.
+
+*Option 2 — adopted, and it argues against I7 and §4 rather than against a docstring's phrasing.*
+The line the pin actually draws is not *"no id depends on the snapshot"* but **a snapshot field may
+not reach the composition of a composed key, directly or by selection**. That is §4's own division
+of reference nodes into composed and authority-assigned, and it sorts every field correctly:
+`sequence_version` is a *component* of `uniprot:{acc}#sv{n}` and of every `ModificationSite` built
+on it; `reviewed` selects which protein a site is keyed against, so it reaches composition
+indirectly; `gene` and `last_seq_update` reach neither. `hgnc_id` reaches neither either —
+**`Gene.id` is not composed**, and §3's identity table says so in the document rather than by
+inference: `Gene`'s identifying fields are `—`, its anchors are `—`, and §4's authority-assigned
+shape is *"the id **is** the external identifier, CURIE-prefixed; nothing local composes it"*, which
+makes CURIE-prefixing explicitly not composition. Against I7 (:825), *reference node ids are derived
+from their content* — `hgnc:HGNC:7532` **is** HGNC's content, and two graphs that both saw that
+cross-reference converge on one node, which is the clause's stated purpose.
+
+*What option 2 costs, stated rather than discovered.* If UniProt's cross-reference for an accession
+changes, a rebuild produces a **different `Gene` node and a different `ENCODES` edge**. That is a
+real difference between rebuilds and it is accepted, because it is a different failure from the one
+the pin exists for: a pinned field moving **re-keys an existing node and every evidence digest
+anchored on it**, silently and without changing a count. A `Gene` change moves no id, cascades into
+no digest — `Gene` appears in no `IDENTITY` spec's anchors, already asserted in `tests/test_keys.py`
+— and changes a node count, which is visible.
+
+*Option 3 is not reached*, since option 2 is established rather than merely cheaper.
+
+**Step 1's multiplicity choice: 198 is taken as the evidence, and arrival is made a refusal.** The
+census is not ordered and its cost is stated so the refusal is a decision rather than an evasion:
+re-reading every payload means re-fetching all 2,261 snapshots, **measured at 29m55s** on
+2026-08-09. It is not paid because it **cannot change the decision** — a second HGNC cross-reference
+is refused whenever it appears, so the rate at which it appears has no bearing. What the census
+would buy is confidence in a rate the guard makes irrelevant. Today `uniprot.py` takes the first
+match, which is a *silent* decision; that becomes a refusal. **The residual is stated and bounded:**
+the 2,102 ids already captured were captured under first-match, so if any had two the first was
+taken silently and the guard is prospective only. The blast radius of one such case is one
+`Protein`'s `ENCODES` edge — `Gene.id` is authority-assigned and anchors nothing, so it cannot
+propagate.
+
+**Predictions.**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| **No existing node id moves**: symmetric difference **0** over all 11,730 baseline ids, per label | the captured baseline, diffed per label against the post-build graph | exact set equality, no margin |
+| Refusals **27**; **2,029** sites; **4,561** `Protein` | the rebuild's own report | exact integers |
+| **`Gene` = 1,104**; **`ENCODES` = 3,230** | Cypher counts | exact integers. Derived from the cache→graph projection, so a mismatch means the builder's wiring differs from what the cache supports, not that the projection was optimistic |
+| Absence partitions exactly: **1,180** no cached entry + **151** explicit null + **0** `NOT_CAPTURED` + 3,230 = 4,561 | Cypher plus the snapshot census | exact integers |
+| Target identifiability: **12** of the 14 by exact symbol, **13** allowing one rename, **1** genuinely absent | match the 14 in `pxd018299_baseline.py` against stored `Gene.symbol` | exact integers over a set of 14 |
+| `bzk rebuild` wall clock | **at least three timed runs, reported as a spread** | ±10 s at best — `OPERATIONS.md` §5 is not corrected from one draw against one draw |
+
+**Each identifiability outcome's meaning, fixed in advance.** *13 of 14* means the two shortfalls
+have different causes and only one is a gap: `DDX58` is stored as **`RIGI`** — HGNC renamed it, and
+`hgnc:HGNC:19102` is the same node under either name — while `OAS1`'s only `Protein` in the graph is
+`H0YI20`, a TrEMBL fragment with no gene and no cross-reference. *If it comes out 14*, something
+supplied a symbol the cache does not have and the source must be found before it is believed. *If
+it comes out below 12*, the builder is dropping symbols the projection says are there. **And if the
+count is anything other than 14, that is not a failure**: `ROADMAP.md` § *What v0.1 must contain*
+holds that the number is not the criterion, and identifiability is a different quantity from
+recovery — this section makes **no** claim about recovery and the differential is not run.
+
+**The rename is the finding this prediction exists to surface.** Matching a 2020 deposit's
+`Gene names` against stored symbols would miss `DDX58` while the gene is present, which is the case
+for keying on `hgnc:HGNC:19102` rather than on a symbol string, made concrete rather than argued.
+
+**What would make this turn a failure rather than a build.** Emitting `Gene` for 3,230 `Protein`s
+and leaving the other 1,331 with an absent `ENCODES` edge that means three different things. The
+three are not equally likely and that is the trap: 1,180 is the adapter's razor-pick policy and 151
+is UniProt reporting no cross-reference, so a reader who assumes the common case reads a policy
+artefact as a biological statement.
 
 ### The platform made an invisible analytical choice, 2026-08-07
 
