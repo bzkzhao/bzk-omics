@@ -98,6 +98,10 @@ class ReplayReport:
     #: Rows an adapter refused, carried up so a rebuild states what it did not ingest rather than
     #: leaving it to be inferred from a smaller total (`CLAUDE.md` § Flag rather than hide).
     refusals: list[Refusal] = field(default_factory=list)
+    #: Curation records that named a deposit the replay could not ingest — absent from the content
+    #: store, or present and recognised by no adapter. **Not** a record that names no deposit.
+    #: This is what `main` turns into a non-zero exit status; `OPERATIONS.md` §5 says why.
+    ingestions_skipped: int = 0
 
 
 @dataclass(frozen=True)
@@ -111,6 +115,7 @@ class RebuildReport:
     deposits_ingested: int = 0
     site_observations: int = 0
     refusals: list[Refusal] = field(default_factory=list)
+    ingestions_skipped: int = 0
 
 
 def _remove(path: Path) -> None:
@@ -227,7 +232,7 @@ def replay_ingestion(
     # "the layer ran and there was nothing to retain" (`OPERATIONS.md` §1 calls it regenerable,
     # which presumes it is generated).
     quant_connection = quant.connect(home)
-    observations = deposits = 0
+    observations = deposits = skipped = 0
     refusals: list[Refusal] = []
     for path in records:
         try:
@@ -247,10 +252,20 @@ def replay_ingestion(
 
         source = _deposit_for(loaded, home)
         if source is None:
-            log(f"  no deposit in the content store for {path.name}; sites not ingested")
+            # Unconditionally a skipped ingestion, and that took a check rather than an assumption.
+            # A record that named *no* deposit would not be one — but the loader cannot produce one:
+            # `Dataset.content_hash` is identifying (§3), so a record without it is refused before
+            # it reaches here. A predicate to tell the two apart was written, found to have an
+            # unreachable branch, and removed; `tests/test_rebuild.py` pins the premise instead.
+            skipped += 1
+            log(
+                f"  {path.name} names a deposit that is not in the content store; "
+                "sites not ingested"
+            )
             continue
         adapter = _adapter_for(loaded, source, resolver)
         if adapter is None:
+            skipped += 1
             log(f"  no adapter recognises {source.name}; sites not ingested")
             continue
         parsed = adapter.parse(source, loaded.sample_mapping())
@@ -276,7 +291,8 @@ def replay_ingestion(
     log(
         f"ingestion replay: {len(records)} curation record(s), {deposits} deposit(s), "
         f"{observations} site observation(s), {len(refusals)} refusal(s), "
-        f"{nodes} node statement(s), {edges} edge statement(s), {cells:,} quantitative cell(s)"
+        f"{nodes} node statement(s), {edges} edge statement(s), {cells:,} quantitative cell(s), "
+        f"{skipped} ingestion(s) skipped"
     )
     quant_connection.close()
     return ReplayReport(
@@ -287,6 +303,7 @@ def replay_ingestion(
         deposits_ingested=deposits,
         site_observations=observations,
         refusals=refusals,
+        ingestions_skipped=skipped,
     )
 
 
@@ -319,6 +336,12 @@ def rebuild(
         f"{len(replay.refusals)} refused, {replay.nodes_staged} node statement(s), "
         f"{replay.edges_staged} edge statement(s), {replay.cells_staged:,} quantitative cell(s)"
     )
+    if replay.ingestions_skipped:
+        log(
+            f"INCOMPLETE: {replay.ingestions_skipped} curation record(s) named a deposit that was "
+            "not ingested. The stores are written and are a subset of the export — run "
+            "`python -m bzk.sources.pride` and rebuild (OPERATIONS.md §5)"
+        )
     return RebuildReport(
         tables_created=tables,
         curation_records=replay.curation_records,
@@ -328,11 +351,36 @@ def rebuild(
         deposits_ingested=replay.deposits_ingested,
         site_observations=replay.site_observations,
         refusals=replay.refusals,
+        ingestions_skipped=replay.ingestions_skipped,
     )
 
 
 def main() -> None:
-    rebuild()
+    """The CLI. Exits **1** where a curation record named a deposit that was not ingested.
+
+    **Where an empty ingestion sits between `OPERATIONS.md` §5's two halves, decided 2026-08-09.**
+    §5 says rebuild *never refuses on staleness* — it is the disaster-recovery path and a check
+    standing in front of recovery is worse than a stale check — and it also says a rebuild that
+    produces a different result *is a regression, stop and find out why*. Those are not in tension,
+    because they act at different moments: **refusing stands in front of the work; an exit status is
+    emitted after it.** So `rebuild()` is unchanged — it drops, recreates, replays and writes
+    exactly what it can, and a caller holding the report gets the same graph it always did. What
+    changes is only what the *process* tells a script, and it changes from *success* to *the graph
+    is a subset of the export*.
+
+    **The distinction the counter draws is between a record that names no deposit and one whose
+    deposit is missing.** Only the second is an ingestion that failed to happen; the first is a
+    curation act that ingests nothing by design (`_names_a_deposit`). Without that split a tree with
+    a mapping-only record would exit 1 forever.
+
+    Staleness keeps its exit 0, deliberately and unchanged: §5 calls the drift receipt *a report and
+    not a control*, and an archive that has never been checked is exactly the state a fresh install
+    is in. Conflating the two would put a network-shaped condition back in front of recovery by the
+    back door.
+    """
+    report = rebuild()
+    if report.ingestions_skipped:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

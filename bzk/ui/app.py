@@ -28,6 +28,15 @@ lock, so this **cannot read the graph while `bzk rebuild` holds it**; `query.con
 the app renders that state instead of a traceback. And a screen is a *view within the local
 instance*, which §8 I18 declares unrestricted, so nothing here fires `HANDOFF.md` §8's EX trigger —
 **there is no download button**, and adding one would fire it.
+
+**The second of those carries a condition, and this docstring asserted it without one until
+2026-08-09.** *Local instance* is not a property of the code: `streamlit run` binds `0.0.0.0` by
+default and announces an External URL. The condition is met by `.streamlit/config.toml` at the
+repository root, which sets `server.address = "localhost"` — read from the working directory, so it
+governs the documented command and not an absolute-path invocation from elsewhere
+(`OPERATIONS.md` §4.1). Cited rather than restated: `CLAUDE.md`'s normativity rule names
+`ONTOLOGY.md` and does not reach a reading that lives in `HANDOFF.md` §3, so what settles this pair
+is the single-source rule instead — the condition has one home and this is not it.
 """
 
 from __future__ import annotations

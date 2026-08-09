@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.35 |
+| Version | 1.36 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -1736,6 +1736,81 @@ these are not in tension because they act at different moments: refusing stands 
 work and an exit status is emitted **after** it. So the prediction is that the stores are written
 identically either way and only `main()`'s status differs — falsified if any file, count or id
 differs between an exit-0 and an exit-1 run of the same tree.
+
+
+### The four rehearsal findings closed, and two guards that could not have failed, 2026-08-09
+
+**Run against the pre-registration above.** Every registered prediction held.
+
+| Prediction | Result |
+|---|---|
+| No id moves: symmetric difference 0 on twelve labels, 12,769 ids | **held**, exact |
+| `gene_absence` still 1,054 / 3,492 / 15 / 0 | **held** |
+| Refusals 27, sites 2,029 | **held** |
+| (1) over an empty `Gene` table: fourteen `NOT_STORED`, no `UNATTRIBUTABLE` | **held** |
+| (1) on screen: `NOT_STORED` in panel two by position, `UNATTRIBUTABLE` zero times | **held**, and see below |
+| (1) on the populated graph unchanged: 12 of 14, `DDX58`/`OAS1` `UNATTRIBUTABLE` | **held** |
+| (2) exit **1** where a deposit was named and not ingested, **0** otherwise, stores written both times | **held** |
+| (3) bare `streamlit run` logs `localhost` and no usage-statistics line | **held** |
+
+**The position-not-substring row earned its registration, demonstrated rather than argued.** With
+the fix reverted, over the empty-`Gene` graph, `RENDERING[NOT_STORED].headline in text` evaluates
+**`True`** while fourteen `UNATTRIBUTABLE` notices sit on the page — because panel three renders
+`NOT_STORED` twice for its own reasons. A substring assertion would have passed a panel that still
+said the wrong thing. The committed assertion is on the **first fourteen warnings** being panel
+two's, the **last three** being panel three's exactly, `UNATTRIBUTABLE` appearing **zero** times, and
+the `NOT_STORED` total being **16** — a number panel three alone cannot produce.
+
+**The fixture had to be chosen as carefully as the assertion.** It carries a `Protein` and no
+`Gene`, so a check written as *is the graph empty* passes it and is still wrong; confirmed by
+mutating the check to count `Protein` instead of `Gene`, which the fixture rejects. Both existing
+read-layer fixtures were populated — one gene and 1,039 — which is why the branch had never been
+reachable from the suite and was found by driving the app instead.
+
+**Two guards were written this turn that could not have failed, and both were removed rather than
+kept.** A predicate separating *a record that names no deposit* from *one whose deposit is missing*
+had an unreachable arm: `Dataset.content_hash` is identifying (§3), so the loader refuses a record
+without one before the replay sees it. Deleted, and the premise pinned by a test instead, because
+the reasoning is what makes the unconditional count correct and prose cannot carry it. And the
+second increment of that counter — the *no adapter recognises* branch — had no test when it was
+written, on a path only reachable through a deposit whose bytes sniff rejects; it has one now, and
+without it `bzk rebuild` would have exited 0 over a graph missing every site because a file layout
+changed.
+
+**Where an empty ingestion sits, which was the question (2) actually posed.** `OPERATIONS.md` §5's
+two halves — *never refuses on staleness, it is the disaster-recovery path* and *a different result
+is a regression, stop* — are not in tension, because refusing stands **in front of** the work and an
+exit status is emitted **after** it. `rebuild()` is unchanged and the stores are written identically;
+only what the process tells a script changes. Staleness keeps exit 0 deliberately: §5 calls the
+receipt a report and not a control, and a fresh install has never drift-checked anything.
+
+**(3) restores the condition it was measured against, and the reason is narrower than it looks.**
+`.streamlit/config.toml` is read from the **working directory**, and the documented command names a
+relative path — `streamlit run bzk/ui/app.py` — so it can only be run from the repository root,
+which is where the config is read. Every invocation the documented command can express is covered;
+an absolute path from elsewhere is not, and that is stated rather than papered over. `app.py`'s
+docstring had asserted the I18 reading with no condition at all and now carries one and cites where
+it is met — settled by the single-source rule and not by normativity, since `CLAUDE.md` names
+`ONTOLOGY.md` and does not reach a reading that lives in `HANDOFF.md` §3.
+
+**(4) is half closed on purpose.** `schema.GENE_ABSENCE`'s description said *no HGNC
+cross-reference* where §4's table says *no **usable** cross-reference — none at all (10), or several
+(5)*; the document was already correct and the code was the half diverging, so the code moved. The
+modelling question — whether several should read as `no_cross_reference` at all — is **not** settled,
+and the trigger is sharpened rather than left as *fired*. *Fired* was useless: it fired the day it
+was written and says nothing about when the change is worth its cost. The cost is a normative DDL
+change moving a partition recorded in six places; the benefit is a distinction **no reader sees** —
+`gene_absence` reaches no panel, no export and no report, and `gene_absence_census` is called from
+`tests/` and nowhere else, searched rather than assumed. §4's *three absences that must not read as
+one* is a claim about a reader, so the trigger is now the first reader that puts `gene_absence` in
+front of a person.
+
+**The correction list was checked before editing and two items needed nothing.** `ONTOLOGY.md` §4's
+enum table and `schema.py:125`'s cached partition were both already correct and are untouched — the
+partition did not move, as registered. `OPERATIONS.md` §5 was half discharged and gained what an
+exit code means. `schema.py:131` and `app.py:28–29` were the two that had diverged. Recording which
+items were already discharged is the practice this list adopted after the previous one was stated
+unconditionally when it was not.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07

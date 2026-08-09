@@ -183,6 +183,44 @@ def test_an_absent_symbol_is_unattributable_and_says_why(conn: kuzu.Connection) 
     assert {a.value for a in gq.Absence}.isdisjoint(schema.GENE_ABSENCE)
 
 
+def test_an_empty_gene_table_is_not_stored_rather_than_unattributable(tmp_path: Path) -> None:
+    """The branch neither fixture could reach, and the reason it needed its own graph.
+
+    `UNATTRIBUTABLE` claims the graph holds the fact; over an empty `Gene` table it holds nothing,
+    and `NOT_STORED` is defined for exactly that. Both graphs this module and `test_query_real_graph`
+    had were populated — one gene and 1,039 — so the wrong branch was unreachable from the suite and
+    was found by driving the app over a graph built with no `raw/` (`ROADMAP.md` § *Measured
+    findings*, the cold-clone rehearsal).
+
+    **The fixture carries a `Protein` on purpose.** The condition is *this query's table is empty*,
+    not *the graph is empty*, and a graph with proteins and no genes is a real state — the resolver
+    finding no usable cross-reference for any accession. A check written the looser way would pass
+    the DDL-only case and still be wrong here, so the census assertion below is what stops this
+    fixture quietly degenerating into an empty database.
+    """
+    empty = kuzu.Connection(kuzu.Database(str(tmp_path / "nogene.kuzu")))
+    for ddl in schema.ddl_statements():
+        empty.execute(ddl)
+    nodes = [_n("Protein", MX1, accession="P20591", gene_absence="unresolved")]
+    invariants.validate(nodes, [])
+    store.write_change_set(empty, nodes, [])
+
+    answers = gq.gene_symbols(empty, ["MX1", "NOSUCHGENE"])
+    assert len(answers) == 2
+    for answer in answers:
+        assert not answer.present
+        assert answer.absence is gq.Absence.NOT_STORED
+        assert answer.gene_id is None and answer.protein_ids == ()
+    # The retired claim, asserted as absent rather than inferred from the one above: these are the
+    # two values a reader would have to tell apart, and `NOT_STORED` being present does not by
+    # itself establish that `UNATTRIBUTABLE` is gone.
+    assert gq.Absence.UNATTRIBUTABLE not in {a.absence for a in answers}
+    # Non-vacuity: the graph is not empty, so `NOT_STORED` came from the `Gene` table being empty
+    # and not from there being nothing at all to read.
+    census = gq.gene_absence_census(empty)
+    assert census == {"encoded": 0, "unresolved": 1, "no_cross_reference": 0, "not_captured": 0}
+
+
 def test_the_attributed_form_is_available_where_a_protein_is_in_hand(conn: kuzu.Connection) -> None:
     # What `gene_symbols` cannot give from a symbol, the census gives from the proteins themselves,
     # and every state is keyed even at zero — an omitted key and a zero read differently.

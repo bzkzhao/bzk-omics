@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.15 |
+| Version | 0.16 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `ARCHITECTURE.md`, `ONTOLOGY.md` |
 | Authoritative for | Installation, backup, cache policy, dependency pinning, rebuild discipline |
@@ -155,7 +155,7 @@ Then `.venv/bin/python -m bzk.rebuild`, or `uv run python -m bzk.rebuild`. `HAND
 streamlit run bzk/ui/app.py --server.address localhost --browser.gatherUsageStats false
 ```
 
-Bare `streamlit run` binds **`0.0.0.0`** and prints a Network URL and an External URL — the app is offered on every interface the machine has. It also prints *"Collecting usage statistics"*, because Streamlit's telemetry is on unless it is turned off. Both were observed rather than read: the server's own log says `Uvicorn server started on 0.0.0.0:8599` without the flags and `Uvicorn server started on localhost:8601` with them, and the usage-statistics line disappears with the second flag. **The first default falsifies a premise recorded in `HANDOFF.md` §3**, which conditions the I18 reading — a screen is a view and not an export — on the app being *served locally*; it is not, by default. The second contradicts `VISION.md`'s local-first positioning in the plainest possible way. Recorded as an invocation rather than fixed as a `.streamlit/config.toml`, because a config file is the better fix and belongs in a turn that is building something (`HANDOFF.md` §8).
+Bare `streamlit run` binds **`0.0.0.0`** and prints a Network URL and an External URL — the app is offered on every interface the machine has. It also prints *"Collecting usage statistics"*, because Streamlit's telemetry is on unless it is turned off. Both were observed rather than read: the server's own log says `Uvicorn server started on 0.0.0.0:8599` without the flags and `Uvicorn server started on localhost:8601` with them, and the usage-statistics line disappears with the second flag. **The first default falsifies a premise recorded in `HANDOFF.md` §3**, which conditions the I18 reading — a screen is a view and not an export — on the app being *served locally*; it is not, by default. The second contradicts `VISION.md`'s local-first positioning in the plainest possible way. **Both are also off by default since 2026-08-09**, in a committed `.streamlit/config.toml` at the repository root that sets `server.address` and `browser.gatherUsageStats`; `tests/test_ui.py` reads both values, so the guarantee survives someone forgetting a flag. The flags above are kept because they are what makes the behaviour legible at the point of use, and because the config has one limit worth knowing: Streamlit reads it from the **working directory**. That governs the documented command — `streamlit run bzk/ui/app.py` names a relative path and so can only be run from the repository root — and not an invocation from elsewhere with an absolute path. Verified by running the bare command from the root: `Uvicorn server started on localhost:8603`, one `URL:` line rather than three, and no usage-statistics line.
 
 **This subsection did not exist until 2026-08-09 and the gap was found by trying, not by reading.** Nothing in the tree said how to go from a clone to a runnable environment. `ARCHITECTURE.md` §1 names `uv` and credits it with *"the one-afternoon install promise"*; `HANDOFF.md` §3's history block opens with the comment `# Python 3.12 and uv already installed` and then runs `uv init`, which is the command that **created** the repository rather than the one that installs it; `README.md` said *"Working software: None yet"*. The word `uv sync` appeared nowhere. So the promise was in the tree and the procedure was not — and a pinning policy is not a substitute for one: pinning says what rebuilding the environment must produce, never how to ask for it. This is the same shape as the four-input claim in `ONTOLOGY.md` I9: a guarantee stated where it is true and never executed from the state it describes.
 
@@ -189,16 +189,28 @@ different commands in every respect but the name, and averaging them would hide 
 one draw is all this is — but the decomposition is what makes it usable, because a reader can price
 their own deposit from the fetch count rather than from the total.
 
-**A rebuild with no `raw/` succeeds.** Run against an empty content store it prints
-`no deposit in the content store for curation_PXD018299.json; sites not ingested`, then
-`done: 57 tables, 1 curation record(s), 0 deposit(s), 0 site observation(s), 0 refused` — and
-**exits 0**. The condition is on stdout, so nothing is hidden; the *status* is success, so anything
-reading the exit code sees a clean rebuild, and the interface downstream then shows empty panels
-with no way to tell an empty deposit from an empty result. This is the paragraph below —
-*a rebuild that produces a different result is a regression, stop and find out why* — with nothing
-implementing it: the discipline is the operator's and the command does not help. Found by rehearsing
-the demo rather than by reading, and left as a finding rather than fixed here, with a trigger in
-`HANDOFF.md` §8.
+**What `bzk rebuild`'s exit status means, since 2026-08-09.** **0** — every curation record's
+deposit was ingested. **1** — at least one named a deposit that was not: absent from the content
+store, or present and recognised by no adapter. The stores are written in both cases, and the run
+says so on its last line: `INCOMPLETE: n curation record(s) named a deposit that was not ingested.`
+Anything else non-zero is an exception, not this.
+
+**Where an empty ingestion sits between this section's two halves, which is the decision the exit
+code encodes.** This section says rebuild *never refuses on staleness* — a network check in front of
+recovery is worse than a stale check — and it says a rebuild producing a different result *is a
+regression, stop and find out why*. Those do not conflict, because they act at different moments:
+**refusing stands in front of the work; a status is emitted after it.** So nothing is withheld —
+`rebuild()` drops, recreates, replays and writes exactly what it can, and a caller holding the
+report gets the graph it always did — and what changes is only what the *process* tells a script.
+Before this, an empty content store produced `done: … 0 deposit(s), 0 site observation(s)` and
+**exit 0**: the condition was on stdout and the status said success, so a `set -e` script, a cron or
+a demo wrapper read a clean rebuild, and the sentence below had nothing implementing it. Found by
+rehearsing the demo rather than by reading.
+
+**Staleness keeps its exit 0 and that is not an oversight.** The drift receipt is *a report and not
+a control* by this section's own words, and an archive that has never been checked is the state
+every fresh install is in. Giving staleness a non-zero status would put a network-shaped condition
+back in front of recovery by the back door — the thing the paragraph above exists to prevent.
 
 **Staleness threshold: 7 days.** A receipt older than that is reported as `STALE` by every `bzk rebuild`. This document owns the number because this section owns cadence; `bzk/drift.py`'s `STALE_AFTER_DAYS` mirrors it and `tests/test_drift.py` asserts the two agree, the same way `schema.py` is guarded against `ONTOLOGY.md` §4–§7. It was a constant in the code citing this section as its owner, which is a comment rather than an arrangement — the number lived in one place and the authority in another.
 

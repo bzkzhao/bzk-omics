@@ -20,6 +20,7 @@ container where `~/.bzk-omics` does not exist and the ten graph-dependent tests 
 from __future__ import annotations
 
 import ast
+import tomllib
 from pathlib import Path
 
 import kuzu
@@ -110,6 +111,71 @@ def graph(tmp_path_factory: pytest.TempPathFactory) -> Path:
         _e("ASSIGNMENT_FOR", "bzk:ma1", OBS),
     ]
     store.write_change_set(conn, nodes, edges)
+    return path
+
+
+@pytest.fixture(scope="module")
+def no_gene_graph(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The `graph` fixture with the `Gene` node and its `ENCODES` edge removed. Nothing else.
+
+    The state a rebuild leaves when it ingests no deposit, narrowed to the one difference that
+    matters: the site, the dataset and the analysis are all still here, so panel one renders and
+    panel three still emits its own `NOT_STORED`. That overlap is the point — an assertion on the
+    *presence* of that headline is satisfied by panel three whether or not panel two was fixed.
+
+    `MX1` carries `gene_absence = 'no_cross_reference'` rather than NULL because dropping the edge
+    without the reason is what the `GENE_ABSENCE` check refuses (§4), so the fixture cannot be
+    written the lazy way.
+    """
+    path = tmp_path_factory.mktemp("ui_nogene") / "g.kuzu"
+    conn = kuzu.Connection(kuzu.Database(str(path)))
+    for ddl in schema.ddl_statements():
+        conn.execute(ddl)
+    nodes: list[dict[str, object]] = [
+        _n("Protein", MX1, accession="P20591", gene_absence="no_cross_reference"),
+        _n("Protein", IFIT1_2, accession="P09914-2", gene_absence="unresolved"),
+        _n("ProteinSequence", SEQ, sequence_version=4, sequence="M" * 47 + "K" + "MM"),
+        _n("ModificationSite", SITE, residue="K", position=48, modification_type="unimod:121"),
+        _n(
+            "SiteObservation",
+            OBS,
+            peptide_sequence="LLQFIDKELVR",
+            candidate_proteins=[MX1, IFIT1_2],
+            keying_basis="reviewed_preferred",
+            displaced_protein=IFIT1_2,
+            is_decoy=False,
+        ),
+        _n(
+            "ModifierAssignment",
+            "bzk:ma1",
+            candidate_modifiers=["uniprot:P05161"],
+            basis="inferred_default",
+            confidence="ambiguous",
+            retracted_at=None,
+        ),
+        _n("Dataset", DATASET, source="local", search_engine="maxquant"),
+        _n(
+            "Analysis",
+            ANALYSIS,
+            kind="processing",
+            quantity="intensity_multiplicity_summed",
+            localization_threshold=0.75,
+            filters_applied=["localization_prob>=0.75"],
+            test="welch_t",
+            fdr_method="benjamini_hochberg",
+            parameters_observed=False,
+        ),
+    ]
+    edges = [
+        _e("HAS_SEQUENCE", MX1, SEQ),
+        _e("SITE_ON", SITE, SEQ),
+        _e("MEASURED_AT", OBS, SITE),
+        _e("REPORTS_SITE", DATASET, OBS),
+        _e("USED", ANALYSIS, DATASET),
+        _e("ASSIGNMENT_FOR", "bzk:ma1", OBS),
+    ]
+    store.write_change_set(conn, nodes, edges)
+    conn.close()
     return path
 
 
@@ -215,6 +281,51 @@ def test_panel_two_shows_twelve_present_and_does_not_join_the_rename(
         assert forbidden not in text, f"the UI resolved the rename: {forbidden!r}"
 
 
+def test_panel_two_over_an_empty_gene_table_says_not_stored_and_never_unattributable(
+    no_gene_graph: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The false claim this closes, asserted by **position and count**, never by substring.
+
+    Over this graph the page renders `NOT_STORED` **sixteen** times — fourteen from panel two and
+    two from panel three — so `RENDERING[NOT_STORED].headline in text` passes whether or not panel
+    two was ever fixed. That is the shape that has passed twice here: the `test_perseus` tautology,
+    and a panel-one assertion satisfied by a candidate list two lines below the field it named. So
+    the claim is made three ways that panel three cannot satisfy: the **first fourteen** warnings
+    are panel two's, the **last three** are panel three's exactly, and `UNATTRIBUTABLE` appears
+    **zero** times on the page.
+
+    Panel one contributes no warning, which is why the first fourteen are panel two's and not an
+    off-by-one — asserted below rather than assumed, since a panel-one warning would shift every
+    index and still leave a `NOT_STORED` at position 0.
+    """
+    at = _run(no_gene_graph, monkeypatch).run()
+    assert at.exception == [], [str(e.value) for e in at.exception]
+    warnings = [str(e.value) for e in at.warning]
+    not_stored = ui_absence.RENDERING[Absence.NOT_STORED].headline
+    not_retained = ui_absence.RENDERING[Absence.NOT_RETAINED].headline
+    unattributable = ui_absence.RENDERING[Absence.UNATTRIBUTABLE].headline
+
+    # Panel one rendered its site, so it raised no warning and the indices below start at panel two.
+    assert any("`ProteinSequence` **uniprot:P20591#sv4**" in m for m in _elements(at))
+    assert "**0 of 14 requested symbols are present**" in _text(at)
+
+    assert len(warnings) == 17
+    assert all(not_stored in w for w in warnings[:14]), "panel two's fourteen notices"
+    assert [
+        not_stored in warnings[14],
+        not_retained in warnings[15],
+        not_stored in warnings[16],
+    ] == [
+        True,
+        True,
+        True,
+    ], "panel three's three, unchanged — its two NOT_STOREDs are what a bare substring would match"
+    assert sum(unattributable in w for w in warnings) == 0
+    # 16 rather than 2: panel three alone cannot produce this number, which is what binds the count
+    # to panel two without reaching inside the renderer.
+    assert sum(not_stored in w for w in warnings) == 16
+
+
 def test_entering_both_names_of_a_renamed_gene_shows_both_and_joins_neither(
     graph: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -271,6 +382,26 @@ def test_an_empty_panel_is_still_on_screen(graph: Path, monkeypatch: pytest.Monk
 
 
 # ── The rules the module claims about itself ────────────────────────────────────────────────────
+
+
+def test_the_committed_streamlit_config_turns_off_both_defaults_the_project_contradicts() -> None:
+    """`.streamlit/config.toml`, asserted rather than trusted to stay written.
+
+    Two defaults were found by running the server rather than by reading anything: it binds
+    `0.0.0.0` and prints an External URL, and it reports usage statistics. The first is the
+    condition `HANDOFF.md` §3's reading of I18 rests on — *a screen is a view within the local
+    instance* — stated there in the same paragraph that had never checked it. `OPERATIONS.md` §4.1
+    carries the equivalent flags as procedure; a procedure is not a default, and this file is.
+
+    The file is read from the working directory, which is why it governs the documented command:
+    `streamlit run bzk/ui/app.py` names a relative path and so can only be run from the repository
+    root. An absolute path from elsewhere escapes it, and that limit is recorded in §4.1.
+    """
+    config = Path(ui_app.__file__).resolve().parents[2] / ".streamlit" / "config.toml"
+    assert config.exists(), f"{config} is what makes the bare `streamlit run` serve locally"
+    settings = tomllib.loads(config.read_text(encoding="utf-8"))
+    assert settings["server"]["address"] == "localhost"
+    assert settings["browser"]["gatherUsageStats"] is False
 
 
 def test_the_ui_imports_nothing_from_bzk_but_query() -> None:

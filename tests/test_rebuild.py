@@ -359,6 +359,116 @@ def test_a_deposit_absent_from_the_store_is_reported_not_invented(tmp_path: Any)
     assert "SiteObservation" not in store.count_nodes(conn)
 
 
+def test_a_missing_deposit_is_counted_as_a_skipped_ingestion(tmp_path: Any) -> None:
+    """The count `main` turns into an exit status. Both directions, in one place.
+
+    The test above asserts the graph is a smaller one; this asserts the replay *says so* in a field
+    a caller can branch on, and that a replay which ingested what it named reports zero — without
+    which the counter would be satisfied by always returning 1.
+    """
+    from bzk.rebuild import replay_ingestion
+
+    home = tmp_path / "home"
+    curation_dir = tmp_path / "curation"
+    curation_dir.mkdir()
+    record = json.loads(SYNTHETIC_RECORD.read_text())
+    (curation_dir / "curation_SYNTHETIC.json").write_text(json.dumps(record), encoding="utf-8")
+    conn = _fresh_graph(home)
+    missing = replay_ingestion(conn, curation_dir, home=home, resolver=_resolver_for("P20591"))
+    assert missing.ingestions_skipped == 1
+
+    present_home = tmp_path / "home2"
+    second = tmp_path / "two"
+    second.mkdir()
+    present_dir = _curation_dir_with_deposit(second, present_home)
+    conn2 = _fresh_graph(present_home)
+    ingested = replay_ingestion(
+        conn2, present_dir, home=present_home, resolver=_resolver_for("P20591")
+    )
+    assert ingested.deposits_ingested == 1 and ingested.ingestions_skipped == 0
+
+
+def test_a_deposit_no_adapter_recognises_is_counted_too(tmp_path: Any) -> None:
+    """The second branch that increments the counter, which nothing exercised when it was written.
+
+    A deposit that is present and unrecognised is the same outcome as one that is absent — a
+    curation record naming an ingestion that did not happen — and if only the first branch counted,
+    `bzk rebuild` would exit 0 over a graph missing every site because the file layout changed.
+    Sniffing is on content (`ARCHITECTURE.md` §3), so bytes with the wrong header are enough.
+    """
+    from bzk.provenance import raw_store
+    from bzk.rebuild import replay_ingestion
+
+    home = tmp_path / "home"
+    stored = raw_store.store(
+        b"Protein IDs\tGene names\tIntensity\r\nP20591\tMX1\t1\r\n",
+        "SYNTHETIC_GlyGlyKSites.txt",
+        home=home,
+    )
+    record = json.loads(SYNTHETIC_RECORD.read_text())
+    record["file"] = "SYNTHETIC_GlyGlyKSites.txt"
+    record["content_hash"] = stored.content_hash
+    curation_dir = tmp_path / "curation"
+    curation_dir.mkdir()
+    (curation_dir / "curation_SYNTHETIC.json").write_text(json.dumps(record), encoding="utf-8")
+    conn = _fresh_graph(home)
+
+    report = replay_ingestion(conn, curation_dir, home=home, resolver=_resolver_for("P20591"))
+    assert report.deposits_ingested == 0
+    assert report.ingestions_skipped == 1
+    assert report.site_observations == 0
+
+
+def test_a_record_naming_no_deposit_cannot_reach_the_replay_at_all(tmp_path: Any) -> None:
+    """The premise the unconditional count rests on, pinned here rather than reasoned about.
+
+    `_deposit_for` returns `None` for a record with no `Dataset.content_hash` as well as for one
+    whose deposit is absent, and only the second is a skipped ingestion. A predicate to separate
+    them was written and then removed, because the first is unreachable: `content_hash` is
+    identifying on `Dataset` (§3), so the loader refuses the record before `replay_ingestion` sees
+    it. That is the fact this asserts — if it stopped holding, the counter would start reporting a
+    mapping-only record as an incomplete rebuild and `bzk rebuild` would exit 1 on a complete tree.
+    """
+    from bzk.curation.loader import CurationIncomplete, load_path
+
+    record = json.loads(SYNTHETIC_RECORD.read_text())
+    del record["content_hash"]
+    path = tmp_path / "curation_NOHASH.json"
+    path.write_text(json.dumps(record), encoding="utf-8")
+    with pytest.raises(CurationIncomplete) as exc:
+        load_path(path)
+    assert "content_hash" in exc.value.paths
+
+
+def test_main_exits_one_when_an_ingestion_was_skipped_and_zero_otherwise(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`main`'s whole contract, and the half of `OPERATIONS.md` §5 it does **not** touch.
+
+    §5 says rebuild never refuses on staleness because a check in front of recovery is worse than a
+    stale check. An exit status is not such a check: it is emitted after the stores are written, so
+    recovery is never withheld and only what the process reports changes. Driven through a stubbed
+    `rebuild` because the decision under test is the mapping from report to status — the stores
+    being written regardless is asserted by the shell run recorded in `ROADMAP.md` and by the
+    replay tests above, not by re-running a 100-second rebuild here.
+    """
+    import bzk.rebuild as rebuild_module
+
+    def _report(skipped: int) -> rebuild_module.RebuildReport:
+        return rebuild_module.RebuildReport(
+            tables_created=57, curation_records=1, nodes_staged=16, edges_staged=38,
+            ingestions_skipped=skipped,
+        )  # fmt: skip
+
+    monkeypatch.setattr(rebuild_module, "rebuild", lambda: _report(1))
+    with pytest.raises(SystemExit) as exc:
+        rebuild_module.main()
+    assert exc.value.code == 1
+
+    monkeypatch.setattr(rebuild_module, "rebuild", lambda: _report(0))
+    rebuild_module.main()
+
+
 def test_an_altered_deposit_raises_rather_than_ingesting(tmp_path: Any) -> None:
     """The digest is what ties curation to bytes (`OPERATIONS.md` §2). A file that is present but
     altered is the case worth failing on — absent is tolerated, changed is not."""

@@ -366,6 +366,16 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "census == {'encoded': 1, 'unresolved': 1, 'no_cross_reference': 0, 'not_captured': 0}",
             1,
         ),
+        # The same shape over the empty-`Gene` fixture, and pinned for the same reason: the literal
+        # is written from what the fixture puts in the graph — one `Protein`, `unresolved` — and not
+        # from what the census returns, so the two sides have independent origins. Its job there is
+        # non-vacuity: it is what stops that fixture degenerating into an empty database, which
+        # would make the `NOT_STORED` it exists to check true for the wrong reason.
+        (
+            "test_query.py",
+            "census == {'encoded': 0, 'unresolved': 1, 'no_cross_reference': 0, 'not_captured': 0}",
+            1,
+        ),
         (
             "test_query_real_graph.py",
             (

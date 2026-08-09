@@ -1,0 +1,19 @@
+# Streamlit's two defaults that contradict this project, turned off where forgetting is not
+# possible. `OPERATIONS.md` §4.1 documents the equivalent flags; this file is what makes the bare
+# `streamlit run bzk/ui/app.py` behave the same way, and `tests/test_ui.py` asserts both values.
+#
+# Read from the current working directory, so it governs the documented invocation — which takes a
+# relative path and therefore can only be run from the repository root — and not an invocation from
+# elsewhere with an absolute path. That limit is real and is stated in §4.1 rather than papered over.
+
+[server]
+# Default is 0.0.0.0: the app is offered on every interface, and Streamlit prints a Network URL and
+# an External URL to say so. `HANDOFF.md` §3 conditions its reading of I18 — a screen is a view
+# within the local instance, not an export — on the app being served locally. This is that
+# condition, made true rather than assumed.
+address = "localhost"
+
+[browser]
+# Default is true. A local-first product that reports usage to a third party on every run is not
+# one, whatever the payload contains.
+gatherUsageStats = false

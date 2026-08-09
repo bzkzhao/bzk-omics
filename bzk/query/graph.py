@@ -174,6 +174,12 @@ class GeneSymbolAnswer:
     node that is missing by hypothesis — `Protein.name` is null by decision, so nothing else
     carries a symbol. Hence `UNATTRIBUTABLE` rather than a guess. A caller holding an accession
     gets the real attribution from `gene_absence_census` instead.
+
+    **That reasoning holds only where `Gene` has rows, which was not checked until 2026-08-09.**
+    `UNATTRIBUTABLE` means *the graph holds the fact and cannot attribute it from this key*, and
+    over an empty table the graph holds nothing — so the absence is `NOT_STORED`, which is defined
+    for exactly that condition. The two are not interchangeable on screen: one says the answer is
+    somewhere in here, the other says the question was never answerable.
     """
 
     symbol: str
@@ -535,7 +541,34 @@ def gene_symbols(conn: kuzu.Connection, symbols: Sequence[str]) -> list[GeneSymb
     A present symbol carries the proteins it encodes, because *present* on its own is the bare
     answer this layer does not return — `RIGI` being present does not tell a caller asking about
     `DDX58` anything unless the ids are there to compare.
+
+    **The empty-table check was missing until 2026-08-09 and this was the only one of the five
+    queries without it.** `differential_table`, `imputation_state` and `refusals` all consult the
+    DDL before choosing an absence; this went straight to the `MATCH`, so over a graph built with
+    no `raw/` every symbol came back `UNATTRIBUTABLE` — asserting that the graph held what would
+    answer the question, of a graph holding nothing. Found by driving the app during the cold-clone
+    rehearsal, not by a test: both fixtures the read layer had were populated, so nothing could
+    reach the branch. The check is `Gene`-specific rather than *is the graph empty*, because the
+    condition being reported is about the table this query reads and a graph with proteins and no
+    genes is a real state — the resolver returning no usable cross-reference for any accession.
     """
+    if "Gene" not in _node_tables(conn) or _count(conn, "Gene") == 0:
+        return [
+            GeneSymbolAnswer(
+                symbol=symbol,
+                present=False,
+                gene_id=None,
+                protein_ids=(),
+                absence=Absence.NOT_STORED,
+                detail=(
+                    "the Gene table is empty, so no symbol could have been found and no absence "
+                    "is a finding about this symbol. Not UNATTRIBUTABLE: there is nothing stored "
+                    "for a key to fail to reach. A rebuild that ingested no deposit leaves the "
+                    "graph in this state and reports it (OPERATIONS.md §5)"
+                ),
+            )
+            for symbol in symbols
+        ]
     answers: list[GeneSymbolAnswer] = []
     for symbol in symbols:
         found = _rows(

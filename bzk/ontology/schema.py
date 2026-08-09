@@ -128,7 +128,12 @@ CURIE_PREFIXES: frozenset[str] = frozenset(
 # rebuild, and §4 records why no committed version of the code produces those.
 GENE_ABSENCE: dict[str, str] = {
     "unresolved": "not resolved in this ingestion (the adapter resolves only the razor picks)",
-    "no_cross_reference": "resolved; UniProt reports no HGNC cross-reference for this accession",
+    # "no *usable* cross-reference", following §4's wording exactly: none at all, or several, which
+    # `resolve/uniprot.py`'s `AMBIGUOUS` refuses to pick between. This said "no HGNC
+    # cross-reference" until 2026-08-09, which was true of the state as measured and false of the
+    # state as defined — §4 had been corrected around it and the code was the half left diverging.
+    "no_cross_reference": "resolved; UniProt reports no usable HGNC cross-reference — none, or "
+    "several, which the resolver refuses to pick between",
     "not_captured": "resolved before `hgnc_id` was captured, and not re-resolved since",
 }
 
