@@ -12,7 +12,8 @@ being run. `OPERATIONS.md` §5 asks for exactly that cadence; this session chang
 and ran a full rebuild once, at the end, which is the evidence.
 
 **Nothing here is weakened.** The check still refetches every archived sequence with
-``refresh=True``, bypassing both cache tiers, because the failure it exists to catch — UniProt
+``refresh=True``, bypassing the snapshot *and* the pin, because the failure it exists to catch —
+UniProt
 amending a sequence without bumping its version (`ONTOLOGY.md` §11 Q5) — is invisible to any
 comparison that trusts the version number. What changed is when it runs, not what it does.
 
@@ -165,9 +166,17 @@ def staleness_line(home: Path, *, now: datetime | None = None) -> str:
 def drift_check(home: Path = DEFAULT_HOME, *, session: RestSession | None = None) -> list[Drift]:
     """Compare each archived sequence against a fresh UniProt fetch (`ONTOLOGY.md` §11 Q5).
 
-    Fetching into a throwaway cache with ``refresh=True`` bypasses both tiers, so an isoform
+    Fetching into a throwaway cache with ``refresh=True`` bypasses every cached tier — the
+    snapshot, the archived sequence and, since `OPERATIONS.md` §3.1, the pin — so an isoform
     sequence UniProt amended without bumping the parent version is caught by content, not just by a
     changed version number.
+
+    **The pin makes this the only place drift can now be seen, which raises the stakes on the
+    cadence rather than lowering them.** `resolve` on its ordinary path returns the pinned version
+    for an accession the archive holds, so a rebuild no longer notices that UniProt has moved —
+    which is the point, since noticing by re-keying the graph was the failure. Detection moves here
+    entirely, and `OPERATIONS.md` §5's weekly cadence is what makes that a transfer rather than a
+    loss.
     """
     drifts: list[Drift] = []
     for accession, cached_sv in archived_sequences(home):

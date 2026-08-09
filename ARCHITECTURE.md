@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.15 |
-| Last reviewed | 2026-08-08 |
+| Version | 1.16 |
+| Last reviewed | 2026-08-09 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
 | Authoritative for | Language and library choices, storage layout, module boundaries |
@@ -40,7 +40,10 @@ The boundary is defined normatively in `ONTOLOGY.md` §2. Concretely:
   graph.kuzu/            # identity, relationships, provenance
   quant.duckdb           # site × sample and protein × sample matrices
   raw/                   # ingested source files, content-addressed by SHA-256
-  cache/uniprot/         # sequence + version cache; entry/ by accession, seq/ by accession#sv
+  cache/uniprot/         # entry/  by accession — MUTABLE snapshot, overwritten on re-fetch
+                         # seq/    by accession#sv — the archive, written once:
+                         #           .txt        the sequence
+                         #           .meta.json  the pin: entry_type, reviewed
 
 <repo>/
   data/curation/         # curation, analysis and resolution records (JSON) — the non-derivable
@@ -53,7 +56,9 @@ The split is deliberate: everything under `~/.bzk-omics/` is derived and rebuild
 
 Isoform accessions are cached under their full form (`P09914-2`), never collapsed to canonical. Fetching `rest.uniprot.org/uniprotkb/P09914-2.fasta` returns the isoform sequence; stripping the suffix returns a different protein of different length, and positions resolved against it are wrong without erroring.
 
-The UniProt cache is not optional. Site position validation requires the exact sequence for the exact version, and a laptop-local product cannot depend on network availability at query time. Cache entries are immutable — a new sequence version is a new entry, never an overwrite.
+The UniProt cache is not optional. Site position validation requires the exact sequence for the exact version, and a laptop-local product cannot depend on network availability at query time.
+
+**Corrected 2026-08-09 — this said *"cache entries are immutable, a new sequence version is a new entry, never an overwrite"*, and that is true of one of two tiers.** It is the fourth place one sentence was written from one belief, alongside `ONTOLOGY.md` §8 I9, §11 Q6 and `OPERATIONS.md` §1. What is immutable is `seq/` — the sequence and its pin, keyed by `{accession}#sv{n}` and written once. `entry/` is keyed on the bare accession and is overwritten by every re-fetch. `OPERATIONS.md` §3.1 owns the arrangement and the reason it is safe: nothing identity-bearing is read from the mutable tier.
 
 ---
 

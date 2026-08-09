@@ -364,15 +364,20 @@ def test_a_null_list_element_still_renders_as_null_not_as_the_word() -> None:
 def test_the_accession_case_clause_covers_the_sequence_cache_path(tmp_path: Any) -> None:
     """C10's second consequence, and it does not depend on UniProt's behaviour at all.
 
-    `resolve` builds `entry/{canonical}.json` and `seq/{accession}#sv{n}.txt` from the accession
-    verbatim — canonical there means isoform-stripped, not case-folded — so a casing departure
-    forks the sequence archive and the drift receipt's digest as well as the graph, and forks them
-    differently by platform: a case-insensitive volume hands both spellings one cache file while
-    two ids are still minted. Lives beside `protein_key`'s guard rather than in `test_resolve.py`
-    because it is the same §4 clause, and this file is organised by clause rather than by module.
+    `resolve` builds **three** paths from the accession verbatim — `entry/{canonical}.json`,
+    `seq/{accession}#sv{n}.txt` and, since 2026-08-09, the pin at `seq/{canonical}#sv{n}.meta.json`
+    — where canonical means isoform-stripped, not case-folded. So a casing departure forks the
+    archive and the drift receipt's digest as well as the graph, and forks them differently by
+    platform: a case-insensitive volume hands both spellings one file while two ids are still
+    minted. Lives beside `protein_key`'s guard rather than in `test_resolve.py` because it is the
+    same §4 clause, and this file is organised by clause rather than by module.
 
-    Asserting *no file is written* is the load-bearing half: a check that raised after building a
-    path would leave the fork in place on disk and only refuse the id.
+    **The prose enumerates and the assertion does not, which is why the enumeration went stale
+    without failing.** `rglob("*") == []` covers any path the function might build, including the
+    pin it knew nothing about, so adding a tier left this test green and this docstring wrong. The
+    breadth is deliberate — *no file is written* is the load-bearing claim, since a check that
+    raised after building a path would leave the fork on disk and only refuse the id — so the
+    remedy is to keep the list current, not to narrow the assertion to match it.
     """
     with pytest.raises(KeyError_, match="not uppercase"):
         uniprot.resolve("p20591", cache_dir=tmp_path)

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.27 |
+| Version | 1.28 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -828,7 +828,9 @@ Normative. Violations are ingestion errors, not warnings.
 
   **The cache is the fourth input, added 2026-08-07 (was §11 Q6).** It is not a performance optimisation and never was: `ProteinSequence.sequence` comes from UniProt, UniProt is mutable, and a superseded `sv` may not be refetchable at all — so a rebuild that reaches the network cannot be relied on to reproduce the sequence a site was pinned to. The cache belongs in the **same class as `raw/`**: captured external state that should be immutable once captured, keyed so that a new version is a new entry rather than an overwrite. `raw/` is content-addressed by digest. Neither is regenerable from anything local, and calling either one a cache was the error. `rebuild.py` has always treated it as an input — it is explicitly not dropped — so this states an arrangement that already existed rather than changing behaviour.
 
-  **Corrected 2026-08-09: the cache is two tiers and only one of them has that property.** This paragraph said *"the cache is addressed by `{accession}#sv{n}`, which is an identity the authority itself guarantees not to reuse"*, and that describes the **sequence** tier alone. The **entry** tier is `entry/{canonical}.json` — no version in the path — so a re-fetch overwrites it, and `bzk/resolve/uniprot.py`'s own docstring has always called it *"a mutable snapshot of the current UniProt entry"*. The code was accurate and this sentence was not. **It is material rather than cosmetic:** the entry tier is where `sequence_version` comes from, `sequence_version` is embedded in every `ModificationSite` key, and so a refreshed entry tier re-keys sites against today's UniProt. I9's reproducibility therefore rests today on the fact that **nothing refreshes it** — `bzk drift` fetches into a throwaway directory precisely so it does not, and every one of the 2,261 entry files still carries its original ingestion `fetched_at` (1,054 on 2026-08-07, 1,207 on 2026-08-08, measured 2026-08-09). That is a property of no caller doing it, not of the design. Versioning the entry tier's key is the fix and it is a cache-layout change `OPERATIONS.md` §3 owns; recorded as an item with a trigger in `HANDOFF.md` §8 rather than made here, because §11 Q12 depends on it and would otherwise be settled on top of it.
+  **Corrected 2026-08-09: the cache is two tiers and only one of them has that property.** This paragraph said *"the cache is addressed by `{accession}#sv{n}`, which is an identity the authority itself guarantees not to reuse"*, and that describes the **sequence** tier alone. The **entry** tier is `entry/{canonical}.json` — no version in the path — so a re-fetch overwrites it, and `bzk/resolve/uniprot.py`'s own docstring has always called it *"a mutable snapshot of the current UniProt entry"*. The code was accurate and this sentence was not. **It is material rather than cosmetic:** the entry tier is where `sequence_version` comes from, `sequence_version` is embedded in every `ModificationSite` key, and so a refreshed entry tier re-keys sites against today's UniProt. I9's reproducibility therefore rests today on the fact that **nothing refreshes it** — `bzk drift` fetches into a throwaway directory precisely so it does not, and every one of the 2,261 entry files still carries its original ingestion `fetched_at` (1,054 on 2026-08-07, 1,207 on 2026-08-08, measured 2026-08-09). That is a property of no caller doing it, not of the design.
+
+  **Settled 2026-08-09, and this paragraph's own prescription was wrong.** It read *"Versioning the entry tier's key is the fix"* while `OPERATIONS.md` §3 read that it *"is this section's to decide"* — one document calling settled what the other called open, which `CLAUDE.md` § Single source of truth forbids in either direction. **`OPERATIONS.md` §3 is right that it was open, and is where the answer now lives; versioning is not the fix.** A versioned entry key exchanges a silent overwrite for an ambiguous read — with two captures present nothing says which a rebuild must use, and unlike `raw/` (whose curation record cites a `content_hash`) or the sequence tier (whose version is named by the site key itself), the entry tier is read *before* any id exists. What I9 requires is not that the entry tier be immutable but that **nothing identity-bearing be read from a mutable file**, and that is what §3 now arranges: the identity-bearing fields move to a write-once pin beside the sequence, keyed by the version, and the entry file is declared the mutable snapshot it has always been. This paragraph states the finding and defers the layout; §3 states the layout.
 - **I10 — Unattributed enzymes.** No `SiteObservation` may be presented as the product of a named enzyme except through a live `EnzymeAssociation`. A site whose modifier is assigned but whose enzyme is not is displayed as *unattributed*, never as the canonical writer or eraser for that modifier.
 - **I11 — Quantitative retention.** Every observation persists its per-sample quantitative values in the columnar store, not merely the statistics derived from them. No pipeline stage may discard the matrix after computing a `DifferentialResult`. This is what makes the statistical layer genuinely pluggable: any test — moderated *t*, permutation with s0, or something not yet written — is recomputable from stored values without re-ingestion. A platform retaining only log₂FC and adjusted *p* is married to whichever test produced them.
 - **I12 — No tryptic assumptions.** Core code makes no assumption that peptides terminate in K or R, that a peptide carries at most one modification, or that a peptide maps to exactly one protein. Immunopeptidomics violates the first, multi-modified peptides the second, shared peptides the third. These are free to accommodate now and expensive to retrofit.
@@ -950,7 +952,11 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
 3. Should historical UniProt sequence retrieval be supported, or only current? Measured: 1 of 20 sampled sequences was amended after the original search, implying roughly 5% of sites are at risk of silent position drift. Current-only resolution flags these; historical retrieval would let them be reconciled.
 4. Multi-modified peptides: a peptide bearing two K-GG sites currently yields two `SiteObservation` nodes sharing a `peptide_sequence`. Is a `PeptidoformObservation` parent needed to preserve co-occurrence? **Same question from the identity side (§3):** `SiteObservation` identity is `candidate_proteins` + `Dataset` + `ModificationSite`, with no peptidoform state, so two observations of the same site differing in a *second* modification elsewhere would collide. (`peptide_sequence` was identifying until 2026-08-07 and is not any more — see §3. That does not change this question: it was never the peptidoform discriminator, since a peptide bearing two different second modifications has one sequence.) The MaxQuant GlyGly **site** table cannot produce that pair — it has no `Modifications` / `Modified sequence` column and aggregates across other-modification peptidoforms; its only modification axis is same-type GlyGly multiplicity (`Intensity___1/2/3`, verified against the PXD018299 header). The collision becomes reachable only from a **peptidoform-grain adapter** — MaxQuant `evidence.txt`, or DIA-NN modified precursors (assumptions A1/A2). Resolve both together — a peptidoform key in `SiteObservation` identity and the `PeptidoformObservation` parent — when the first such adapter lands; do not amend the identity before then, since a permanently-null field is dead weight.
 5. **Does an isoform's `sequence_version`, inherited from the parent entry's `entryAudit` (§4), track edits confined to the isoform?** An isoform is the canonical sequence with its splice-variant (VSP / `VAR_SEQ`) features applied. If UniProt amends only those isoform-defining features — changing the isoform's spliced sequence while leaving the canonical sequence untouched — it is unconfirmed whether `entryAudit.sequenceVersion` bumps. If it does not, an isoform key such as `P09914-2#sv2` could silently denote two different sequences over time: drift specific to isoforms, invisible to the version number. **Mitigation:** `rebuild.py` refetches each resolved sequence and compares it to the stored `ProteinSequence.sequence`, so drift is caught by content, independent of the version number. To confirm: UniProt's versioning behaviour for isoform-only edits, and whether the rebuild comparison suffices or historical isoform retrieval (cf. Q3) becomes necessary.
-6. ~~**Is the UniProt cache an I9 input, and if so what makes it reconstructible?**~~ **Resolved 2026-08-07: yes, and nothing does — which is the answer, not a gap.** I9 now names it as a fourth input (§8). The question assumed the cache had to be made reconstructible to qualify; it does not, because **`raw/` is not reconstructible either** and has always been an input. Both are captured external state: fetched once from an authority that may since have changed, immutable once captured, addressed so a new version is a new entry (`raw/` by content digest, the cache by `{accession}#sv{n}`). Calling one of them a *cache* was the error, and it propagated into `OPERATIONS.md` §1, which listed it as regenerable and low backup priority. That row is corrected: **the cache is an archive with the same standing as `raw/`.**
+6. ~~**Is the UniProt cache an I9 input, and if so what makes it reconstructible?**~~ **Resolved 2026-08-07: yes, and nothing does — which is the answer, not a gap.** I9 now names it as a fourth input (§8). The question assumed the cache had to be made reconstructible to qualify; it does not, because **`raw/` is not reconstructible either** and has always been an input. Both are captured external state: fetched once from an authority that may since have changed, and addressed so that a new version is a new entry — `raw/` by content digest, the sequence archive by `{accession}#sv{n}`. Calling one of them a *cache* was the error, and it propagated into `OPERATIONS.md` §1, which listed it as regenerable and low backup priority. That row is corrected: **the archive has the same standing as `raw/`.**
+
+   **Corrected 2026-08-09, and this is the third home of one sentence.** The parenthesis above read *"the cache by `{accession}#sv{n}`"* and so said of the whole cache what is true of its sequence tier — the same overstatement as §8 I9 and `OPERATIONS.md` §1, written three times from one belief and caught only when the entry tier was examined directly. What is described here is the **archive**: `seq/{accession}#sv{n}.txt` and, since `OPERATIONS.md` §3.1, the pin beside it. The `entry/` tier is a mutable snapshot and always was.
+
+   **What that section does to the two costs below.** The first — *"a rebuild re-resolves from today's UniProt, sequences amended since ingestion come back different, the residue check refuses the sites keyed against them, and the only visible signal is a changed refusal count"* — was the standing objection to ever declaring the entry tier mutable, and it is answered rather than restated: the mechanism runs through `sequence` and `sequence_version`, both now read from the archive, so a refreshed snapshot cannot reach it. **The second is untouched.** If the archive itself is lost there is nothing to compare a fresh fetch against, drift stops being detectable including retrospectively, and no arrangement of tiers helps. The split changes what a *re-fetch* can do; it changes nothing about what *loss* costs, and the backup priority in `OPERATIONS.md` §1 rests on the second point alone.
 
    **What its loss costs, plainly.** Losing the cache does not corrupt the graph and does not change a single id — `ModificationSite` keys on the sequence *version*, not on sequence content, so every id survives. Two things break, and neither announces itself as breakage:
 
@@ -997,10 +1003,28 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
     disk — 2,261 cached entry files, none containing a cross-reference.
 
     The question is therefore not *where does an HGNC id come from* but *what should the entry cache
-    store*. Recorded here rather than settled because the choice is about the cache's contract,
-    which `OPERATIONS.md` §3 and §11 Q6 both bear on.
+    store*, and the answer waited on the cache's contract.
 
-    **Three things established 2026-08-09, and the question is narrower for them but still open.**
+    **Answered 2026-08-09, once `OPERATIONS.md` §3.1 settled the entry tier's key. `_Entry` gains
+    `hgnc_id`, in the snapshot tier, and the widening is safe because the split made it safe.** Two
+    things had to be true and now are. **The snapshot is no longer identity-bearing** — `sequence`,
+    `sequence_version`, `entry_type` and `reviewed` are read from a write-once pin — so re-capturing
+    2,261 entries cannot move an id, and the objection that blocked every earlier answer is gone
+    rather than accepted. And **the defaulted-field trap is closed by a distinction that exists on
+    disk**: a file written before the widening has no `hgnc_id` key at all, while one written after
+    has `"hgnc_id": null`. Measured, `_load_entry` collapses the two — both reconstruct to `None` —
+    so the loader is what has to change, not the format. **Key absent means *not captured* and
+    forces a re-fetch; explicit `null` means *captured, and UniProt reports no HGNC id* and does
+    not.** Without that rule the cheap option is the dangerous one: a defaulted field refetches
+    nothing, leaves 2,261 entries permanently at `None`, and makes `Gene` coverage a function of
+    which accessions happen to be re-resolved.
+
+    **What this does not do is mint `Gene`.** The rule makes the backfill correct whenever it runs;
+    it does not run it. Until it has, `hgnc_id` is absent on every cached entry and a builder would
+    emit a partial table.
+
+    **Three things established earlier the same day, kept because they are the measurements the
+    answer rests on.**
 
     *The stated cost was wrong, and in the direction that matters.* This entry said *"widening
     `_Entry` re-fetches every cached accession"*. That is true only of a field **without** a
@@ -1013,11 +1037,12 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
     worse one — it yields a column that reads *this gene has no HGNC id* on 2,261 entries where it
     means *this was never captured*, which is exactly the absence §3 classifies as `contingent`.
 
-    *Neither option is available as an overwrite.* Both amount to re-writing `entry/{canonical}.json`,
-    and that path is the tier whose non-compliance with I9's own no-overwrite sentence is recorded
-    at §8 I9 above. Re-capturing 2,261 entries would replace the snapshot every current
-    `sequence_version` came from, as a side effect of a gene build. **Settle the entry tier's key
-    first**; this question sits on top of it and cannot be answered independently.
+    *Neither option was available as an overwrite — and that is what changed.* Both amount to
+    re-writing `entry/{canonical}.json`, which until 2026-08-09 was the tier every current
+    `sequence_version` was read from, so re-capturing 2,261 entries would have re-keyed the graph
+    as a side effect of a gene build. `OPERATIONS.md` §3.1 removed that by moving the
+    identity-bearing fields to a pin, so the overwrite is now a re-capture of non-identity content
+    and nothing more. **The blocker was real and it is discharged, not waived.**
 
     *Coverage, so the cost is weighed against a measured benefit rather than a hoped one.* Frame:
     the 2,261 canonical accessions with a tier-1 entry file. Stratified on cached `entry_type`,

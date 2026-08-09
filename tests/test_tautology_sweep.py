@@ -311,6 +311,31 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_keys.py", "site == 'uniprot:P20591#sv4#K48#unimod:121'", 1),
         ("test_maxquant.py", "accessions == ['P20591', 'P19525']", 1),
         ("test_maxquant_sites.py", "set(modifiers) == set(schema.GG_REMNANT_MODIFIERS)", 1),
+        # Classified individually 2026-08-09, with the identity pin. None is an instance; each is
+        # recorded with what it would take to make it fail, and two were made to fail by the
+        # mutations run on `_pin_put` and on `_Entry`'s default.
+        #
+        # A precondition, not a result: it establishes that `refresh=True` really did overwrite the
+        # snapshot, without which the *next* assertion in that test — that `resolve` still returns
+        # the archived sequence — would pass against a snapshot nothing had touched. The right side
+        # is a test literal and the left is what came back off disk through `_fetch_entry` and
+        # `json.dumps`, so the round trip is the content.
+        (
+            "test_pins.py",
+            "json.loads((cache / 'entry' / 'P20591.json').read_text())['sequence'] == amended",
+            1,
+        ),
+        # Two reads of one file with `_pin_put` and a `resolve` between them, so the comparison is
+        # before-and-after and not a value against itself. Demonstrated rather than argued:
+        # deleting the write-once check in `_pin_put` fails this and nothing else.
+        ("test_pins.py", "pin.read_text() == before", 2),
+        # A change-detector on a declaration, which is the nearest of the three to a tautology and
+        # is kept deliberately. It compares a field's default with the constant that default is
+        # written as, so it can only fail if the declaration moves — which is exactly the failure
+        # worth catching: defaulting `hgnc_id` to `None` silently stops `_load_entry`'s sentinel
+        # check from ever firing, and every pre-widening snapshot then reads as *no HGNC id*.
+        # Confirmed by mutation. The line beside it carries the content the pin rests on.
+        ("test_pins.py", "uniprot._Entry(status='ok').hgnc_id == uniprot.NOT_CAPTURED", 1),
         ("test_perseus.py", "dataset['content_hash'] == content_hash(TABLE.read_bytes())", 1),
         (
             "test_perseus.py",
@@ -597,14 +622,15 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     `test_rebuild.py`.
     """
     found, modules, asserts = sweep()
-    # Denominated at the exact current surface, re-denominated 2026-08-09 (655 -> 662, the seven
-    # assertions the local-part guard added). It read `asserts >= 600` against 633, which
+    # Denominated at the exact current surface, re-denominated twice on 2026-08-09: 655 -> 662 for
+    # the local-part guard, then 662 -> 687 for `tests/test_pins.py`, which is also the twenty-first
+    # module. It read `asserts >= 600` against 633, which
     # tolerated deleting a twentieth of the suite's assertions — the case its own failure message
     # names. A legitimate reduction lowers these numbers in the same change, the same discipline
     # the multiset carries; additions never trip it, because an added *match* is caught by the
     # multiset rather than by this floor — but leaving the floor behind the surface reintroduces
     # exactly the slack the re-denomination removed, so it moves with every addition too.
-    assert modules >= 20 and asserts >= 662, (
+    assert modules >= 21 and asserts >= 687, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

@@ -920,6 +920,54 @@ leaving an identity-bearing field reading from it. `reviewed` is the one that wo
 because unlike `sequence_version` it does not appear in any key and its effect on identity is one
 step removed, through I17's choice of which protein a site is keyed against.
 
+#### Outcome, 2026-08-09 — one prediction missed by one, and its falsifier named the reason
+
+| Prediction | Result |
+|---|---|
+| Backfill writes **2,183** pins | **held** — 2,183, with 78 snapshots carrying no `sequence_version` (the `Inactive` entries) and 0 unreadable |
+| Backfill rewrites **0** of the 2,261 entry files | **held** — every `fetched_at` unchanged across the run |
+| Refusals **27**; **2,029** sites; **4,561** `Protein` | **held** — and 1,062 `ProteinSequence`, 11,743 node and 9,229 edge statements, 48,696 cells, every figure identical to the pre-change run |
+| The widening makes the rebuild rewrite **2,261** entry files | **missed: 2,260.** The registered falsifier was *"a smaller number would mean some cached entries were written by a path other than rebuild"*, and that is exactly what it is — see below |
+| `Gene` stays **0** | **held** |
+| No node id moves | **not measured as registered** — see below |
+
+**The one that missed is `P20591`, and it is worth more than the prediction was.** It appears **0
+times** in the deposit and has no `Protein` node, so the rebuild has never had reason to ask for it;
+its cache entry was written on 2026-08-07 by an exploratory lookup, not by the pipeline. The
+premise the prediction rested on — that every cached canonical is one the resolver asks for — is
+false by exactly one, and the one is MX1: the accession this repository's worked example and its
+entire `Gene` thread are written around, cached because it was looked up by hand.
+
+**The id prediction was lost by a procedural error, and no substitute is offered as though it were
+the measurement.** The instrument was *"rebuild into a separate database and diff per-label against
+`~/.bzk-omics/graph.kuzu`"*, and that needed the pre-change id set captured **before** the rebuild
+dropped it. It was not. What exists instead is weaker in one way and stronger in another, and both
+halves are stated: every count is identical, which an id could move without disturbing; and
+**across all 2,183 pinned accessions, the pin and the re-fetched snapshot agree on all three
+identity-bearing fields — 0 disagreements** in `sequence_version`, `entry_type` and `reviewed`.
+
+**That zero is the honest result and it cuts against the demonstration.** Nothing moved at UniProt
+between ingestion and the re-fetch, so the pin was never called upon, and **the corpus cannot show
+that the split works** — a run with the pin and a run without it would have produced the same
+graph. Only the synthetic cases in `tests/test_pins.py` exercise the protection, which is why they
+are written against a snapshot deliberately made to disagree. A green rebuild here is consistent
+with the pin doing nothing, and saying otherwise would be the self-confirming shape this file
+records three times already.
+
+**Unpredicted, and a change to an I9 input rather than a detail.** The sequence archive grew from
+**2,845** files to **3,014**. The 169 are canonical sequences for accessions the pipeline had only
+ever reached as isoforms: `resolve` now archives the canonical sequence whenever it writes a pin, so
+a pinned accession always has its bytes on disk rather than falling back to the mutable snapshot.
+That completes the pin's guarantee and it was a deliberate line, but no prediction was registered
+for it and it should have been — it is the sort of consequence that shows up later as an unexplained
+count. `bzk drift`'s receipt now correctly reports a **changed archive set** rather than staleness.
+
+**The live sample from earlier the same day, now censused.** It projected ~2,104 of 2,261 entries
+carrying an HGNC cross-reference. The full re-fetch gives **2,102 with an id and 158 with an
+explicit null** — inside the interval and two off the point estimate. Recorded because the sample
+was drawn to decide whether the capture was worth its cost, and this is the only chance to find out
+whether it was any good.
+
 ### The platform made an invisible analytical choice, 2026-08-07
 
 **The clearest finding of the project, because it is the project's own failure mode.** `VISION.md`

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.20 |
+| Version | 1.21 |
 | Last reviewed | 2026-08-09 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -74,8 +74,11 @@ python -m bzk.sources.pxd018299_differential    # the differential run and its p
 §6.3, deliberately empty. 27 rows refused. Two independent replays reproduce **11,730 ids
 identically**.
 
-**The sequence archive is drift-checked and the receipt is current** (2026-08-08 05:03 UTC, 2,845
-sequences, 0 drifts, 34m30s), so `rebuild` reports a state rather than a warning — but see §8: a
+**The sequence archive is drift-checked but the receipt no longer covers it** (2026-08-08 05:03 UTC,
+2,845 sequences, 0 drifts, 34m30s — against **3,014** now). The archive grew on 2026-08-09 when
+`resolve` began archiving the canonical sequence for accessions previously reached only as
+isoforms, and `rebuild` correctly reports a changed set rather than staleness. Re-running `bzk
+drift` is the weekly cadence's business (`OPERATIONS.md` §5), not a repair. And see §8: a
 clean result over an archive whose oldest member is thirteen hours old is not evidence the
 sequences are stable, and re-running it today would not make it one. The receipt lives at
 `~/.bzk-omics/cache/uniprot/.drift`, outside the repository, so a session on a fresh machine starts
@@ -89,13 +92,17 @@ authoritative; **do not quote 12 of 14 as a reproduction.**
 
 **Schema is 57 tables** (24 node + 33 rel) since ADR-0023 dropped two duplicates.
 
-**`Gene` is still 0 nodes, and as of 2026-08-09 the blocker is named precisely.** Not the id's
-availability — sampled UniProt coverage is 40/40 Swiss-Prot and 37/40 TrEMBL — but that no I9 input
-holds one, and capturing one re-writes the UniProt **entry** cache, a tier whose key carries no
-version and which two documents wrongly described as immutable until this date. §8 holds both
-items; `ONTOLOGY.md` §11 Q12 is explicitly blocked on the cache one. The `Gene` id's *spelling* is
-settled and guarded (`hgnc:HGNC:7532`), which was worth doing separately because it is free only
-while the table is empty.
+**`Gene` is still 0 nodes, and as of 2026-08-09 nothing in the design blocks it — only the
+capture.** The cache blocker is gone: `OPERATIONS.md` §3.1 split the UniProt cache by whether a
+field bears on identity, so the entry file is a declared mutable snapshot and re-capturing it
+cannot move an id. That unblocked `ONTOLOGY.md` §11 Q12, which is now **answered**: `_Entry` carries
+`hgnc_id`, and the loader distinguishes *key absent* (never captured, refetch) from *explicit null*
+(captured, UniProt reports none) — a distinction that exists on disk and that a defaulted field
+would have collapsed, leaving 2,261 entries permanently reading as *no HGNC id*. What remains is
+running the capture: until every snapshot has been re-fetched, `hgnc_id` is sparse and a builder
+would emit a partial table. Sampled coverage says what it will reach — 40/40 Swiss-Prot, 37/40
+TrEMBL, 0 of 78 inactive, so ~3,231 of 4,561. The `Gene` id's spelling is settled and guarded
+(`hgnc:HGNC:7532`).
 
 #### What is left of ROADMAP's v0.1 exit
 
@@ -638,6 +645,22 @@ records the boundary as an assertion rather than as prose. **`hgnc:4053` was in 
 cited as an authority with a numeric local part** — the citation was wrong, and a test asserting
 the acceptability of a wrong example is how the third spelling survived a sweep written to find
 exactly this.
+
+**Closed 2026-08-09 by `OPERATIONS.md` §3.1 — and the trigger fired the same day it was written.**
+The item below was recorded as *"trigger: before answering `ONTOLOGY.md` §11 Q12"*, and Q12 was the
+next question asked. The decision is **not** the one this entry predicted: **versioning the entry
+key was rejected**, because it exchanges a silent overwrite for an ambiguous read and nothing on
+disk names which capture a rebuild must use — the record that could have, `resolution_PXD018299.json`,
+is a 642-byte summary. What was done instead is a split by whether a field bears on identity:
+`sequence_version`, `entry_type` and `reviewed` move to a write-once pin at
+`seq/{canonical}#sv{n}.meta.json`, and the entry file is *declared* the mutable snapshot it always
+was. `reviewed` is the field that made the pin necessary and the one a split done by eye would have
+left behind — it appears in no key, and reaches identity only through I17's choice of which protein
+a site is keyed against. Guarded in `tests/test_pins.py`, every test written against a snapshot that
+disagrees with its pin. **One sentence turned out to have four homes** — §8 I9, §11 Q6,
+`OPERATIONS.md` §1 and `ARCHITECTURE.md` §2 — all asserting of the whole cache what was true of its
+sequence tier; the first two were corrected on 2026-08-09 and the other two only when this decision
+made someone read them. The original entry follows, unedited.
 
 **Open item, with a trigger: the UniProt entry cache is overwritten in place (2026-08-09).**
 `ONTOLOGY.md` §8 I9 and `OPERATIONS.md` §3 both said the cache is *"keyed so that a new version is

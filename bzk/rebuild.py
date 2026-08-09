@@ -39,9 +39,14 @@ thing I9 forbids. The MaxQuant site table is the opposite case — it *is* in `r
 
 **A rebuild reaches UniProt.** `resolve_to_nodes` needs a sequence version per razor pick, served
 from `~/.bzk-omics/cache/uniprot` and fetched on a miss. That makes the cache an input to the
-replay and not only to the drift check, which is `ONTOLOGY.md` §11 Q6 — recorded there, unresolved,
-and now load-bearing rather than latent. Both the resolver and the HTTP session are injectable, so
-the whole path is testable offline.
+replay and not only to the drift check, which is `ONTOLOGY.md` §11 Q6 — recorded there, and settled
+2026-08-09. Both the resolver and the HTTP session are injectable, so the whole path is testable
+offline.
+
+**What a rebuild reads is not what it fetches, since `OPERATIONS.md` §3.1.** A fetch on this path
+refreshes the mutable snapshot, but the version, `entry_type` and `reviewed` come from the
+write-once pin beside the archived sequence. So a replay is reproducible across a re-fetch by
+construction rather than by nothing having re-fetched, which is what it rested on before.
 """
 
 from __future__ import annotations
