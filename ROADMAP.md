@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.21 |
+| Version | 1.22 |
 | Last reviewed | 2026-08-08 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -653,6 +653,66 @@ deleting `quant.duckdb` and rebuilding reproduces the content exactly. The disti
 because a DuckDB file carries metadata and free-space layout that byte equality would compare too,
 so byte-for-byte is the wrong question to ask of this store — `OPERATIONS.md` §1 is amended to say
 which one it means.
+
+### Pre-registration: what deciding where a gene symbol lives would mean, 2026-08-08
+
+**Written and committed before any code changes.** Gene symbols are the last thing `ROADMAP.md`
+§ *Weeks 5–6* names as blocking a literal reading of *"through the real pipeline"*, and the
+temptation here is the opposite of the previous rounds': not to over-read a green number, but to
+route the symbol to whichever column is reachable and call target identification solved.
+
+**A new requirement, introduced here and not previously recorded anywhere in this repository:
+every prediction states how it will be measured and at what precision.** A prediction whose
+instrument cannot resolve its own margin is not a prediction. That is what the 62.2 s figure cost —
+recorded below as an instance and, until now, not generalised into the format that produced it.
+Where no instrument can resolve a quantity, the honest move is to make no prediction about it, and
+this section makes none about wall clock for that reason.
+
+**The starting state, measured before predicting anything** — 4,561 `Protein` nodes, **0** with a
+non-null `name`, **0** `Gene` nodes; 2,261 cached UniProt entry files, **2,128** carrying a non-null
+`gene`; and of the graph's 4,561 accessions, **3,254** would get a symbol from cached bytes alone.
+The **1,307 shortfall** breaks down as 1,180 accessions with no cached entry file at all and 127
+whose cached entry carries no `gene`.
+
+**The premise the id prediction rests on, verified rather than assumed.** `Protein.name` is in the
+*Excluded columns* cell of §3's identity table, `schema.IDENTITY['Protein'].fields` is
+`('accession',)`, and `tests/test_schema.py::test_identity_table_matches_ddl` asserts that
+identifying ∪ excluded partitions every node's columns — so §3's row is authoritative rather than
+decorative, and no value written to `name` can reach an identity tuple.
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| No node id moves: symmetric difference **0** over 11,730 ids, 24 labels | rebuild into a separate database, per-label id diff against `~/.bzk-omics/graph.kuzu` | exact set equality — discrete, no margin |
+| Refusals **27** | the rebuild's own refusal list | exact integer |
+| **2,029** `SiteObservation`, **4,561** `Protein` | `count_nodes` on the rebuilt graph | exact integer |
+| `Protein.name` non-null: **0** | Cypher count on the rebuilt graph | exact integer |
+| The 14 targets are **not** identifiable from stored content | query the graph for any stored symbol — `Gene` count, `Protein.name` — and attempt the match without the deposit | discrete: either a symbol is stored or it is not |
+
+The fourth is a prediction of **zero by decision, not by failure**, and it is the one this section
+exists to keep honest. If the symbol's home turns out to be `Gene.symbol`, then the only fact
+available offline — the symbol, on 2,128 cached entries — has nowhere to go, and `Protein.name` gets
+nothing this turn. Predicting 0 in advance is what stops that outcome being presented afterwards as
+a deliberate scoping choice if it was in fact a decision made to avoid a refetch.
+
+Four outcomes, and what each licenses:
+
+1. **All five hold.** The decisions are additive at the graph and change no stored value. It
+   licenses "where the symbol belongs is now decided and recorded"; it licenses nothing about
+   target identification, which the fifth prediction explicitly says stays where it is.
+2. **`Protein.name` becomes non-null.** Then the symbol was routed onto `Protein`, and the reasoning
+   for that has to survive the objection that `Gene.symbol` already exists — two homes for one fact
+   is what `CLAUDE.md` calls a defect.
+3. **An id moves.** Then §3's Excluded-columns row is not what the guard enforces, which makes the
+   guard unsound and is a larger finding than this turn.
+4. **Refusals or counts move.** Then a documentation-and-decision turn changed ingestion, which
+   means the resolver path is entangled with the adapter's refusals in a way nothing records.
+
+Outcome 1 is the one to watch, and for a reason specific to it: **it is indistinguishable at the
+graph from having done nothing.** Every number is the number the unchanged tree produces, so nothing
+in the output can show that the turn's work happened, and the only evidence for it is the reasoning
+and the withdrawn artefacts. That is the correct shape for this turn and it is also the shape a turn
+takes when it quietly failed to do anything, so the two must be told apart by what was decided and
+recorded rather than by what was measured.
 
 ### The platform made an invisible analytical choice, 2026-08-07
 
