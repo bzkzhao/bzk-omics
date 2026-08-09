@@ -1669,7 +1669,7 @@ are the same size, so an edit-and-restore inside one second is invisible to it; 
 itself was serving the stale value for several minutes before this was noticed. **The instrument
 that classifies every assertion in the sweep could therefore report a result it had not computed,
 in either direction**, since the mutation it applied to a source file need never have been executed.
-Excluded now, with the demonstration in the helper's docstring. This is the same shape as ADR-0019's
+Excluded now, and the class is closed by an assertion rather than by the exclusion: `test_no_repository_copy_carries_compiled_bytecode` parses every `.py` under `tests/` and `bzk/`, resolves each `copytree`'s `ignore=` to the `ignore_patterns(...)` it was bound to, and requires `__pycache__` among them — with a non-vacuity line, since one instance today is exactly the count at which prose stops being distinguishable from prose that has rotted. Both halves mutation-tested. The demonstration is in the helper's docstring. This is the same shape as ADR-0019's
 `_index` and the four vacuous invariant checks — a check reporting clean because it never ran — and
 it is the third time it has appeared in a mutation harness rather than in the code under test.
 

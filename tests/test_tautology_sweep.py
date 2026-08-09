@@ -880,3 +880,77 @@ def test_every_classified_instance_re_runs_its_recorded_evidence() -> None:
                 "and it passed. Nothing catches it, which makes this a stronger finding than the "
                 "record states, not a weaker one — set red_scope to None and say so in §8."
             )
+
+
+def test_no_repository_copy_carries_compiled_bytecode() -> None:
+    """Every `shutil.copytree` in the tree excludes `__pycache__`. One instance, asserted anyway.
+
+    **Written the day the one instance was wrong, and written because it was the only one.** The
+    repository's standing rule is that a property true of zero or one site is exactly the property
+    to assert rather than to note, because prose that is true today is indistinguishable from prose
+    that stopped being true — the same argument that turned the reserved-namespace sweep from a
+    `HANDOFF.md` §8 row into a test. `_run_in_a_mutated_copy` above is the site; what it copies is
+    what every recorded classification in this module is computed from, so a second copier added
+    later without the exclusion would silently widen a defect rather than introduce a new one.
+
+    Asserted over the *source* rather than by calling the helper, since the failure being guarded is
+    a copy that runs the wrong bytes — which a runtime check would be subject to as well.
+    """
+    roots = [TESTS, TESTS.parent / "bzk"]
+    copies = 0
+    for path in sorted(p for root in roots for p in root.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        # `ignore=` is usually a local bound to `ignore_patterns(...)` one line above, so a name is
+        # resolved to the call it was assigned rather than reported as unreadable — the readable
+        # form is the common one and a guard that only accepted the inline form would be dodged by
+        # the ordinary way of writing it. Resolved **per enclosing scope**, not per module: this
+        # very function assigns `ignore` twice for its own purposes, and a module-wide map bound the
+        # name to the last of them and reported a false positive against the code above.
+        # Innermost scope first, module last, so a `copytree` inside a function resolves against
+        # that function's own bindings. `ast.walk` yields a nested function after its parent, so
+        # reversing the function list is what puts the nearest enclosing scope first.
+        functions = [
+            n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
+        ]
+        scopes: list[ast.AST] = [*reversed(functions), tree]
+        seen: set[int] = set()
+        for scope in scopes:
+            bound: dict[str, ast.Call] = {
+                target.id: n.value
+                for n in ast.walk(scope)
+                if isinstance(n, ast.Assign) and isinstance(n.value, ast.Call)
+                for target in n.targets
+                if isinstance(target, ast.Name)
+            }
+            for node in ast.walk(scope):
+                if not isinstance(node, ast.Call) or id(node) in seen:
+                    continue
+                if not (isinstance(node.func, ast.Attribute) and node.func.attr == "copytree"):
+                    continue
+                seen.add(id(node))
+                copies += 1
+                where = f"{path.name}:{node.lineno}"
+                ignore = next((k.value for k in node.keywords if k.arg == "ignore"), None)
+                assert ignore is not None, (
+                    f"{where}: copytree with no `ignore` copies `__pycache__`"
+                )
+                if isinstance(ignore, ast.Name):
+                    ignore = bound.get(ignore.id, ignore)
+                assert isinstance(ignore, ast.Call), (
+                    f"{where}: `ignore` is not a call this guard can read, so whether `__pycache__` is "
+                    "excluded cannot be established — inline the `ignore_patterns(...)` or bind it once"
+                )
+                patterns = {
+                    arg.value
+                    for arg in ignore.args
+                    if isinstance(arg, ast.Constant) and isinstance(arg.value, str)
+                }
+                assert "__pycache__" in patterns, (
+                    f"{where}: copytree's ignore patterns are {sorted(patterns)} and omit "
+                    "`__pycache__` — the copy will load the source tree's compiled bytecode in "
+                    "preference to the sources beside it, and Python's size-and-mtime invalidation "
+                    "does not catch a same-size edit made within one second"
+                )
+    assert copies, (
+        "no `copytree` call found — this guard has nothing to check and would pass anyway"
+    )
