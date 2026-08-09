@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.31 |
+| Version | 1.32 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -904,6 +904,27 @@ Normative. Violations are ingestion errors, not warnings.
   in a snapshot is neither raw capture nor current derivation. `raw/` has this property because it
   stores bytes; the sequence tier has it because it stores bytes; the entry tier does not, because it
   stores a parse. That is a sharper statement of the same split §3.1 draws, arrived at by running it.
+
+  **Run a second time the same day, and the explanation above made a prediction it had not made when
+  it was written.** If the twelfth label moved because the *cache* held a superseded parse, and the
+  parse is now fixed in the code that writes the cache, then a second cold rebuild must reproduce
+  the first cold graph exactly — the failure had an internal cause, and internal causes do not
+  recur once removed. **It did.** Twelve labels, **12,769** ids, symmetric difference **0** on all
+  twelve; node and edge counts identical; refusals 27; `gene_absence` 1,054 / 3,492 / 15 / 0. The
+  cache reproduced with it: 2,260 snapshots, 3,013 sequences and 2,182 pins, the same file sets, the
+  **same bytes** in every sequence, the **same contents** in every pin, zero version movement, and
+  the same **7** snapshots carrying `AMBIGUOUS`. Every one of the 2,260 snapshots differs in
+  `fetched_at` and in nothing else, which is what a fetch clock differing and a parse not differing
+  looks like.
+
+  **What it does not establish, stated here rather than left to be assumed from the word
+  *identical*.** The two runs are three hours apart and UniProt releases roughly monthly
+  (`OPERATIONS.md` §5), so an unchanged authority is the most likely reason the second matched the
+  first, and this is no evidence at all about a release boundary. What it *does* establish is the
+  half the first run could not separate: **nothing internal is unstable.** The first rehearsal saw a
+  difference and had to argue that its cause was in this repository rather than at UniProt; a second
+  run with no difference is what turns that argument into a measurement, because an internal cause
+  would have recurred and an external one had no opportunity to appear.
 - **I10 — Unattributed enzymes.** No `SiteObservation` may be presented as the product of a named enzyme except through a live `EnzymeAssociation`. A site whose modifier is assigned but whose enzyme is not is displayed as *unattributed*, never as the canonical writer or eraser for that modifier.
 - **I11 — Quantitative retention.** Every observation persists its per-sample quantitative values in the columnar store, not merely the statistics derived from them. No pipeline stage may discard the matrix after computing a `DifferentialResult`. This is what makes the statistical layer genuinely pluggable: any test — moderated *t*, permutation with s0, or something not yet written — is recomputable from stored values without re-ingestion. A platform retaining only log₂FC and adjusted *p* is married to whichever test produced them.
 - **I12 — No tryptic assumptions.** Core code makes no assumption that peptides terminate in K or R, that a peptide carries at most one modification, or that a peptide maps to exactly one protein. Immunopeptidomics violates the first, multi-modified peptides the second, shared peptides the third. These are free to accommodate now and expensive to retrofit.

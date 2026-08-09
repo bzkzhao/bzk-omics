@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.37 |
+| Version | 1.38 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -1903,6 +1903,65 @@ archive rather than a sample.
 
 **Nothing is built.** No features, no panels, no read-layer additions, no new guards. A figure
 falsified by a measurement here is corrected and the files that reached are enumerated.
+
+
+### Cold to cold, identical — the histone explanation's own prediction, met, 2026-08-09
+
+**Run against the pre-registration above. Every prediction held; the outcome is (1), identical.**
+
+| Prediction | Result |
+|---|---|
+| Per-label id sets identical on all twelve labels, 12,769 ids | **held**, symmetric difference 0 |
+| `Gene` 1,039, `ENCODES` 1,054, partition 1,054 / 3,492 / 15 / 0, refusals 27, sites 2,029 | **held** |
+| Cache: 2,260 / 3,013 / 2,182 / 7 `AMBIGUOUS`, every shared sequence and pin identical, 0 version movements, snapshots differing in `fetched_at` only | **held**, all of it |
+| Fetch count **5,273** | **held**, the same integer twice |
+| 391 tests, 0 skipped with the graph, 10 without | **held** |
+| Empty content store: exit **1**, `INCOMPLETE:` line, both stores written | **held** |
+| Panel two over a DDL-only graph: fourteen `NOT_STORED`, 0 `UNATTRIBUTABLE` | **held**, and over the curation-only graph too |
+| Panel two over the full cold graph: 12 of 14, `DDX58`/`OAS1` `UNATTRIBUTABLE` | **held** |
+| `.streamlit/config.toml` present in the fresh checkout with both values | **held** |
+
+**Why identical is worth more here than it usually is, and still not worth much.** The first cold
+run differed from the warm one and the difference was argued to be internal — a superseded parse
+frozen in the entry cache. An argument like that predicts non-recurrence, and this is the run that
+could have falsified it: same code, same deposit, empty cache, and the twelfth label came back.
+**Nothing internal is unstable.** What it does not touch is the external half: three hours apart,
+against an authority that releases roughly monthly, so an unchanged UniProt is the likeliest reason
+the two matched and this is no evidence at all about a release boundary. Registered as the weakest
+useful outcome before the run, and it is.
+
+**The strongest single number is not the total but the fetch count.** 2,260 entries and 3,013
+sequences — **5,273** round trips — twice, exactly. That is a property of the deposit and the
+resolver rather than of the network, and it is what lets a reader price a rebuild for their own
+deposit. The wall clock moved: **37 m 14 s then 39 m 34 s**, 6.3% apart, so `OPERATIONS.md` §5's
+cold figure is now a range and its `~0.40 s per fetch` is 0.40–0.43. **The entry said *n* = 1 and
+was honest about it, and that was still not enough** — a single draw stated correctly is not a
+usable figure, and this is the fourth time on this project that a point value has had to become an
+interval after being contradicted.
+
+**A mid-run rate was measured, with its clock spacing recorded, because the last one was not.** A
+15-second poller over a 706-second window gave 1.14 s per accession and 0.50 s per round trip —
+above the whole-run 0.43, so the within-run rate is not flat and the whole-run figure is the one to
+quote. `ROADMAP.md`'s 12× error came from three spot counts with unrecorded spacing; recording the
+spacing is what makes this one a measurement rather than an impression.
+
+**The one finding, and it is in the documentation the *first* rehearsal wrote.** §4.1 was correct
+and worked as written; both prerequisites were already present, so **`:144`'s *the second is the one
+that surprises* was not tested here** — the honest report is that its precondition did not hold, not
+that it was confirmed. The failure is one cross-reference away, in `HANDOFF.md` §3, where every line
+of the run block began `python -m …` against §4.1's own `.venv/bin/python`. **It fails
+machine-dependently, which is worse than failing.** Run literally: `python` is
+`/usr/local/bin/python`, **3.11.15**, with a user-site `requests`, so `bzk.sources.pride` and
+`bzk.sources.protein_groups` **succeeded** — right bytes, right digests, wrong interpreter — and the
+run died on the third line at `ModuleNotFoundError: No module named 'kuzu'`, which points at a
+dependency rather than at the interpreter. Corrected in place. Nothing else in the procedure was
+wrong.
+
+**`bzk drift` was not run and is named as unrun.** Above 35 minutes at 3,013 sequences on a turn
+already carrying a 39-minute rebuild, and §5 records that a run over an archive that has not aged
+compares fetches against fetches of the same release — this archive was written hours ago. The
+second cold rebuild is the better instrument for the question anyway: it re-fetched all 3,013
+sequences into an empty tree and the comparison is over the whole archive rather than a sample.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07

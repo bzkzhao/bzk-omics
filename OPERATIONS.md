@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.16 |
+| Version | 0.17 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `ARCHITECTURE.md`, `ONTOLOGY.md` |
 | Authoritative for | Installation, backup, cache policy, dependency pinning, rebuild discipline |
@@ -177,17 +177,25 @@ The same discipline applies to DuckDB and Polars, though both are more stable.
 
 **Run it weekly, and after every schema change.** The claim in I9 — that schema change is a compute cost rather than a migration — is true only while this is verified. An untested rebuild path is an assumption, not an invariant.
 
-**Two commands since 2026-08-07, with different cadences.** `bzk rebuild` reconstructs and is cheap **when the UniProt cache is already on disk** (**83.9–149.7 s on PXD018299, n = 6 across two sessions on 2026-08-09**, and dominated by the write path rather than by anything irreducible); run it after every schema change, as above. **That range is a warm-cache figure and said so nowhere until 2026-08-09**, which mattered because it is the number anyone planning a first run would have read: from an empty cache the same command on the same deposit took **37 m 14 s** — **18×** the warm midpoint — and §4.1's install is not what makes the difference. **The figure was 119.9 s, then 83.9–100.6 s, and both were too narrow.** The first was one draw. The second was three consecutive runs in one session, and the very next session's opening rebuild returned **149.7 s** — outside it — followed by 148.5 s and 101.7 s. So the spread is **~66 s**, not 17, and the earlier range was measuring a quiet machine rather than the command. **Recorded as the lesson it is:** three runs back to back are one sample of the machine's mood, and widening the interval after being contradicted is what the 62.2 s figure should have prompted the first time (`ROADMAP.md` § *Measured findings*). Nothing finer than *about two minutes, sometimes half that* is available from this instrument, and a regression smaller than that cannot be seen here at all. `bzk drift` validates the sequence archive against UniProt and is expensive (**2,069.8 s measured** for 2,845 sequences on 2026-08-08, and 973.7 s for 1,029 on 2026-08-07 — call it **35 minutes** at the current archive size, and note it scales with the archive, not with the deposit); run it **weekly**. Both runs so far reported zero drift and **neither number means anything about the archive.** The first compared a fetch against a fetch under two hours older; the second ran at 05:03 UTC over an archive whose oldest member was written 13 hours earlier and whose 1,816 newest members were written the same day, so it too compared fetches against fetches of the same UniProt release. They are evidence the check runs, not evidence the sequences are stable. **The first meaningful drift run is one over an archive that has aged** — weeks at least, since UniProt releases roughly monthly — and until then no conclusion about exposure may be drawn from a clean result. Running it again today would produce a third clean result and would not move that sentence. They were one command until the archive grew past a thousand sequences and the combined cost reached 17.6 minutes — at which point the honest thing and the convenient thing diverged, and the convenient thing won: the session that introduced the cost changed the schema twice and ran a full rebuild once, at the end.
+**Two commands since 2026-08-07, with different cadences.** `bzk rebuild` reconstructs and is cheap **when the UniProt cache is already on disk** (**83.9–149.7 s on PXD018299, n = 6 across two sessions on 2026-08-09**, and dominated by the write path rather than by anything irreducible); run it after every schema change, as above. **That range is a warm-cache figure and said so nowhere until 2026-08-09**, which mattered because it is the number anyone planning a first run would have read: from an empty cache the same command on the same deposit took **37 m 14 s – 39 m 34 s** (*n* = 2) — **18–20×** the warm midpoint — and §4.1's install is not what makes the difference. **The figure was 119.9 s, then 83.9–100.6 s, and both were too narrow.** The first was one draw. The second was three consecutive runs in one session, and the very next session's opening rebuild returned **149.7 s** — outside it — followed by 148.5 s and 101.7 s. So the spread is **~66 s**, not 17, and the earlier range was measuring a quiet machine rather than the command. **Recorded as the lesson it is:** three runs back to back are one sample of the machine's mood, and widening the interval after being contradicted is what the 62.2 s figure should have prompted the first time (`ROADMAP.md` § *Measured findings*). Nothing finer than *about two minutes, sometimes half that* is available from this instrument, and a regression smaller than that cannot be seen here at all. `bzk drift` validates the sequence archive against UniProt and is expensive (**2,069.8 s measured** for 2,845 sequences on 2026-08-08, and 973.7 s for 1,029 on 2026-08-07 — call it **35 minutes** at the current archive size, and note it scales with the archive, not with the deposit); run it **weekly**. Both runs so far reported zero drift and **neither number means anything about the archive.** The first compared a fetch against a fetch under two hours older; the second ran at 05:03 UTC over an archive whose oldest member was written 13 hours earlier and whose 1,816 newest members were written the same day, so it too compared fetches against fetches of the same UniProt release. They are evidence the check runs, not evidence the sequences are stable. **The first meaningful drift run is one over an archive that has aged** — weeks at least, since UniProt releases roughly monthly — and until then no conclusion about exposure may be drawn from a clean result. Running it again today would produce a third clean result and would not move that sentence. They were one command until the archive grew past a thousand sequences and the combined cost reached 17.6 minutes — at which point the honest thing and the convenient thing diverged, and the convenient thing won: the session that introduced the cost changed the schema twice and ran a full rebuild once, at the end.
 
-**The cold figure, and what it decomposes into (2026-08-09, first run from nothing).** A clone of
-`7f50216` with `~/.bzk-omics` moved aside: **37 m 14.5 s** (2,234.5 s), of which **194 s is CPU**
-— `user` 2 m 43 s plus `sys` 31 s, **8.7%**. The rest is network wait. The run fetched **2,260**
-UniProt entries and **3,013** sequences, 5,273 round trips, so `cold − warm` over the fetch count is
-**~0.40 s per fetch**, and the write path that dominates the warm figure is about **4%** of this
-one. Reported as a first-run figure and **not** as a widening of the warm range: they measure
-different commands in every respect but the name, and averaging them would hide both. *n* = 1, and
-one draw is all this is — but the decomposition is what makes it usable, because a reader can price
-their own deposit from the fetch count rather than from the total.
+**The cold figure, and what it decomposes into (2026-08-09, two runs from nothing).**
+**37 m 14 s – 39 m 34 s, *n* = 2** — 2,234.5 s from a clone of `7f50216` and 2,374.4 s from a clone
+of `0772a31`, a spread of 140 s or 6.3%. CPU is **194 s (8.7%)** and **178 s (7.5%)**; the rest is
+network wait. Both runs fetched **2,260** UniProt entries and **3,013** sequences — **5,273** round
+trips, the same integer twice — so `cold − warm` over the fetch count is **0.40–0.43 s per fetch**,
+and the write path that dominates the warm figure is about **4%** of this one. A mid-run window on
+the second run, 706 s with 15-second poll spacing recorded, measured 0.50 s per round trip, so the
+within-run rate is not flat and the whole-run figure is the one to quote.
+
+**It read *37 m 14 s* and *~0.40 s per fetch* as point values until the second run, and said
+*n* = 1 while doing so.** The honesty was in the *n*, not in the number, and stating a single draw
+correctly is not the same as being usable: **18× the warm midpoint** is now 18–20×. Reported as a
+cold range and **not** merged into the warm one — they measure different commands in every respect
+but the name — and the decomposition is what makes either usable, because a reader can price their
+own deposit from the fetch count rather than from the total. The fetch count reproducing exactly is
+the more useful half of this entry: it is a property of the deposit and the resolver, and it did not
+move between two runs 3 hours apart.
 
 **What `bzk rebuild`'s exit status means, since 2026-08-09.** **0** — every curation record's
 deposit was ingested. **1** — at least one named a deposit that was not: absent from the content

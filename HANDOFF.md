@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.27 |
+| Version | 1.28 |
 | Last reviewed | 2026-08-09 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -62,22 +62,31 @@ Follow `ROADMAP.md` § Milestones. This adds the granularity that document delib
 **What runs today, end to end:**
 
 ```
-uv sync --frozen                                # build .venv from the lockfile (OPERATIONS.md 4.1)
-python -m bzk.sources.pride                     # fetch the deposit into the content store
-python -m bzk.sources.protein_groups            # fetch proteinGroups + the two BJC tables
-python -m bzk.rebuild                           # graph from the four I9 inputs
-python -m bzk.drift                             # validate the sequence archive, ~35 min, weekly
-python -m bzk.sources.pxd018299_differential    # the differential run and its populations
-streamlit run bzk/ui/app.py \
-  --server.address localhost --browser.gatherUsageStats false   # three panels over bzk/query/
+uv sync --frozen                                        # build .venv (OPERATIONS.md 4.1)
+.venv/bin/python -m bzk.sources.pride                   # fetch the deposit into the content store
+.venv/bin/python -m bzk.sources.protein_groups          # fetch proteinGroups + the two BJC tables
+.venv/bin/python -m bzk.rebuild                         # graph from the four I9 inputs
+.venv/bin/python -m bzk.drift                           # validate the sequence archive, weekly
+.venv/bin/python -m bzk.sources.pxd018299_differential  # the differential run and its populations
+streamlit run bzk/ui/app.py                             # three panels over bzk/query/
 ```
 
 **Corrected 2026-08-09 by rehearsing it from a cold clone.** Three of these lines were missing —
 the install (nothing in the tree said `uv sync`), the `protein_groups` fetch, and the app — and the
 rebuild's `~120 s` was a **warm-cache** figure carrying no such label: from an empty cache the same
-command took **37 m 14 s**, essentially all of it network. Both flags on the last line are
-load-bearing rather than tidy; `OPERATIONS.md` §4.1 says why. Timings live in `OPERATIONS.md` §5,
-not here.
+command takes **37 m 14 s – 39 m 34 s** (`OPERATIONS.md` §5, where the timings live).
+
+**Corrected again the same day, by the second rehearsal, and this one is the more instructive
+failure.** Every line above began `python -m …`, which contradicts `OPERATIONS.md` §4.1's own
+instruction — *`.venv/bin/python -m bzk.rebuild`, or `uv run python -m bzk.rebuild`* — one
+cross-reference away, and nothing here said to activate the venv. **The way it fails is worse than
+being plainly wrong: it is machine-dependent.** Run literally on this container, `python` resolves
+to `/usr/local/bin/python`, **3.11.15**, with a user-site `requests` — so the first two lines
+*succeeded*, wrote the right bytes to `~/.bzk-omics/raw/` under the wrong interpreter, and the run
+failed three lines later at `ModuleNotFoundError: No module named 'kuzu'`. A reader following this
+block gets two silent successes and then an error that points at a dependency rather than at the
+interpreter. The flags on the last line are gone because `.streamlit/config.toml` now carries both
+values (§4.1); the bare command is the documented one.
 
 **The graph** (rebuilt 2026-08-07, post-ADR-0024): 2,029 `SiteObservation`s each with a
 `ModifierAssignment`, 2,029 `ModificationSite`s, 4,561 `Protein`s, 1,062 `ProteinSequence`s, 3
@@ -171,6 +180,17 @@ minutes**, not the two the tree implied. **(3)** With no `raw/` it exits **0** o
 statistics, both contradicting claims made two commits earlier. **(6)** Over an empty graph the gene
 panel says *"Present but unattributable"* — an assertion about content that is not there. Four
 of the six are documentation and are corrected; **(3)** and **(6)** are code and are in §8. A **seventh** came from the closing checks rather than the clone and is fixed here: `test_tautology_sweep.py`'s mutation harness copied `__pycache__` into its temporary tree and so could run **stale bytecode instead of the source it had just mutated** — the classifier for every assertion in the sweep, able to report a result it had not computed. `ROADMAP.md` § *Measured findings* has the demonstration.
+
+**Rehearsed a second time on 2026-08-09, as a freeze run, and it found one thing.** The graph and
+the whole UniProt cache reproduced from nothing **exactly** — 12,769 ids over twelve labels,
+symmetric difference 0, every sequence byte-identical, every pin identical, 7 `AMBIGUOUS` both
+times, `fetched_at` the only field that moved. That is the evidence the histone explanation
+predicted and could not supply on its own (`ONTOLOGY.md` §8 I9). The one finding is in this
+section: **every line of the block above began `python -m …`**, which contradicts `OPERATIONS.md`
+§4.1, and on a container with a system `python` and a user-site `requests` the first two lines
+succeed under **3.11.15** before the third fails on `kuzu`. Corrected above. The cold wall clock
+became a range — 37 m 14 s – 39 m 34 s, *n* = 2 — with the fetch count reproducing exactly at
+5,273; §5 carries both.
 
 **Two things the interface established rather than assumed.** Kùzu takes a single writer lock, so
 the app **cannot read the graph while `bzk rebuild` holds it** — `query.connect` raises
