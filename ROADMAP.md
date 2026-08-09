@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.34 |
+| Version | 1.35 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -1678,6 +1678,64 @@ five and four held. Every one of the six findings came from somewhere else: from
 procedure that had never been executed, from comparing two trees, and from reading a server's own
 log. The registration said the install was expected to have gaps and that the gaps were the output;
 that was the only part of it that anticipated what the run would actually produce.
+
+
+### Pre-registration: what closing the rehearsal's four findings would mean, 2026-08-09
+
+**Written and committed before any code.** The four are `HANDOFF.md` §8's rows at :493–:496, left
+open by a turn instructed to build nothing. Two of them can put a false claim in front of a reader,
+which is what makes them a schedule item and not a backlog item.
+
+**The starting state, measured before predicting anything, and it has not moved.** `python -m
+bzk.rebuild` against `~/.bzk-omics`: **1 m 46.6 s**, 2,029 sites, 27 refused, 1 deposit, 12,782 node
+and 10,283 edge statements, 48,696 cells, 57 tables. Graph: `Gene` **1,039**, `ENCODES` **1,054**,
+`Protein` 4,561, `gene_absence` **1,054 / 3,492 / 15 / 0**, nothing unprovenanced. **12,769 ids over
+twelve labels**, captured to compare against. The wall clock sits inside `OPERATIONS.md` §5's warm
+range and nowhere near the 37 m 14 s cold figure, which is the expected reading now that the cache
+is populated and is not evidence about either range.
+
+**The correction list checked before editing, since the last one was stated unconditionally and
+two of its items were already discharged.** `ONTOLOGY.md` §4's enum table — **already correct**,
+:295 reads *no usable HGNC cross-reference — none at all (10), or several (5)* against a count of
+15, and it is not edited again. `schema.py:125`'s cached partition — **already correct**, and it
+moves only if (4) changes the enum. `OPERATIONS.md` §5 — **half discharged**: it records that a
+rebuild with no deposit exits 0, and says nothing about what an exit code means, which is what (2)
+changes. `schema.py:131` and `bzk/ui/app.py:28–29` — **not discharged**, both diverge from a
+document corrected around them.
+
+**Predictions.**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| No id moves: symmetric difference **0** on all twelve labels, **12,769** ids | per-label set diff against the pre-change capture | exact set equality |
+| `gene_absence` still **1,054 / 3,492 / 15 / 0**, summing to 4,561 | `query.gene_absence_census` | exact integers |
+| Refusals **27**, sites **2,029** | the rebuild's report | exact integers |
+| (1) over a graph with an empty `Gene` table: all fourteen `present=False`, `absence is NOT_STORED`, `gene_id is None`, `protein_ids == ()` | `gene_symbols` return values against an empty-`Gene` fixture | exact enum identity |
+| (1) on screen over that graph: the `NOT_STORED` headline appears in **panel two**, located between the *"0 of 14"* line and panel three's heading; the `UNATTRIBUTABLE` headline appears **0 times** on the page | `AppTest` element list, by index rather than by substring | exact position, exact count |
+| (1) on the populated graph is unchanged: 12 of 14, `DDX58`/`OAS1` still `UNATTRIBUTABLE` | `test_query_real_graph.py`, `AppTest` | exact |
+| (2) `python -m bzk.rebuild` exits **1** where a curation record names a deposit the content store lacks, **0** against `~/.bzk-omics`, and writes `graph.kuzu` and `quant.duckdb` in both cases | shell exit status, then `ls` | exact integer, file present |
+| (3) with the committed config and no flags, the server logs `localhost` and no usage-statistics line | the server's own stdout | exact strings |
+
+**The position-not-substring row is the one carrying weight.** Over an empty graph the app renders
+`NOT_STORED` **twice** — once for the gene panel and once for imputation in panel three — so
+`"Nothing is stored" in text` would pass while panel two still said the wrong thing. That is the
+same shape as the `test_perseus` tautology and as last turn's panel-one assertion, which a candidate
+list two lines below the field it named would have satisfied. Registered here so the fix cannot read
+as adequate for having changed something.
+
+**Two things no prediction is made about.** Wall clock, for §5's reason. And whether several HGNC
+cross-references should read as `no_cross_reference` at all — a modelling judgement, and no
+instrument resolves it. What *is* registered about (4) is the falsifiable half: **the partition does
+not move**, because bringing `schema.py:131` into line with the table changes a description string
+and no branch.
+
+**Where (2) is predicted to land, before the code decides it.** `OPERATIONS.md` §5 holds both
+halves — *rebuild never refuses on staleness, it is the disaster-recovery path* and *a rebuild that
+produces a different result is a regression, stop and find out why*. The registered reading is that
+these are not in tension because they act at different moments: refusing stands **in front of** the
+work and an exit status is emitted **after** it. So the prediction is that the stores are written
+identically either way and only `main()`'s status differs — falsified if any file, count or id
+differs between an exit-0 and an exit-1 run of the same tree.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07
