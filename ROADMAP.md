@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.32 |
+| Version | 1.33 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -1500,6 +1500,90 @@ answer it.
 **The four measured-empty claims in `bzk/query/` still hold** — 0 `DifferentialResult`, 0
 `Imputation`, the `unprovenanced` dict, and refusals not being retained. Nothing was ingested this
 turn either; they were checked and left.
+
+### Pre-registration: what a cold-clone rehearsal would mean, 2026-08-09
+
+**Written and committed before the clone.** Every rebuild on record has run against a populated
+`~/.bzk-omics`. I9 names four inputs and a cold clone has one of them — `raw/` is fetchable and the
+curation export and the DDL are in the repository, but **the UniProt cache is not**, and it is the
+input the graph's keys come from. `OPERATIONS.md` §5 says the claim behind I9 is true only while it
+is verified; it has never been verified from nothing.
+
+**What makes this different from a warm rebuild, and it is the reason to run it.** `OPERATIONS.md`
+§3.1 records that the pin's backfill is sound *only because the snapshots were still the original
+capture*, and that the window closes the first time anything re-fetches. **A cold clone is outside
+that window by construction**: there are no snapshots to backfill from, so every pin is written by
+the fetch under test. The cold rebuild is not protected by the pin — it is the act the warm tree's
+pins were created by. A difference here therefore means something a difference in a warm rebuild
+would not: it is UniProt moving against the *original* capture, with nothing in between.
+
+**The warm baseline, captured before `~/.bzk-omics` is moved aside.** 12,774 ids over 12 non-empty
+labels — `Analysis` 2, `Dataset` 1, `Experiment` 1, `Gene` 1,044, `ModificationSite` 2,029,
+`Modifier` 3, `ModifierAssignment` 2,029, `Project` 1, `Protein` 4,561, `ProteinSequence` 1,062,
+`Sample` 12, `SiteObservation` 2,029. Edges: `ASSIGNMENT_FOR` 2,029, `CONTAINS` 1, `ENCODES` 1,059,
+`HAS_SEQUENCE` 1,062, `MEASURED_AT` 2,029, `PERFORMED_ON` 12, `PRODUCED` 12, `REPORTS_SITE` 2,029,
+`SAMPLE_GENERATED_BY` 12, `SITE_ON` 2,029, `USED` 2. `gene_absence` 1,059 / 3,492 / 10. Cache:
+2,261 snapshots, 3,014 archived sequences, 2,183 pins.
+
+**Step 5's four outcomes, registered before the run.**
+
+1. **Identical.** I9 holds under the conditions it names — and this is the **weakest useful
+   outcome**, which the registration says now rather than the report saying it afterwards. UniProt
+   releases roughly monthly (§5) and the warm capture is two days old, so an unchanged UniProt is
+   the most likely explanation of an identical result and is not evidence that the guarantee would
+   survive a release boundary. **This is the outcome the documents make most likely and it is
+   registered as the expected one.**
+2. **A changed refusal count with no id movement.** `OPERATIONS.md` §1 says this is what actually
+   happens when content is amended under an unchanged version: no key moves, the graph regenerates
+   smaller, and the signal reads like drift. §11 Q5's isoform limitation — versions taken from the
+   parent entry — is one mechanism. **Delta accepted as this rather than as a defect: any size, if
+   and only if every extra refusal carries a sequence-content reason *and* the accession's freshly
+   fetched sequence differs from the one preserved in the moved-aside archive.** That archive is
+   the discriminator and it is why `~/.bzk-omics` is moved rather than deleted: a refusal whose
+   accession's bytes are unchanged is not drift, it is a defect. Expected size **0**, since two
+   days is inside a release.
+3. **A different `Gene` or `ENCODES` count.** **Accepted by decision, not a finding**
+   (`OPERATIONS.md` §3.1): a changed cross-reference moves no id, cascades into no digest — `Gene`
+   is in no `schema.IDENTITY` anchor list — and changes a visible count. Registered as accepted so
+   the report cannot present it as a discovery and stop.
+4. **A moved id.** `sequence_version`, `reviewed`, or anything else that re-keys an existing node
+   and every evidence digest anchored on it. **This is the failure the pin exists to prevent and
+   the one a cold tree has no pin against.** What matters is its size and location: which labels,
+   how many ids, and whether the movement reaches `ModificationSite` and the `bzk:` digests
+   anchored on it. **If it happens, report and stop** rather than chasing the cause.
+
+**Predictions.**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| Per-label id sets **identical** to the warm baseline, all 12 labels, symmetric difference 0 | per-label set diff against the captured JSON | exact set equality |
+| Node and edge counts identical; refusals **27**; `gene_absence` **1,059 / 3,492 / 10**; `Gene` **1,044**; `ENCODES` **1,059** | the rebuild's report and Cypher | exact integers |
+| Digests of both BJC files and the deposit match what `sources/` records | `provenance/raw_store.verify` | exact |
+| Suite: **10 skip** before the fetch, **0 skip** after the graph exists; wall clock inside **233–302 s** | `pytest -q -rs` | exact integer; ±70 s, which is the recorded spread and no finer |
+| Panels: 12 of 14 present, `DDX58`/`OAS1` `UNATTRIBUTABLE`, three distinct absence notices | `AppTest` against the cold graph | exact |
+
+**No prediction is registered for the cold wall clock.** `ROADMAP.md`'s own standard says that
+where no instrument can resolve a quantity the honest move is to make none, and `OPERATIONS.md` §5
+already records that a regression smaller than its own spread cannot be seen. A cold rebuild is
+dominated by network round trips whose per-fetch cost was measured varying by 3× *within one run*
+last session. What **is** registered is the shape, which an instrument can resolve: **the cold run
+is dominated by fetches rather than by the write path**, checked by comparing `cold − warm` against
+the number of accessions fetched, and the fetch count will be reported so the figure is
+decomposable rather than a single opaque number.
+
+**The install is expected to have gaps and they are the output.** §4 is a pinning *policy* and
+contains no install procedure. Nothing in steps 2–4 is fixed by hand: a documented procedure that
+does not work is a defect in the procedure, and the fix goes in `OPERATIONS.md`.
+
+**Three demo failure modes, none with a claim in the tree.** A **stale holder** — the recorded
+advice is *wait and reload*, which is exactly what cannot work if the holder is dead, so the
+question is whether anything short of finding the process recovers. The app **without `raw/`** — it
+reads the graph, not the deposit, so it should run, and if `graph.kuzu` alone suffices that is a
+much smaller thing to carry into a room. The app **without the network** — no claim either way. The
+live-lock case is already established and implemented and is not re-established.
+
+**Nothing is built.** No features, no panels, no read-layer additions. A panel needing something the
+read layer does not expose is reported.
 
 ### The platform made an invisible analytical choice, 2026-08-07
 
