@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.24 |
+| Version | 1.25 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -826,6 +826,99 @@ predictions covered the turn. The spelling decision, the two document correction
 entry-tier finding were all *unpredicted* — three of the four things this turn produced. A
 pre-registration bounds the ways a turn can fool itself about numbers it went looking for; it says
 nothing about what it finds on the way.
+
+### Pre-registration: what settling the entry tier's key would mean, 2026-08-09
+
+**Written and committed before any code changes.** The state is not re-established here; it is
+recorded at `ONTOLOGY.md` §8 I9, `OPERATIONS.md` §3 and `HANDOFF.md` §8. What is open is the
+decision, and the temptation specific to it is to pick the shape that costs least to write rather
+than the one the archive supports — the entry tier has never been refreshed, so every option looks
+safe from where the repository currently sits.
+
+**Confirmed before predicting: 2,029 sites, 27 refusals, 4,561 `Protein`, 0 named, 0 `Gene`, 3,254
+reachable — all unmoved.**
+
+**Measured before deciding, because the three shapes are not equally available and the archive
+says which.** No foresight is claimed for these; they are the inputs to the decision, not tests of
+it.
+
+| Measured | Result |
+|---|---|
+| `sv` files per accession in the sequence tier | **{1: 2845}** — every accession has exactly one version archived; none has two |
+| `entry.sequence` against `seq/{acc}#sv{n}.txt` | **2,014 identical, 0 differing** — the entry tier's copy is a duplicate of an immutable file |
+| `sequence_version` recoverable from the immutable tier by glob | **2,183 agree, 0 disagree, 0 unrecoverable**; the remaining **78** carry no version at all and are exactly the `Inactive` entries |
+| `data/curation/resolution_PXD018299.json` | a **642-byte summary** — `n_sampled: 20`, `sequence_versions: [1,2,3,4]`. **Not** a per-accession pin |
+| Readers of `fetched_at` in `bzk/` or `tests/` | **none** |
+| A defaulted new field, pre- vs post-widening | **distinguishable on disk** (key absent vs `"hgnc_id": null`), **not through `_load_entry`**, which fills both from the default |
+
+**The decision registered, before it is implemented: shape 3 — split by identity-bearing-ness.**
+The entry tier keeps its non-versioned key and is **declared** a mutable snapshot; everything
+identity-bearing moves to the immutable tier as a write-once pin at `seq/{canonical}#sv{n}.meta.json`
+carrying `entry_type`, `reviewed` and the sequence, with the version in the key. Reasons, each
+resting on a row above rather than on preference:
+
+- **Shape 1 is rejected on a measurement, not on cost.** Versioning the entry key converts a silent
+  overwrite into an ambiguous read: with two captures present, nothing says which one a rebuild
+  must use. `raw/` escapes that because the curation record cites a `content_hash`; the sequence
+  tier escapes it because the site key already names the version. The entry tier is read *before*
+  any id exists, and the one record that could name a capture is a summary. So versioning needs a
+  new per-accession manifest — a new I9 input — to be a fix at all. Separately, every candidate
+  version component fails: `sequence_version` is circular (the fetch is what reveals it), a content
+  digest changes on every re-fetch because `fetched_at` is inside the payload, and `fetched_at`
+  itself is settled below rather than promoted into a key.
+- **Shape 2's requirement is met by shape 3's mechanism, which is why they converge.** §11 Q6 says
+  a re-resolve refuses sites keyed against amended sequences and the only signal is a changed
+  refusal count reading as data drift. That mechanism runs entirely through `sequence` and
+  `sequence_version` — and both are already pinned immutably, measured identical on all 2,014
+  comparable entries. Reading them from the pin rather than from the snapshot does not restate Q6's
+  paragraph, it removes the path the paragraph describes. What it does **not** remove is `reviewed`,
+  which steers I17's promotion and therefore which `ModificationSite` is keyed, and which nothing
+  immutable records. That is the field the pin exists for.
+- **`fetched_at` is settled as a *fetch* clock, and stays out of the key.** It is written only in
+  `_fetch_entry` and never on a cache hit, so as a record of *when this file was written* it is
+  exactly correct — `OPERATIONS.md` §3's 90-day *access* rule is what is wrong, being unimplementable
+  against a clock that no reader reads. Shape 3 needs no version component in the entry key, so the
+  question of using a compromised field as one does not arise.
+
+**Predictions.**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| No node id moves: symmetric difference **0** over 11,730 ids, 24 labels | rebuild into a separate database, per-label id diff against `~/.bzk-omics/graph.kuzu` | exact set equality, no margin |
+| Refusals **27**; **2,029** sites; **4,561** `Protein` | the rebuild's own report and `count_nodes` | exact integers |
+| The backfill writes **2,183** pins and rewrites **0** of the 2,261 entry files | count `seq/*.meta.json` after; compare every entry file's `fetched_at` before and after | exact integers |
+| The `hgnc_id` widening makes the next rebuild rewrite **2,261** entry files | count entry files whose `fetched_at` date is 2026-08-09 after the run | exact integer. A **smaller** number falsifies the premise that the resolver asks for every cached canonical, and would mean some cached entries were written by a path other than rebuild |
+| `Gene` stays **0** | Cypher count | exact integer |
+
+**On the `fetched_at` instrument, and what it cannot resolve.** `ONTOLOGY.md` §8 I9 records the
+distribution across all 2,261 as 1,054 on 2026-08-07 and 1,207 on 2026-08-08, and this section uses
+it for exactly one claim: **whether a file has been rewritten since ingestion.** For that it is
+sound — it is written on fetch and only on fetch, so an unchanged value is proof of an unrewritten
+file. It cannot resolve *when an entry was last read*, which is the use `OPERATIONS.md` §3 makes of
+it, and it cannot distinguish two fetches within the same second. Neither limit bears on any
+prediction above.
+
+**The one selection rule, with its behaviour at the sizes it will actually meet.** Version recovery
+globs `seq/{canonical}#sv*.meta.json`. **0 matches** → no pin; fall through to the snapshot and the
+network, which is today's path unchanged. **1 match** → use it. **≥2 matches** → refuse, because the
+archive holds two captures and nothing names which is authoritative; guessing the newest is the
+overwrite this decision exists to remove. On the current archive the histogram is **{1: 2845}**, so
+the ≥2 branch is **unreachable from the corpus** and must be tested synthetically or it will be
+asserted and never run — which is what `ROADMAP.md` § *Outcome, 2026-08-09* records happening to a
+selection rule whose boundary was not stated in advance.
+
+**Q12, registered as conditional on the above.** If shape 3 holds, `hgnc_id` is non-identity-bearing
+and belongs in the snapshot tier, where a re-capture cannot move an id — so widening becomes
+permissible for the first time, and the defaulted-field trap is closed by the on-disk distinction
+measured above: **key absent means *not captured* and refetches; explicit `null` means *captured,
+no HGNC id* and does not.** `Gene` is still **not minted**: the refetch that would populate
+`hgnc_id` produces cache state, not committed state, and a builder run before it would emit a
+partial table.
+
+**What would make this turn a failure rather than a decision.** Declaring the snapshot safe while
+leaving an identity-bearing field reading from it. `reviewed` is the one that would be missed,
+because unlike `sequence_version` it does not appear in any key and its effect on identity is one
+step removed, through I17's choice of which protein a site is keyed against.
 
 ### The platform made an invisible analytical choice, 2026-08-07
 
