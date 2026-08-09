@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.22 |
+| Version | 1.23 |
 | Last reviewed | 2026-08-09 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -134,9 +134,17 @@ worth little without it since the point of a second test is running it over the 
 #### The next action
 
 ~~**Write the DuckDB quantitative layer (I11).**~~ **Done 2026-08-08.** `bzk/quant/store.py`,
-`quant_ref` populated by the adapter, `quant.duckdb` created by `rebuild`. Two remain of the three:
-`perseus_s0` over the retained matrix, and gene symbols — of which the *modelling* half is settled
-as of 2026-08-08 and only the cache question (§11 Q12) is open.
+`quant_ref` populated by the adapter, `quant.duckdb` created by `rebuild`.
+
+**This block was two revisions stale on gene symbols and is corrected 2026-08-09, independently of
+the read path.** It said gene symbols had a settled *modelling* half with *"only the cache question
+(§11 Q12) open"*. Q12 was answered on 2026-08-09 and `Gene` was minted the same day — 1,044 nodes,
+1,059 `ENCODES` edges, three named absence states. **One of the three remains: `perseus_s0` over the
+retained matrix**, which waits on the meeting.
+
+~~**Nothing reads the graph.**~~ **The query half landed 2026-08-09.** `bzk/query/` answers five
+questions over Kùzu and is what an interface sits on; the interface, the notebooks and anything that
+writes a file are untouched, and the last of those is where I18 has to land (§8, EX).
 
 Before starting, run `python -m bzk.rebuild` and confirm it reports 2,029 sites; if it does not, the
 deposit or the archive has moved and that is the finding, not a setup problem.

@@ -348,6 +348,38 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         # check from ever firing, and every pre-widening snapshot then reads as *no HGNC id*.
         # Confirmed by mutation. The line beside it carries the content the pin rests on.
         ("test_pins.py", "uniprot._Entry(status='ok').hgnc_id == uniprot.NOT_CAPTURED", 1),
+        # Classified individually 2026-08-09, with the read path. None is an instance — every right
+        # side is either a literal or a value read from `schema`, and none is produced by the call
+        # on the left — and none is unfailable, which is the other reason a row is withdrawn here
+        # rather than pinned.
+        #
+        # The empty differential table, twice in the fixture module and once against the real
+        # graph. It sits beside an `absence is ...` assertion and is not redundant with it: rows
+        # non-empty under `NOT_STORED`, or empty under the wrong absence, are different bugs and
+        # each assertion catches one.
+        ("test_query.py", "rows == []", 2),
+        ("test_query_real_graph.py", "rows == []", 1),
+        # The `gene_absence` partition, computed from the graph against a literal. The real-graph
+        # row carries the figures §4 records, so a divergence is a finding about the graph.
+        (
+            "test_query.py",
+            "census == {'encoded': 1, 'unresolved': 1, 'no_cross_reference': 0, 'not_captured': 0}",
+            1,
+        ),
+        (
+            "test_query_real_graph.py",
+            (
+                "census == {'encoded': 1059, 'unresolved': 3492, 'no_cross_reference': 10, "
+                "'not_captured': 0}"
+            ),
+            1,
+        ),
+        # Code against code: the census must key **every** state including the zeroes, because an
+        # omitted key and a zero read differently and only one of them is a measurement.
+        ("test_query.py", "set(census) == set(schema.GENE_ABSENCE) | {'encoded'}", 1),
+        # Which two of the fourteen are absent, not merely how many. `DDX58` is the one that
+        # matters: absent under its own name while the gene is present as `RIGI`.
+        ("test_query_real_graph.py", "absent == ['DDX58', 'OAS1']", 1),
         ("test_perseus.py", "dataset['content_hash'] == content_hash(TABLE.read_bytes())", 1),
         (
             "test_perseus.py",
@@ -661,14 +693,15 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     found, modules, asserts = sweep()
     # Denominated at the exact current surface, re-denominated three times on 2026-08-09: 655 ->
     # 662 for the local-part guard, 662 -> 687 for `tests/test_pins.py` (also the twenty-first
-    # module), and 687 -> 714 for `Gene` and its change-set check. It read `asserts >= 600`
+    # module), 687 -> 714 for `Gene` and its change-set check, and 714 -> 786 for the read path,
+    # which is also the twenty-second and twenty-third modules. It read `asserts >= 600`
     # against 633, which
     # tolerated deleting a twentieth of the suite's assertions — the case its own failure message
     # names. A legitimate reduction lowers these numbers in the same change, the same discipline
     # the multiset carries; additions never trip it, because an added *match* is caught by the
     # multiset rather than by this floor — but leaving the floor behind the surface reintroduces
     # exactly the slack the re-denomination removed, so it moves with every addition too.
-    assert modules >= 21 and asserts >= 714, (
+    assert modules >= 23 and asserts >= 786, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

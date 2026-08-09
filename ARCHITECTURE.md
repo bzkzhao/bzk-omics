@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.16 |
+| Version | 1.17 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -83,6 +83,7 @@ bzk/
   resolve/       # UniProt resolution, sequence-version pinning, position validation
     nodes.py     # accession -> Protein + ProteinSequence (ADR-0005); injected, offline-testable
   quant/         # DuckDB layer, normalisation
+  query/         # the read path over Kùzu; returns records carrying their inference status
   stats/         # moderated t-test, BH, protein-level adjustment
   provenance/    # PROV-O mapping, content hashing; raw_store.py is the content-addressed raw/
   drift.py       # `bzk drift` — validates the sequence archive against UniProt; writes a receipt
@@ -116,6 +117,23 @@ file contained, and an adapter that filters silently makes that claim false — 
 rather than hide. This is not bookkeeping: `maxquant_sites.py`'s residue check produces the
 sequence-drift measurement on record in `ROADMAP.md` § Measured findings entirely through this
 channel, and a `logging.warning` would have left it unmeasurable.
+
+**`query/` is the read path, and it is a sibling rather than part of `ontology/` (2026-08-09).**
+The boundary test this section applies to `curation/` is *what a module produces and who consumes
+it*: a curation record is not an engine's output and runs first to produce what an adapter consumes.
+A read path sits at the far end of the same axis — it produces nothing that enters the graph and
+consumes what every writer has already put there — so it cannot be folded into any producer. It is
+kept out of `ontology/` for that package's own stated property: `invariants.py` is deliberately
+storage-free, and `store.py` is the single declared storage-aware exception. A read layer needs a
+connection, so putting it there would make `ontology/` a package with two storage-aware modules
+instead of one exception. `api/` is its consumer, which is what makes *the read path* and *the
+interface* separable pieces of work rather than one.
+
+**No bare number leaves `query/`.** §8 I14's display half and § *Weeks 7–8*'s *"ambiguity and
+correction status visible everywhere a number appears"* are enforced at this layer rather than at
+the renderer, because a renderer is not the only consumer and a value that reaches a caller without
+its status is already quotable. It is also where **I5** is enforced: `HANDOFF.md` §8 classifies it
+as query-time and names a per-entity `unprovenanced` flag as the mechanism.
 
 **`ontology/store.py` is the only module that writes.** `invariants.py` is deliberately
 storage-free — a change-set is plain data, which is what lets every invariant be a pure function

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.28 |
+| Version | 1.29 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -37,9 +37,9 @@ One ingestion path, one dataset, one statistical test, no web frontend.
 | `perseus_s0` | Default and required per ADR-0015. Implemented second, and its own recovery number recorded as a separate baseline — it will not necessarily be 12 |
 | `ModifierAssignment` | Created as ambiguous on every site; manual assignment with basis |
 | `ProteinAssignment` | As a node, per `ONTOLOGY.md` §6.3. Same shape and cardinality as `ModifierAssignment`, so no additional machinery |
-| `Imputation` | As a node, per `ONTOLOGY.md` §6.5. One per `Analysis` |
+| `Imputation` | As a node, per `ONTOLOGY.md` §6.5. **Several per `Analysis`** — `IMPUTATION_FOR` is `MANY_ONE` (§6.5 DDL), so an analysis's imputation state is a *set*. This row read *"One per `Analysis`"* until 2026-08-09 and contradicted the normative DDL; corrected here under `CLAUDE.md` § Conventions rather than worked around in the code that reads it. §8 I15's *substantially imputed* is defined on a `DifferentialResult`, not on an `Analysis`, so the set does not collapse to a flag either |
 | Curation and analysis records | I8, I15, I16, I19 — every choice recorded |
-| **Output via notebook or minimal Streamlit** | No SvelteKit. Visualisation is not the differentiator and can wait |
+| **Output via notebook or minimal Streamlit** | No SvelteKit. Visualisation is not the differentiator and can wait. **The query half landed 2026-08-09** — `bzk/query/` answers five questions over the graph and is what an interface sits on; the interface itself is unbuilt, and the three `colab_*.ipynb` files still read the deposit rather than Kùzu |
 | Rebuild script | Written in week 1, run weekly. I9 is only true if tested |
 | `tests/` from week 1 | Invariant violations, adapter fixtures, resolution edge cases |
 
@@ -1220,6 +1220,50 @@ one that trips that trigger.
 table as an empty list. Everything else in the design is downstream of that one distinction, and it
 is the case where the wrong answer is indistinguishable from the right one at the call site.
 
+#### Outcome, 2026-08-09 — every prediction held, and the fixture caught three wrong premises
+
+| Prediction | Result |
+|---|---|
+| No id moves, no counts change | **held** — the turn writes nothing; the graph is unchanged and the closing rebuild reports the same figures |
+| Q1: **0 rows**, reported as *not stored* | **held** — `Absence.NOT_STORED` |
+| Q2: `keying_basis` on all **2,029**, `displaced_protein` on exactly **522** | **held**, and the 522 is *the same set* as the `reviewed_preferred` sites, which is the half I17 fails silently in |
+| Q3: **empty set**, and a set rather than a value | **held** — `Absence.NOT_STORED` on both analyses |
+| Q4: **0** recoverable against **27** reported | **held** — `Absence.NOT_RETAINED` |
+| Q5: **12** present, **2** absent, both **unattributable** | **held** — `DDX58` and `OAS1`; `RIGI` present at `hgnc:HGNC:19102` |
+| I5: **0** unprovenanced | **held** — `{'Dataset': (0, 1), 'SiteObservation': (0, 2029), 'DifferentialResult': (0, 0)}` |
+
+**Every prediction held and the code was still wrong three times, which is the finding.** The
+queries were written against premises about the DDL that nobody had checked, and the fixture — built
+by handing change-sets to `store.write_change_set`, which validates — refused every one of them
+before a single row came back. `RESULT_FOR_SITE` runs to a **`SiteObservation`**, not to a
+`ModificationSite`; `RESULT_FOR_PROTEIN` runs to a **`ProteinObservation`**, not to a `Protein`; and
+a `ProteinAssignment` reaches an observation by `PROTEIN_ASSIGNMENT_FOR`, not by `ASSIGNS_PROTEIN`.
+**Predictions about output cannot catch a wrong premise about structure** — all three would have
+returned plausible empty columns against the real graph, which has no results to disagree with them.
+That is the argument for the fixture stated as a result rather than as an intention.
+
+**A fourth premise was wrong and is a gap rather than a typo.** §8 I15 says a result *"whose
+underlying values are more than half imputed"* is flagged **substantially imputed** in every view
+and export. There is no such column on `DifferentialResult`, and the graph holds the numerator
+(`SiteObservation.n_imputed`) without the denominator, which is per-sample in `quant.duckdb`. So the
+flag is **not derivable from the graph alone**: `DifferentialRow.substantially_imputed` is always
+`None` and carries `n_imputed` beside it, because a `False` would assert the clause satisfied.
+
+**One guard was unreachable from every caller.** `_provenance`'s fall-through — the branch that
+fails safe to *unprovenanced* for an entity type with no declared provenance path — is reached by
+nothing today: `Figure` is in §7's list, has no table, and `unprovenanced` skips labels absent from
+the DDL. Flipping it to `provenanced=True` left the whole module green. Kept rather than deleted,
+because *flagged* is the direction I5 has to fail in, and tested directly with the callers
+enumerated rather than guessed.
+
+**`OPERATIONS.md` §5's wall clock is widened again, by this turn's own opening rebuild.** Yesterday
+it went from one draw (119.9 s) to a three-run range (83.9–100.6 s). Today's first rebuild returned
+**149.7 s**, outside it, followed by 148.5 s and 101.7 s. Six runs across two sessions give
+**83.9–149.7 s**, a spread of ~66 s rather than 17. Three consecutive runs in one session measure
+the machine's mood, not the command, and the correction is recorded as that lesson rather than as a
+third number.
+
+
 ### The platform made an invisible analytical choice, 2026-08-07
 
 **The clearest finding of the project, because it is the project's own failure mode.** `VISION.md`
@@ -1422,6 +1466,14 @@ Two things the old wording also assumed and that are **not yet true**, both bloc
 
 ### Weeks 7–8 — output and consolidation
 Minimal Streamlit or notebook interface: query, volcano, provenance panel. Ambiguity and correction status visible everywhere a number appears. ADRs 0004–0014 written. Rebuild tested against the full dataset.
+
+**The *query* half landed 2026-08-09; the interface did not.** `bzk/query/` answers the five
+questions an interface would ask, and *"ambiguity and correction status visible everywhere a number
+appears"* is enforced there rather than deferred to the renderer: no bare number leaves the layer,
+every `prov:Entity` row carries its I5 provenance status, and an absent answer is a value from a
+closed set rather than an empty list. What is untouched is the volcano, the provenance *panel*, and
+anything that writes a file — which is also where I18's embargo check has to land (`HANDOFF.md` §8,
+EX).
 
 *Exit:* *"which sites are lost on ISG15 knockdown across all my datasets"* returns a cited, provenanced answer, and every displayed number carries its inference status.
 
