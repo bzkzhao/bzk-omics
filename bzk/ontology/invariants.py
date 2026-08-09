@@ -26,10 +26,14 @@ construction · write-path · data = storage layer). Tracked in HANDOFF.md §8:
   - I8  (CS + WG)    curated design — Sample→curation reachability + `inferred` labelling
   - I9  (OP)         reproducible rebuild — exercised by `rebuild.py`; non-vacuous since
                      2026-08-07, when the curation replay began writing real content
-  - I11 (data)       quantitative retention — met 2026-08-08 by `bzk/quant/`
-                     (ADR-0004, ADR-0013). Not a change-set check: a change-set is
-                     graph content by definition (§2), and these values are
-                     one-per-entity-per-sample, so nothing here can see them
+  - I11 (data)       quantitative retention — met 2026-08-08 by `bzk/quant/` for
+                     `SiteObservation` ONLY (ADR-0004, ADR-0013). `ProteinObservation`
+                     has a table and a `quant_ref` path and no adapter that writes
+                     either: `maxquant_sites.py` is the sole `quant_ref` assignment in
+                     `bzk/adapters/`, and `perseus.py` emits no cells at all. Not a
+                     change-set check: a change-set is graph content by definition (§2),
+                     and these values are one-per-entity-per-sample, so nothing here
+                     can see them
   - I12 (LINT)       no tryptic assumptions — a source-tree lint, not a change-set check
   - I13 (LINT)       pipeline metadata is data — a source-tree lint, not a change-set check
   - I17 (CON)        reviewed preferred — recorded by the adapter / ProteinAssignment construction

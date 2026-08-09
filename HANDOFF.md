@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.17 |
+| Version | 1.18 |
 | Last reviewed | 2026-08-08 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -102,7 +102,7 @@ step, divergence accounted for exactly, every miss traced*. That part is met. Th
    one, so "which of the 14 targets" is unanswerable from stored content — the differential run
    reads the deposit's `Gene names` column. Until this lands, *"through the real pipeline"* is
    false for the identification step, whatever the pipeline does.
-3. ~~**I11 is unmet.**~~ **Met 2026-08-08** — `bzk/quant/`, ADR-0004 and ADR-0013. `quant.duckdb` is created by `rebuild`, `quant_ref` is `site_values` on all 2,029 `SiteObservation`s, and **48,696 measured-or-null cells** are retained (2,029 sites × 12 samples × 2 quantities). The matrix is no longer
+3. ~~**I11 is unmet.**~~ **met 2026-08-08 for `SiteObservation` **only**** — `bzk/quant/`, ADR-0004 and ADR-0013; `ProteinObservation` retains nothing, see below. `quant.duckdb` is created by `rebuild`, `quant_ref` is `site_values` on all 2,029 `SiteObservation`s, and **48,696 measured-or-null cells** are retained (2,029 sites × 12 samples × 2 quantities). The matrix is no longer
    re-read from the deposit each run, and the statistics layer is pluggable in fact rather than in
    principle: an alternative test is recomputable from stored values. Values are **measured and
    null, pre-imputation** (ADR-0013), so the imputation mask stays reconstructible from a seeded
@@ -875,21 +875,57 @@ pre-registered outcome 4. `executemany` is one round trip per row against the pr
 it is a loop with a shorter spelling, not a bulk path.
 
 Replaced with a single `INSERT OR REPLACE … SELECT` over a registered polars frame: **1.43 s** for
-the same 48,696 cells, and the rebuild returns to **62.2 s**. The semantics are unchanged — the
-upsert is still per key — so this is not speed traded for the convergence I9 needs.
+the same 48,696 cells. The semantics are unchanged — the upsert is still per key — so this is not
+speed traded for the convergence I9 needs.
+
+**The rebuild figure that followed is withdrawn, 2026-08-08.** This said the rebuild *"returns to
+62.2 s"* — a word asserting restoration for a number below its 69.0 s reference, and a number 0.1 s
+inside a band 13.8 s wide. Three rebuilds per tree: pre-layer 68.1 / 64.7 / 58.4, current
+74.5 / 59.0 / 57.6. **The within-tree spread is 9.6 s and 17.0 s**, so the instrument cannot resolve
+a 0.1 s margin or place a single run in the band at all, and the tree doing more work has the lower
+median. The 165.2 s and 1.43 s attributions are unaffected — they differ by two orders of magnitude
+and by a mechanism that was isolated — but the end-to-end rebuild clock says nothing either way.
 
 Two things worth carrying. **The attribution was measured, not guessed**: adapter `parse` is 3.45 s
 and the write was the other 165 s, so there was never a question of which half to look at. And
 **citing a measurement is not the same as heeding it** — the docstring quoted the right number and
 the code did the wrong thing, which is why the number is now in the docstring beside what it cost.
 
-#### I11's remaining reach, stated because "met" is not "met everywhere"
+#### I11 is met for one of the two live subtypes, not both — corrected 2026-08-08
 
-Met for the two live observation subtypes. `ProteinObservation` has its table, `protein_values`, and
-its `quant_ref` path, but **no adapter populates it today** — `perseus.py` emits `ProteinObservation`
+**This paragraph opened with *"Met for the two live observation subtypes"*, which is the unqualified
+claim in its strongest form sitting directly above four lines that contradict it.** A reader taking
+the first sentence — which is what a first sentence is for — got the opposite of what the paragraph
+went on to say. Corrected by moving the line to the paragraph rather than the paragraph to the line.
+
+**Met for `SiteObservation`. Not met for `ProteinObservation`,** which has its table,
+`protein_values`, and its `quant_ref` path, and **no adapter that writes either** — `perseus.py` emits `ProteinObservation`
 nodes and no cells, so `quant_ref` is null there. That is the violation state the column exists to
 show, and it is visible rather than hidden. `PeptideObservation` and `EnrichmentObservation` are
 deferred subtypes with no table at all, so I11 does not reach them.
+
+#### Two measurements whose records were larger than what they established — 2026-08-08
+
+**A line-ending count taken through a text read.** A 2026-08-08 measurement reported the PXD018299
+deposit as LF and contradicted `ARCHITECTURE.md` §3's *"CRLF throughout, zero bare LF"*; the
+contradiction was filed as incidental and left. Re-measured properly — digest-confirmed through
+`raw_store.verify`, then `read_bytes` — the deposit is **2,759,052 bytes, 2,342 CRLF, 0 bare LF, 0
+bare CR**. §3 was right and the new count was the artefact: it used `Path.read_text()`, which opens
+in text mode with universal newlines and translates CRLF to LF *before* anything can count it. The
+same bytes report 0 CRLF through that path. Eight artefacts rest on §3's claim and **none needed
+correcting**; the one thing that needed correcting was the measurement. Recorded beside §3 as well,
+because that is the line the next reader will doubt and the wrong way to doubt it is one function
+call away. No guard: this is a measurement, not a class.
+
+**A wall clock closed against a band it cannot resolve.** The rebuild was recorded at 62.2 s against
+a 69.0 s ± 10% band — 0.1 s inside the lower edge, converting a declared outcome 4 into
+prediction-met — and described as *"returns to"* a figure it sits below. Three rebuilds per tree:
+pre-layer 68.1 / 64.7 / 58.4, current 74.5 / 59.0 / 57.6. **Within-tree spread is 9.6 s and 17.0 s
+against a 13.8 s band and a 0.1 s margin**, and the tree that does more work has the *lower* median.
+The clock prediction is withdrawn as **not established either way**, and the 6.8 s "improvement" is
+run-to-run variation with nothing to attribute. The pre-registration stated a test method for the id
+diff and none for the clock, which is how a single draw came to close a prediction.
+
 
 ### Unenforced invariants (audit 2026-08-07), by class
 
@@ -957,8 +993,11 @@ grouped by *how* they must be enforced, so a source-tree lint is not mistaken fo
 - **write-path, not written.** **I6** (append-only assertions: reject in-place edits of
   `ModifierAssignment` / `DifferentialResult`; supersession creates a new node; retraction
   propagation is a v0.2 action-layer concern).
-- ~~**data layer, pending.**~~ **I11 met 2026-08-08** (quantitative retention: every observation keeps its per-sample
-  matrix in DuckDB — needs the `quant/` layer).
+- **data layer, partial.** **I11 met 2026-08-08 for `SiteObservation` only.** The obligation is
+  *every observation keeps its per-sample matrix in DuckDB*, and `ProteinObservation` does not:
+  it has a table and a `quant_ref` path and no adapter that writes either. Restating the
+  obligation and then declaring it met was the overclaim — the words *every observation* are the
+  ones the state falsifies.
 - **OP — operational, partial.** **I9** (reproducible rebuild — exercised by `rebuild.py` for schema
   recreation; full regeneration pending adapters).
 

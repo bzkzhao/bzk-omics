@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.20 |
+| Version | 1.21 |
 | Last reviewed | 2026-08-08 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -577,6 +577,11 @@ per-label id diff against `~/.bzk-omics/graph.kuzu`. *Not* by re-reading §3's p
 `schema.IDENTITY`, which is what produced the premise; a partition cannot test the code that is
 supposed to respect it.
 
+**Added 2026-08-08, after the fact and marked as such:** that method covers the id diff and **not
+the wall clock**, which is the only prediction here whose test was never registered. A band was
+stated, a single run was taken against it, and nothing said how many runs or what spread would
+count. The consequence is in the result below.
+
 Four outcomes, and what each licenses:
 
 1. **Nothing moves.** The expected outcome and the weakest. It licenses "the layer is additive at
@@ -610,9 +615,32 @@ from **69.0 s to 235.2 s**, far outside the ±10% band. Attributed rather than g
 is the *same* per-row cost `HANDOFF.md` §8 measured for the graph's per-statement write. The write
 used `executemany` and its docstring cited that very measurement as the reason to batch; it was one
 round trip per row against the primary key's index all the same. Replaced with a single
-`INSERT OR REPLACE … SELECT` over a registered frame: **1.43 s**, and the rebuild returns to
-**62.2 s**. So the design's assumption that the columnar write is cheap is true of the bulk path and
-was false of the code that claimed to take it.
+`INSERT OR REPLACE … SELECT` over a registered frame: **1.43 s**. So the design's assumption that
+the columnar write is cheap is true of the bulk path and was false of the code that claimed to take
+it. Those two figures are attributed and stand.
+
+**The rebuild wall clock is withdrawn as a result, 2026-08-08.** This paragraph said the rebuild
+*"returns to 62.2 s"*, which asserted restoration for a number **below** its 69.0 s reference, and
+62.2 s sits **0.1 s inside** the band's lower edge — converting the declared outcome 4 into
+prediction-met on a margin the instrument cannot resolve. Re-measured, three rebuilds per tree:
+
+| tree | runs (s) | median | spread |
+|---|---|---|---|
+| pre-layer (`a9d03e1`, no cells, no DuckDB file) | 68.1, 64.7, 58.4 | 64.7 | **9.6 s** |
+| current (`d7862e8`, 48,696 cells) | 74.5, 59.0, 57.6 | 59.0 | **17.0 s** |
+
+**A 0.1 s margin is not resolvable by this instrument, and neither is the band.** The band is 13.8 s
+wide (62.1–75.9) and the within-tree spread is 9.6–17.0 s, so a single run cannot place a tree
+inside or outside it: two of the three current-tree runs fall *below* the band and one falls inside.
+The honest record is that **the clock prediction was not established either way** — not that it was
+met, and not that it failed.
+
+**The 6.8 s is not attributed to the change, and the reason is that there is nothing to attribute.**
+69.0 s was a single draw, and the pre-layer tree's own range is 58.4–68.1 s, so 69.0 sits at or above
+its top. The two distributions overlap almost entirely, and the tree that does *more* work has the
+**lower** median — 59.0 against 64.7 — which is itself the proof that the difference is run-to-run
+variation rather than an effect. n = 3 per tree; the conclusion rests on the spread exceeding the
+margin by two orders of magnitude, not on the medians.
 
 **The claim that carries information, kept separate from the id diff as pre-registered.** All 24
 cells of one real observation were read back out of DuckDB and each was found in its own column of
@@ -824,7 +852,7 @@ MaxQuant site-table adapter. DuckDB quantitative layer. **`welch_t` with BH firs
 
 A site moves from ambiguous to `basis = uba7_knockout, confidence = confirmed`, and the superseded assignment remains inspectable.
 
-Two things the old wording also assumed and that are **not yet true**, both blocking a literal reading of "through the real pipeline": gene symbols never enter the graph (`Gene` has no nodes, `Protein.name` is null on all 4,441), so target identification still reads the deposit's `Gene names`; and — until 2026-08-08 — I11 was unmet, which it no longer is: `quant_ref` is `site_values` on all 2,029 observations, `quant.duckdb` holds 48,696 cells, and the matrix is retained rather than re-read (ADR-0004, ADR-0013). Gene symbols remain the blocker on that reading.
+Two things the old wording also assumed and that are **not yet true**, both blocking a literal reading of "through the real pipeline": gene symbols never enter the graph (`Gene` has no nodes, `Protein.name` is null on all 4,441), so target identification still reads the deposit's `Gene names`; and I11 is met at **site grain only** since 2026-08-08: `quant_ref` is `site_values` on all 2,029 `SiteObservation`s and `quant.duckdb` holds 48,696 cells, so the site matrix is retained rather than re-read (ADR-0004, ADR-0013) — while `ProteinObservation` retains nothing, no adapter writing its cells. Gene symbols and the protein grain both remain on that reading.
 
 ### Weeks 7–8 — output and consolidation
 Minimal Streamlit or notebook interface: query, volcano, provenance panel. Ambiguity and correction status visible everywhere a number appears. ADRs 0004–0014 written. Rebuild tested against the full dataset.

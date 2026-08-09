@@ -8,6 +8,26 @@ Numbered, immutable records of settled choices. Each captures one decision, its 
 
 The line is drawn by **status rather than by elapsed time**, because a status is checkable and "shortly after writing it" is not. ADR-0020 and ADR-0021 each carry a `Revised in place` row recording amendments made after they were marked `Accepted`, under the earlier reading of this rule. Those rows stay: they are the record of how the convention reached its current form, and reclassifying them retroactively would erase exactly the history this file exists to keep.
 
+**ADR-0013's `Consequences` overstates its own `Context`, and is left standing — 2026-08-08.**
+Its Context sets the discharge condition (*"the obligation is discharged when those two persist
+their values"*) and its Consequences declares it met (*"I11 moves from unmet to met for both live
+observation subtypes"*). Only `SiteObservation` retains anything; `ProteinObservation` has a table
+and a `quant_ref` path and no adapter that writes either. The decision the record makes — retain
+permanently, pre-imputation, two grains, two tables — is unaffected and correct; one factual
+sentence in it is not.
+
+Three routes were considered against the rule above, and the rule leaves none inside the record.
+**Editing in place** is what *"never edited"* forecloses, and the `Revised in place` rows on
+ADR-0020 and ADR-0021 are not licence — this file labels them as the earlier reading. **A
+superseding record** is what the rule offers, and it does not fit: supersession is for *"a changed
+decision"*, no decision changed, and a record correcting one sentence and deciding nothing is not
+an ADR by the definition three lines above. **A note inside the ADR** is the in-place edit again.
+
+So the correction lives here, in the one file in this directory the append-only rule does not bind
+and which already carries statements *about* records, and in `HANDOFF.md` §8 where the project keeps
+corrections of fact. What this leaves standing is a wrong sentence in a durable record with a
+pointer to it only from outside — recorded as the cost of the rule rather than worked around.
+
 This exists because a project with one developer and a compressed timeline will otherwise relitigate settled questions every few months, and because an AI agent given the repository has no other way to know why a choice was made.
 
 ## Written
