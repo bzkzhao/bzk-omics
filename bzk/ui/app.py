@@ -208,7 +208,12 @@ def absences_panel(conn: Any, analysis_ids: Sequence[str]) -> None:
                         "site": r.site_id or "—",
                         "genes": ", ".join(r.gene_symbols) or "—",
                         "quantity": r.quantity or "—",
+                        # Both halves of the pair, never just the test. ADR-0015's Consequences
+                        # turn on `s0` curvature **and** permutation FDR together, so a row showing
+                        # `welch_t` with no FDR method is still misreadable as Perseus-comparable.
+                        # The column read `test` alone until 2026-08-09.
                         "test": r.test or "—",
+                        "fdr": r.fdr_method or "—",
                         "log2FC": r.log2fc,
                         "adj p": r.adj_p_value,
                         "protein_adjusted": r.protein_adjusted or "—",

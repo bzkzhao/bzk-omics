@@ -64,19 +64,52 @@ def conn() -> kuzu.Connection:
     return connection
 
 
-def test_the_differential_table_is_empty_because_nothing_stores_results(
+def test_the_welch_run_is_stored_and_every_row_carries_the_test_that_produced_it(
     conn: kuzu.Connection,
 ) -> None:
-    """The state the real graph is actually in, and the reason the fixture is not optional.
+    """**This assertion read the opposite until 2026-08-09** and the reversal is the finding.
 
-    `pxd018299_differential.py` computes results and writes none, so `DifferentialResult` is empty.
-    That is *not stored*, not *none significant*, and a bare list would say the second.
+    It said `DifferentialResult` was empty and `differential_table` returned `NOT_STORED`, which
+    was true while `pxd018299_differential.py` computed results and wrote none. It now writes them,
+    so the assertion is on what landed: **1,362** rows under `welch_t` with BH, one per tested
+    observation.
+
+    **Both halves of the pair are asserted on every row, not just the test.** ADR-0015's
+    Consequences turn on `s0` curvature *and* permutation FDR together, so a row carrying
+    `welch_t` and no `fdr_method` is still misreadable as Perseus-comparable. The `all(...)` runs
+    over all 1,362 rather than over the first, because a per-row field read off the `Analysis`
+    (I16) is exactly the kind that is right on the row someone spot-checks.
     """
-    processing = gq._rows(conn, "MATCH (a:Analysis) WHERE a.kind = 'processing' RETURN a.id")
-    assert len(processing) == 1
-    rows, absence = gq.differential_table(conn, str(processing[0][0]))
-    assert rows == []
-    assert absence is gq.Absence.NOT_STORED
+    welch = gq._rows(conn, "MATCH (a:Analysis) WHERE a.test = 'welch_t' RETURN a.id")
+    assert len(welch) == 1
+    rows, absence = gq.differential_table(conn, str(welch[0][0]))
+    assert len(rows) == 1362
+    assert absence is None
+    assert all(r.test == "welch_t" and r.fdr_method == "BH" for r in rows)
+    assert all(r.quantity == "intensity_multiplicity_summed" for r in rows)
+    # I4: uncorrected by construction on this route, and stated rather than left null.
+    assert all(r.protein_adjusted == "not_applied" and r.adjustment_method is None for r in rows)
+    # I15's display half is still not derivable from the graph — the denominator is per-sample in
+    # `quant.duckdb`, and writing rows did not move it.
+    assert all(r.substantially_imputed is None for r in rows)
+
+
+def test_an_analysis_that_stored_no_results_now_says_none_found_not_not_stored(
+    conn: kuzu.Connection,
+) -> None:
+    """The same empty list, meaning the other thing — which is the whole point of the signature.
+
+    The ingestion and curation analyses produced no `DifferentialResult` and never will. While the
+    table was empty that read `NOT_STORED`; now that it holds 1,362 rows belonging to a different
+    analysis, the honest answer for these two is `NONE_FOUND`. Asserted because the transition is
+    invisible at the call site: both return `[]`.
+    """
+    others = gq._rows(conn, "MATCH (a:Analysis) WHERE a.test IS NULL RETURN a.id ORDER BY a.id")
+    assert len(others) == 2
+    for (analysis_id,) in [(str(r[0]),) for r in others]:
+        rows, absence = gq.differential_table(conn, analysis_id)
+        assert rows == []
+        assert absence is gq.Absence.NONE_FOUND
 
 
 def test_every_site_carries_a_keying_basis_and_only_the_promoted_ones_a_displaced_accession(
@@ -105,14 +138,30 @@ def test_every_site_carries_a_keying_basis_and_only_the_promoted_ones_a_displace
     assert promoted == 522, "a promotion and a displacement must be the same set (I17)"
 
 
-def test_no_analysis_has_an_imputation_and_that_is_an_i15_violation(conn: kuzu.Connection) -> None:
+def test_only_the_analysis_that_imputed_satisfies_i15(conn: kuzu.Connection) -> None:
+    """**Read *no analysis has one* until 2026-08-09.** One does now, and two still do not.
+
+    I15 requires an `Analysis` that produced results to declare its imputation — *including*
+    `method = 'none'`. The `welch_t` run declares `downshifted_normal` with its seed, which is what
+    makes the imputation mask reconstructible rather than lost to a count. The ingestion and
+    curation analyses produced no results, so their violation is the harmless kind and is still
+    reported rather than excused.
+    """
     analyses = [str(r[0]) for r in gq._rows(conn, "MATCH (a:Analysis) RETURN a.id ORDER BY a.id")]
-    assert len(analyses) == 2
-    for analysis_id in analyses:
-        state = gq.imputation_state(conn, analysis_id)
-        assert state.methods == () and state.seeds == ()
-        assert state.absence is gq.Absence.NOT_STORED
-        assert not state.satisfies_i15
+    assert len(analyses) == 3
+    satisfied = [a for a in analyses if gq.imputation_state(conn, a).satisfies_i15]
+    assert len(satisfied) == 1
+    state = gq.imputation_state(conn, satisfied[0])
+    assert state.methods == ("downshifted_normal",)
+    assert state.seeds == (0,)
+    assert state.absence is None
+    for analysis_id in [a for a in analyses if a != satisfied[0]]:
+        other = gq.imputation_state(conn, analysis_id)
+        assert other.methods == () and other.seeds == ()
+        # Not `NOT_STORED`: `Imputation` is no longer empty, so an absence here is about this
+        # analysis rather than about the table.
+        assert other.absence is gq.Absence.NONE_FOUND
+        assert not other.satisfies_i15
 
 
 def test_the_refusals_are_not_recoverable_from_the_graph(conn: kuzu.Connection) -> None:
@@ -151,7 +200,10 @@ def test_nothing_in_the_real_graph_is_unprovenanced(conn: kuzu.Connection) -> No
     assert gq.unprovenanced(conn) == {
         "Dataset": (0, 1),
         "SiteObservation": (0, 2029),
-        "DifferentialResult": (0, 0),
+        # Was `(0, 0)` until 2026-08-09 — 0 of 0, which the bare count would have shown as a pass
+        # and which the totals exist to distinguish. It is now 0 of 1,362, and the same first
+        # number means something.
+        "DifferentialResult": (0, 1362),
     }
 
 

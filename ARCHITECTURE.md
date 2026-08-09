@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.20 |
+| Version | 1.21 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -84,7 +84,8 @@ bzk/
     nodes.py     # accession -> Protein + ProteinSequence (ADR-0005); injected, offline-testable
   quant/         # DuckDB layer, normalisation
   query/         # the read path over Kùzu; returns records carrying their inference status
-  stats/         # moderated t-test, BH, protein-level adjustment
+  stats/         # moderated t-test, BH, protein-level adjustment; knows nothing about the graph
+  analysis/      # change-sets for runs the platform performed, over observations already stored
   ui/            # `streamlit run bzk/ui/app.py` — imports bzk.query and nothing else from bzk/
   provenance/    # PROV-O mapping, content hashing; raw_store.py is the content-addressed raw/
   drift.py       # `bzk drift` — validates the sequence archive against UniProt; writes a receipt
@@ -92,6 +93,21 @@ bzk/
   api/           # FastAPI routes
 web/             # SvelteKit
 ```
+
+**`analysis/` is a fourth layer and the boundary is worth stating, because three others were
+already close (added 2026-08-09).** `sources/` retrieves deposits, `adapters/` maps an external
+tool's output to `Observation` nodes under the `ObservationAdapter` contract, `stats/` computes
+arithmetic, and `ontology/store.py` is the only module that writes. A module that turns values a
+computation produced into derived evidence — an `Analysis`, its `Imputation`, a `Contrast` and the
+`DifferentialResult`s — over observations that **already exist** is none of them: there is no file
+to parse and no observation to mint. Putting it in `adapters/` would make *adapter* mean "anything
+that builds a change-set", which is the one thing that contract does not say — `sniff` and
+`parse(file, mapping)` have no argument here. Putting it in `stats/` would make the arithmetic
+depend on the schema, and that independence is what makes I11's retained matrix worth having: a
+test that cannot mint a node can be swapped without touching the graph. Putting it in the dataset
+script that already computes the numbers would make one deposit's runner the home of a contract
+every future computed analysis needs. It does no arithmetic, no I/O and no writing, and
+`tests/test_analysis_differential.py` asserts that on the module's AST rather than on its prose.
 
 **`curation/` is separate from `adapters/` for the same reason `sources/` is.** An adapter is one
 module per search engine, reading a quantitative output file under the `ObservationAdapter`

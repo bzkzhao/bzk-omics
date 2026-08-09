@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.40 |
+| Version | 1.41 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -33,7 +33,7 @@ One ingestion path, one dataset, one statistical test, no web frontend.
 | UniProtKB resolution | Sequence-version pinning, isoform-aware, position validation, persistent cache |
 | Evidence graph in Kùzu | `Observation` and `EvidencedInference` contracts defined even though few subtypes ship |
 | Quantitative matrices in DuckDB | I11 — retained permanently, never only derived statistics |
-| `welch_t` | **Implemented first.** The 12-of-14 baseline was measured under Welch + BH; reproducing it exactly is how a pipeline bug is distinguished from a genuine difference between tests |
+| `welch_t` | **Implemented first**, and **its results are in the graph since 2026-08-09** — 1,362 `DifferentialResult`s under one `Analysis`. The 12-of-14 baseline was measured under Welch + BH; reproducing it exactly is how a pipeline bug is distinguished from a genuine difference between tests |
 | `perseus_s0` | Default and required per ADR-0015. Implemented second, and its own recovery number recorded as a separate baseline — it will not necessarily be 12 |
 | `ModifierAssignment` | Created as ambiguous on every site; manual assignment with basis |
 | `ProteinAssignment` | As a node, per `ONTOLOGY.md` §6.3. Same shape and cardinality as `ModifierAssignment`, so no additional machinery |
@@ -2031,6 +2031,84 @@ obliges under I19; where a module that computes a statistic and emits a change-s
 `sources/` fetches, `adapters/` parses and `store.py` writes; whether one computed analysis over one
 dataset forces §11 Q1's `Contrast` placement. **Nothing new is built beyond the write path** — no
 second test, no volcano, no read-layer additions.
+
+
+### The graph holds computed results: 1,362 rows, and every prediction held, 2026-08-09
+
+**Run against the pre-registration above.** `python -m bzk.sources.pxd018299_differential` now writes
+what it computes. Every registered prediction held, including the two that were about meaning rather
+than about counts.
+
+| Prediction | Result |
+|---|---|
+| No existing id moves; `Analysis` gains exactly 1 and no other populated label gains any | **held** — 0 lost on all twelve; `Analysis` +1, `Contrast` +1, `Imputation` +1, `DifferentialResult` +1,362, nothing else moved |
+| `DifferentialResult` = **1,362**, derived from the presence rule over 2,029 | **held** — `after presence rule 1,362`, `tested (non-NaN p) 1,362` |
+| `Contrast` 1, `Imputation` 1, `Analysis` 3 | **held** |
+| `WAS_GENERATED_BY` 1,362, `RESULT_FOR_SITE` 1,362, `RESULT_IN_CONTRAST` 1,362, `IMPUTATION_FOR` 1, `USED` 3 | **held** |
+| Refusals 27, sites 2,029, `gene_absence` 1,054 / 3,492 / 15 / 0 unchanged | **held** |
+| `differential_table(new)` → 1,362 rows, absence `None`, every row `welch_t`/BH/`not_applied`/`substantially_imputed=None` | **held**, asserted over all 1,362 |
+| `differential_table(the other two)` → `[]` with **`NONE_FOUND`**, not `NOT_STORED` | **held** |
+| `unprovenanced` → `DifferentialResult (0, 1362)` | **held** |
+| `imputation_state(new)` → `('downshifted_normal',)`, `(0,)`, absence `None`, I15 satisfied; the other two `NOT_STORED` → `NONE_FOUND` | **held** |
+| `refusals` `NOT_RETAINED`; `gene_symbols` 12 of 14; `site_keying` 2,029 with 522 displaced | **held**, all unchanged |
+
+**The two predictions worth having made are the ones about the same empty list.** `NOT_STORED` →
+`NONE_FOUND` on two analyses that did not change is what an absence value buys: their state is
+identical and the honest answer about it is different, because the claim was never about them. A
+bare `[]` would have moved silently.
+
+**Step 0 needed no work and the answer is why.** `differential_table` already carried `test` and
+`fdr_method` off the `Analysis`, where I16 puts them, so a row is legible as `welch_t`/BH rather
+than Perseus-comparable. The gap was one layer out: `app.py`'s table rendered `test` and not
+`fdr_method`, showing half of the pair ADR-0015's Consequences turn on. One column added; the
+`moderated_t_ebayes` question was answered without work, since under I16 a second test is a second
+`Analysis` with its own recovery number and adding one is not registered here.
+
+**Three structural premises, two of them established by being refused.** `store.write_change_set`
+resolves an edge's endpoints from the change-set's **own** nodes, so a result cannot attach to an
+observation the batch does not carry; including the observation then makes I3 demand its
+`ModifierAssignment`. Both refusals were produced against the validator before any writer existed.
+**The pre-registration got the layer wrong and the test found it**: it said `store` raises, and
+ADR-0019's structural validation raises first, naming the edge — the stricter guard is the earlier
+one, and reading `store.py` was what produced the wrong attribution.
+
+**A fourth premise was wrong in the other direction and is the better behaviour.** Two results over
+one observation in one analysis were expected to converge on one node, since the numbers are
+excluded from identity (§3). The batch is **refused** instead: a duplicate id inside one change-set
+means the producer contradicted itself rather than repeated itself, and silent convergence would
+have kept whichever the loop wrote last. Found by writing the test, not by reading the code.
+
+**Where the writer lives, and why not where the computation is.** `bzk/analysis/` is a fourth layer
+beside `sources/`, `adapters/` and `stats/`, argued in `ARCHITECTURE.md` §3: there is no file to
+parse and no observation to mint, `stats/` must not learn the schema or I11's retained matrix stops
+being swappable, and a dataset script is the wrong home for a contract every future computed
+analysis needs. It does no arithmetic, no I/O and no writing, asserted on the module's AST.
+
+**`kind` and `parameters_observed`, decided against I19 rather than against new machinery.**
+`'processing'` — §5's enum offers `'processing' | 'curation' | 'external'` and `'external'` is the
+value that says the platform did **not** run it; there is no fourth. `parameters_observed = true`,
+which I19 makes the standing a platform-produced result has, and the obligation it carries is
+concrete: the recorded parameters must be **the values the computation used**, so they are passed
+from the same constants rather than transcribed a second time, and the flag is not an argument the
+caller can set.
+
+**§11 Q1 is not forced by this run.** `Contrast` is keyed on numerator and denominator with no
+dataset anchor, so a second dataset declaring the same contrast would converge on this node — which
+is exactly the reuse Q1 describes. One computed analysis over one dataset produces one `Contrast`
+and no collision, so nothing here settles or requires settling it; the keying is `perseus.py`'s,
+inherited rather than chosen.
+
+**What writing results did not change.** `substantially_imputed` is still `None` on every row. I15's
+clause needs a denominator that lives per-sample in `quant.duckdb`, and the location of the
+denominator is unaffected by writing rows — the `Imputation` node records method and seed, which is
+what makes the mask reconstructible, not what makes the fraction derivable from the graph.
+
+**The recovery fence, stated once and not crossed.** § *Validity-conditional promotion* fixes **12
+of 14 as identifiability**. The run written here reports a **recovery** count, under `welch_t` and
+BH. They have been the same integer since `Gene` landed and they are not the same quantity. This
+entry does not compare them, does not recompute the published 9-of-14 comparison, and the
+identification route was not switched — `pxd018299_differential.py` still reads `Gene names`, for
+the reason its own docstring records.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07

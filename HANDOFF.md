@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.29 |
+| Version | 1.30 |
 | Last reviewed | 2026-08-09 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -213,6 +213,19 @@ in place and the evidence is in the record. **Both enumerations of reserved numb
 `decisions/README.md` listed 0004 and 0013 as queued after they were written, and omitted 0018,
 which the seed list reserves. Reconciled. Nothing checks the three enumerations against each other,
 which is the standing item this does not close.
+
+**The graph holds computed results, 2026-08-09.** `python -m bzk.sources.pxd018299_differential`
+writes what it computes: **1,362** `DifferentialResult`s under one `Analysis`
+(`kind = 'processing'`, `parameters_observed = true`, `welch_t` with BH), one `Contrast`, one
+`Imputation`. `query.differential_table` returns rows instead of `NOT_STORED`, and the two analyses
+that produced nothing moved `NOT_STORED` → `NONE_FOUND` without their own state changing — the
+transition an absence value exists for. No id moved. **`bzk/analysis/` is a fourth layer**, argued
+in `ARCHITECTURE.md` §3 rather than filed under the layer nearest to hand. Three things this did
+not change and one it did not touch: `substantially_imputed` is still `None` because I15's
+denominator is per-sample in `quant.duckdb`; refusals are still `NOT_RETAINED`; `gene_symbols` is
+still 12 of 14; and §11 Q1's `Contrast` placement is not forced by one analysis over one dataset.
+`perseus_s0` still waits on the meeting, so the second baseline and its own recovery number do not
+exist yet.
 
 **Two things the interface established rather than assumed.** Kùzu takes a single writer lock, so
 the app **cannot read the graph while `bzk rebuild` holds it** — `query.connect` raises

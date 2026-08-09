@@ -7,6 +7,21 @@ the notebook could not detect (residue drift, deleted UniProt entries, a withhel
 the presence rule cuts both again to different thirds. A recovery figure that matched would need
 explaining as much as one that differs.
 
+**It writes its results into the graph since 2026-08-09, and that is new.** Until then it computed
+them and wrote nothing, so `query.differential_table` answered `NOT_STORED` — the platform could
+compute a differential and could not hold one. The change-set is built by `bzk/analysis/`, which is
+a fourth layer for the reason its own docstring gives, and written by `store.write_change_set`;
+nothing about the computation above moved. One `Analysis` (`kind = 'processing'`,
+`parameters_observed = True`), one `Imputation`, one `Contrast`, and one `DifferentialResult` per
+tested row.
+
+**The recovery figure this module prints is a recovery figure, and the graph now holds one too.**
+That is worth saying beside them because `ROADMAP.md` fixes **12 of 14 as identifiability** — how
+many published symbols are answerable from stored `Gene.symbol` — and the number below counts
+something else entirely: how many were recovered as significant under `welch_t` with BH. The two
+have been the same integer since `Gene` landed. They are not the same quantity, nothing here
+compares them, and the identification route is unchanged for the reason recorded above.
+
 **The arithmetic comes from `bzk/stats/`, which was written from `ARCHITECTURE.md` §4 and
 `ONTOLOGY.md` §6.5 — not from `colab_reproducefigure.ipynb`.** That distinction is the point of the
 slice. `bzk/sources/pxd018299_baseline.py` is the notebook transcription and says so; it can only
@@ -53,9 +68,12 @@ from pathlib import Path
 import numpy as np
 
 from bzk.adapters import maxquant
+from bzk.analysis import DeclaredRun, SiteResult, site_change_set
 from bzk.curation.loader import load_path
+from bzk.ontology import store
+from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.provenance.raw_store import verify
-from bzk.rebuild import _adapter_for, _deposit_for
+from bzk.rebuild import _adapter_for, _deposit_for, open_graph
 from bzk.sources.pride import PXD018299_SITES
 from bzk.stats import benjamini_hochberg, downshifted_normal, presence_filter, welch_t
 
@@ -234,6 +252,85 @@ def main() -> int:
     print(f"[4b]   not recovered: {sorted(set(EXPECTED_TARGETS) - recovered)}")
     print(
         f"[4b]   of those, absent from the tested population: {sorted(set(EXPECTED_TARGETS) - present)}"
+    )
+
+    # ── the results into the graph ──────────────────────────────────────────────────────────────
+    #
+    # The row → `SiteObservation` mapping comes from the adapter's report, not from assuming the
+    # two row lists built here and there come out in the same order. A tested row with no entry is
+    # a structural error rather than a row to skip: it would mean this module and the adapter
+    # disagree about which rows were ingested, which is the premise the whole population report
+    # rests on.
+    observation_of_row = report.observation_of_row
+    results = []
+    for i, row in enumerate(tested_rows):
+        observation_id = observation_of_row.get(row[column["id"]])
+        if observation_id is None:
+            raise SystemExit(
+                f"row {row[column['id']]!r} was tested here and has no SiteObservation from the "
+                "adapter — the two disagree about the ingested population"
+            )
+        results.append(
+            SiteResult(
+                observation_id=observation_id,
+                log2fc=float(result.log2fc[i]),
+                p_value=float(result.p_value[i]),
+                adj_p_value=float(adjusted[i]),
+            )
+        )
+
+    # The slice of the ingestion change-set the results attach to. Taken from the adapter's output
+    # rather than re-keyed: `store.write_change_set` reads endpoint labels off the batch's own
+    # nodes (ADR-0019), and I3 then refuses an observation without its `ModifierAssignment`.
+    attached_ids = {r.observation_id for r in results}
+    attached_nodes = [
+        node
+        for node in parsed.nodes
+        if node[NODE_TYPE_KEY] == "SiteObservation" and node["id"] in attached_ids
+    ]
+    assignment_edges = [
+        edge
+        for edge in parsed.edges
+        if edge["type"] == "ASSIGNMENT_FOR" and edge["to"] in attached_ids
+    ]
+    assignment_ids = {edge["from"] for edge in assignment_edges}
+    attached_nodes += [
+        node
+        for node in parsed.nodes
+        if node[NODE_TYPE_KEY] == "ModifierAssignment" and node["id"] in assignment_ids
+    ]
+    dataset = next(node for node in parsed.nodes if node[NODE_TYPE_KEY] == "Dataset")
+
+    run = DeclaredRun(
+        # Every value below is the one the computation above used, which is what
+        # `parameters_observed = True` obliges (I19) — read from the same constants, never retyped.
+        quantity=adapter.declared.quantity,
+        test="welch_t",
+        fdr_method="BH",
+        localization_threshold=adapter.declared.localization_threshold,
+        filters_applied=(
+            "reverse",
+            "potential_contaminant",
+            f"localization_prob>={adapter.declared.localization_threshold}",
+            f"presence>={PRESENCE_MIN}_in_{'either' if PRESENCE_EITHER else 'both'}_group",
+        ),
+        imputation=IMPUTE | {"method": "downshifted_normal"},
+        numerator=CONTRAST[0],
+        denominator=CONTRAST[1],
+        label=f"welch_t {CONTRAST[0]} vs {CONTRAST[1]} (BH)",
+    )
+    change_set = site_change_set(
+        run,
+        results,
+        dataset=dataset,
+        attached_nodes=attached_nodes,
+        attached_edges=assignment_edges,
+    )
+    conn = open_graph(Path.home() / ".bzk-omics")
+    written = store.write_change_set(conn, change_set.nodes, change_set.edges)
+    print(
+        f"[4b] wrote {len(results):,} DifferentialResult(s): {written.nodes_staged:,} node "
+        f"statement(s), {written.edges_staged:,} edge statement(s)"
     )
     return 0
 

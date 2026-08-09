@@ -265,9 +265,12 @@ def unprovenanced(conn: kuzu.Connection) -> dict[str, tuple[int, int]]:
       `Figure: 0` reads as *checked and clean*.
     * **The total is returned beside the count**, because `DifferentialResult: 0` is true of an
       empty table and of a fully provenanced one, and those are the same two meanings an empty list
-      conflates everywhere else here. Measured 2026-08-09 the real graph gives
+      conflates everywhere else here. Measured 2026-08-09 the real graph gave
       `{'Dataset': (0, 1), 'SiteObservation': (0, 2029), 'DifferentialResult': (0, 0)}` — and the
-      third of those is 0 of 0, which the bare count would have shown as a pass.
+      third of those was 0 of 0, which the bare count would have shown as a pass. **It is
+      `(0, 1362)` since the `welch_t` run was written the same day**, so the first number now means
+      what it always claimed to; the entry is kept because the 0-of-0 state is what the totals were
+      added for and it existed for two days.
     """
     present = _node_tables(conn)
     out: dict[str, tuple[int, int]] = {}
@@ -312,11 +315,13 @@ def differential_table(
 ) -> tuple[list[DifferentialRow], Absence | None]:
     """Site, protein, gene symbol, quantity, statistic — for one `Analysis`.
 
-    Returns `(rows, absence)`. **`absence` is the point of the signature.** An empty list means one
-    of two opposite things, and measured on 2026-08-09 the real graph is in the second: there are
-    **0** `DifferentialResult` nodes, so an empty table means *no results are stored*, not *no site
-    was significant*. Returning a bare list would make those indistinguishable at the call site,
-    which is the failure this whole layer is shaped around.
+    Returns `(rows, absence)`. **`absence` is the point of the signature**, and the real graph has
+    now been in both states in one day. Until the `welch_t` run was written on 2026-08-09 there were
+    **0** `DifferentialResult` nodes, so every empty answer meant *no results are stored*. There are
+    **1,362** now, all belonging to one analysis — so the same empty list returned for the ingestion
+    or curation analysis means *this analysis produced none*, and comes back `NONE_FOUND`. Nothing
+    at the call site distinguishes the two without the absence, which is the failure this whole
+    layer is shaped around.
     """
     if "DifferentialResult" not in _node_tables(conn) or _count(conn, "DifferentialResult") == 0:
         return [], Absence.NOT_STORED
@@ -462,8 +467,11 @@ def imputation_state(conn: kuzu.Connection, analysis_id: str) -> ImputationState
     A set, not a value: `IMPUTATION_FOR` is `MANY_ONE`, so several may attach. I15 requires at
     least one — *including* `method = 'none'` — so an empty set is a violation and is reported as
     one rather than raised: this is a read path, and refusing to answer would hide the state a
-    caller asked about. Measured 2026-08-09, the real graph has **0** `Imputation` nodes, so
-    `absence` distinguishes *this analysis has none* from *none are stored at all*.
+    caller asked about. Measured 2026-08-09, the real graph had **0** `Imputation` nodes; the
+    `welch_t` run written the same day added **1**, so the two older analyses moved from
+    `NOT_STORED` to `NONE_FOUND` without their own state changing at all. That transition is what
+    `absence` is for: *this analysis has none* and *none are stored at all* are different facts and
+    the empty set is the same object for both.
     """
     stored = "Imputation" in _node_tables(conn) and _count(conn, "Imputation") > 0
     rows = _rows(

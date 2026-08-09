@@ -245,6 +245,15 @@ class SiteIngestReport:
     promoted_reviewed: int = 0
     #: accession → why no `ProteinSequence` could be keyed, straight from `resolve_to_nodes`.
     unresolved: dict[str, str] = field(default_factory=dict)
+    #: MaxQuant row `id` → the `SiteObservation` id it became. Only accepted rows appear.
+    #:
+    #: Added 2026-08-09 for `bzk/analysis/`, which computes a statistic per row and must attach the
+    #: result to the observation that row became (`RESULT_FOR_SITE`). Nothing on the observation
+    #: records its source row, so the alternative was re-deriving the key outside the adapter — a
+    #: second source of truth for identity — or trusting that two independently built row lists come
+    #: out in the same order, which is a premise no assertion could carry. The adapter is the only
+    #: place that knows, so it says.
+    observation_of_row: dict[str, str] = field(default_factory=dict)
 
 
 class MaxQuantSiteAdapter:
@@ -389,6 +398,7 @@ class MaxQuantSiteAdapter:
 
         refusals: list[Refusal] = []
         cells: list[quant_store.Cell] = []
+        observation_of_row: dict[str, str] = {}
         sample_columns = _sample_columns(mapping, column)
         emitted = 0
         for row in kept:
@@ -407,6 +417,9 @@ class MaxQuantSiteAdapter:
             nodes.extend(site_nodes)
             edges.extend(site_edges)
             cells.extend(site_cells)
+            observation_of_row[row[column["id"]]] = next(
+                str(n["id"]) for n in site_nodes if n[NODE_TYPE_KEY] == "SiteObservation"
+            )
             emitted += 1
 
         nodes = self._deduplicate(nodes)
@@ -423,6 +436,7 @@ class MaxQuantSiteAdapter:
             refused_residue_mismatch=sum(r.reason == "residue_mismatch" for r in refusals),
             promoted_reviewed=len(promotions),
             unresolved=dict(resolved.unresolved),
+            observation_of_row=observation_of_row,
         )
         return ParsedObservations(
             nodes=nodes,

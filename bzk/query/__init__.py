@@ -23,10 +23,17 @@ with it from here, because a renderer is not the only consumer.
 
 3. **An absent answer is a value, never an empty container.** The precedent is `quant_ref = NULL`
    (§5.1): the node carries the reason its neighbour is missing. Measured on 2026-08-09, two of the
-   five questions come back empty from the real graph and mean different things by it —
-   `differential_table` has no `DifferentialResult` to return, `imputation_state` has no
+   five questions came back empty from the real graph and meant different things by it —
+   `differential_table` had no `DifferentialResult` to return, `imputation_state` had no
    `Imputation` — and `refusals` cannot be answered at all, because a refusal is never written
    anywhere. An `[]` for all three would be one object standing for four different facts.
+
+   **Writing the `welch_t` run the same day left one of those three empty and changed what the
+   other two mean.** `differential_table` returns 1,362 rows for that analysis and `NONE_FOUND` for
+   the two that produced none; `imputation_state` answers for it and returns `NONE_FOUND` for the
+   others. Neither of those two call sites changed — the *answer* did, from a claim about the store
+   to a claim about the analysis, which is exactly what an absence value buys and a bare `[]` would
+   have hidden. `refusals` still cannot be answered at all.
 
 **What this module does not do.** It writes no file, so `ONTOLOGY.md` §8 **I18**'s embargo check
 does not land here and is not weakened here — `HANDOFF.md` §8's EX class puts it at the first
