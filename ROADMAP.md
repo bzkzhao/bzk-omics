@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.38 |
+| Version | 1.39 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -2181,6 +2181,14 @@ set rather than an empty list. `bzk/ui/app.py` is the minimal Streamlit interfac
 panels, no chart, no export — and it carries that requirement one step further: the four `Absence`
 values render as **four distinct claims**, each naming the sibling a blank grid would collapse it
 onto, and the empty panels stay on screen rather than being hidden until they have rows.
+
+**The ADR clause is met, 2026-08-09.** *"ADRs 0004–0014 written"* names eleven records; 0004, 0005
+and 0013 already existed and the remaining eight — 0006–0012 and 0014 — were written that day, so
+the range is complete. Three of the eight land as `Superseded` rather than `Proposed` because they
+record decisions already replaced (0007 by 0011, 0011 by 0015, 0014 by 0017), and none lands
+`Accepted`: `decisions/README.md` requires a review round-trip and records why eight of them landing
+`Accepted` in one commit would have asserted one that had not happened. **0018 is the only reserved
+number still unwritten**, and it is outside this range.
 
 **What is untouched.** The volcano — there is nothing to plot, `DifferentialResult` being empty —
 and anything that writes a file, which is where I18's embargo check has to land (`HANDOFF.md` §8,

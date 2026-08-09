@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.28 |
+| Version | 1.29 |
 | Last reviewed | 2026-08-09 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -202,6 +202,17 @@ section: **every line of the block above began `python -m …`**, which contradi
 succeed under **3.11.15** before the third fails on `kuzu`. Corrected above. The cold wall clock
 became a range — 37 m 14 s – 39 m 34 s, *n* = 2 — with the fetch count reproducing exactly at
 5,273; §5 carries both.
+
+**The eight queued ADRs are written, 2026-08-09.** 0006–0012 and 0014, completing `ROADMAP.md`
+§ *Weeks 7–8*'s *"ADRs 0004–0014 written"*; **0018 is the only reserved number left**. Five land
+`Proposed` and three `Superseded` — none `Accepted`, for the reason `decisions/README.md` now
+records. Two things surfaced while writing them and neither is fixed here. **`ARCHITECTURE.md` §5's
+seed for 0007 was wrong** — it read *local moderated t-test over an R dependency*, which ADR-0015's
+account contradicts and which makes the 0007→0011 supersession incoherent; the seed is marked wrong
+in place and the evidence is in the record. **Both enumerations of reserved numbers were stale** —
+`decisions/README.md` listed 0004 and 0013 as queued after they were written, and omitted 0018,
+which the seed list reserves. Reconciled. Nothing checks the three enumerations against each other,
+which is the standing item this does not close.
 
 **Two things the interface established rather than assumed.** Kùzu takes a single writer lock, so
 the app **cannot read the graph while `bzk rebuild` holds it** — `query.connect` raises

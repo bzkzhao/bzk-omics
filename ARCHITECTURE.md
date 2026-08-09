@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.19 |
+| Version | 1.20 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -294,26 +294,34 @@ This ordering exists because the invariants are the product. Adapters that inges
 
 ## 5. Seed ADRs
 
-To be written as numbered, immutable records in `decisions/`:
+The seeds these records were written from. **All but one are written; the index with links is
+[`decisions/README.md`](decisions/README.md) § Written**, which is the single home for what exists
+and at what status. This list stays as the record of what was seeded and in what words.
 
-- `0001` Two-graph model: reference and evidence disjoint
-- `0002` Python over TypeScript for the backend
-- `0003` Kùzu over Neo4j for the graph store
-- `0004` Split storage: graph identity in Kùzu, quantitative matrices in DuckDB
-- ~~`0005`~~ Sequence version **and isoform** as part of the `ModificationSite` **and `Protein`** keys — **written 2026-08-07**, see [`decisions/0005`](decisions/0005-modificationsite-and-protein-keys.md)
-- `0006` Modifier identity as a defeasible assignment, not a site property
-- `0007` Local moderated *t*-test over an R dependency
-- `0008` Append-only assertions with explicit retraction
-- `0009` Sample-to-condition mapping as a curation activity, not configuration
-- `0010` `Observation` and `EvidencedInference` as contracts, not tables
-- `0011` Statistical tests pluggable; supersedes `0007`
-- `0012` Graph is derived, not authoritative; rebuild over migration (I9)
-- `0013` Quantitative matrices retained permanently, never only derived statistics (I11)
-- `0014` Adapter order under pipeline uncertainty: DIA-NN, MaxQuant, FragPipe
-- `0015` Perseus `s0` test as the default statistical entry; supersedes `0011`
-- `0016` Embargoed dataset state for unpublished collaborator data
-- ~~`0017`~~ Downstream positioning, with both ingestion paths — **written**, see [`decisions/0017`](decisions/0017-downstream-positioning.md)
-- `0018` Typed API routes only; the front end never queries the graph directly
+- ~~`0001`~~ Two-graph model: reference and evidence disjoint
+- ~~`0002`~~ Python over TypeScript for the backend
+- ~~`0003`~~ Kùzu over Neo4j for the graph store
+- ~~`0004`~~ Split storage: graph identity in Kùzu, quantitative matrices in DuckDB
+- ~~`0005`~~ Sequence version **and isoform** as part of the `ModificationSite` **and `Protein`** keys
+- ~~`0006`~~ Modifier identity as a defeasible assignment, not a site property
+- ~~`0007`~~ ~~Local moderated *t*-test over an R dependency~~ — **the seed was wrong**; 0007 decided a Perseus-compatible modified *t*-test with `s0`, and the record establishes which of the two accounts holds
+- ~~`0008`~~ Append-only assertions with explicit retraction
+- ~~`0009`~~ Sample-to-condition mapping as a curation activity, not configuration
+- ~~`0010`~~ `Observation` and `EvidencedInference` as contracts, not tables
+- ~~`0011`~~ Statistical tests pluggable; supersedes `0007`
+- ~~`0012`~~ Graph is derived, not authoritative; rebuild over migration (I9)
+- ~~`0013`~~ Quantitative matrices retained permanently, never only derived statistics (I11)
+- ~~`0014`~~ Adapter order under pipeline uncertainty: DIA-NN, MaxQuant, FragPipe — reversed by `0017`
+- ~~`0015`~~ Perseus `s0` test as the default statistical entry; supersedes `0011`
+- ~~`0016`~~ Embargoed dataset state for unpublished collaborator data
+- ~~`0017`~~ Downstream positioning, with both ingestion paths
+- `0018` Typed API routes only; the front end never queries the graph directly — **reserved, unwritten**
+
+**Corrected 2026-08-09.** Only `0005` and `0017` were struck through while eleven more had been
+written, and this list reserved `0018` while `decisions/README.md`'s Queued table did not — two
+documents enumerating reserved numbers, disagreeing by one. Both are reconciled: 0018 is queued
+there, everything written is struck here, and the wording of `0007` is marked wrong rather than
+quietly replaced, because the disagreement between it and ADR-0015 is itself recorded in the ADR.
 
 ---
 
