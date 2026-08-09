@@ -116,6 +116,21 @@ CURIE_PREFIXES: frozenset[str] = frozenset(
     }
 )
 
+# §4's `Protein.gene_absence` enum, mirrored here and guarded against the document by
+# tests/test_schema.py — the same idiom as ABSENCE ↔ §3 and CURATION_BASIS ↔ §5.3.
+#
+# The column is NULL exactly when an `ENCODES` edge reaches the protein. Otherwise it names which
+# of three absences this is, because a missing edge on its own reads as *this protein has no gene*
+# in all three and only one of them is close to that. Measured 2026-08-09: 3,492 `unresolved`,
+# 10 `no_cross_reference`, 0 `not_captured`, against 1,059 with an edge — the largest is the site
+# adapter's razor-pick resolution policy and the smallest by a factor of 349 is the state a reader
+# would take the absence to mean.
+GENE_ABSENCE: dict[str, str] = {
+    "unresolved": "not resolved in this ingestion (the adapter resolves only the razor picks)",
+    "no_cross_reference": "resolved; UniProt reports no HGNC cross-reference for this accession",
+    "not_captured": "resolved before `hgnc_id` was captured, and not re-resolved since",
+}
+
 # §3's absence classification, mirrored for code that must decide whether a null is legal.
 # ADR-0021: an identifying field may be null only where something *outside the moment of ingest*
 # fixes that null — `determined` by another recorded field or a stated structural fact, or
@@ -330,6 +345,7 @@ NODE_TABLES: list[NodeTable] = [
         [
             ("id", "STRING"),
             ("accession", "STRING"),
+            ("gene_absence", "STRING"),
             ("name", "STRING"),
             ("organism_taxid", "INT64"),
         ],

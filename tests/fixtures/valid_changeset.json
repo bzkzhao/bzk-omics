@@ -1,62 +1,362 @@
 {
   "note": "A structurally sound, self-contained change-set that satisfies every write-time invariant (I2, I3, I4, I10, I14, I15, I16, I19) and ADR-0019 structural validation (including multiplicity). Real accessions and real UniProt sequences (ONTOLOGY.md \u00a79). Protein is stable identity (id only); the sequence and its version live on ProteinSequence (ADR-0005), which is the SITE_ON target and the shape the deferred residue-agreement check (HANDOFF \u00a78) needs. uniprot:O43593, the enzyme, is a bare Protein with no ProteinSequence at all \u2014 an enzyme attribution is version-independent, which is what the split buys; the site is keyed at a real lysine (P20591 position 48 is K in sv4), so the seed stays valid once that check lands. Proves the checks accept valid input, and seeds the week-3 adapter tests. SITE_ON attaches the site only to uniprot:P20591#sv4, the accession it is keyed against; the multi-mapping to uniprot:P09914-2 is carried by bzk:pa1.candidate_proteins (\u00a76.3), not a second SITE_ON to a protein where position 48 is a different residue. bzk:dr1 is the corrected site-level result (protein_adjusted applied, ADJUSTED_BY bzk:dr2) and bzk:dr4 is its uncorrected sibling (not_applied) from the SAME Analysis bzk:an1 \u2014 the model (a) shape (\u00a73): one site-level Analysis emits both result kinds for the same observation, separated only by protein_adjusted. bzk:dr2 is the protein-level result the correction used, from bzk:an2; each result carries its own WAS_GENERATED_BY. bzk:dr2 attaches to the protein it measures, bzk:pobs1, via RESULT_FOR_PROTEIN (\u00a75/\u00a77), and bzk:pobs1 resolves to uniprot:P20591 via RESOLVES_TO_PROTEIN \u2014 so a protein-level result attaches to the ProteinObservation it measures rather than to nothing, and the proteome correction dr1 receives is traceable to the protein it came from. bzk:an1 (welch_t) and bzk:an3 (moderated_t) are two site-level analyses over the same matrix differing PRECISELY by test \u2014 the colab_reproducefigure cell-16 case (HANDOFF \u00a78) \u2014 each producing its own site-level DifferentialResult for bzk:obs1; with test identifying the Analysis (ONTOLOGY \u00a73, v1.6) they resolve to distinct ids rather than colliding, which is the collision the test move was made to prevent. an1/an2 differ by grain (site vs protein) and so by quantity; an1/an3 isolate test as the sole difference. bzk:ma2 and bzk:ma3 are the ASSIGNS pair: identical basis ('literature'), candidate_modifiers and confidence, over the same SiteObservation and citing the same Publication, differing ONLY in the modifier they conclude \u2014 ubiquitin (uniprot:P0CG48) vs ISG15 (uniprot:P05161). With ASSIGNS an anchor (ONTOLOGY \u00a73) they resolve to distinct ids; without it they collapsed into one node and the Ub-vs-ISG15 distinction the platform exists to make was silently lost.",
   "nodes": [
-    {"id": "uniprot:P20591", "__label__": "Protein", "accession": "P20591"},
-    {"id": "uniprot:P20591#sv4", "__label__": "ProteinSequence", "sequence_version": 4, "sequence": "MVVSEVDIAKADPAAASHPLLLNGDATVAQKNPGSVAENNLCSQYEEKVRPCIDLIDSLRALGVEQDLALPAIAVIGDQSSGKSSVLEALSGVALPRGSGIVTRCPLVLKLKKLVNEDKWRGKVSYQDYEIEISDASEVEKEINKAQNAIAGEGMGISHELITLEISSRDVPDLTLIDLPGITRVAVGNQPADIGYKIKTLIKKYIQRQETISLVVVPSNVDIATTEALSMAQEVDPEGDRTIGILTKPDLVDKGTEDKVVDVVRNLVFHLKKGYMIVKCRGQQEIQDQLSLSEALQREKIFFENHPYFRDLLEEGKATVPCLAEKLTSELITHICKSLPLLENQIKETHQRITEELQKYGVDIPEDENEKMFFLIDKVNAFNQDITALMQGEETVGEEDIRLFTRLRHEFHKWSTIIENNFQEGHKILSRKIQKFENQYRGRELPGFVNYRTFETIVKQQIKALEEPAVDMLHTVTDMVRLAFTDVSIKNFEEFFNLHRTAKSKIEDIRAEQEREGEKLIRLHFQMEQIVYCQDQVYRGALQKVREKELEEEKKKKSWDFGAFQSSSATDSSMEEIFQHLMAYHQEASKRISSHIPLIIQFFMLQTYGQQLQKAMLQLLQDKDTYSWLLKERSDTSDKRKFLKERLARLTQARRRLAQFPG"},
-    {"id": "uniprot:P09914-2", "__label__": "Protein", "accession": "P09914-2"},
-    {"id": "uniprot:P09914-2#sv2", "__label__": "ProteinSequence", "sequence_version": 2, "sequence": "MPDLENRVLDQIEFLDTKYSVGIHNLLAYVKHLKGQNEEALKSLKEAENLMQEEHDNQANVRSLVTWGNFAWMYYHMGRLAEAQTYLDKVENICKKLSNPFRYRMECPEIDCEEGWALLKCGGKNYERAKACFEKVLEVDPENPESSAGYAISAYRLDGFKLATKNHKPFSLLPLRQAVRLNPDNGYIKVLLALKLQDEGQEAEGEKYIEEALANMSSQTYVFRYAAKFYRRKGSVDKALELLKKALQETPTSVLLHHQIGLCYKAQMIQIKEATKGQPRGQNREKLDKMIRSAIFHFESAVEKKPTFEVAHLDLARMYIEAGNHRKAEENFQKLLCMKPVVEETMQDIHFHYGRFQEFQKKSDVNAIIHYLKAIKIEQASLTRDKSINSLKKLVLRKLRRKALDLESLSLLGFVYKLEGNMNEALEYYERALRLAADFENSVRQGP"},
-    {"id": "uniprot:O43593", "__label__": "Protein", "accession": "O43593"},
-    {"id": "uniprot:P20591#sv4#K48#unimod:121", "__label__": "ModificationSite", "residue": "K", "position": 48, "modification_type": "unimod:121"},
-    {"id": "uniprot:P05161", "__label__": "Modifier", "name": "ISG15", "leaves_gg_remnant": true},
-    {"id": "uniprot:P0CG48", "__label__": "Modifier", "name": "ubiquitin", "leaves_gg_remnant": true},
-    {"id": "doi:10.1038/s41416-020-01167-y", "__label__": "Publication", "year": 2021},
-    {"id": "bzk:obs1", "__label__": "SiteObservation", "peptide_sequence": "LLQFIDKELVR", "candidate_proteins": ["uniprot:P20591", "uniprot:P09914-2"], "localization_prob": 0.98},
-    {"id": "bzk:ma1", "__label__": "ModifierAssignment", "candidate_modifiers": ["uniprot:P05161"], "basis": "uba7_knockout", "confidence": "confirmed", "retracted_at": null},
-    {"id": "bzk:ma2", "__label__": "ModifierAssignment", "candidate_modifiers": ["uniprot:P05161", "uniprot:P0CG48"], "basis": "literature", "confidence": "probable", "retracted_at": null},
-    {"id": "bzk:ma3", "__label__": "ModifierAssignment", "candidate_modifiers": ["uniprot:P05161", "uniprot:P0CG48"], "basis": "literature", "confidence": "probable", "retracted_at": null},
-    {"id": "bzk:ea1", "__label__": "EnzymeAssociation", "direction": "deconjugates", "basis": "knockout", "confidence": "confirmed", "retracted_at": null},
-    {"id": "bzk:pa1", "__label__": "ProteinAssignment", "candidate_proteins": ["uniprot:P20591", "uniprot:P09914-2"], "basis": "unique_peptide", "confidence": "confirmed", "retracted_at": null},
-    {"id": "bzk:an1", "__label__": "Analysis", "kind": "processing", "quantity": "intensity_multiplicity_summed", "localization_threshold": 0.75, "filters_applied": ["reverse", "potential_contaminant"], "test": "welch_t", "fdr_method": "BH", "parameters_observed": true},
-    {"id": "bzk:an2", "__label__": "Analysis", "kind": "processing", "quantity": "lfq", "filters_applied": ["reverse", "potential_contaminant"], "test": "welch_t", "fdr_method": "BH", "parameters_observed": true},
-    {"id": "bzk:an3", "__label__": "Analysis", "kind": "processing", "quantity": "intensity_multiplicity_summed", "localization_threshold": 0.75, "filters_applied": ["reverse", "potential_contaminant"], "test": "moderated_t", "fdr_method": "BH", "parameters_observed": true},
-    {"id": "bzk:imp1", "__label__": "Imputation", "method": "downshifted_normal", "downshift_sd": 1.8, "width_sd": 0.3, "seed": 0},
-    {"id": "bzk:imp2", "__label__": "Imputation", "method": "none"},
-    {"id": "bzk:imp3", "__label__": "Imputation", "method": "none"},
-    {"id": "bzk:pobs1", "__label__": "ProteinObservation", "candidate_proteins": ["uniprot:P20591"], "n_peptides": 7},
-    {"id": "bzk:dr1", "__label__": "DifferentialResult", "log2fc": 3.4, "p_value": 1.2e-05, "protein_adjusted": "applied", "adjustment_method": "residual_vs_protein_lfc"},
-    {"id": "bzk:dr2", "__label__": "DifferentialResult", "log2fc": 1.1, "protein_adjusted": "not_applied"},
-    {"id": "bzk:dr3", "__label__": "DifferentialResult", "log2fc": 2.7, "p_value": 0.0003, "protein_adjusted": "not_applied"},
-    {"id": "bzk:dr4", "__label__": "DifferentialResult", "log2fc": 4.1, "p_value": 8e-06, "protein_adjusted": "not_applied"}
+    {
+      "id": "uniprot:P20591",
+      "__label__": "Protein",
+      "accession": "P20591",
+      "gene_absence": "unresolved"
+    },
+    {
+      "id": "uniprot:P20591#sv4",
+      "__label__": "ProteinSequence",
+      "sequence_version": 4,
+      "sequence": "MVVSEVDIAKADPAAASHPLLLNGDATVAQKNPGSVAENNLCSQYEEKVRPCIDLIDSLRALGVEQDLALPAIAVIGDQSSGKSSVLEALSGVALPRGSGIVTRCPLVLKLKKLVNEDKWRGKVSYQDYEIEISDASEVEKEINKAQNAIAGEGMGISHELITLEISSRDVPDLTLIDLPGITRVAVGNQPADIGYKIKTLIKKYIQRQETISLVVVPSNVDIATTEALSMAQEVDPEGDRTIGILTKPDLVDKGTEDKVVDVVRNLVFHLKKGYMIVKCRGQQEIQDQLSLSEALQREKIFFENHPYFRDLLEEGKATVPCLAEKLTSELITHICKSLPLLENQIKETHQRITEELQKYGVDIPEDENEKMFFLIDKVNAFNQDITALMQGEETVGEEDIRLFTRLRHEFHKWSTIIENNFQEGHKILSRKIQKFENQYRGRELPGFVNYRTFETIVKQQIKALEEPAVDMLHTVTDMVRLAFTDVSIKNFEEFFNLHRTAKSKIEDIRAEQEREGEKLIRLHFQMEQIVYCQDQVYRGALQKVREKELEEEKKKKSWDFGAFQSSSATDSSMEEIFQHLMAYHQEASKRISSHIPLIIQFFMLQTYGQQLQKAMLQLLQDKDTYSWLLKERSDTSDKRKFLKERLARLTQARRRLAQFPG"
+    },
+    {
+      "id": "uniprot:P09914-2",
+      "__label__": "Protein",
+      "accession": "P09914-2",
+      "gene_absence": "unresolved"
+    },
+    {
+      "id": "uniprot:P09914-2#sv2",
+      "__label__": "ProteinSequence",
+      "sequence_version": 2,
+      "sequence": "MPDLENRVLDQIEFLDTKYSVGIHNLLAYVKHLKGQNEEALKSLKEAENLMQEEHDNQANVRSLVTWGNFAWMYYHMGRLAEAQTYLDKVENICKKLSNPFRYRMECPEIDCEEGWALLKCGGKNYERAKACFEKVLEVDPENPESSAGYAISAYRLDGFKLATKNHKPFSLLPLRQAVRLNPDNGYIKVLLALKLQDEGQEAEGEKYIEEALANMSSQTYVFRYAAKFYRRKGSVDKALELLKKALQETPTSVLLHHQIGLCYKAQMIQIKEATKGQPRGQNREKLDKMIRSAIFHFESAVEKKPTFEVAHLDLARMYIEAGNHRKAEENFQKLLCMKPVVEETMQDIHFHYGRFQEFQKKSDVNAIIHYLKAIKIEQASLTRDKSINSLKKLVLRKLRRKALDLESLSLLGFVYKLEGNMNEALEYYERALRLAADFENSVRQGP"
+    },
+    {
+      "id": "uniprot:O43593",
+      "__label__": "Protein",
+      "accession": "O43593",
+      "gene_absence": "unresolved"
+    },
+    {
+      "id": "uniprot:P20591#sv4#K48#unimod:121",
+      "__label__": "ModificationSite",
+      "residue": "K",
+      "position": 48,
+      "modification_type": "unimod:121"
+    },
+    {
+      "id": "uniprot:P05161",
+      "__label__": "Modifier",
+      "name": "ISG15",
+      "leaves_gg_remnant": true
+    },
+    {
+      "id": "uniprot:P0CG48",
+      "__label__": "Modifier",
+      "name": "ubiquitin",
+      "leaves_gg_remnant": true
+    },
+    {
+      "id": "doi:10.1038/s41416-020-01167-y",
+      "__label__": "Publication",
+      "year": 2021
+    },
+    {
+      "id": "bzk:obs1",
+      "__label__": "SiteObservation",
+      "peptide_sequence": "LLQFIDKELVR",
+      "candidate_proteins": [
+        "uniprot:P20591",
+        "uniprot:P09914-2"
+      ],
+      "localization_prob": 0.98
+    },
+    {
+      "id": "bzk:ma1",
+      "__label__": "ModifierAssignment",
+      "candidate_modifiers": [
+        "uniprot:P05161"
+      ],
+      "basis": "uba7_knockout",
+      "confidence": "confirmed",
+      "retracted_at": null
+    },
+    {
+      "id": "bzk:ma2",
+      "__label__": "ModifierAssignment",
+      "candidate_modifiers": [
+        "uniprot:P05161",
+        "uniprot:P0CG48"
+      ],
+      "basis": "literature",
+      "confidence": "probable",
+      "retracted_at": null
+    },
+    {
+      "id": "bzk:ma3",
+      "__label__": "ModifierAssignment",
+      "candidate_modifiers": [
+        "uniprot:P05161",
+        "uniprot:P0CG48"
+      ],
+      "basis": "literature",
+      "confidence": "probable",
+      "retracted_at": null
+    },
+    {
+      "id": "bzk:ea1",
+      "__label__": "EnzymeAssociation",
+      "direction": "deconjugates",
+      "basis": "knockout",
+      "confidence": "confirmed",
+      "retracted_at": null
+    },
+    {
+      "id": "bzk:pa1",
+      "__label__": "ProteinAssignment",
+      "candidate_proteins": [
+        "uniprot:P20591",
+        "uniprot:P09914-2"
+      ],
+      "basis": "unique_peptide",
+      "confidence": "confirmed",
+      "retracted_at": null
+    },
+    {
+      "id": "bzk:an1",
+      "__label__": "Analysis",
+      "kind": "processing",
+      "quantity": "intensity_multiplicity_summed",
+      "localization_threshold": 0.75,
+      "filters_applied": [
+        "reverse",
+        "potential_contaminant"
+      ],
+      "test": "welch_t",
+      "fdr_method": "BH",
+      "parameters_observed": true
+    },
+    {
+      "id": "bzk:an2",
+      "__label__": "Analysis",
+      "kind": "processing",
+      "quantity": "lfq",
+      "filters_applied": [
+        "reverse",
+        "potential_contaminant"
+      ],
+      "test": "welch_t",
+      "fdr_method": "BH",
+      "parameters_observed": true
+    },
+    {
+      "id": "bzk:an3",
+      "__label__": "Analysis",
+      "kind": "processing",
+      "quantity": "intensity_multiplicity_summed",
+      "localization_threshold": 0.75,
+      "filters_applied": [
+        "reverse",
+        "potential_contaminant"
+      ],
+      "test": "moderated_t",
+      "fdr_method": "BH",
+      "parameters_observed": true
+    },
+    {
+      "id": "bzk:imp1",
+      "__label__": "Imputation",
+      "method": "downshifted_normal",
+      "downshift_sd": 1.8,
+      "width_sd": 0.3,
+      "seed": 0
+    },
+    {
+      "id": "bzk:imp2",
+      "__label__": "Imputation",
+      "method": "none"
+    },
+    {
+      "id": "bzk:imp3",
+      "__label__": "Imputation",
+      "method": "none"
+    },
+    {
+      "id": "bzk:pobs1",
+      "__label__": "ProteinObservation",
+      "candidate_proteins": [
+        "uniprot:P20591"
+      ],
+      "n_peptides": 7
+    },
+    {
+      "id": "bzk:dr1",
+      "__label__": "DifferentialResult",
+      "log2fc": 3.4,
+      "p_value": 1.2e-05,
+      "protein_adjusted": "applied",
+      "adjustment_method": "residual_vs_protein_lfc"
+    },
+    {
+      "id": "bzk:dr2",
+      "__label__": "DifferentialResult",
+      "log2fc": 1.1,
+      "protein_adjusted": "not_applied"
+    },
+    {
+      "id": "bzk:dr3",
+      "__label__": "DifferentialResult",
+      "log2fc": 2.7,
+      "p_value": 0.0003,
+      "protein_adjusted": "not_applied"
+    },
+    {
+      "id": "bzk:dr4",
+      "__label__": "DifferentialResult",
+      "log2fc": 4.1,
+      "p_value": 8e-06,
+      "protein_adjusted": "not_applied"
+    }
   ],
   "edges": [
-    {"type": "SITE_ON", "from": "uniprot:P20591#sv4#K48#unimod:121", "to": "uniprot:P20591#sv4"},
-    {"type": "HAS_SEQUENCE", "from": "uniprot:P20591", "to": "uniprot:P20591#sv4"},
-    {"type": "HAS_SEQUENCE", "from": "uniprot:P09914-2", "to": "uniprot:P09914-2#sv2"},
-    {"type": "MEASURED_AT", "from": "bzk:obs1", "to": "uniprot:P20591#sv4#K48#unimod:121"},
-    {"type": "ASSIGNMENT_FOR", "from": "bzk:ma1", "to": "bzk:obs1"},
-    {"type": "ASSIGNS", "from": "bzk:ma1", "to": "uniprot:P05161"},
-    {"type": "ASSIGNMENT_FOR", "from": "bzk:ma2", "to": "bzk:obs1"},
-    {"type": "ASSIGNS", "from": "bzk:ma2", "to": "uniprot:P0CG48"},
-    {"type": "ASSIGNMENT_CITES", "from": "bzk:ma2", "to": "doi:10.1038/s41416-020-01167-y"},
-    {"type": "ASSIGNMENT_FOR", "from": "bzk:ma3", "to": "bzk:obs1"},
-    {"type": "ASSIGNS", "from": "bzk:ma3", "to": "uniprot:P05161"},
-    {"type": "ASSIGNMENT_CITES", "from": "bzk:ma3", "to": "doi:10.1038/s41416-020-01167-y"},
-    {"type": "ASSOCIATION_FOR", "from": "bzk:ea1", "to": "bzk:obs1"},
-    {"type": "ASSOCIATION_ENZYME", "from": "bzk:ea1", "to": "uniprot:O43593"},
-    {"type": "PROTEIN_ASSIGNMENT_FOR", "from": "bzk:pa1", "to": "bzk:obs1"},
-    {"type": "ASSIGNS_PROTEIN", "from": "bzk:pa1", "to": "uniprot:P20591"},
-    {"type": "WAS_GENERATED_BY", "from": "bzk:dr1", "to": "bzk:an1"},
-    {"type": "WAS_GENERATED_BY", "from": "bzk:dr2", "to": "bzk:an2"},
-    {"type": "WAS_GENERATED_BY", "from": "bzk:dr3", "to": "bzk:an3"},
-    {"type": "WAS_GENERATED_BY", "from": "bzk:dr4", "to": "bzk:an1"},
-    {"type": "IMPUTATION_FOR", "from": "bzk:imp1", "to": "bzk:an1"},
-    {"type": "IMPUTATION_FOR", "from": "bzk:imp2", "to": "bzk:an2"},
-    {"type": "IMPUTATION_FOR", "from": "bzk:imp3", "to": "bzk:an3"},
-    {"type": "ADJUSTED_BY", "from": "bzk:dr1", "to": "bzk:dr2"},
-    {"type": "RESULT_FOR_SITE", "from": "bzk:dr1", "to": "bzk:obs1"},
-    {"type": "RESULT_FOR_PROTEIN", "from": "bzk:dr2", "to": "bzk:pobs1"},
-    {"type": "RESOLVES_TO_PROTEIN", "from": "bzk:pobs1", "to": "uniprot:P20591"},
-    {"type": "RESULT_FOR_SITE", "from": "bzk:dr3", "to": "bzk:obs1"},
-    {"type": "RESULT_FOR_SITE", "from": "bzk:dr4", "to": "bzk:obs1"}
+    {
+      "type": "SITE_ON",
+      "from": "uniprot:P20591#sv4#K48#unimod:121",
+      "to": "uniprot:P20591#sv4"
+    },
+    {
+      "type": "HAS_SEQUENCE",
+      "from": "uniprot:P20591",
+      "to": "uniprot:P20591#sv4"
+    },
+    {
+      "type": "HAS_SEQUENCE",
+      "from": "uniprot:P09914-2",
+      "to": "uniprot:P09914-2#sv2"
+    },
+    {
+      "type": "MEASURED_AT",
+      "from": "bzk:obs1",
+      "to": "uniprot:P20591#sv4#K48#unimod:121"
+    },
+    {
+      "type": "ASSIGNMENT_FOR",
+      "from": "bzk:ma1",
+      "to": "bzk:obs1"
+    },
+    {
+      "type": "ASSIGNS",
+      "from": "bzk:ma1",
+      "to": "uniprot:P05161"
+    },
+    {
+      "type": "ASSIGNMENT_FOR",
+      "from": "bzk:ma2",
+      "to": "bzk:obs1"
+    },
+    {
+      "type": "ASSIGNS",
+      "from": "bzk:ma2",
+      "to": "uniprot:P0CG48"
+    },
+    {
+      "type": "ASSIGNMENT_CITES",
+      "from": "bzk:ma2",
+      "to": "doi:10.1038/s41416-020-01167-y"
+    },
+    {
+      "type": "ASSIGNMENT_FOR",
+      "from": "bzk:ma3",
+      "to": "bzk:obs1"
+    },
+    {
+      "type": "ASSIGNS",
+      "from": "bzk:ma3",
+      "to": "uniprot:P05161"
+    },
+    {
+      "type": "ASSIGNMENT_CITES",
+      "from": "bzk:ma3",
+      "to": "doi:10.1038/s41416-020-01167-y"
+    },
+    {
+      "type": "ASSOCIATION_FOR",
+      "from": "bzk:ea1",
+      "to": "bzk:obs1"
+    },
+    {
+      "type": "ASSOCIATION_ENZYME",
+      "from": "bzk:ea1",
+      "to": "uniprot:O43593"
+    },
+    {
+      "type": "PROTEIN_ASSIGNMENT_FOR",
+      "from": "bzk:pa1",
+      "to": "bzk:obs1"
+    },
+    {
+      "type": "ASSIGNS_PROTEIN",
+      "from": "bzk:pa1",
+      "to": "uniprot:P20591"
+    },
+    {
+      "type": "WAS_GENERATED_BY",
+      "from": "bzk:dr1",
+      "to": "bzk:an1"
+    },
+    {
+      "type": "WAS_GENERATED_BY",
+      "from": "bzk:dr2",
+      "to": "bzk:an2"
+    },
+    {
+      "type": "WAS_GENERATED_BY",
+      "from": "bzk:dr3",
+      "to": "bzk:an3"
+    },
+    {
+      "type": "WAS_GENERATED_BY",
+      "from": "bzk:dr4",
+      "to": "bzk:an1"
+    },
+    {
+      "type": "IMPUTATION_FOR",
+      "from": "bzk:imp1",
+      "to": "bzk:an1"
+    },
+    {
+      "type": "IMPUTATION_FOR",
+      "from": "bzk:imp2",
+      "to": "bzk:an2"
+    },
+    {
+      "type": "IMPUTATION_FOR",
+      "from": "bzk:imp3",
+      "to": "bzk:an3"
+    },
+    {
+      "type": "ADJUSTED_BY",
+      "from": "bzk:dr1",
+      "to": "bzk:dr2"
+    },
+    {
+      "type": "RESULT_FOR_SITE",
+      "from": "bzk:dr1",
+      "to": "bzk:obs1"
+    },
+    {
+      "type": "RESULT_FOR_PROTEIN",
+      "from": "bzk:dr2",
+      "to": "bzk:pobs1"
+    },
+    {
+      "type": "RESOLVES_TO_PROTEIN",
+      "from": "bzk:pobs1",
+      "to": "uniprot:P20591"
+    },
+    {
+      "type": "RESULT_FOR_SITE",
+      "from": "bzk:dr3",
+      "to": "bzk:obs1"
+    },
+    {
+      "type": "RESULT_FOR_SITE",
+      "from": "bzk:dr4",
+      "to": "bzk:obs1"
+    }
   ]
 }

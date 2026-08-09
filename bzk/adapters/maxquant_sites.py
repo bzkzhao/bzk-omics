@@ -582,8 +582,10 @@ class MaxQuantSiteAdapter:
 
         candidates = [a.strip() for a in row[column["Proteins"]].split(";") if a.strip()]
         candidate_ids = [protein_key(a) for a in candidates]
-        for accession, protein_id in zip(candidates, candidate_ids, strict=True):
-            nodes.append(self._node("Protein", protein_id, {"accession": accession}))
+        # Only the candidates the resolver did not cover: a `Protein` staged twice is last-write-
+        # wins in the store, so minting an accession-only node for a *resolved* accession would
+        # overwrite its `gene_absence` (`ResolvedProteins.candidate_nodes`).
+        nodes.extend(resolved.candidate_nodes(candidates))
 
         # `candidate_proteins` is identifying and `keys.canonical_value` sorts `STRING[]` before
         # hashing, so MaxQuant's ranking — an inference — cannot fork an id (I7, ADR-0022).

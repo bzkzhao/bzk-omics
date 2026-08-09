@@ -27,7 +27,14 @@ SEQ = "MSSVAVLTQESFAEHRSGLVPQQIKVATLNSEEESDPPTYK"
 class _Session:
     """Returns one canned entry payload and records every call."""
 
-    def __init__(self, *, sv: int, reviewed: bool, sequence: str = SEQ, hgnc: str | None = None):
+    def __init__(
+        self,
+        *,
+        sv: int,
+        reviewed: bool,
+        sequence: str = SEQ,
+        hgnc: str | list[str] | None = None,
+    ):
         self.sv = sv
         self.reviewed = reviewed
         self.sequence = sequence
@@ -39,7 +46,8 @@ class _Session:
         entry_type = (
             "UniProtKB reviewed (Swiss-Prot)" if self.reviewed else "UniProtKB unreviewed (TrEMBL)"
         )
-        xrefs = [{"database": "HGNC", "id": self.hgnc}] if self.hgnc else []
+        ids = [self.hgnc] if isinstance(self.hgnc, str) else (self.hgnc or [])
+        xrefs = [{"database": "HGNC", "id": i} for i in ids]
         return _Response(
             {
                 "entryType": entry_type,
@@ -235,3 +243,28 @@ def test_the_backfill_never_overwrites_a_pin_the_snapshot_now_disagrees_with(
     report = pins.backfill(cache)
     assert report.written == 0 and report.already_pinned == 1
     assert json.loads((cache / "seq" / "P20591#sv3.meta.json").read_text())["reviewed"] is False
+
+
+def test_several_hgnc_cross_references_are_captured_as_ambiguous_not_as_the_first(
+    tmp_path: Path,
+) -> None:
+    """The refusal at the parse, which `tests/test_resolve_nodes.py` cannot reach.
+
+    Those tests construct a `Resolution` with `hgnc_id=AMBIGUOUS` already set, so they assert what
+    the *builder* does with the sentinel and say nothing about whether anything produces it.
+    Restoring `next(...)` — the pre-2026-08-09 first-match — left every one of them green, which is
+    how this gap was found: a guard asserted one layer downstream of where it lives.
+    """
+    session = _Session(sv=3, reviewed=True, hgnc=["HGNC:7532", "HGNC:19102"])
+    got = uniprot.resolve("P20591", cache_dir=tmp_path, session=session)
+    assert got.hgnc_id == uniprot.AMBIGUOUS
+    assert json.loads((tmp_path / "entry" / "P20591.json").read_text())["hgnc_id"] == (
+        uniprot.AMBIGUOUS
+    )
+
+    one = uniprot.resolve(
+        "Q00000", cache_dir=tmp_path, session=_Session(sv=1, reviewed=True, hgnc="HGNC:7532")
+    )
+    assert one.hgnc_id == "HGNC:7532"
+    none = uniprot.resolve("Q00001", cache_dir=tmp_path, session=_Session(sv=1, reviewed=True))
+    assert none.hgnc_id is None

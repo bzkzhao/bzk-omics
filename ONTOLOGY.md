@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.28 |
+| Version | 1.30 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -95,7 +95,7 @@ The identity **model** is identical for both: a node's identity is its label, it
 | Node type | Identifying fields | Anchors (via edge) | Excluded columns |
 |---|---|---|---|
 | `Gene` | — (authority-assigned) | — | `symbol`, `ensembl_id`, `name` |
-| `Protein` | `accession` | — | `name`, `organism_taxid` |
+| `Protein` | `accession` | — | `name`, `organism_taxid`, `gene_absence` |
 | `ProteinSequence` | `sequence_version` | `Protein` (`HAS_SEQUENCE`) | `sequence` |
 | `ModificationSite` | `residue`, `position`, `modification_type` | `ProteinSequence` (`SITE_ON`) | — |
 | `Modifier` | — (authority-assigned) | — | `name`, `c_terminal_motif`, `leaves_gg_remnant` |
@@ -192,6 +192,11 @@ CREATE NODE TABLE Protein(
                                 -- no separate isoform column. Stable identity: no
                                 -- sequence, no version. See ADR-0005.
   accession STRING,
+  gene_absence STRING,          -- NULL exactly when an ENCODES edge reaches this protein.
+                                -- Otherwise WHY there is none, from the closed enum below.
+                                -- Same shape as SiteObservation.quant_ref (§5.1): the node
+                                -- carries the reason its neighbour is missing, so an absence
+                                -- is readable without a second lookup that returns nothing.
   name STRING,                  -- UniProt's recommended PROTEIN name, not a gene symbol.
                                 -- Stated 2026-08-08: the column was uncommented and the
                                 -- question is not open, because `Gene.symbol` above already
@@ -276,6 +281,30 @@ A `ModificationSite` key composes **exactly one** `ProteinSequence`, and since A
   **Enforced for `uniprot` and for every authority that prefixes its own identifier — `hgnc`, `chebi`, `go`, `mondo`; open for the rest.** `keys.check_curie_case` refuses a local part that is not the authority's rendering for those five. The last three were written together with `hgnc` rather than deferred to the first `Pathway`, `Disease` or `Drug`: the rule above *determines* their form, so what remained was a check and not a decision, and *"no nodes exist yet"* is precisely the reason `hgnc` went unguarded until `Gene` arrived carrying three live spellings. The remaining authorities' local parts are numeric (`unimod`, `pmid`), uppercase (`ensembl`) or opaque (`doi`, `reactome`, `mod`), and this document fixes nothing about them; a guessed rule there would invent a fact with no home. Tracked in `HANDOFF.md` §8.
 
 `ModificationSite.id` is deterministic and content-derived, so the same site ingested from two datasets resolves to one node.
+
+**`Protein.gene_absence` — three absences that must not read as one (2026-08-09).** `Gene` and
+`ENCODES` were minted on 2026-08-09, and **3,502 of 4,561 proteins got no gene**. Those absences
+have three different causes and nothing in a missing edge distinguishes them, which is the shape
+this platform exists to refuse — an absent `ENCODES` would otherwise read as *this protein has no
+gene* in every one of the three. The column is a closed enum, `NULL` exactly when the edge exists:
+
+| Value | Meaning | Count at 2026-08-09 |
+|---|---|---|
+| `NULL` | An `ENCODES` edge reaches this protein | 1,059 |
+| `unresolved` | The accession was **not resolved in this ingestion**. Not a fact about the protein: the site adapter resolves only the razor picks and mints a `Protein` for every other candidate in a protein group, so this is that policy's shortfall. Some of these accessions *are* in the UniProt cache from earlier work — the column says what this build did, not what is knowable | 3,492 |
+| `no_cross_reference` | Resolved, and UniProt reports no usable HGNC cross-reference — none at all, or several, which `resolve/uniprot.py`'s `AMBIGUOUS` refuses rather than picking between. The nearest of the three to a statement about the entity, and still UniProt's statement rather than HGNC's | 10 |
+| `not_captured` | Resolved before `hgnc_id` was captured, and not re-resolved since (`resolve/uniprot.py`'s `NOT_CAPTURED`, §11 Q12) | 0 |
+
+**The counts are why the column exists rather than a note, and they are not what was predicted.**
+Minting `Gene` was pre-registered at 3,230 edges over 1,104 genes, projected from which cached
+entries carry an `hgnc_id`. The real figures are **1,059 and 1,044**, because the projection assumed
+every `Protein` in the graph passes through the resolver and only the razor picks do — so the
+dominant absence is three times larger than predicted and is entirely an artefact of the adapter's
+resolution policy, while the one a reader would take for a biological statement is **10**. Getting
+that ratio wrong by that much is precisely why the reason is a column rather than a footnote.
+`not_captured` is 0 in the graph and **1 in the cache** — `P20591`, which appears nowhere in the
+deposit — so the state is real, reachable and currently unoccupied, and is enumerated for that
+reason rather than removed.
 
 **Where a gene symbol lives, and why `Protein.name` is not it (2026-08-08).** UniProt reports both a
 protein name and a gene name for an accession, and this schema has a column for each — `Protein.name`
@@ -993,7 +1022,13 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
 
     **Proposed resolution: project, do not store.** §7's PROV-O relationships that restate a domain edge should be a *view* computed at export — `prov:wasDerivedFrom` emitted from `RESULT_FOR_SITE` when an RO-Crate or PROV document is written — leaving one stored edge and no possibility of divergence. That keeps §7 honest to its own opening sentence and costs nothing today, since nothing exports yet. What the proposal does **not** settle, and what makes this a question rather than an amendment: `WAS_GENERATED_BY`, `USED`, `WAS_ASSOCIATED_WITH` and `WAS_EXECUTED_BY` have no domain twin, so they must stay stored — which means §7 becomes *partly* stored and *partly* projected, and the boundary needs stating rather than leaving to whoever writes the exporter. **Settle with the first export path**, which is also when I18 must land (`HANDOFF.md` §8, EX class). Surfaced 2026-08-07 while enumerating duplicate relationships for ADR-0023.
 
-12. **What must the resolver persist for `Gene` to be mintable?** `Gene.id` is an `hgnc:` CURIE (§4),
+12. ~~**What must the resolver persist for `Gene` to be mintable?**~~ **Closed 2026-08-09: it
+    persisted it, and `Gene` was minted — 1,044 nodes and 1,059 `ENCODES` edges.** The remaining
+    question this raised is settled in the same place: `Gene.id` reads from the **mutable snapshot**,
+    and `OPERATIONS.md` §3.1 records why that is permitted rather than an exception. The original
+    entry follows, because its measurements are what the answer rests on.
+
+    `Gene.id` is an `hgnc:` CURIE (§4),
     and `Resolution.gene` carries a *symbol* — `MX1`, not `HGNC:7532` — so `Gene` cannot be minted
     from what the resolver holds today. Measured 2026-08-08 rather than assumed: UniProt's payload
     **does** carry the id (`{"database": "HGNC", "id": "HGNC:7532", "properties": [{"key":

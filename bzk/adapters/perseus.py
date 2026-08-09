@@ -55,6 +55,12 @@ from bzk.ontology import invariants, schema
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.ontology.keys import evidence_id, protein_key
 from bzk.provenance.raw_store import content_hash
+from bzk.resolve.nodes import ResolvedProteins
+
+#: `perseus.py` resolves nothing (ADR-0017: no network in the parse path), so every protein it
+#: names is one the resolver never saw. An empty `ResolvedProteins` is exactly that statement, and
+#: routing through it keeps one home for what an unresolved protein carries.
+_UNRESOLVED = ResolvedProteins(nodes=[], edges=[], protein_id={})
 
 #: Perseus writes annotation rows between the header and the data, each prefixed `#!{...}`.
 #: Only the prefix is relied on. The rows' internal layout is not parsed — the adapter needs named
@@ -224,8 +230,12 @@ class PerseusAdapter:
         for line_no, row in rows:
             accessions = self._accessions(row[protein_column], line_no)
             protein_ids = [protein_key(a) for a in accessions]
-            for accession, protein_id in zip(accessions, protein_ids, strict=True):
-                nodes.append(self._node("Protein", protein_id, {"accession": accession}))
+            # `perseus.py` resolves nothing — ADR-0017 keeps the network out of the parse path — so
+            # every one of its proteins is `gene_absence = 'unresolved'`, and the one place that
+            # rule lives is `ResolvedProteins.candidate_nodes` (`bzk/resolve/nodes.py`). Called
+            # against an empty resolution rather than reimplemented, so the two adapters cannot
+            # drift on what an unresolved protein carries.
+            nodes.extend(_UNRESOLVED.candidate_nodes(accessions))
 
             # `candidate_proteins` is identifying and `keys.canonical_value` sorts `STRING[]` before
             # hashing, so the file's ordering — which is MaxQuant's ranking, an inference — cannot

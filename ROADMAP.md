@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.26 |
+| Version | 1.27 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -1069,6 +1069,48 @@ three are not equally likely and that is the trap: 1,180 is the adapter's razor-
 is UniProt reporting no cross-reference, so a reader who assumes the common case reads a policy
 artefact as a biological statement.
 
+#### Outcome, 2026-08-09 — the projection was wrong by a factor of three, and it took the build to show it
+
+| Prediction | Result |
+|---|---|
+| No existing node id moves: symmetric difference **0** over the 11,730 baseline ids | **held** — per label, 0 lost and 0 gained on all eleven. The twelfth label is `Gene`, (0 lost, 1,044 gained), which is the new table |
+| Refusals **27**; **2,029** sites; **4,561** `Protein` | **held**, with 12,787 node and 10,288 edge statements against 11,743 and 9,229 |
+| `Gene` = **1,104**; `ENCODES` = **3,230** | **missed: 1,044 and 1,059** |
+| Absence partitions exactly, 1,180 + 151 + 0 + 3,230 = 4,561 | **partition held, every count wrong**: 3,492 `unresolved` + 10 `no_cross_reference` + 0 `not_captured` + 1,059 with an edge = 4,561 |
+| Targets: **12** by exact symbol, **13** allowing one rename, **1** genuinely absent | **held exactly** — `DDX58` is stored as `RIGI` at `hgnc:HGNC:19102`; `OAS1`'s only `Protein` is `H0YI20`, a TrEMBL fragment |
+| Wall clock from a spread, not one draw | **84.7 s / 100.6 s / 83.9 s**, n = 3 |
+
+**Why the count prediction missed, and it is not a scoping matter.** The projection asked *how many
+of the graph's 4,561 accessions have a cached entry carrying an `hgnc_id`* and got 3,230. The
+builder asks a different question — *how many accessions does the resolver see* — and the answer is
+about **1,069**, because the site adapter resolves only the razor picks and mints an accession-only
+`Protein` for every other candidate in a protein group. The projection was a fact about the cache
+presented as a fact about the graph. **The instrument was wrong, not imprecise**, so no interval
+would have caught it; what catches it is asking which code path produces the number.
+
+**The build was wrong before it was right, and the suite could not tell.** The first `Gene` build
+put **3,492** proteins in the graph with a NULL `gene_absence` and no `ENCODES` edge — the exact
+collapse §4's column exists to prevent, on the first run, with **344 tests green**. The partition
+guard that should have caught it lives on `ResolvedProteins.__post_init__`, and those proteins never
+pass through a `ResolvedProteins`: they are minted beside it, in two adapters. A guard on the object
+one producer returns cannot cover a second producer. The fix is at the change-set — where both
+producers pass — as `invariants._check_gene_absence`, and restoring the old adapter line now fails
+four tests. **This is what the count prediction bought**: 1,059 edges against 3,230 predicted is
+what made the graph worth querying at all, and the NULLs were only visible because the numbers were
+checked one at a time rather than as a total.
+
+**`OPERATIONS.md` §5's 119.9 s is corrected by this turn's own first measurement**, which is what
+the opening rebuild was for. Three timed runs of the finished tree give **83.9–100.6 s**, spread
+16.7 s, and the opening run on the unchanged tree gave 96.1 s. All four are below 119.9, which was
+itself one draw. Recorded as a range with *n* stated, because a single draw replacing a single draw
+is what `ROADMAP.md` § *the 62.2 s figure* records costing a false conclusion.
+
+**What this outcome does not claim.** Identifiability is **not** recovery. 12 of 14 here means
+twelve published symbols are answerable from stored `Gene.symbol`; it is not a recovery figure, no
+differential was run, and no comparison to 12-of-14 or 9-of-14 is made or implied. `ROADMAP.md`
+§ *What v0.1 must contain* holds that the number is not the criterion, which is why the meaning of
+each outcome was fixed before the run rather than after.
+
 ### The platform made an invisible analytical choice, 2026-08-07
 
 **The clearest finding of the project, because it is the project's own failure mode.** `VISION.md`
@@ -1267,7 +1309,7 @@ MaxQuant site-table adapter. DuckDB quantitative layer. **`welch_t` with BH firs
 
 A site moves from ambiguous to `basis = uba7_knockout, confidence = confirmed`, and the superseded assignment remains inspectable.
 
-Two things the old wording also assumed and that are **not yet true**, both blocking a literal reading of "through the real pipeline": gene symbols never enter the graph (`Gene` has no nodes, `Protein.name` is null on all **4,561** — corrected 2026-08-08 from 4,441, which the repository contradicts in five places), so target identification still reads the deposit's `Gene names`. **Decided 2026-08-08 and no longer open as a modelling question**: the symbol's home is `Gene.symbol`, not `Protein.name` — routing it onto `Protein` would make `Gene.symbol` redundant (ONTOLOGY.md §4). The blocker is now named and measured: `Gene.id` is an `hgnc:` CURIE, `Resolution.gene` is a *symbol*, and UniProt's payload does carry the id (`HGNC:7532` for `P20591`, measured) while the entry cache stores the parse rather than the payload — so nothing on disk has it. ONTOLOGY.md §11 Q12 holds the open part, which is what the cache should store — and as of 2026-08-09 Q12 is itself **blocked on a layer below it**: every answer re-writes `cache/uniprot/entry/{canonical}.json`, a tier whose key carries no version and which `ONTOLOGY.md` §8 and `OPERATIONS.md` §3 both wrongly called immutable until that date. The identifiers are not scarce — sampled UniProt coverage is 40/40 Swiss-Prot, 37/40 TrEMBL, 0 of 78 inactive. Reach if it were minted: **~3,231 of 4,561** accessions would get a `Gene` (against **3,254** with a cached *symbol*, a different and coincidentally similar number).; and I11 is met at **site grain only** since 2026-08-08: `quant_ref` is `site_values` on all 2,029 `SiteObservation`s and `quant.duckdb` holds 48,696 cells, so the site matrix is retained rather than re-read (ADR-0004, ADR-0013) — while `ProteinObservation` retains nothing, no adapter writing its cells. Gene symbols and the protein grain both remain on that reading.
+Two things the old wording also assumed and that are **not yet true**, both blocking a literal reading of "through the real pipeline": gene symbols never enter the graph (`Gene` has no nodes, `Protein.name` is null on all **4,561** — corrected 2026-08-08 from 4,441, which the repository contradicts in five places), so target identification still reads the deposit's `Gene names`. **Decided 2026-08-08 and no longer open as a modelling question**: the symbol's home is `Gene.symbol`, not `Protein.name` — routing it onto `Protein` would make `Gene.symbol` redundant (ONTOLOGY.md §4). The blocker is now named and measured: `Gene.id` is an `hgnc:` CURIE, `Resolution.gene` is a *symbol*, and UniProt's payload does carry the id (`HGNC:7532` for `P20591`, measured) while the entry cache stores the parse rather than the payload — so nothing on disk has it. ONTOLOGY.md §11 Q12 holds the open part, which is what the cache should store — and as of 2026-08-09 Q12 is itself **blocked on a layer below it**: every answer re-writes `cache/uniprot/entry/{canonical}.json`, a tier whose key carries no version and which `ONTOLOGY.md` §8 and `OPERATIONS.md` §3 both wrongly called immutable until that date. **Both were settled on 2026-08-09**: the tier was split (`OPERATIONS.md` §3.1), Q12 was answered, and `Gene` was minted — **1,044 nodes, 1,059 `ENCODES` edges**, with `gene_absence` naming why the other 3,502 proteins have none. Target identification is answerable from stored content: 12 of 14 by exact symbol, 13 counting the `DDX58`→`RIGI` rename. The projected reach of ~3,231 was wrong by a factor of three because it counted cached entries rather than resolved accessions.; and I11 is met at **site grain only** since 2026-08-08: `quant_ref` is `site_values` on all 2,029 `SiteObservation`s and `quant.duckdb` holds 48,696 cells, so the site matrix is retained rather than re-read (ADR-0004, ADR-0013) — while `ProteinObservation` retains nothing, no adapter writing its cells. Gene symbols and the protein grain both remain on that reading.
 
 ### Weeks 7–8 — output and consolidation
 Minimal Streamlit or notebook interface: query, volcano, provenance panel. Ambiguity and correction status visible everywhere a number appears. ADRs 0004–0014 written. Rebuild tested against the full dataset.

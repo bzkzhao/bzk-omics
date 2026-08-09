@@ -14,6 +14,15 @@ pass a stub and never touch the network; the two rejected alternatives were thre
 through `parse` (which breaks the protocol) and resolving *after* the adapter (which leaves the
 adapter unable to key a `ModificationSite`, so it could not emit a valid change-set at all).
 
+**`Gene` and `ENCODES` are minted here, 2026-08-09.** They come off the same `Resolution` this
+module already consumes, and `ARCHITECTURE.md` §2 declares this module *accession → `Protein` +
+`ProteinSequence`*, so a third reference node UniProt asserts about an accession belongs on the
+same seam. `bzk/ontology/seed.py` is explicitly **not** the precedent: `Modifier` lives in version
+control because which modifiers a K-GG remnant cannot distinguish is a fact *the project asserts*
+(ADR-0021), and that is what keeps I9 true for it. `Gene` is fetched, so its I9 input is the
+UniProt cache — already the fourth input since 2026-08-07. **I9's input list does not change**, and
+that is the test this placement had to pass: a `Gene` built from anything else would have added one.
+
 **Failure is reported, not raised.** At the PXD018299 site table's 4,815 distinct accessions a dead
 or renamed one is expected, and sinking a whole batch for it would be wrong. What to do about an
 unresolved accession is the *adapter's* decision — it knows whether that accession was the only
@@ -30,8 +39,8 @@ from pathlib import Path
 
 from bzk.adapters.base import Edge, Node
 from bzk.ontology.invariants import NODE_TYPE_KEY
-from bzk.ontology.keys import protein_key, protein_sequence_key
-from bzk.resolve.uniprot import DEFAULT_CACHE_DIR, Resolution, resolve
+from bzk.ontology.keys import check_curie_case, protein_key, protein_sequence_key
+from bzk.resolve.uniprot import AMBIGUOUS, DEFAULT_CACHE_DIR, NOT_CAPTURED, Resolution, resolve
 
 #: What an adapter injects. Narrower than `uniprot.resolve` on purpose — an adapter has no business
 #: passing `refresh` or a session, and a stub in a test should not have to accept them.
@@ -51,10 +60,50 @@ class ResolvedProteins:
     sequence_id: dict[str, str] = field(default_factory=dict)
     #: accession → why it produced no `ProteinSequence`. The caller decides what that means.
     unresolved: dict[str, str] = field(default_factory=dict)
+    #: accession → why it got no `Gene`, from `schema.GENE_ABSENCE`. An accession is in exactly one
+    #: of this and `gene_id`; §4 tabulates the three values and why the distinction is load-bearing.
+    gene_absence: dict[str, str] = field(default_factory=dict)
+    #: accession → `Gene.id`, for callers that need the gene without walking `ENCODES`.
+    gene_id: dict[str, str] = field(default_factory=dict)
+
+    def candidate_nodes(self, accessions: Iterable[str]) -> list[Node]:
+        """`Protein` nodes for candidate accessions this resolution did not cover.
+
+        An adapter names far more accessions in a protein group than it resolves — only the razor
+        picks need a sequence version — and mints an accession-only `Protein` for the rest. Those
+        proteins were **never resolved against UniProt**, so their `gene_absence` is `unresolved`,
+        and that is a fact about the adapter's resolution policy rather than about the protein
+        (§4).
+
+        **It lives here and not in the adapters because the store's write path is `MERGE … SET`,
+        so a `Protein` staged twice is last-write-wins.** Minting an accession-only node for an
+        accession that *was* resolved would overwrite its `gene_absence` with `unresolved`,
+        depending on staging order — which is how the first build of `Gene` put 3,492 proteins in
+        the graph with a NULL `gene_absence` and no `ENCODES` edge, the exact collapse §4's column
+        exists to prevent. Excluding the resolved set is order-independent; ordering the writes
+        would not have been.
+        """
+        return [
+            {
+                NODE_TYPE_KEY: "Protein",
+                "id": protein_key(accession),
+                "accession": accession,
+                "gene_absence": "unresolved",
+            }
+            for accession in dict.fromkeys(accessions)
+            if accession and accession not in self.protein_id
+        ]
 
     def __post_init__(self) -> None:
         assert set(self.sequence_id).isdisjoint(self.unresolved), (
             "an accession is both resolved and unresolved"
+        )
+        assert set(self.gene_id).isdisjoint(self.gene_absence), (
+            "an accession both has a Gene and carries a reason it has none"
+        )
+        assert set(self.gene_id) | set(self.gene_absence) == set(self.protein_id), (
+            "every Protein must be in exactly one of gene_id and gene_absence — an absent ENCODES "
+            "edge with no recorded reason is the collapse §4's gene_absence exists to prevent"
         )
 
 
@@ -82,6 +131,9 @@ def resolve_to_nodes(
     protein_id: dict[str, str] = {}
     sequence_id: dict[str, str] = {}
     unresolved: dict[str, str] = {}
+    gene_absence: dict[str, str] = {}
+    gene_id: dict[str, str] = {}
+    genes: dict[str, Node] = {}
 
     for accession in sorted(set(accessions)):
         if not accession:
@@ -98,16 +150,35 @@ def resolve_to_nodes(
         # holds UniProt's *protein* name (§4). Writing the symbol here would make `Gene.symbol`
         # redundant — two homes for one fact — so the symbol's route is `Gene`.
         #
-        # **Why `Gene` is still unminted, narrowed 2026-08-09 (§11 Q12).** Not because the id is
-        # unavailable: UniProt carries an HGNC cross-reference on 40/40 sampled Swiss-Prot entries
-        # and 37/40 TrEMBL, 0 of 78 inactive. It is because no I9 input holds one — this module's
-        # cache stores the eight-field parse, and every way of changing that re-writes
-        # `entry/{canonical}.json`, a path whose non-versioned key is itself an open item
-        # (`OPERATIONS.md` §3). Widening `_Entry` with a *defaulted* field is the trap: measured,
-        # it refetches nothing and yields `None` on all 2,261 cached entries, which reads as
-        # *no HGNC id* and means *never captured*. `organism_taxid` genuinely is unreported.
-        # So both columns stay null, and this is a routing decision rather than an absence.
-        nodes.append({NODE_TYPE_KEY: "Protein", "id": pid, "accession": accession})
+        # **`Gene` was minted 2026-08-09 (§11 Q12, closed).** The symbol reaches the graph through
+        # `Gene.symbol` below, so `Protein.name` still stays null — a routing decision, not an
+        # absence. `organism_taxid` genuinely is unreported by the resolver.
+        why = _gene_absence(result)
+        if why is None:
+            # `Gene.id` is authority-assigned: HGNC's own identifier, CURIE-prefixed, and §4 fixes
+            # the local part at the authority's rendering — `hgnc:HGNC:7532`, never `hgnc:7532`.
+            # Routed through `check_curie_case` so a malformed capture is refused here rather than
+            # becoming a second node for one gene.
+            gid = check_curie_case(f"hgnc:{result.hgnc_id}")
+            gene_id[accession] = gid
+            # One node per gene however many proteins reach it — `ENCODES` is ONE_MANY. Measured
+            # on PXD018299 the maximum is 2 proteins on one gene, because only razor picks are
+            # resolved; a cache-wide projection put it at 34, which is what the graph would show
+            # if the adapter resolved every candidate.
+            genes.setdefault(
+                gid, {NODE_TYPE_KEY: "Gene", "id": gid, "symbol": result.gene, "name": None}
+            )
+            edges.append({"type": "ENCODES", "from": gid, "to": pid})
+        else:
+            gene_absence[accession] = why
+        nodes.append(
+            {
+                NODE_TYPE_KEY: "Protein",
+                "id": pid,
+                "accession": accession,
+                "gene_absence": why,
+            }
+        )
 
         if result.status != "ok":
             unresolved[accession] = f"resolver status {result.status!r}"
@@ -135,13 +206,38 @@ def resolve_to_nodes(
         )
         edges.append({"type": "HAS_SEQUENCE", "from": pid, "to": sid})
 
+    # Appended last so a `Gene` is staged after every `Protein` it encodes. Order is not required
+    # by the store — ADR-0019 makes a change-set self-contained — but a reader of the staged list
+    # should not have to hold an edge whose endpoints appear later.
+    nodes.extend(genes[gid] for gid in sorted(genes))
     return ResolvedProteins(
         nodes=nodes,
         edges=edges,
         protein_id=protein_id,
         sequence_id=sequence_id,
         unresolved=unresolved,
+        gene_absence=gene_absence,
+        gene_id=gene_id,
     )
+
+
+def _gene_absence(result: Resolution) -> str | None:
+    """Which of §4's three `gene_absence` values applies, or `None` when a `Gene` can be minted.
+
+    Every branch returns a value from `schema.GENE_ABSENCE`; there is no fall-through, because a
+    fall-through would be a fourth absence with no name, which is the state this column exists to
+    make impossible. `AMBIGUOUS` folds into `no_cross_reference`: UniProt reported several HGNC
+    ids and the platform will not pick one (`uniprot.AMBIGUOUS`), so from the graph's side there is
+    no usable cross-reference — and the reason is recorded at the sentinel rather than lost, since
+    a fourth enum value for a state measured 0 of 198 times would be a column nothing populates.
+    """
+    if result.status != "ok":
+        return "unresolved"
+    if result.hgnc_id == NOT_CAPTURED:
+        return "not_captured"
+    if result.hgnc_id in (None, AMBIGUOUS):
+        return "no_cross_reference"
+    return None
 
 
 def residue_at(resolved: ResolvedProteins, accession: str, position: int) -> str | None:

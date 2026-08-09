@@ -31,6 +31,16 @@ def conn() -> Iterator[kuzu.Connection]:
 
 
 def n(node_type: str, node_id: str, **props: object) -> dict[str, object]:
+    """Build a change-set node.
+
+    A `Protein` gets `gene_absence` unless the caller sets it: §4 requires every protein to name an
+    `ENCODES` edge or a reason it has none, and `invariants._check_gene_absence` enforces it at the
+    change-set. This module's subject is the write path, not genes, so the default keeps the rule
+    satisfied without making every fixture here say so — but it is a **default, not a filter**, and
+    a test that wants the other state passes it.
+    """
+    if node_type == "Protein" and "gene_absence" not in props:
+        props = {"gene_absence": "unresolved", **props}
     return {NODE_TYPE_KEY: node_type, "id": node_id, **props}
 
 

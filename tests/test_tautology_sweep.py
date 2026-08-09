@@ -329,6 +329,18 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         # before-and-after and not a value against itself. Demonstrated rather than argued:
         # deleting the write-once check in `_pin_put` fails this and nothing else.
         ("test_pins.py", "pin.read_text() == before", 2),
+        # The sentinel reaching disk, not just the return value: the right side is a module
+        # constant and the left is a read of the file `_fetch_entry` wrote. Restoring the
+        # pre-2026-08-09 first-match fails this and nothing else in the suite, which is how the
+        # gap it covers was found.
+        (
+            "test_pins.py",
+            (
+                "json.loads((tmp_path / 'entry' / 'P20591.json').read_text())['hgnc_id'] "
+                "== uniprot.AMBIGUOUS"
+            ),
+            1,
+        ),
         # A change-detector on a declaration, which is the nearest of the three to a tautology and
         # is kept deliberately. It compares a field's default with the constant that default is
         # written as, so it can only fail if the declaration moves — which is exactly the failure
@@ -419,7 +431,27 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "store.ids_by_label(open_graph(home)) == {'Project': [pinned['project']], 'Experiment': [pinned['experiment']], 'Dataset': [pinned['dataset']], 'Analysis': [pinned['analysis']], 'Sample': sorted(pinned['samples'].values())}",
             1,
         ),
-        ("test_resolve_nodes.py", "set(protein) == {NODE_TYPE_KEY, 'id', 'accession'}", 1),
+        # Classified individually 2026-08-09, with `Gene`. None is an instance; two of the six the
+        # sweep first raised were withdrawn rather than pinned, because they asserted a partition on
+        # a *returned* `ResolvedProteins` and `__post_init__` raises during construction — so they
+        # could not fail. They are replaced by a test that exercises the guard, confirmed by
+        # deleting each half of it.
+        #
+        # The replacement of the row this one supersedes: the emitted `Protein`'s key set, now four
+        # columns rather than three. A literal on the right, the builder's output on the left.
+        (
+            "test_resolve_nodes.py",
+            "set(protein) == {NODE_TYPE_KEY, 'id', 'accession', 'gene_absence'}",
+            1,
+        ),
+        # The fixture set is asserted to exercise **every** member of the enum. It fails if a value
+        # is added to `GENE_ABSENCE` with no case behind it, or if the builder emits one the enum
+        # does not name — which is the fall-through §4's column exists to make impossible.
+        (
+            "test_resolve_nodes.py",
+            "set(resolved.gene_absence.values()) == set(schema.GENE_ABSENCE)",
+            1,
+        ),
         ("test_schema.py", "accession == accession.upper()", 1),
         ("test_schema.py", "built == schema.table_names()", 1),
         ("test_schema.py", "code_children == doc_children", 1),
@@ -428,6 +460,11 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_schema.py", "named == {e for _, e in pairs}", 1),
         ("test_schema.py", "prefix == prefix.lower()", 1),
         ("test_schema.py", "schema.CURATION_BASIS == dict(rows)", 1),
+        # A document mirror, the same shape as `CURATION_BASIS == dict(rows)` two rows down: the
+        # left is the code's enum and the right is parsed out of §4. `NULL` is excluded because it
+        # is the column's absence rather than a value it holds, and its presence in the document is
+        # asserted separately so removing that row fails rather than shrinking the comparison.
+        ("test_schema.py", "set(schema.GENE_ABSENCE) == set(named) - {'NULL'}", 1),
         ("test_schema.py", "schema.CURIE_PREFIXES == _curie_prefixes()", 1),
         ("test_schema.py", "schema_nodes == ontology_nodes", 1),
         ("test_schema.py", "schema_rels == ontology_rels", 1),
@@ -622,15 +659,16 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     `test_rebuild.py`.
     """
     found, modules, asserts = sweep()
-    # Denominated at the exact current surface, re-denominated twice on 2026-08-09: 655 -> 662 for
-    # the local-part guard, then 662 -> 687 for `tests/test_pins.py`, which is also the twenty-first
-    # module. It read `asserts >= 600` against 633, which
+    # Denominated at the exact current surface, re-denominated three times on 2026-08-09: 655 ->
+    # 662 for the local-part guard, 662 -> 687 for `tests/test_pins.py` (also the twenty-first
+    # module), and 687 -> 714 for `Gene` and its change-set check. It read `asserts >= 600`
+    # against 633, which
     # tolerated deleting a twentieth of the suite's assertions — the case its own failure message
     # names. A legitimate reduction lowers these numbers in the same change, the same discipline
     # the multiset carries; additions never trip it, because an added *match* is caught by the
     # multiset rather than by this floor — but leaving the floor behind the surface reintroduces
     # exactly the slack the re-denomination removed, so it moves with every addition too.
-    assert modules >= 21 and asserts >= 687, (
+    assert modules >= 21 and asserts >= 714, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

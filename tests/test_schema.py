@@ -593,6 +593,43 @@ def test_quantity_values_are_in_enum() -> None:
     assert seen, "no quantity values found — guard would be vacuous"
 
 
+def test_gene_absence_mirrors_section_4() -> None:
+    """`schema.GENE_ABSENCE` mirrors §4's `Protein.gene_absence` table — keys and their counts.
+
+    The same mirror-plus-guard idiom as `CURATION_BASIS` against §5.3. It is worth guarding for a
+    reason specific to this column: it exists so that three unlike absences cannot read as one, and
+    a value drifting out of the enum would restore exactly the collapse it prevents — silently,
+    since Kùzu will store any string.
+
+    The counts are asserted too, not only the keys. §4 states them as measurements, and a table of
+    measurements that nothing re-reads is where a superseded figure survives longest.
+    """
+    text = ONTOLOGY.read_text()
+    start = text.index("**`Protein.gene_absence` — three absences")
+    block = text[start : text.index("\n\n", text.index("|---|", start))]
+    rows = re.findall(r"^\| `(\w+)` \| (.+?) \| ([\d,]+) \|\s*$", block, re.MULTILINE)
+    named = {key: count for key, _meaning, count in rows}
+    # §4 tabulates **four** states and the enum closes three: `NULL` is the fourth and is the
+    # column's absence rather than a value it can hold. Asserted apart rather than filtered out,
+    # so dropping the NULL row from the document fails here instead of going unnoticed.
+    assert "NULL" in named, "§4's table must keep the NULL row — it is the state that means 'fine'"
+    assert set(schema.GENE_ABSENCE) == set(named) - {"NULL"}, (
+        f"schema.GENE_ABSENCE {sorted(schema.GENE_ABSENCE)} != §4 {sorted(set(named) - {'NULL'})}"
+    )
+    assert named == {
+        "NULL": "1,059",
+        "unresolved": "3,492",
+        "no_cross_reference": "10",
+        "not_captured": "0",
+    }
+    assert sum(int(v.replace(",", "")) for v in named.values()) == 4561, (
+        "§4's counts must partition the graph's Protein nodes exactly"
+    )
+    assert "gene_absence" in dict(
+        next(t for t in schema.NODE_TABLES if t.name == "Protein").columns
+    ), "the enum has no column to close"
+
+
 def test_curation_basis_enum_matches_ontology_5_3() -> None:
     """`schema.CURATION_BASIS` mirrors §5.3's basis table, values *and* the confidence each carries.
 

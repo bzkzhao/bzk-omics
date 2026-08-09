@@ -513,6 +513,43 @@ def _check_I19(nodes: list[Node], edges: list[Edge]) -> None:
             )
 
 
+def _check_gene_absence(nodes: list[Node], edges: list[Edge]) -> None:
+    """Every `Protein` names an `ENCODES` edge **or** a reason it has none — never neither (§4).
+
+    Not a numbered invariant: it enforces a column's contract rather than one of §8's clauses, and
+    it runs in the same place for the same reason — a change-set is self-contained (ADR-0019), so
+    both halves are present or the change-set is malformed.
+
+    **Written because the graph was wrong while the suite was green.** The first build of `Gene`
+    put **3,492** proteins in the graph with a NULL `gene_absence` and no `ENCODES` edge: the two
+    adapters mint an accession-only `Protein` for every candidate in a protein group, that path
+    never went through `ResolvedProteins`, and its `__post_init__` partition check therefore never
+    saw them. A guard that lives on the object the resolver returns cannot cover nodes minted
+    beside it, which is why this one is at the change-set instead.
+    """
+    encoded = {e["to"] for e in _edges(edges, "ENCODES")}
+    for protein in _nodes(nodes, "Protein"):
+        pid = protein.get("id")
+        absence = protein.get("gene_absence")
+        if (pid in encoded) == (absence is not None):
+            state = f"gene_absence={absence!r}" if absence is not None else "gene_absence NULL"
+            raise InvariantError(
+                "GENE_ABSENCE",
+                f"Protein {pid!r} has {state} and "
+                f"{'an' if pid in encoded else 'no'} ENCODES edge. §4: the column is NULL exactly "
+                "when an edge reaches the protein, so an absent edge always names which of the "
+                "three absences it is — an unexplained one reads as 'this protein has no gene' "
+                "and is the collapse the column exists to prevent",
+            )
+        if absence is not None and absence not in schema.GENE_ABSENCE:
+            raise InvariantError(
+                "GENE_ABSENCE",
+                f"Protein {pid!r} has gene_absence {absence!r}, which is not one of §4's "
+                f"{sorted(schema.GENE_ABSENCE)}. A fourth absence with no name is the same defect "
+                "one level in",
+            )
+
+
 _CHECKS: dict[str, Callable[[list[Node], list[Edge]], None]] = {
     "I2": _check_I2,
     "I3": _check_I3,
@@ -522,6 +559,7 @@ _CHECKS: dict[str, Callable[[list[Node], list[Edge]], None]] = {
     "I15": _check_I15,
     "I16": _check_I16,
     "I19": _check_I19,
+    "GENE_ABSENCE": _check_gene_absence,
 }
 
 

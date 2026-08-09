@@ -59,6 +59,24 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+#: Sentinel for `hgnc_id` meaning *this record predates the field*, as distinct from `None`, which
+#: means *captured, and UniProt reports no HGNC cross-reference* (`ONTOLOGY.md` §11 Q12). The two
+#: are distinguishable on disk — a pre-widening file has no `hgnc_id` key, a post-widening one has
+#: `"hgnc_id": null` — and `_load_entry` is what collapsed them, filling both from the default.
+#: Measured before the field was added, which is why the default is this and not `None`.
+NOT_CAPTURED = "\x00not-captured"
+
+#: Sentinel for *UniProt reported more than one HGNC cross-reference for this accession*. Kept
+#: distinct from `None` for the reason `NOT_CAPTURED` is: an absence with three different causes
+#: that reads as one is the defect `Protein.gene_absence` exists to prevent (§4). Before 2026-08-09
+#: this position took the **first** match and discarded the rest, which is a silent decision in a
+#: field that becomes a primary key. Measured 0 of 198 entries fetched, so nothing on disk carries
+#: it yet — and the values captured before that date were captured under first-match, so the guard
+#: is prospective. A census would cost a full re-capture (29m55s measured) and could not change the
+#: decision, since a second cross-reference is refused whenever it arrives whatever its rate.
+AMBIGUOUS = "\x00ambiguous"
+
+
 @dataclass(frozen=True)
 class Resolution:
     """The outcome of resolving one accession. ``sequence`` matches ``requested`` or is ``None``.
@@ -80,14 +98,11 @@ class Resolution:
     last_seq_update: str | None
     gene: str | None
     sequence_source: str  # 'canonical' | 'isoform' | 'isoform_unavailable' | 'isoform_fetch_failed'
-
-
-#: Sentinel for `hgnc_id` meaning *this record predates the field*, as distinct from `None`, which
-#: means *captured, and UniProt reports no HGNC cross-reference* (`ONTOLOGY.md` §11 Q12). The two
-#: are distinguishable on disk — a pre-widening file has no `hgnc_id` key, a post-widening one has
-#: `"hgnc_id": null` — and `_load_entry` is what collapsed them, filling both from the default.
-#: Measured before the field was added, which is why the default is this and not `None`.
-NOT_CAPTURED = "\x00not-captured"
+    #: The HGNC cross-reference, or one of the two non-values. `None` means UniProt reports none;
+    #: `NOT_CAPTURED` means this snapshot predates the field; `AMBIGUOUS` means UniProt reported
+    #: several and the builder must refuse rather than pick. Three distinguishable absences, which
+    #: `Protein.gene_absence` is what makes readable at the node (§4).
+    hgnc_id: str | None = NOT_CAPTURED
 
 
 @dataclass(frozen=True)
@@ -95,10 +110,15 @@ class _Entry:
     """Canonical-entry metadata, as cached in the **snapshot** tier (keyed on the base accession).
 
     Snapshot, not archive: this file is overwritten on every re-fetch, and `OPERATIONS.md` §3.1
-    declares that rather than working around it. Nothing identity-bearing is read from here —
-    `sequence_version`, `entry_type` and `reviewed` come from the write-once pin beside the
-    sequence, and `sequence` from the sequence file itself. The fields that remain the snapshot's
-    own are the ones no id depends on.
+    declares that rather than working around it. `sequence_version`, `entry_type` and `reviewed`
+    come from the write-once pin beside the sequence, and `sequence` from the sequence file itself.
+
+    **Narrowed 2026-08-09 with `Gene`.** This ended *"the fields that remain the snapshot's own are
+    the ones no id depends on"*, which was a description of the contents rather than a rule, and
+    false the moment `Gene.id` was derived from `hgnc_id`. The rule is that a snapshot field may not
+    reach the **composition** of a composed key, directly or by selection — `ONTOLOGY.md` §4's own
+    division. `Gene.id` is authority-assigned: it *is* HGNC's identifier, CURIE-prefixed, which §4
+    says is not composition. `OPERATIONS.md` §3.1 carries the reasoning and what it costs.
     """
 
     status: str
@@ -197,16 +217,19 @@ def _fetch_entry(session: RestSession, canonical: str) -> _Entry:
     genes = d.get("genes") or [{}]
     # `None`, never `NOT_CAPTURED`: this payload *was* read, so an absent cross-reference is a fact
     # about the entry rather than about the cache. Sampled coverage is 40/40 Swiss-Prot, 37/40
-    # TrEMBL and 0 of 78 inactive (§11 Q12), and no entry in 198 carried more than one, so the
-    # first match is taken rather than a list being kept.
-    hgnc = next(
-        (
-            str(x["id"])
-            for x in (d.get("uniProtKBCrossReferences") or [])
-            if x.get("database") == "HGNC" and x.get("id")
-        ),
-        None,
-    )
+    # TrEMBL and 0 of 78 inactive (§11 Q12).
+    #
+    # **Several matches are `AMBIGUOUS`, not the first one (2026-08-09).** This took `next(...)`
+    # and discarded the rest, which is a silent decision in a field that is now the whole of a
+    # `Gene`'s primary key — the shape ADR-0024 rejected one clause over. 0 of 198 entries carried
+    # more than one, so this is prospective; the alternative to prospective is a full re-capture
+    # measured at 29m55s, which could not change what happens on arrival.
+    hgnc_ids = [
+        str(x["id"])
+        for x in (d.get("uniProtKBCrossReferences") or [])
+        if x.get("database") == "HGNC" and x.get("id")
+    ]
+    hgnc = hgnc_ids[0] if len(hgnc_ids) == 1 else (AMBIGUOUS if hgnc_ids else None)
     return _Entry(
         status="ok",
         entry_type=entry_type,
@@ -308,12 +331,19 @@ def resolve(
     stripped to canonical (ONTOLOGY.md §4). Pass ``refresh=True`` to bypass **both** the snapshot
     and the pin (used by `bzk/drift.py`, into a throwaway directory).
 
-    **The pin wins over the snapshot on every identity-bearing field (OPERATIONS.md §3.1).** Where
-    a pin exists, ``sequence_version``, ``entry_type`` and ``reviewed`` come from it and the
-    snapshot supplies only ``gene``, ``last_seq_update`` and ``hgnc_id`` — none of which any id
-    depends on. That ordering is the whole of the guarantee: the snapshot may be overwritten by any
-    re-fetch, and after this it cannot move a `ModificationSite` key, a `ProteinSequence` id, or —
-    through I17's promotion — which protein a site is keyed against.
+    **The pin wins over the snapshot on every field that reaches a composed key (OPERATIONS.md
+    §3.1).** Where a pin exists, ``sequence_version``, ``entry_type`` and ``reviewed`` come from it;
+    the snapshot supplies ``gene``, ``last_seq_update`` and ``hgnc_id``. That ordering is the whole
+    of the guarantee: the snapshot may be overwritten by any re-fetch, and it cannot move a
+    ``ModificationSite`` key, a ``ProteinSequence`` id, or — through I17's promotion — which protein
+    a site is keyed against.
+
+    **It can move a `Gene`, and that is permitted rather than overlooked (2026-08-09).** This
+    docstring said the snapshot's fields were ones *"no id depends on"*, which stopped being true
+    when ``Gene.id`` was derived from ``hgnc_id``. An authority-assigned id may read from the
+    snapshot because a change to it re-keys nothing: it swaps which ``Gene`` node exists and which
+    ``ENCODES`` edge points at it, moves no existing id, cascades into no evidence digest, and
+    changes a visible count.
     """
     sess = session if session is not None else requests.Session()
     # §4's accession-casing clause, enforced here as well as in `keys.protein_key`, because both
@@ -359,6 +389,7 @@ def resolve(
             last_seq_update=None,
             gene=None,
             sequence_source="none",
+            hgnc_id=NOT_CAPTURED,
         )
 
     sv = entry.sequence_version
@@ -389,6 +420,7 @@ def resolve(
         last_seq_update=entry.last_seq_update,
         gene=entry.gene,
         sequence_source=source,
+        hgnc_id=entry.hgnc_id,
     )
 
 

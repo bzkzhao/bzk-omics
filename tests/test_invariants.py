@@ -659,6 +659,53 @@ def test_structure_duplicate_node_id_raises() -> None:
     assert "duplicate node id" in str(ei.value)
 
 
+def test_a_protein_with_neither_an_edge_nor_a_reason_is_refused() -> None:
+    """§4's `gene_absence`, enforced at the change-set because the object guard could not see it.
+
+    `ResolvedProteins.__post_init__` checks the same partition, and it was not enough: the two
+    adapters mint an accession-only `Protein` for every candidate in a protein group, and that path
+    never constructs a `ResolvedProteins`. The first build of `Gene` therefore put **3,492**
+    proteins in the graph with a NULL `gene_absence` and no `ENCODES` edge — the full suite green
+    throughout. This is the level both producers pass through.
+    """
+    with pytest.raises(InvariantError) as ei:
+        validate([n("Protein", id=MX1, accession="P20591")], [])
+    assert ei.value.invariant == "GENE_ABSENCE"
+    assert "collapse the column exists to prevent" in str(ei.value)
+
+
+def test_a_protein_with_both_an_edge_and_a_reason_is_refused() -> None:
+    # The other half of *exactly one*. A protein that has a gene and also says why it has none is
+    # two contradictory claims, and reading only one of them is what a downstream query would do.
+    nodes = [
+        n("Protein", id=MX1, accession="P20591", gene_absence="no_cross_reference"),
+        n("Gene", id="hgnc:HGNC:7532", symbol="MX1"),
+    ]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("ENCODES", "hgnc:HGNC:7532", MX1)])
+    assert ei.value.invariant == "GENE_ABSENCE"
+    assert "no_cross_reference" in str(ei.value)
+
+
+def test_a_gene_absence_outside_the_enum_is_refused() -> None:
+    # A fourth absence with no name is the same defect one level in: the column would be readable
+    # and still not say which of a closed set of things happened.
+    with pytest.raises(InvariantError) as ei:
+        validate([n("Protein", id=MX1, accession="P20591", gene_absence="dunno")], [])
+    assert ei.value.invariant == "GENE_ABSENCE"
+    assert "not one of" in str(ei.value)
+
+
+def test_a_protein_with_an_edge_and_a_null_reason_passes() -> None:
+    # The accepting case, so the check cannot pass by rejecting everything (F3's rule, applied to
+    # a non-numbered check because the reason for it does not depend on the numbering).
+    nodes = [
+        n("Protein", id=MX1, accession="P20591", gene_absence=None),
+        n("Gene", id="hgnc:HGNC:7532", symbol="MX1"),
+    ]
+    validate(nodes, [e("ENCODES", "hgnc:HGNC:7532", MX1)])  # must not raise
+
+
 def test_structure_two_labels_may_share_one_id() -> None:
     """ADR-0019, corrected 2026-08-07. §3 keys `Protein` and `Modifier` both on `uniprot:`, so
     **ISG15 is `uniprot:P05161` under both** — the protein a diGly search reports as a razor pick,
@@ -668,7 +715,9 @@ def test_structure_two_labels_may_share_one_id() -> None:
     This test asserted the opposite until real data ran through the modifier seed.
     """
     nodes = [
-        n("Protein", id=ISG15, accession="P05161"),
+        # `gene_absence` is spelled out rather than defaulted by the helper: this file must be able
+        # to build a change-set that *violates* §4's column, so nothing here fills it in silently.
+        n("Protein", id=ISG15, accession="P05161", gene_absence="unresolved"),
         n("Modifier", id=ISG15, name="ISG15", c_terminal_motif="LRLRGG", leaves_gg_remnant=True),
         n("ProteinSequence", id=f"{ISG15}#sv1", sequence_version=1),
     ]

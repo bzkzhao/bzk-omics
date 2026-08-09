@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.11 |
+| Version | 0.13 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `ARCHITECTURE.md`, `ONTOLOGY.md` |
 | Authoritative for | Backup, cache policy, dependency pinning, rebuild discipline |
@@ -83,7 +83,35 @@ The UniProt cache is **two tiers, and only one of them is content-addressed and 
 | `sequence_version` | **Yes** — embedded in every `ModificationSite` and `ProteinSequence` id | pin |
 | `sequence` | **Yes**, indirectly — the residue check decides whether a site exists at all | sequence file, and the pin names its version |
 | `entry_type` / `reviewed` | **Yes**, indirectly — steers I17's promotion, so it decides *which protein* a site is keyed against | pin |
-| `gene`, a future `hgnc_id`, `last_seq_update`, `fetched_at` | No | snapshot |
+| `gene`, `hgnc_id`, `last_seq_update`, `fetched_at` | No | snapshot |
+
+**Narrowed 2026-08-09, when `Gene` was minted and `Gene.id` turned out to read from the snapshot.**
+This table's column said *"bears on identity"* and the surrounding text said *"nothing an id depends
+on is read from the mutable tier"* — a description of what happened to be in the pin, not a
+principle, and false the moment a primary key was derived from `hgnc_id`. The principle is:
+
+> **A snapshot field may not reach the composition of a composed key, directly or by selection.**
+
+That is `ONTOLOGY.md` §4's own division of reference nodes into *composed* and *authority-assigned*,
+and it sorts every field in the table above without a special case. `sequence_version` is a
+**component** of `uniprot:{acc}#sv{n}` and of every `ModificationSite` built on it. `reviewed`
+**selects** which protein a site keys against (I17), so it reaches composition indirectly. `gene`,
+`last_seq_update` and `hgnc_id` reach neither: `Gene.id` is authority-assigned — §3's identity table
+gives its identifying fields as `—`, and §4's shape is *"the id **is** the external identifier,
+CURIE-prefixed; nothing local composes it"*, which makes prefixing explicitly not composition.
+
+**What the narrowing costs, and why it is not the failure the pin prevents.** A changed
+cross-reference produces a different `Gene` node and a different `ENCODES` edge between rebuilds.
+That is a real difference and it is accepted, because it is a different failure in kind: a pinned
+field moving **re-keys an existing node and every evidence digest anchored on it**, silently and
+without changing any count, whereas a `Gene` change moves no id, cascades into no digest — `Gene`
+appears in no `schema.IDENTITY` anchor list, asserted in `tests/test_keys.py` — and changes a node
+count, which is visible. **Moving `hgnc_id` into the pin was considered and is wrong, not merely
+harder:** 2,183 pins predate the field, and filling one means rewriting a write-once record, which
+is the negation of the property rather than a cost. It does not reopen the backfill window either —
+that window was about preserving an *original* capture, and `hgnc_id` was never captured at
+ingestion, so there is nothing earlier to lose. Independently, the pin is keyed `#sv{n}`, and an
+HGNC id has no relation to a sequence version.
 
 The pin is `cache/uniprot/seq/{canonical}#sv{n}.meta.json`, written **once and never overwritten**, the same discipline `_seq_cache_put` already applies to the sequence beside it. It sits in the sequence tier because that is the tier the version keys, and it makes the tier self-describing: the version can be recovered by globbing `#sv*.meta.json` without knowing it in advance, which is what breaks the circularity `bzk/resolve/uniprot.py` used to record as the reason the tiers could not merge.
 
@@ -121,7 +149,7 @@ The same discipline applies to DuckDB and Polars, though both are more stable.
 
 **Run it weekly, and after every schema change.** The claim in I9 — that schema change is a compute cost rather than a migration — is true only while this is verified. An untested rebuild path is an assumption, not an invariant.
 
-**Two commands since 2026-08-07, with different cadences.** `bzk rebuild` reconstructs and is cheap (119.9 s on PXD018299, and dominated by the write path rather than by anything irreducible); run it after every schema change, as above. `bzk drift` validates the sequence archive against UniProt and is expensive (**2,069.8 s measured** for 2,845 sequences on 2026-08-08, and 973.7 s for 1,029 on 2026-08-07 — call it **35 minutes** at the current archive size, and note it scales with the archive, not with the deposit); run it **weekly**. Both runs so far reported zero drift and **neither number means anything about the archive.** The first compared a fetch against a fetch under two hours older; the second ran at 05:03 UTC over an archive whose oldest member was written 13 hours earlier and whose 1,816 newest members were written the same day, so it too compared fetches against fetches of the same UniProt release. They are evidence the check runs, not evidence the sequences are stable. **The first meaningful drift run is one over an archive that has aged** — weeks at least, since UniProt releases roughly monthly — and until then no conclusion about exposure may be drawn from a clean result. Running it again today would produce a third clean result and would not move that sentence. They were one command until the archive grew past a thousand sequences and the combined cost reached 17.6 minutes — at which point the honest thing and the convenient thing diverged, and the convenient thing won: the session that introduced the cost changed the schema twice and ran a full rebuild once, at the end.
+**Two commands since 2026-08-07, with different cadences.** `bzk rebuild` reconstructs and is cheap (**83.9–100.6 s on PXD018299, n = 3, measured 2026-08-09**, and dominated by the write path rather than by anything irreducible); run it after every schema change, as above. **The figure was 119.9 s and that was one draw** — corrected here rather than noted, by the turn whose own opening rebuild (96.1 s, on the unchanged tree) contradicted it. It is a range with *n* stated because replacing one draw with another is what the 62.2 s figure cost (`ROADMAP.md` § *Measured findings*); the spread across three runs is 16.7 s, so any comparison finer than that is not available from this instrument. `bzk drift` validates the sequence archive against UniProt and is expensive (**2,069.8 s measured** for 2,845 sequences on 2026-08-08, and 973.7 s for 1,029 on 2026-08-07 — call it **35 minutes** at the current archive size, and note it scales with the archive, not with the deposit); run it **weekly**. Both runs so far reported zero drift and **neither number means anything about the archive.** The first compared a fetch against a fetch under two hours older; the second ran at 05:03 UTC over an archive whose oldest member was written 13 hours earlier and whose 1,816 newest members were written the same day, so it too compared fetches against fetches of the same UniProt release. They are evidence the check runs, not evidence the sequences are stable. **The first meaningful drift run is one over an archive that has aged** — weeks at least, since UniProt releases roughly monthly — and until then no conclusion about exposure may be drawn from a clean result. Running it again today would produce a third clean result and would not move that sentence. They were one command until the archive grew past a thousand sequences and the combined cost reached 17.6 minutes — at which point the honest thing and the convenient thing diverged, and the convenient thing won: the session that introduced the cost changed the schema twice and ran a full rebuild once, at the end.
 
 **Staleness threshold: 7 days.** A receipt older than that is reported as `STALE` by every `bzk rebuild`. This document owns the number because this section owns cadence; `bzk/drift.py`'s `STALE_AFTER_DAYS` mirrors it and `tests/test_drift.py` asserts the two agree, the same way `schema.py` is guarded against `ONTOLOGY.md` §4–§7. It was a constant in the code citing this section as its owner, which is a comment rather than an arrangement — the number lived in one place and the authority in another.
 

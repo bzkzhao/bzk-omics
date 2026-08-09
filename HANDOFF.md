@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.21 |
+| Version | 1.22 |
 | Last reviewed | 2026-08-09 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -92,17 +92,15 @@ authoritative; **do not quote 12 of 14 as a reproduction.**
 
 **Schema is 57 tables** (24 node + 33 rel) since ADR-0023 dropped two duplicates.
 
-**`Gene` is still 0 nodes, and as of 2026-08-09 nothing in the design blocks it — only the
-capture.** The cache blocker is gone: `OPERATIONS.md` §3.1 split the UniProt cache by whether a
-field bears on identity, so the entry file is a declared mutable snapshot and re-capturing it
-cannot move an id. That unblocked `ONTOLOGY.md` §11 Q12, which is now **answered**: `_Entry` carries
-`hgnc_id`, and the loader distinguishes *key absent* (never captured, refetch) from *explicit null*
-(captured, UniProt reports none) — a distinction that exists on disk and that a defaulted field
-would have collapsed, leaving 2,261 entries permanently reading as *no HGNC id*. What remains is
-running the capture: until every snapshot has been re-fetched, `hgnc_id` is sparse and a builder
-would emit a partial table. Sampled coverage says what it will reach — 40/40 Swiss-Prot, 37/40
-TrEMBL, 0 of 78 inactive, so ~3,231 of 4,561. The `Gene` id's spelling is settled and guarded
-(`hgnc:HGNC:7532`).
+**`Gene` and `ENCODES` are minted — 1,044 genes, 1,059 edges, 2026-08-09.** Every `Protein`
+without one carries `gene_absence` saying which of three absences it is (§4): **3,492 unresolved**
+— the site adapter resolves only razor picks — **10 no_cross_reference**, 0 `not_captured`. That
+partition is enforced at the change-set by `invariants._check_gene_absence`, written because the
+first build put 3,492 proteins in the graph with a NULL column and a green suite. Target symbols
+are now answerable from stored content: **12 of 14** by exact match, **13** counting `DDX58`, which
+HGNC renamed and the graph holds as `RIGI` at `hgnc:HGNC:19102`. `OAS1` is genuinely absent — its
+only `Protein` here is `H0YI20`, a TrEMBL fragment. **This is identifiability, not recovery**, and
+no differential was run.
 
 #### What is left of ROADMAP's v0.1 exit
 
@@ -113,14 +111,16 @@ step, divergence accounted for exactly, every miss traced*. That part is met. Th
    `welch_t` (the sanity check) exists, and §4 is explicit the two are not interchangeable — the
    `s0` curvature changes which sites pass. Needs permutation FDR too, which is also unwritten.
    Its recovery number is a **separate baseline** and will not necessarily be 12.
-2. **Gene symbols never enter the graph.** `Gene` has 0 nodes and `Protein.name` is null on all
-   4,561, so "which of the 14 targets" is unanswerable from stored content — the differential run
-   reads the deposit's `Gene names` column. Until this lands, *"through the real pipeline"* is
-   false for the identification step, whatever the pipeline does.
+2. ~~**Gene symbols never enter the graph.**~~ **Closed 2026-08-09.** `Gene` holds 1,044 nodes and
+   the 14 targets are answerable from stored content. `Protein.name` is still null on all 4,561 and
+   stays so by decision (§4) — the symbol's home is `Gene.symbol`. What remains on the differential
+   side is that `bzk/sources/pxd018299_differential.py` still reads the deposit's `Gene names`
+   column: the graph can now answer it, and switching the module over is a change to the
+   differential, which this turn did not run and does not touch.
 
    **Decided 2026-08-08 and no longer open as a modelling question**: the symbol's home is `Gene.symbol`, not `Protein.name` — routing it onto `Protein` would make `Gene.symbol` redundant (ONTOLOGY.md §4).
 
-   **Not minted 2026-08-09, and the reason is one layer below Q12.** The id is plentiful — sampled UniProt coverage is **40/40** Swiss-Prot, **37/40** TrEMBL, **0 of 78** inactive (censused), so ~2,104 of the 2,261 cached entries would yield one and **~3,231 of 4,561** graph accessions would get a `Gene`. What blocks it is that **no I9 input holds one**, and every route to capturing one re-writes `cache/uniprot/entry/{canonical}.json` — the tier whose non-versioned key is itself an open item in §8. Q12 cannot be answered without settling that first, so it is not answered here. The `Gene` id spelling *was* settled and guarded (`hgnc:HGNC:7532`, §8), because that was free only while the table is empty.
+   **Minted 2026-08-09 (§11 Q12, closed).** 1,044 `Gene`, 1,059 `ENCODES`. The pre-registered projection was 1,104 and 3,230 and was wrong in an instructive way: it assumed every graph `Protein` passes through the resolver, and only the ~1,069 razor picks do. So `Gene` answers *which of the 14 targets* from stored content — 12 by exact symbol, 13 once `DDX58`/`RIGI` is allowed for — while 3,492 proteins carry `gene_absence = 'unresolved'`, which is the adapter's resolution policy and not a fact about them.
 3. ~~**I11 is unmet.**~~ **met 2026-08-08 for `SiteObservation` **only**** — `bzk/quant/`, ADR-0004 and ADR-0013; `ProteinObservation` retains nothing, see below. `quant.duckdb` is created by `rebuild`, `quant_ref` is `site_values` on all 2,029 `SiteObservation`s, and **48,696 measured-or-null cells** are retained (2,029 sites × 12 samples × 2 quantities). The matrix is no longer
    re-read from the deposit each run, and the statistics layer is pluggable in fact rather than in
    principle: an alternative test is recomputable from stored values. Values are **measured and
