@@ -2,8 +2,9 @@
 
 `ONTOLOGY.md` §6.3 settled the *site* grain on a measurement: 1,896 of 2,298 filtered GlyGly sites
 (82%) map to more than one protein, *"the common case rather than an edge case"*. The protein grain
-had no such number, and `bzk/adapters/perseus.py` refuses a multi-accession row, so how often it
-refuses was an assumption. This module measures it, over three real artefacts:
+had no such number, and at the time this was written `bzk/adapters/perseus.py` refused a
+multi-accession row, so how often it refuses was an assumption. This module measures it, over three
+real artefacts:
 
 1. **BJC Supplementary Data 2** (`MOESM4`) — a Perseus protein-level export, 25 rows.
 2. **BJC Supplementary Data 3** (`MOESM5`) — the same, 323 rows.
@@ -12,6 +13,16 @@ refuses was an assumption. This module measures it, over three real artefacts:
 The first two are the exact artefact in question: Perseus exports, identifiable by the `C:` / `N:` /
 `T:` column-type prefixes it writes into an Excel export. The third gives a larger *n* and shows
 whether Perseus' selection changes the picture.
+
+**Two corrections, 2026-08-09, from the turn that went to ingest the first two.** The premise above
+— *"`perseus.py` refuses a multi-accession row"* — was true when written and **is not now**:
+ADR-0022 made `candidate_proteins` identifying and the group *is* the identity, so nothing is
+refused for being a group. The measurement stands; only its motivation is historical. And *Perseus
+export* is accurate but says less than it seems to: these are exports of the **annotation matrix**,
+carrying LFQ intensities, MaxQuant QC columns and identifiers, with **no `Student's T-test
+Difference` and no p-value column in either file**. They cannot supply a `DifferentialResult`, which
+this module never claimed and a reader could reasonably have assumed. `ROADMAP.md` § *Step 0 stopped
+the BJC ingestion* carries the measurement.
 
 **Two accession columns, and the difference is the whole question.** `Protein IDs` lists every
 protein in the group; `Majority protein IDs` lists the subset carrying at least half the peptides,

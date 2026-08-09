@@ -6,13 +6,21 @@ what the projection which missed by a factor of three fell into — it counted c
 the builder counts resolved accessions — so the recorded figures get an assertion against the real
 thing.
 
-**Why it is one module and not five tests spread through the suite.** Three deposit-dependent tests
-already skip without `raw/`; this makes four, and the cost is stated rather than absorbed. It is two
-costs, not one: on a fresh container these numbers are unchecked and only the fixture tests run;
-and where the graph *is* present this module adds **~38 s** to the suite, because
-`site_keying` is called 2,029 times to check a property that is only meaningful over all of them.
-Both were accepted deliberately. Adding a skipping test per query would have made coverage a
-function of who runs the suite, which is the thing being avoided.
+**Why it is one module and not five tests spread through the suite.** Adding a skipping test per
+query would have made coverage a function of who runs the suite, which is the thing being avoided.
+The two costs are stated rather than absorbed, and both were measured on 2026-08-09 rather than
+estimated — neither had a figure in the tree before that, only the mechanism:
+
+* **Coverage.** With no `~/.bzk-omics` at all, **10 of 372 tests skip**: seven here, two in
+  `test_pxd018299_baseline.py`, one in `test_protein_groups.py`. **Ten tests, not four gate sites**
+  — the gate is per-fixture and per-test, and counting modules understates it by more than half.
+* **Wall clock.** This module alone runs in **37.3 s**, because `site_keying` is called 2,029 times
+  to check a property only meaningful over all of them. The full suite is **168.7 s** with a graph
+  present and **55.7 s** without one, so what the skipping tests cost between them is ~113 s — most
+  of the suite's runtime, for ten tests.
+
+Both were accepted deliberately, and the second is the one to watch: a suite that is three times
+slower where the data exists is a suite people run where it does not.
 
 Everything asserted here is a figure recorded in `ROADMAP.md` or `ONTOLOGY.md`, so a divergence is a
 finding about the graph rather than about this file.

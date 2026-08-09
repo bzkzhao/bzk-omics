@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.29 |
+| Version | 1.30 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -28,7 +28,7 @@ One ingestion path, one dataset, one statistical test, no web frontend.
 
 | Capability | Note |
 |---|---|
-| **Perseus result-table adapter** | The collaborating group's workflow. A flat table of proteins, differences and significance values — no localisation or razor-pick complexity |
+| **Perseus result-table adapter** | The collaborating group's workflow. A flat table of proteins, differences and significance values — no localisation or razor-pick complexity. **Written and tested against fixtures; not yet run on a real export.** Established 2026-08-09: the two published BJC tables are Perseus exports *of the annotation matrix* and carry no test statistic, so they cannot supply one. The adapter's group handling is no longer the blocker it was — ADR-0022 discharged that — and what it needs is a Perseus table that carries a `Difference` and a p-value |
 | **MaxQuant site-table adapter** | PXD018299, the validated regression fixture. Required to keep the published-target recovery verifiable — see the amended exit criterion: the figure is 9 of 14 through this route, and the criterion is that every miss is traced, not that the number is 12 |
 | UniProtKB resolution | Sequence-version pinning, isoform-aware, position validation, persistent cache |
 | Evidence graph in Kùzu | `Observation` and `EvidencedInference` contracts defined even though few subtypes ship |
@@ -163,7 +163,15 @@ On the wider `Protein IDs` column the same three read 88.0%, 91.0% and 86.2%.
 
 **The two BJC tables are the exact artefact in question** — real Perseus protein-level exports,
 identifiable by the `C:` / `N:` / `T:` column-type prefixes Perseus writes into an Excel export, and
-they are the published supplementary data of the paper this whole reproduction is anchored to. The
+they are the published supplementary data of the paper this whole reproduction is anchored to.
+
+**Narrowed 2026-08-09, and the narrowing is what stopped an ingestion.** *Perseus export* is right
+and *the exact artefact in question* was right for the question this survey asked — protein-group
+ambiguity, which is answered from the accession columns. It is not right for ingestion: these are
+Perseus exports of the **annotation matrix**, and neither carries a `Student's T-test Difference` or
+a p-value column, so no `DifferentialResult` can be minted from them. A survey that reads headers
+can establish what a column *is* and cannot establish what is *missing* from the set. See
+§ *Step 0 stopped the BJC ingestion*. The
 MaxQuant table gives *n* = 4,797 upstream of Perseus and shows that Perseus' selection does not
 change the picture: 77.4% and 77.1% agree to within a third of a point.
 
@@ -176,7 +184,7 @@ table this group produces.
 
 | Consequence | |
 |---|---|
-| `perseus.py` on a real export | refuses ~72–77% of rows, so it is unusable until the schema can hold a group |
+| ~~`perseus.py` on a real export~~ | Said *"refuses ~72–77% of rows, so it is unusable until the schema can hold a group"*. **Discharged by ADR-0022** — `candidate_proteins` became identifying and `RESOLVES_TO_PROTEIN` `MANY_MANY`, so the group *is* the identity and nothing is refused for being a group. Confirmed against the code 2026-08-09, in the turn that went to ingest these files and was stopped by something else entirely |
 | The site/protein asymmetry | not a Perseus quirk: the protein grain was modelled less completely than the site grain, and 77% is not an edge case |
 | §6.3's open question | *"either the key gains a way to name several parents, or the relationship narrows"* — posed for sites, unresolved, and now posed identically one grain up |
 
@@ -1264,6 +1272,99 @@ the machine's mood, not the command, and the correction is recorded as that less
 third number.
 
 
+### Step 0 stopped the BJC ingestion: the tables carry no statistic, 2026-08-09
+
+**Nothing was ingested and nothing was built.** The turn set out to run BJC Supplementary Data 2 and
+3 through `bzk/adapters/perseus.py` so that `differential_table` would return rows instead of
+`Absence.NOT_STORED`. Establishing the input first — which is what Step 0 is for — showed that it
+cannot: **neither file contains a test statistic.** The finding is recorded here rather than worked
+around, and no pre-registration table appears below because the run it would predict did not happen.
+What the predictions *would* have been, and why they are withdrawn, is stated at the end.
+
+**Confirmed before establishing anything.** 2,029 sites, 27 refusals, 4,561 `Protein`, 1,044 `Gene`,
+1,059 `ENCODES`, `gene_absence` 1,059 / 3,492 / 10, and `differential_table` returning
+`Absence.NOT_STORED` — all unmoved. Rebuild wall clock **122.1 s**, inside the 83.9–149.7 s range
+this file records and nearer its middle than either endpoint.
+
+**The input is sound, which is why the finding is about content and not access.** Both files already
+have a fetcher — `bzk/sources/protein_groups.py`, added for the ambiguity survey — pointing at
+Springer's stable ESM path for doi:10.1038/s41416-020-01167-y. They already enter `raw/` through
+`provenance/raw_store.store`, the same content-addressing every other input gets, and both verify:
+
+| File | Springer name | Digest | Size |
+|---|---|---|---|
+| Supplementary Data 2 | `41416_2020_1167_MOESM4_ESM.xlsx` | `sha256:da870551116f00b4ea5a89ae930156e503283d2ee7a4eebe5c03acfb54651509` | 16,127 bytes |
+| Supplementary Data 3 | `41416_2020_1167_MOESM5_ESM.xlsx` | `sha256:9c9d9dfbd69078053caed1158752a14c31bdc5e4364e25d3401f3c691b3b9fca` | 74,388 bytes |
+
+**They do not belong in `sources/pride.py` and already do not live there** — the module says why:
+*"the path scheme is Springer's, not PRIDE's, and giving it its own type keeps `sources/pride.py`
+about PRIDE."* **I9's input list does not change**: `raw/` is already its first input and these are
+already in it. So the question Step 0 was asked to answer has the answer *already correct*, and the
+work of this turn was to find out what is inside them.
+
+**What is inside them, measured against what `perseus.py` requires.** The adapter needs
+`Student's T-test Difference {suffix}` and one of `Student's T-test p-value {suffix}` /
+`-Log Student's T-test p-value {suffix}`. **Zero columns in either file match any of the three.**
+
+| | Supplementary Data 2 | Supplementary Data 3 |
+|---|---|---|
+| Sheets | 1, visible | 1, visible |
+| Dimensions | `A1:X27` — 24 columns, 25 data rows | `A1:AB325` — 28 columns, 323 data rows |
+| Columns matching `Difference` or `T-test` | **0** | **0** |
+| Only statistic-like column | `N: Q-value`, 3 distinct values including 0 — MaxQuant's **identification** FDR, not a differential *q* | same |
+| Quantitative columns | 6 × `LFQ intensity`, range **20.79 – 33.61** | 6 × `LFQ intensity`, range **−6.331 – 10.73** |
+
+**These are Perseus *exports*, and that was never in doubt — the `C:` / `N:` / `T:` prefixes are
+Perseus's own column-type marks. What they are exports *of* is the annotation matrix, not a t-test
+result.** A Perseus t-test writes its `Difference` and p-value back as new `N:` columns; there are
+none. So the tables give the **membership** of the significant set and the values behind it, and
+withhold the statistic that made it significant. That is a perfectly ordinary thing for a paper's
+supplementary data to be, and it is not what a `DifferentialResult` requires: `log2fc`, `p_value`
+and `adj_p_value` would all have to be invented.
+
+**Three further findings from the same measurement, each of the ran-cleanly-and-was-wrong class.**
+
+1. **The two files' quantitative columns are not the same quantity.** Data 2's LFQ values run
+   20.79–33.61 — log2 intensities. Data 3's run **−6.331 to 10.73**, and a negative intensity is not
+   an intensity. Ingesting both under one `Analysis.quantity` would put two different measurements
+   in one closed-enum slot (§5, I16), and the enum has no value that is honestly both.
+2. **Eleven of Data 3's 323 rows have their gene-name list split across headerless columns.**
+   `T: Gene names` holds only the first symbol and the remainder sit in four unnamed trailing
+   columns — row 4 carries `SRGAP2` in the column with `SRGAP2C`, `SRGAP2B`, `SRGAP1` beside it,
+   outside the header. Sixteen stray cells in total. A reader taking `T: Gene names` at face value
+   silently loses one to four symbols per affected row, and a positional reader trusting the header
+   width reads a gene symbol as data. Same shape as the six MaxQuant spill lines recorded above,
+   found the same way, and it would not have surfaced from a header read.
+3. **The replicate columns disagree between the files in name and order.** Data 2 writes
+   `KO_IFN_1` and lists KO first; Data 3 writes `WT_IFN-1` — hyphen, not underscore — and lists WT
+   first. A curation record mapping samples to conditions cannot be shared between them.
+
+**What was *not* found, because two artefacts said it would be and both are stale.** This file's
+consequence table said `perseus.py` *"refuses ~72–77% of rows, so it is unusable until the schema
+can hold a group"*, and `bzk/sources/protein_groups.py`'s docstring said the adapter *"refuses a
+multi-accession row"*. **Both were true when written and neither is true now** — ADR-0022 made
+`candidate_proteins` identifying and `RESOLVES_TO_PROTEIN` `MANY_MANY`, and `perseus.py`'s own
+docstring records the change: *"This adapter refused every one of them until ADR-0022 … Since
+ADR-0022 the group **is** the identity."* So the blocker this survey predicted is discharged, and
+the blocker that actually stopped the turn is one neither artefact anticipated. Both are corrected
+in place.
+
+**The withdrawn predictions, and the premise that falsified them.** They were to be derived from the
+survey's 18 and 250 mapped rows: `DifferentialResult` at 25 + 323 = 348 minus refusals,
+`ProteinObservation` at the same count, `Dataset` at 3, `Imputation` at 2, and `differential_table`
+returning rows with `unprovenanced` moving `DifferentialResult` off `(0, 0)` and `Dataset` off
+`(0, 1)`. Every one of them assumed the files carry a statistic. **They are withdrawn rather than
+answered, because a prediction about a run that does not happen is not a prediction** — and
+recording the number they would have taken is worth more than the number itself: 348 rows of
+`DifferentialResult` would have been minted from `log2fc` and `adj_p_value` values that do not
+exist in the source.
+
+**The one thing this establishes about the four measured-state claims in `bzk/query/`.** They record
+0 `DifferentialResult`, 0 `Imputation`, and `{'Dataset': (0, 1), 'SiteObservation': (0, 2029),
+'DifferentialResult': (0, 0)}`. All four were expected to be falsified by this turn and **none of
+them is**: nothing was ingested, so every figure still holds, re-measured through the read layer
+after the confirming rebuild. They are left exactly as they are.
+
 ### The platform made an invisible analytical choice, 2026-08-07
 
 **The clearest finding of the project, because it is the project's own failure mode.** `VISION.md`
@@ -1448,6 +1549,13 @@ Kùzu DDL generated from `ONTOLOGY.md`. Invariant checks I2, I3, I4, I10, I14 en
 Perseus result-table adapter. Curation record ingestion. `Analysis.kind = 'external'` with `parameters_observed = false`.
 
 *Exit:* a Perseus table is ingested, resolved, stored, and cross-queried against a second dataset. **This is the first genuinely useful milestone** — a real user's results, held and connected.
+
+**Unmet, and 2026-08-09 narrowed why.** The adapter exists and its group handling is no longer a
+blocker (ADR-0022). What is missing is a **table that carries a statistic**: the two published BJC
+supplementary exports were established to hold LFQ intensities, identifiers and MaxQuant QC columns
+and no `Difference` or p-value, so they cannot meet this exit however they are ingested. The
+*cross-queried against a second dataset* half is untouched and separately blocked on §11 Q1, the
+two-datasets-one-`Contrast` question. See § *Step 0 stopped the BJC ingestion*.
 
 ### Weeks 5–6 — raw path and statistics
 MaxQuant site-table adapter. DuckDB quantitative layer. **`welch_t` with BH first**, reproducing 12 of 14 exactly; then `perseus_s0` with permutation FDR, its recovery number recorded as a separate baseline. `ModifierAssignment`, `ProteinAssignment` and `Imputation` including supersession and retraction.

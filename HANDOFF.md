@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.23 |
+| Version | 1.24 |
 | Last reviewed | 2026-08-09 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -145,6 +145,22 @@ retained matrix**, which waits on the meeting.
 ~~**Nothing reads the graph.**~~ **The query half landed 2026-08-09.** `bzk/query/` answers five
 questions over Kùzu and is what an interface sits on; the interface, the notebooks and anything that
 writes a file are untouched, and the last of those is where I18 has to land (§8, EX).
+
+**Corrected 2026-08-09: this block implied that what remains waits on the meeting, and one item does
+not.** `perseus_s0` does. **Running the Perseus adapter on a real export does not**, and it was
+attempted the same day. It is blocked on the artefact rather than on a decision: the two published
+BJC supplementary tables are Perseus exports *of the annotation matrix* and carry **no
+`Student's T-test Difference` and no p-value column**, so they cannot mint a `DifferentialResult`
+however they are ingested. Established by measurement, not by reading headers — which is what the
+2026-08-07 survey did, and why it recorded these as *the exact artefact in question*. The adapter's
+protein-group handling, which that survey named as the blocker, was discharged by ADR-0022 and is
+no longer one. `ROADMAP.md` § *Step 0 stopped the BJC ingestion* holds the digests, the column
+inventory and three further findings about the files.
+
+**Also corrected: `bzk/adapters/perseus.py` is still fixture-only**, so `differential_table`
+returns `Absence.NOT_STORED` with nothing behind it, and the four measured-state claims in
+`bzk/query/` — 0 `DifferentialResult`, 0 `Imputation`, and the `unprovenanced` dict — **all still
+hold**, re-measured 2026-08-09 after the attempt. They were expected to move and did not.
 
 Before starting, run `python -m bzk.rebuild` and confirm it reports 2,029 sites; if it does not, the
 deposit or the archive has moved and that is the finding, not a setup problem.
