@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.23 |
-| Last reviewed | 2026-08-08 |
+| Version | 1.24 |
+| Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
 
@@ -713,6 +713,89 @@ in the output can show that the turn's work happened, and the only evidence for 
 and the withdrawn artefacts. That is the correct shape for this turn and it is also the shape a turn
 takes when it quietly failed to do anything, so the two must be told apart by what was decided and
 recorded rather than by what was measured.
+
+### Pre-registration: what minting `Gene` would mean, 2026-08-09
+
+**A protocol breach, disclosed first, because a pre-registration that hides one is worse than
+none.** *"Pre-registration, before any code runs"* was not honoured in full. Three classes of
+measurement were taken before this section was written: the mandated opening rebuild (which the
+turn orders first, so that one is in order), the offline graph-and-cache counts the turn asks for
+as *"what is measurable without new fetches"*, and — the actual breach — **the three HGNC
+authority lookups that settle step 0's first contradiction.** Step 0's verdict depends on those,
+which makes them exactly the class a pre-registration exists to stop being adjusted around. They
+are therefore recorded below as **measurements already taken**, not as predictions, and nothing in
+this section claims foresight about them. Everything after this paragraph was genuinely unmeasured
+when it was written.
+
+**Already measured, before this section (no foresight claimed).**
+
+| Measured | Instrument | Result |
+|---|---|---|
+| Starting state | `python -m bzk.rebuild` | 2,029 sites, 27 refused, 57 tables — unmoved |
+| The four figures at `HANDOFF.md` §*What is left of ROADMAP's v0.1 exit* | Cypher over `~/.bzk-omics/graph.kuzu` | 4,561 `Protein`, 0 named, 0 `Gene`, 0 `ENCODES` — all four unmoved |
+| Reach from cached bytes | cached `entry/*.json` against the graph's accessions | 3,254 of 4,561; 1,180 no cached file, 127 cached with no `gene` — unmoved |
+| `HGNC:5699` | `rest.genenames.org/fetch/hgnc_id/HGNC:5699` | `IGHVIII-38-1`, an immunoglobulin heavy variable pseudogene — **not MX1** |
+| `HGNC:4053` | `rest.genenames.org/fetch/hgnc_id/HGNC:4053` | `ISG15`, `uniprot_ids: ['P05161']` |
+| MX1 | `rest.genenames.org/fetch/symbol/MX1` | `hgnc_id: 'HGNC:7532'`, `uniprot_ids: ['P20591']` |
+| Cached entries by `entry_type` | the 2,261 tier-1 files | Swiss-Prot **1,125**, TrEMBL **1,058**, Inactive **78** |
+| Whether any cache file already holds a cross-reference | key-set difference against `_Entry`'s eight fields | **0 of 2,261** |
+| When the entry tier was last written | `fetched_at` in every tier-1 file | 1,054 on 2026-08-07, 1,207 on 2026-08-08 — the ingestion dates; nothing has refreshed it |
+
+**The step-0 spelling decision, registered before it is implemented.** HGNC's own identifier is
+rendered `HGNC:7532` — that is literally the string its REST API returns in `hgnc_id`, measured
+above. §4's rule is *"the local part keeps its authority's casing"*, with `chebi:CHEBI:15377` and
+`go:GO:0032020` given as correct. Nine of §3's ten rows already carry the authority's rendering
+verbatim; `hgnc:4053` is the only row that strips it. So the decision registered here is
+**`hgnc:HGNC:7532`, and §3 and §4's bare examples are the losing side** — not because doubling
+reads well, but because the alternative requires declaring one authority exempt from a rule three
+others already follow, with no reason available to state. The decision is registered rather than
+described because it is falsifiable by the code: if it costs anything structural, that shows up as
+a failing test rather than as an argument.
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| P1 — `check_curie_case('hgnc:HGNC:7532')` is **accepted today** | call it; outcome is a return or a `KeyError_` | exact, binary |
+| P2 — `check_curie_case('hgnc:7532')` is **also accepted today**, so the builder currently mints two ids for one gene | same | exact, binary |
+| P3 — widening `_Entry` with a **defaulted** field triggers **no refetch**: a real cached file loads with the new field `None` | a scratch subclass and a session that raises on any call, against a copy of one real cache file | exact, binary — a fetch either happens or it does not |
+| P4 — HGNC cross-reference coverage (frame, *n* and selection below) | live `GET rest.uniprot.org/uniprotkb/{acc}.json`, in memory, never written to the cache | 95% Wilson interval per stratum; see below |
+| P5 — at most **one** HGNC cross-reference per entry across the sample | same fetches, counting `database == 'HGNC'` elements | exact integer over 120 |
+| P6 — the new `hgnc` local-part guard **fires**: `hgnc:7532` raises, `hgnc:HGNC:7532` returns | the guard, then a mutation that removes the branch, with the mutated file read back before the run | exact, binary |
+| P7 — suite green above 325; sweep floor holds (≥ 20 modules, ≥ 655 asserts), 0 gone | `pytest`; `tests/test_tautology_sweep.py` | exact integers |
+
+**P4's frame, stated before it is drawn.** Frame: the **2,261** canonical accessions that have a
+tier-1 entry file today — not the graph's 3,315 canonical accessions, because the 1,054 that were
+never resolved are the adapter's resolution-policy shortfall and a re-capture would fetch them
+fresh either way. Stratified on the cached `entry_type`, because coverage plausibly differs by
+kind and the strata are the units the decision turns on: Swiss-Prot *N* = 1,125, TrEMBL
+*N* = 1,058, Inactive *N* = 78. ***n* = 40 per stratum, 120 fetches total.** Selection is
+systematic and deterministic — each stratum's accessions sorted ascending, every ⌊*N*/40⌋-th taken
+from index 0 — so the draw is reproducible without a seed. A hit is a `uniProtKBCrossReferences`
+element whose `database` is `HGNC` and whose `id` matches `^HGNC:[0-9]+$`.
+
+**P4's precision, and what it is not asked to resolve.** At *n* = 40 the 95% Wilson interval is at
+its widest ±15.5 pp (*p* = 0.5), and a clean 40/40 gives a lower bound of 91.2%. The sample is
+asked only to separate *essentially all* (≥ 90%) from *about half* from *essentially none*, per
+stratum — gaps far larger than the margin. **It will not be used to resolve any difference below
+about 9 pp**, and no figure from it will be quoted without its interval. Registered predictions:
+**Swiss-Prot ≥ 90%; Inactive = 0%** (an inactive entry is a deletion stub). **For TrEMBL, no
+prediction is registered** — I have no basis for one, and a guess written in the prediction column
+is precisely the defect this format exists to catch.
+
+**The turn's outcome, registered as a prediction because it could go either way.** **`Gene` is
+predicted *not* to be minted this turn.** The chain: no I9 input carries an HGNC id (0 of 2,261,
+measured); obtaining one means re-capturing the entry tier, which changes what an I9 input contains
+and is an ADR rather than a side effect; and a builder written against a field that is `None` on
+every cached entry emits **0** `Gene` nodes, which is the partial table this turn forbids
+producing. **Falsifier, stated so the prediction is not self-sealing:** if P3 or P4 exposes a route
+that mints `Gene` from an input that already exists, the prediction is wrong and the builder is
+written in this turn rather than deferred. The prediction is registered *because* the comfortable
+outcome and the correct outcome coincide here, which is when a stated falsifier is worth most.
+
+**What would make this turn a failure rather than a deferral.** Deciding the spelling and *not*
+guarding it — the class this repository has now been caught in three times, where a machine-
+checkable rule is recorded as prose and the record then reads as though it were enforced. The
+spelling decision reaches an authority that is about to occupy an identifying position, so it is
+enforceable now, and a `HANDOFF.md` note would not close it.
 
 ### The platform made an invisible analytical choice, 2026-08-07
 
