@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.27 |
+| Version | 1.28 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -1110,6 +1110,115 @@ twelve published symbols are answerable from stored `Gene.symbol`; it is not a r
 differential was run, and no comparison to 12-of-14 or 9-of-14 is made or implied. `ROADMAP.md`
 § *What v0.1 must contain* holds that the number is not the criterion, which is why the meaning of
 each outcome was fixed before the run rather than after.
+
+### Pre-registration: what a read path over the graph would mean, 2026-08-09
+
+**Written and committed before any code changes.** Everything built so far writes; nothing reads,
+and the hazard specific to a first read path is that its output *looks* like an answer. A number
+that leaves this layer without the status `ONTOLOGY.md` requires to travel with it is worse than no
+read path, because it is quotable.
+
+**Confirmed first, and one figure moved.** 2,029 sites, 27 refusals, 4,561 `Protein`, 1,044 `Gene`,
+1,059 `ENCODES`, `gene_absence` at 1,059 / 3,492 / 10 — all unmoved. Wall clock **149.7 s**, and
+that is **outside the 83.9–100.6 s range this file recorded yesterday from three runs**. The
+correction is recorded below rather than in this section, but the fact belongs here: the instrument
+that was tightened yesterday was contradicted by the next measurement taken with it.
+
+**Measured before deciding, because two of the five questions turn out to have no data behind
+them.** No foresight claimed; these are the inputs.
+
+| Measured | Result |
+|---|---|
+| Empty node tables | `DifferentialResult`, `Imputation`, `Contrast`, `ProteinAssignment`, `ProteinObservation`, `Person`, `Software`, and the four out-of-scope reference types |
+| `keying_basis` | `razor` 1,507, `reviewed_preferred` 522; `displaced_protein` non-null on exactly the 522 |
+| `Analysis` | 2 — one `curation`, one `processing` (`quantity = intensity_multiplicity_summed`, `test` NULL) |
+| Refusals in the graph | **no node table exists**; `Refusal` is a dataclass in `bzk/adapters/base.py` and lives only in an adapter's report |
+| §7 `prov:Entity` reachability | all 2,029 `SiteObservation` reach an `Analysis` via `USED`→`Dataset`→`REPORTS_SITE` |
+| Does one Kùzu query return an inference's basis? | **Yes** — `MATCH (o:SiteObservation)<-[:ASSIGNMENT_FOR]-(ma:ModifierAssignment) RETURN o.id, o.keying_basis, ma.basis, ma.confidence, ma.candidate_modifiers` returns all five in one row. `OPTIONAL MATCH` is supported and yields `None` for the missing side; a bare node returns as a `dict` of its properties; list parameters and `get_column_names()` work |
+
+**Decision 1 — the read path is `bzk/query/`, a sibling of `quant/` and `stats/`.** Argued against
+`ARCHITECTURE.md` §3's own boundary reasoning rather than by analogy: `curation/` is separate from
+`adapters/` because a curation record is *not an engine's output*, carries no measurements, and runs
+first to produce what an adapter consumes — the test is what a module produces and who consumes it.
+A read path produces nothing that enters the graph and consumes what every writer has already put
+there, so it is at the far end of that same axis and cannot be folded into any producer. It is
+**not** `ontology/store.py`, and the reason is that module's own declared property: *"the only
+module that writes"*, and *"`invariants.py` is deliberately storage-free"*. `ontology/` is schema,
+invariants and the key builder, with exactly one storage-aware exception; a read layer is a second
+storage-aware module, so it goes outside rather than widening the exception. `api/` — already in
+the tree, unbuilt — is the consumer, which is what keeps this turn's stopping point real.
+
+**Decision 2 — a query returns records carrying their status, never bare rows, and this layer *is*
+I5's enforcement point.** `HANDOFF.md` §8 classifies **I5** and **I8**'s reachability half as
+*WG — whole-graph / query-time, not written*, and names I5's mechanism as a per-entity
+`unprovenanced` flag. That is this decision in concrete form, so answering *"is this the enforcement
+point"* with *no* would leave the invariant homeless in the layer its own classification points at.
+It is implemented, scoped to what §7 calls a `prov:Entity` — `Dataset`, `SiteObservation`,
+`DifferentialResult`, `Figure` — because I5 says *entity node* and §7 is where that word is defined;
+reference nodes are not entities and are not flagged. `ONTOLOGY.md` §8 I14's display half and
+`ROADMAP.md` § *Weeks 7–8*'s *"ambiguity and correction status visible everywhere a number appears"*
+settle the rest: **a bare number may not leave this layer.** A site's row carries its
+`candidate_proteins` and the confidence of the assignment that named it; a differential row carries
+its `Analysis`'s declared quantity and test; every entity row carries its provenance status.
+
+**Decision 3 — an absent answer is a value, never an empty container.** The precedent is
+`quant_ref = NULL` (§5.1): the node carries the reason its neighbour is missing. Applied here,
+every query that can come back empty returns *why*, from a closed set. Two of the five are the hard
+cases and both were measured above:
+
+- **The differential table returns 0 rows because there are no `DifferentialResult` nodes**, not
+  because no site was significant. Those are opposite meanings and an empty list is the same object
+  for both.
+- **The refusals query cannot be answered from stored content at all.** 27 refusals were reported at
+  ingestion and the graph retains none of them: there is no node table, and `Refusal` never leaves
+  the adapter. The query is written anyway and reports *not retained*, because that is the finding —
+  the population report is not reconstructible from the graph — and a function that returned `[]`
+  would bury it.
+
+**A third case the scope statement assumes and the graph cannot support.** Question 5 asks, for each
+absent symbol, *which of the three `gene_absence` states applies*. Those states are per-`Protein`,
+and the route from a symbol to a protein runs through the `Gene` node that is missing by hypothesis;
+`Protein.name` is null by decision (§4), so nothing else carries a symbol. So for a bare symbol the
+attribution is **not available**, and the honest return is a fifth state saying so rather than a
+guess. Registered here because it is a claim about the schema that the run can falsify: if any
+absent symbol comes back attributed, there is a route I did not find.
+
+**Decision 4 — tested against a fixture written through the real write path, plus one skipping
+test against the real graph.** The fixture is not a convenience: **the real graph cannot exercise
+two of the five queries at all**, having no `DifferentialResult` and no `Imputation`. It is built by
+handing change-sets to `ontology.store.write_change_set`, which runs `invariants.validate` first, so
+it cannot contain a shape an adapter could not produce — that is the closure for the risk that a
+query is tested against data no producer makes. What it costs is stated: a fixture cannot catch a
+query that is wrong about the *real* population, which is why the recorded figures get their own
+test, and that one skips without `raw/`, making it the fourth such. Adding five would have made
+coverage a function of who runs it; adding one keeps the numbers checkable without doing that.
+
+**Predictions.**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| **No id moves and no count changes** — this turn writes nothing | rebuild, then per-label id diff against the current graph | exact set equality |
+| Q1, differential table for the `processing` `Analysis`: **0 rows**, reported as *no results stored*, not as *none significant* | the query | exact integer plus a discrete state |
+| Q2, one `ModificationSite`: `keying_basis` present on **all 2,029**; `displaced_protein` non-null on exactly the **522** `reviewed_preferred` | the query over every site | exact integers |
+| Q3, imputation state for the `processing` `Analysis`: **empty set**, 0 `Imputation` — and a *set*, not a value | the query | exact integer |
+| Q4, refusals: **0 recoverable** against **27** reported at ingestion, returned as *not retained* | the query | exact integers |
+| Q5, of the 14 published symbols: **12 present, 2 absent**, and **both absent ones unattributable** | the query | exact integers over a set of 14 |
+| I5: **0 unprovenanced** entities — 2,029 of 2,029 `SiteObservation` and 1 of 1 `Dataset` reach an `Analysis` | the provenance status on every returned row | exact integers |
+
+**What Q5's 12 does not mean.** It is the same identifiability figure this file fixed on 2026-08-09,
+and the fixing holds: **twelve published symbols are answerable from stored `Gene.symbol`; it is not
+a recovery figure.** The differential is not run, `differential.py` is not switched off `Gene names`,
+and no comparison to 12-of-14 or 9-of-14 is made or implied. A query that returns 12 must not be
+readable as recovery, which is why the record it returns names what it counted.
+
+**One boundary noted and not crossed.** `HANDOFF.md` §8's **EX** class puts I18's embargo check at
+the first export, report or figure-writing path. A function returning records is not one — it writes
+no file — so I18 is not landed here and is not weakened by anything here. The interface turn is the
+one that trips that trigger.
+
+**What would make this turn a failure rather than a read path.** Returning the empty differential
+table as an empty list. Everything else in the design is downstream of that one distinction, and it
+is the case where the wrong answer is indistinguishable from the right one at the call site.
 
 ### The platform made an invisible analytical choice, 2026-08-07
 
