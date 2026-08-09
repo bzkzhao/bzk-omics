@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.30 |
+| Version | 1.31 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -1364,6 +1364,93 @@ exist in the source.
 'DifferentialResult': (0, 0)}`. All four were expected to be falsified by this turn and **none of
 them is**: nothing was ingested, so every figure still holds, re-measured through the read layer
 after the confirming rebuild. They are left exactly as they are.
+
+### Pre-registration: what a minimal interface would mean, 2026-08-09
+
+**Written and committed before any code changes.** Three panels over `bzk/query/` and nothing else.
+The hazard specific to a first interface is that it is the first thing anyone *looks* at, so a
+rendering decision made for layout reasons becomes the platform's claim: four distinct absences
+drawn as one blank grid would undo the read layer's central decision without a line of it changing.
+
+**Confirmed first.** 2,029 sites, 27 refusals, 4,561 `Protein`, 1,044 `Gene`, 1,059 `ENCODES`,
+`gene_absence` 1,059 / 3,492 / 10, `differential_table` at `Absence.NOT_STORED`, `unprovenanced`
+`{'Dataset': (0, 1), 'SiteObservation': (0, 2029), 'DifferentialResult': (0, 0)}` — all unmoved.
+Rebuild wall clock **120.8 s**, inside the 83.9–149.7 s range and nearer its middle than either end.
+
+**Established before deciding.**
+
+| Question | Result |
+|---|---|
+| Does `streamlit==1.61.1` run here? | **Yes** — imports and reports `1.61.1` |
+| Can it read the graph **while a rebuild holds it**? | **No.** `RuntimeError: IO exception: Could not set lock on file : /root/.bzk-omics/graph.kuzu`, raised from `query.connect` 25 s into a rebuild. Kùzu takes a single writer lock |
+| Can the UI be tested headlessly? | **Yes** — `streamlit.testing.v1.AppTest` runs a script and exposes `.title`, `.markdown`, `.info`, `.dataframe`, `.exception`. Verified against a probe script |
+
+**Decision 1 — `bzk/ui/app.py`, and it is a sibling of `query/` rather than part of it.** §3's
+boundary test is *what a module produces and who consumes it*. `query/` produces records consumed by
+`api/` and now by this; a Streamlit app produces **a screen consumed by a person**, and nothing in
+`bzk/` consumes it. It is the terminal end of the same axis, one step past `query/`. Not `web/`,
+which is reserved for SvelteKit at v0.2 and a different stack; not `api/`, because FastAPI routes
+are consumed by a front end and this *is* one. Inside `bzk/` rather than beside it so that `ruff`
+and `mypy` cover it on their existing targets. **It imports `bzk.query` and nothing else from
+`bzk/`** — no `kuzu`, no Cypher — and anything a panel needs beyond that is reported as a read-layer
+gap rather than reached around.
+
+**Decision 2 — the UI derives nothing.** Every value on screen is a field of a record `bzk/query/`
+returned. Three consequences, each fixed here rather than left to layout:
+
+- **`substantially_imputed is None` renders as *unknown*, with the reason.** `graph.py` argues a
+  `False` would assert I15's clause satisfied; a blank cell says the same thing more quietly, and a
+  reader supplies the missing word themselves. It shows *not derivable — the denominator is in
+  `quant.duckdb`, which the read layer does not reach.*
+- **The UI does not resolve the rename.** `DDX58` renders `present=False, UNATTRIBUTABLE`; `RIGI`
+  renders present at `hgnc:HGNC:19102`. Both appear; **neither is joined to the other.** Whether a
+  caller should be able to see that `RIGI` carries `DDX58`'s locus is a read-layer question and is
+  reported below as a gap, not closed here.
+- **I14's display half attaches for the first time.** Wherever a number appears with a candidate
+  set behind it, the set appears beside it.
+
+**Decision 3 — it is tested, and on what it renders rather than on whether it imports.** The module
+holds no derivation, but it does hold one real decision — the mapping from each `Absence` to what
+appears on screen — and that mapping is the whole point of the third panel. A test that only
+imported the module would be the shape this project has been caught by twice: *a guard that cannot
+see the objects it governs*. So `AppTest` runs the app against a fixture graph and asserts the text.
+**What it costs:** `AppTest` executes the script in-process, so a Streamlit version bump can break
+the tests without breaking the app and vice versa; and the assertions are on substrings of rendered
+markdown, which is a weaker contract than a return value. Both accepted — the alternative is
+asserting nothing about the only decision the module makes.
+
+**Predictions.**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| **No id moves, no count changes** — this turn writes no nodes | the baseline id set captured before the confirming rebuild (12,774 ids, 12 labels), diffed per label after | exact set equality, no margin |
+| Panel 1: `keying_basis` on **2,029 of 2,029**, `displaced_protein` on exactly **522**, and the 522 are exactly the `reviewed_preferred` sites | `site_keying` over every site, as § *the read path* already asserts | exact integers |
+| Panel 2: **12 present, 2 absent**, both `UNATTRIBUTABLE`; `RIGI` present at `hgnc:HGNC:19102`; `DDX58` and `RIGI` shown **unjoined** | the rendered panel, read back through `AppTest` | exact integers, and a discrete presence/absence of a join |
+| Panel 3: **three** distinct absence renderings on the real graph — `NOT_STORED` twice with different subjects, `NOT_RETAINED` once — and **all four** `Absence` values distinguishable | an exhaustiveness assertion over `Absence`, plus `AppTest` text | exact: 4 of 4 mapped, no two strings equal |
+| Suite: skip count stays **10**, because the UI tests build their own fixture graph and do not gate on `~/.bzk-omics` | `pytest -q -rs` under a fake `HOME` | exact integer |
+| Suite wall clock **150–200 s** | `time pytest -q` | **±20 s at best.** Two prior observations 1.5 s apart would suggest better, but this machine showed a 66 s spread on a two-minute rebuild, so a tighter claim is not available and none is made |
+
+**No prediction is registered for the worked site's candidate-set size.** No such figure is recorded
+in the tree, and a number quoted from a terminal is not a baseline — which is how the last one got
+in.
+
+**What Panel 2's 12 is, fixed before it is displayed.** Identifiability, not recovery: twelve
+published symbols are answerable from stored `Gene.symbol`. § *the outcome of minting `Gene`* fixes
+that reading and the panel must not blur it, so the panel names what it counted rather than showing
+a bare 12. No differential is run and no comparison to any recovery figure is made.
+
+**The I18 boundary, tested rather than assumed.** The reading offered was *a screen is not an export
+and a download button is*. **I18's own text settles it**: §8 — *"Queries and views within the local
+instance are unrestricted."* A Streamlit screen is a view within the local instance, so the EX
+trigger does not fire; a download button writes a file, which is what `HANDOFF.md` §8 names as the
+risk, so it would. **None of the three panels needs one and none is added.** One condition the
+entry does not state and this section will: *within the local instance* is a property of how the app
+is served, so binding it to a non-loopback address would make it a shared artifact and fire the
+trigger. Nothing here binds anything; the app is run by hand.
+
+**What would make this turn a failure rather than an interface.** A panel that renders an absence
+as blank. The read layer distinguishes four; a screen that shows one is the layer's central decision
+discarded at the last step, and it is the step where a reader actually forms a belief.
 
 ### The platform made an invisible analytical choice, 2026-08-07
 
