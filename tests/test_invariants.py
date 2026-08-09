@@ -719,11 +719,11 @@ def test_structure_a_site_may_not_have_two_parent_sequences() -> None:
 def test_structure_one_many_destination_appears_at_most_once() -> None:
     # ENCODES is Gene -> Protein, ONE_MANY: a protein is encoded by at most one gene.
     nodes = [
-        n("Gene", id="hgnc:1", symbol="A"),
-        n("Gene", id="hgnc:2", symbol="B"),
+        n("Gene", id="hgnc:HGNC:1", symbol="A"),
+        n("Gene", id="hgnc:HGNC:2", symbol="B"),
         n("Protein", id=MX1, sequence_version=3),
     ]
-    edges = [e("ENCODES", "hgnc:1", MX1), e("ENCODES", "hgnc:2", MX1)]
+    edges = [e("ENCODES", "hgnc:HGNC:1", MX1), e("ENCODES", "hgnc:HGNC:2", MX1)]
     with pytest.raises(InvariantError) as ei:
         validate(nodes, edges)
     assert ei.value.invariant == "STRUCTURE"

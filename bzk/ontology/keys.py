@@ -99,20 +99,29 @@ def check_curie_case(value: str) -> str:
     case-folds to a prefix the map does not contain, so neither is touched. The cost is that it
     cannot catch an *unknown* prefix, which is a §3-map question rather than a casing one.
 
-    *"The local part keeps its authority's casing"* is enforced **for UniProt only**, and the
-    scoping is a decision rather than an omission. A generic rule is not available and must not be
-    invented: §3's map spans authorities whose local parts are numeric (`hgnc:4053`, `unimod:121`,
-    `pmid:21139048`), uppercase (`ensembl:ENSG…`, `mondo:MONDO_…`) or doubly prefixed
-    (`chebi:CHEBI:15377`, `go:GO:0032020`), and §4 states a casing rule for exactly one of them.
-    That one is the only prefix in an identifying position today — `candidate_proteins` is
-    identifying on four node types and holds `uniprot:` ids — so this is not a new rule but §4
-    l.265's existing accession clause reaching the second position where l.266 says it matters.
-    `protein_key` already refuses there, but `protein_key` sits *outside* the hashing path, and the
-    argument for this whole class of fix is that the builder must not depend on producers happening
-    to emit canonical values.
+    *"The local part is the authority's own identifier rendered verbatim"* is enforced **for
+    `uniprot` and `hgnc`**, and the scoping is a decision rather than an omission. §3's map spans
+    authorities whose local parts are numeric (`unimod:121`, `pmid:21139048`), uppercase
+    (`ensembl:ENSG…`) or carry the authority's own prefix (`chebi:CHEBI:15377`, `go:GO:0032020`,
+    `mondo:MONDO_…`, and — since 2026-08-09 — `hgnc:HGNC:4053`). These two are enforced because
+    they are the two in an identifying position: `candidate_proteins` is identifying on four node
+    types and holds `uniprot:` ids, and `Gene.id` is the whole of `Gene`'s identity.
 
-    The remaining ten authorities are unenforced because the document fixes nothing to enforce, not
-    because enforcement is hard. Recorded as an open clause with a trigger in `HANDOFF.md` §8.
+    **`hgnc` added 2026-08-09 with §4's sharpening, and it is the reason the sharpening happened.**
+    The clause used to read *"keeps its authority's casing"*, which says nothing about a missing
+    prefix, and §3's own map stripped HGNC's. So `hgnc:7532`, `hgnc:HGNC:7532` and `hgnc:hgnc:7532`
+    were all accepted — three spellings of one gene, in the field that *is* that gene's identity —
+    and the fork was invisible because no `Gene` node exists yet to fork. Enforced before the first
+    one is minted rather than after, which is the only time it is free.
+
+    What is checked is the authority's rendering, not the authority's grammar: `hgnc:HGNC:abc`
+    passes. Validating the whole identifier is a wider claim than §4 makes, and the same line is
+    drawn for `uniprot` — `check_accession_case` refuses a mis-cased accession and says nothing
+    about a malformed one.
+
+    `chebi`, `go` and `mondo` are now *determined* by §4's rule and merely unguarded; the rest are
+    unenforced because the document fixes nothing to enforce. Both are recorded with a trigger in
+    `HANDOFF.md` §8, and neither is in an identifying position today.
 
     The local-part check is scoped to the segment before the first `#`, because a composed §4 key
     continues past it in lowercase — `uniprot:P20591#sv4#K48#unimod:121` is canonical as written.
@@ -131,6 +140,17 @@ def check_curie_case(value: str) -> str:
         # One home for the rule: the message names the accession segment, which is the part at
         # fault. Refusal mode follows `check_accession_case` for the same reasons.
         check_accession_case(local.split("#", 1)[0])
+    if prefix == "hgnc" and not local.startswith("HGNC:"):
+        # No `#` split here, unlike the UniProt branch: `hgnc:` anchors no composed key in §4, and
+        # splitting would change nothing for any value this can be handed — `hgnc:7532#x` fails on
+        # either side of it. Left out rather than copied across for symmetry it does not have.
+        raise KeyError_(
+            f"{value!r} does not render HGNC's identifier verbatim in the local part; §4 fixes it "
+            "as the authority spells it, 'HGNC:' and the number, giving 'hgnc:HGNC:7532'. Refused "
+            "rather than repaired, for `check_accession_case`'s reasons: this value is a node id "
+            "and the whole of a `Gene`'s identity, so normalizing the hashed copy alone would "
+            "leave the id and the node's own column disagreeing"
+        )
     return value
 
 

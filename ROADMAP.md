@@ -797,6 +797,36 @@ checkable rule is recorded as prose and the record then reads as though it were 
 spelling decision reaches an authority that is about to occupy an identifying position, so it is
 enforceable now, and a `HANDOFF.md` note would not close it.
 
+#### Outcome, 2026-08-09 — every prediction held, and one instrument degenerated
+
+| Prediction | Result |
+|---|---|
+| P1 `hgnc:HGNC:7532` accepted today | **held** — returned unchanged |
+| P2 `hgnc:7532` also accepted | **held**, and understated: `hgnc:hgnc:7532` was accepted too, so it was **three** spellings of one gene, not two |
+| P3 defaulted widening triggers no refetch | **held** — loaded `P20591` with `gene='MX1'`, `hgnc_id=None`, no call; the required-field variant refetched, as the contrast predicted |
+| P4 Swiss-Prot ≥ 90% | **held** — 40/40, 95% CI [0.912, 1.000] |
+| P4 Inactive = 0% | **held**, and then censused: 0 of 78, exact |
+| P4 TrEMBL — no prediction registered | 37/40, 95% CI [0.801, 0.974]. Recorded as the reason the abstention was right: a guess would have been low |
+| P5 at most one HGNC cross-reference per entry | **held** — 0 or 1 across all 198 entries fetched; never 2 |
+| P6 the new guard fires | **held** — two mutations, each read back off disk before running, each failing the new tests and only those; reverted and green |
+| P7 suite and sweep | see the four-point report on the commit |
+| **`Gene` is not minted** | **held.** The falsifier did not fire: no existing input carries an HGNC id, tier-2 stores bare sequence with no FASTA header, and `raw/` carries symbols |
+
+**The instrument that degenerated, reported rather than quietly repaired.** P4's registered
+selection was *"every ⌊N/40⌋-th from index 0"*. For the inactive stratum *N* = 78, so the step is 1
+and the rule returns **the alphabetically first 40** — a clustered draw, not a spread one. The
+procedure was followed exactly as registered and the registered procedure was wrong for any stratum
+with *N* < 2*n*. The fix taken was not a redraw but a **census**: 78 fetches, 0 hits, no interval
+needed. Worth recording because the defect was in the pre-registration itself, which is the one
+place the format cannot catch its own error — and because the result would have looked identical
+either way, so nothing in the output would have surfaced it.
+
+**What this outcome table does not cover.** It says every prediction held; it does not say the
+predictions covered the turn. The spelling decision, the two document corrections and the
+entry-tier finding were all *unpredicted* — three of the four things this turn produced. A
+pre-registration bounds the ways a turn can fool itself about numbers it went looking for; it says
+nothing about what it finds on the way.
+
 ### The platform made an invisible analytical choice, 2026-08-07
 
 **The clearest finding of the project, because it is the project's own failure mode.** `VISION.md`
@@ -995,7 +1025,7 @@ MaxQuant site-table adapter. DuckDB quantitative layer. **`welch_t` with BH firs
 
 A site moves from ambiguous to `basis = uba7_knockout, confidence = confirmed`, and the superseded assignment remains inspectable.
 
-Two things the old wording also assumed and that are **not yet true**, both blocking a literal reading of "through the real pipeline": gene symbols never enter the graph (`Gene` has no nodes, `Protein.name` is null on all **4,561** — corrected 2026-08-08 from 4,441, which the repository contradicts in five places), so target identification still reads the deposit's `Gene names`. **Decided 2026-08-08 and no longer open as a modelling question**: the symbol's home is `Gene.symbol`, not `Protein.name` — routing it onto `Protein` would make `Gene.symbol` redundant (ONTOLOGY.md §4). The blocker is now named and measured: `Gene.id` is an `hgnc:` CURIE, `Resolution.gene` is a *symbol*, and UniProt's payload does carry the id (`HGNC:7532` for `P20591`, measured) while the entry cache stores the parse rather than the payload — so nothing on disk has it. ONTOLOGY.md §11 Q12 holds the open part, which is what the cache should store. Reach if it were minted: **3,254 of 4,561** accessions have a cached symbol; 1,307 do not.; and I11 is met at **site grain only** since 2026-08-08: `quant_ref` is `site_values` on all 2,029 `SiteObservation`s and `quant.duckdb` holds 48,696 cells, so the site matrix is retained rather than re-read (ADR-0004, ADR-0013) — while `ProteinObservation` retains nothing, no adapter writing its cells. Gene symbols and the protein grain both remain on that reading.
+Two things the old wording also assumed and that are **not yet true**, both blocking a literal reading of "through the real pipeline": gene symbols never enter the graph (`Gene` has no nodes, `Protein.name` is null on all **4,561** — corrected 2026-08-08 from 4,441, which the repository contradicts in five places), so target identification still reads the deposit's `Gene names`. **Decided 2026-08-08 and no longer open as a modelling question**: the symbol's home is `Gene.symbol`, not `Protein.name` — routing it onto `Protein` would make `Gene.symbol` redundant (ONTOLOGY.md §4). The blocker is now named and measured: `Gene.id` is an `hgnc:` CURIE, `Resolution.gene` is a *symbol*, and UniProt's payload does carry the id (`HGNC:7532` for `P20591`, measured) while the entry cache stores the parse rather than the payload — so nothing on disk has it. ONTOLOGY.md §11 Q12 holds the open part, which is what the cache should store — and as of 2026-08-09 Q12 is itself **blocked on a layer below it**: every answer re-writes `cache/uniprot/entry/{canonical}.json`, a tier whose key carries no version and which `ONTOLOGY.md` §8 and `OPERATIONS.md` §3 both wrongly called immutable until that date. The identifiers are not scarce — sampled UniProt coverage is 40/40 Swiss-Prot, 37/40 TrEMBL, 0 of 78 inactive. Reach if it were minted: **~3,231 of 4,561** accessions would get a `Gene` (against **3,254** with a cached *symbol*, a different and coincidentally similar number).; and I11 is met at **site grain only** since 2026-08-08: `quant_ref` is `site_values` on all 2,029 `SiteObservation`s and `quant.duckdb` holds 48,696 cells, so the site matrix is retained rather than re-read (ADR-0004, ADR-0013) — while `ProteinObservation` retains nothing, no adapter writing its cells. Gene symbols and the protein grain both remain on that reading.
 
 ### Weeks 7–8 — output and consolidation
 Minimal Streamlit or notebook interface: query, volcano, provenance panel. Ambiguity and correction status visible everywhere a number appears. ADRs 0004–0014 written. Rebuild tested against the full dataset.

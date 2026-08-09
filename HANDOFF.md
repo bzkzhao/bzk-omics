@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.19 |
-| Last reviewed | 2026-08-08 |
+| Version | 1.20 |
+| Last reviewed | 2026-08-09 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
 
@@ -54,7 +54,7 @@ Record the resolved Kùzu version in `ARCHITECTURE.md` §1 the moment you have i
 
 Follow `ROADMAP.md` § Milestones. This adds the granularity that document deliberately omits.
 
-### Status, 2026-08-08 — read this first
+### Status, 2026-08-09 — read this first
 
 **A fresh session should read this block, then `ROADMAP.md` § Measured findings, then start at
 "The next action" below.** Everything above the line in this section is history; this is state.
@@ -89,6 +89,14 @@ authoritative; **do not quote 12 of 14 as a reproduction.**
 
 **Schema is 57 tables** (24 node + 33 rel) since ADR-0023 dropped two duplicates.
 
+**`Gene` is still 0 nodes, and as of 2026-08-09 the blocker is named precisely.** Not the id's
+availability — sampled UniProt coverage is 40/40 Swiss-Prot and 37/40 TrEMBL — but that no I9 input
+holds one, and capturing one re-writes the UniProt **entry** cache, a tier whose key carries no
+version and which two documents wrongly described as immutable until this date. §8 holds both
+items; `ONTOLOGY.md` §11 Q12 is explicitly blocked on the cache one. The `Gene` id's *spelling* is
+settled and guarded (`hgnc:HGNC:7532`), which was worth doing separately because it is free only
+while the table is empty.
+
 #### What is left of ROADMAP's v0.1 exit
 
 The criterion was amended 2026-08-07 — it is no longer a number, it is *population reported at every
@@ -103,7 +111,9 @@ step, divergence accounted for exactly, every miss traced*. That part is met. Th
    reads the deposit's `Gene names` column. Until this lands, *"through the real pipeline"* is
    false for the identification step, whatever the pipeline does.
 
-   **Decided 2026-08-08 and no longer open as a modelling question**: the symbol's home is `Gene.symbol`, not `Protein.name` — routing it onto `Protein` would make `Gene.symbol` redundant (ONTOLOGY.md §4). The blocker is now named and measured: `Gene.id` is an `hgnc:` CURIE, `Resolution.gene` is a *symbol*, and UniProt's payload does carry the id (`HGNC:7532` for `P20591`, measured) while the entry cache stores the parse rather than the payload — so nothing on disk has it. ONTOLOGY.md §11 Q12 holds the open part, which is what the cache should store. Reach if it were minted: **3,254 of 4,561** accessions have a cached symbol; 1,307 do not.
+   **Decided 2026-08-08 and no longer open as a modelling question**: the symbol's home is `Gene.symbol`, not `Protein.name` — routing it onto `Protein` would make `Gene.symbol` redundant (ONTOLOGY.md §4).
+
+   **Not minted 2026-08-09, and the reason is one layer below Q12.** The id is plentiful — sampled UniProt coverage is **40/40** Swiss-Prot, **37/40** TrEMBL, **0 of 78** inactive (censused), so ~2,104 of the 2,261 cached entries would yield one and **~3,231 of 4,561** graph accessions would get a `Gene`. What blocks it is that **no I9 input holds one**, and every route to capturing one re-writes `cache/uniprot/entry/{canonical}.json` — the tier whose non-versioned key is itself an open item in §8. Q12 cannot be answered without settling that first, so it is not answered here. The `Gene` id spelling *was* settled and guarded (`hgnc:HGNC:7532`, §8), because that was free only while the table is empty.
 3. ~~**I11 is unmet.**~~ **met 2026-08-08 for `SiteObservation` **only**** — `bzk/quant/`, ADR-0004 and ADR-0013; `ProteinObservation` retains nothing, see below. `quant.duckdb` is created by `rebuild`, `quant_ref` is `site_values` on all 2,029 `SiteObservation`s, and **48,696 measured-or-null cells** are retained (2,029 sites × 12 samples × 2 quantities). The matrix is no longer
    re-read from the deposit each run, and the statistics layer is pluggable in fact rather than in
    principle: an alternative test is recomputable from stored values. Values are **measured and
@@ -569,7 +579,8 @@ clause rather than by which was easier to write.
 | §3 l.171 `parameters_json` *"normalized numeric forms"* | **Normalize** | `250` and `250.0` are the same JSON number — JSON has one number type — so there is no departure to refuse and refusing would reject valid input. `json.loads` preserves the written form and `json.dumps` writes it back, which is how the int/float boundary survived into the hash while float *spelling* already converged through the parse. **Every** integral float collapses to `int`; bools are left alone because `isinstance(True, int)` is true in Python and JSON's `true` is not the number 1, and non-integral floats never reach the collapse. **This clause both normalizes and refuses, and the boundary is stated 2026-08-08:** numeric *forms* normalize, while malformed JSON **and non-finite numbers** are refused — see the row below, and the raise in `canonical_parameters_json` |
 | §4 l.265 accession uppercase | **Refuse** | A lowercase accession is not another spelling of a UniProt accession, it is a malformed one, and repairing it asserts more than the input supports (I19's discipline). Two concrete costs of normalizing: `resolve/nodes.py` writes `accession` into the node from the same raw string, so an uppercased id would sit on a node whose own column contradicted it; and a curator's typo becomes permanently invisible, because the repaired id is well-formed and resolves |
 | §4 l.266 **first** clause — CURIE prefix lowercase | **Refuse** | The values are node ids. `store.py` writes them as edge endpoints and as `candidate_proteins` elements from the raw change-set, so normalizing the hashed copy alone would leave the id correct and the content it identifies wrong — a worse state than the fork. The builder also cannot tell a CURIE from free text generically, so a blanket normalize is unavailable; the check fires only when a prefix case-folds onto a §3-map prefix, and once detection is that precise, refusal is precise too |
-| §4 l.266 **second** clause — the local part keeps its authority's casing | **Refuse, UniProt only** | Added 2026-08-08 as a correction, not a new clause: see the row below. A generic rule is unavailable and must not be invented, since §3's map spans authorities whose local parts are numeric (`hgnc:4053`, `unimod:121`, `pmid:21139048`), uppercase (`ensembl:ENSG…`, `mondo:MONDO_…`) or doubly prefixed (`chebi:CHEBI:15377`, `go:GO:0032020`), and §4 fixes a casing rule for exactly one of them. UniProt is also the only prefix in an identifying position today, so this is §4 l.265's existing accession clause reaching the second position l.266 names, rather than a rule with no home. Scoped to the segment before the first `#`, because a composed key continues past it in lowercase |
+| §4 l.266 **second** clause — the local part renders the authority's identifier verbatim | **Refuse; `uniprot` and `hgnc`** | Added 2026-08-08 as a correction, not a new clause: see the row below. Scoped to the authorities in an identifying position — `uniprot:` fills `candidate_proteins` on four node types, and `hgnc:` *is* `Gene`'s identity. UniProt's half is §4 l.265's accession clause reaching the second position l.266 names. Scoped to the segment before the first `#` for UniProt, because a composed key continues past it in lowercase; not for HGNC, which anchors no composed key |
+| — the same clause, `hgnc` | **Refuse, added 2026-08-09** | The clause read *"keeps its authority's casing"*, which is silent about a *missing* prefix, and §3's map was the one row that stripped one: `hgnc:4053` where HGNC issues `HGNC:4053`. So `hgnc:7532`, `hgnc:HGNC:7532` and `hgnc:hgnc:7532` were all accepted — three spellings, one gene, in a field that is the whole of that gene's identity. §4 is sharpened from *casing* to *the authority's rendering*, which is what its own `chebi:CHEBI:15377` and `go:GO:0032020` examples always demonstrated. Enforced before the first `Gene` is minted, which is the only point at which it costs nothing. **This row is the class's third instance and the first caught before data existed**, rather than after |
 
 The general rule the split follows: **normalize when both spellings are legal renderings of one
 value; refuse when one spelling is simply wrong.** Refusal is also this module's existing answer to
@@ -602,12 +613,43 @@ row above records it. **This is the same shape as the two defects it corrects:**
 more confident than the thing it justifies — here, "closed" asserted of a sentence whose second half
 nothing read.
 
-**Open clause, with a trigger: the local part of the other ten authorities.** Unenforced because §4
-fixes no casing for them, not because enforcement is hard — and guessing one would be inventing a
-fact with no home (`CLAUDE.md` § Working style). **Trigger: the first non-UniProt CURIE to enter an
-identifying field or an anchor.** At that point §4 must state the authority's casing before the
-builder enforces it, in that order. `tests/test_keys.py` records the boundary as an assertion rather
-than as prose, so the ten passing today is a stated decision rather than an untested assumption.
+**Open clause, with a trigger: the local part of the other nine authorities — and the split
+inside them changed 2026-08-09.** It was one class: *unenforced because §4 fixes nothing to
+enforce*. Sharpening §4 from *casing* to *the authority's rendering* split it in two, and only one
+half is still that.
+
+- **Determined but unguarded: `chebi`, `go`, `mondo`.** §4's rule now fixes their local parts —
+  `CHEBI:`, `GO:`, `MONDO_` — so what is left is writing the check, not deciding anything. **This
+  is the weaker position of the two and it is named as such**, because it is the shape
+  `CLAUDE.md`'s point 3 warns about: a machine-checkable rule left as prose. It is not written
+  here because `Pathway`, `Disease` and `Drug` are out of scope and hold no nodes, so there is
+  nothing to fork; that is a scope decision, not a coverage claim. **Trigger: the first of those
+  three node types to be minted, or any `chebi:`/`go:`/`mondo:` value entering an identifying
+  field.**
+- **Genuinely undetermined: `ensembl`, `unimod`, `mod`, `reactome`, `doi`, `pmid`.** §4 fixes
+  nothing for them and guessing would be inventing a fact with no home (`CLAUDE.md` § Working
+  style). **Trigger: the first of them to enter an identifying field or an anchor.** At that point
+  §4 states the rendering before the builder enforces it, in that order.
+
+`tests/test_keys.py::test_the_local_part_check_is_scoped_to_the_authorities_section_4_fixes`
+records the boundary as an assertion rather than as prose. **`hgnc:4053` was in that test's list,
+cited as an authority with a numeric local part** — the citation was wrong, and a test asserting
+the acceptability of a wrong example is how the third spelling survived a sweep written to find
+exactly this.
+
+**Open item, with a trigger: the UniProt entry cache is overwritten in place (2026-08-09).**
+`ONTOLOGY.md` §8 I9 and `OPERATIONS.md` §3 both said the cache is *"keyed so that a new version is
+a new entry rather than an overwrite"*; both were describing the **sequence** tier and asserting it
+of the whole. `entry/{canonical}.json` carries no version, and `bzk/resolve/uniprot.py`'s docstring
+has always called it *"a mutable snapshot"* — so the code was right and two documents were wrong,
+in the sentence that names the cache an I9 input. Both are corrected. **It is material**: the entry
+tier supplies `sequence_version`, which is embedded in every `ModificationSite` key, so a refresh
+re-keys the graph against today's UniProt. Measured 2026-08-09, the exposure is latent — all 2,261
+entry files carry their original ingestion `fetched_at`, and `bzk drift` fetches into a throwaway
+directory rather than through the live cache. That is a property of no caller passing
+`refresh=True` with the default cache directory, not of the design. **Trigger: before answering
+`ONTOLOGY.md` §11 Q12**, since every answer to Q12 re-writes that path and would settle the cache's
+contract as a side effect of a gene build. Owned by `OPERATIONS.md` §3.
 
 **Corrected 2026-08-08 — the `2**53` cutoff in `_canonical_json_numbers` had a false reason.** Both
 this section and the code said collapsing integral floats above `2**53` "would merge values rather
@@ -975,6 +1017,54 @@ filling them from `gene` or an assumption would be inventing"*. Half false: `Res
 and is populated on every `ok` path. The conclusion for `name` survives — for a reason the comment
 did not give — and `organism_taxid` genuinely is unreported. It now reads as a routing decision
 rather than an absence.
+
+#### Minting `Gene` — attempted 2026-08-09, and stopped with a reason rather than a partial table
+
+**Two contradictions settled in the key before anything was built.**
+
+*The worked example named the wrong gene.* `ONTOLOGY.md` §9 read `Gene hgnc:5699 (MX1)`, and
+`HGNC:5699` is `IGHVIII-38-1`, an immunoglobulin heavy variable pseudogene. MX1 is `HGNC:7532`,
+whose `uniprot_ids` is `['P20591']` and so agrees with the `Protein` line beside it. Both measured
+against `rest.genenames.org`. **The unmeasured one was `hgnc:5699`**, and its provenance is
+visible in the document: §4's per-node example table copies §3's example verbatim in all six rows
+except `Gene`, so the stray value had two homes and §9 inherited it from one of them. The failure
+mode is one level in from the rule that was supposed to prevent it — *"reference identifiers are
+real"* was **true**, and the claim made with the real identifier was false.
+
+*The spelling was underdetermined, and the rule was too narrow to determine it.* §4 said the local
+part *"keeps its authority's casing"*, which says nothing about a prefix that is missing rather
+than mis-cased; §3's map wrote bare `hgnc:4053` while HGNC issues `HGNC:4053`. Settled as
+**`hgnc:HGNC:7532`** and sharpened at the rule: the local part is the authority's identifier
+**rendered verbatim**, which is what §4's own `chebi:CHEBI:15377` and `go:GO:0032020` examples
+always showed. Nine of §3's ten rows already complied; `hgnc` was the one that did not, and the
+alternative reading needed one authority declared exempt with no reason available to state. Guarded
+in `keys.check_curie_case`, not recorded as prose — three spellings were accepted before it
+(`hgnc:7532`, `hgnc:HGNC:7532`, `hgnc:hgnc:7532`), in the field that *is* a gene's identity, and the
+guard is free only while the table is empty. What it reaches for `chebi`, `go` and `mondo` is stated
+in §8 rather than left implied: determined by the rule, deliberately unguarded, with a trigger.
+
+**Why `Gene` was not minted, established rather than preferred.** The prediction registered in
+`ROADMAP.md` before any of this ran was that it would not be, with a falsifier — *if any route
+mints `Gene` from an input that already exists, the builder is written*. No such route exists:
+tier-1 entry files hold the eight-field parse and **0 of 2,261** hold a cross-reference; tier-2
+holds bare sequence with no FASTA header; `raw/` and the curation export hold symbols, not ids. The
+identifiers themselves are not the problem — sampled coverage is 40/40 Swiss-Prot, 37/40 TrEMBL,
+0 of 78 inactive. Capturing one means re-writing `entry/{canonical}.json`, and **that path's key is
+itself an open item** (§8, above): answering Q12 by re-fetching 2,261 entries would replace the
+snapshot every current `sequence_version` came from, as a side effect of a gene build.
+
+**Q12's recorded cost was wrong, in the direction that mattered.** It said widening `_Entry`
+*"re-fetches every cached accession"*. Measured against a copy of a real cache file with a session
+that raises on any call: a **defaulted** field loads `P20591` clean with `hgnc_id=None` and **no
+fetch**; only a **required** field invalidates the cache and refetches. So the cheap-looking option
+is the dangerous one — it produces a column reading *this gene has no HGNC id* on 2,261 entries
+where it means *this was never captured*, which §3 classifies as a `contingent` absence and
+ADR-0021 forbids in an identifying position.
+
+**What a `Protein` with no `Gene` would have to mean** is recorded in Q12 rather than deferred to
+the builder: on the current graph the absence has **four** distinguishable causes — 1,180 never
+resolved, 72 resolved to an inactive entry, 127 with no `gene`, ~78 with a gene but no
+cross-reference — and a missing node records none of them.
 
 ### Unenforced invariants (audit 2026-08-07), by class
 

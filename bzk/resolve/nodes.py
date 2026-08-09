@@ -96,10 +96,17 @@ def resolve_to_nodes(
         # of 2,261 cached entries carry it. What was right is the conclusion for `name`, and for a
         # reason the comment did not give: `Resolution.gene` is a **gene symbol**, and `Protein.name`
         # holds UniProt's *protein* name (§4). Writing the symbol here would make `Gene.symbol`
-        # redundant — two homes for one fact — so the symbol's route is `Gene`, which cannot be
-        # minted because `Gene.id` is an `hgnc:` CURIE and the entry cache stores the parse rather
-        # than the payload that carries the id (§11 Q12). `organism_taxid` genuinely is unreported.
-        # So both columns stay null, and this is now a routing decision rather than an absence.
+        # redundant — two homes for one fact — so the symbol's route is `Gene`.
+        #
+        # **Why `Gene` is still unminted, narrowed 2026-08-09 (§11 Q12).** Not because the id is
+        # unavailable: UniProt carries an HGNC cross-reference on 40/40 sampled Swiss-Prot entries
+        # and 37/40 TrEMBL, 0 of 78 inactive. It is because no I9 input holds one — this module's
+        # cache stores the eight-field parse, and every way of changing that re-writes
+        # `entry/{canonical}.json`, a path whose non-versioned key is itself an open item
+        # (`OPERATIONS.md` §3). Widening `_Entry` with a *defaulted* field is the trap: measured,
+        # it refetches nothing and yields `None` on all 2,261 cached entries, which reads as
+        # *no HGNC id* and means *never captured*. `organism_taxid` genuinely is unreported.
+        # So both columns stay null, and this is a routing decision rather than an absence.
         nodes.append({NODE_TYPE_KEY: "Protein", "id": pid, "accession": accession})
 
         if result.status != "ok":

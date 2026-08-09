@@ -16,6 +16,7 @@ from bzk.ontology.keys import (
     KeyError_,
     canonical_parameters_json,
     canonical_value,
+    check_curie_case,
     evidence_id,
     identity_tuple,
     modification_site_key,
@@ -271,16 +272,52 @@ def test_a_composed_reference_key_survives_the_local_part_check() -> None:
     )
 
 
-def test_the_local_part_check_is_scoped_to_the_one_authority_section_4_fixes() -> None:
+def test_the_local_part_check_is_scoped_to_the_authorities_section_4_fixes() -> None:
     """Stated as a test because it is a decision, not an omission — see `HANDOFF.md` §8.
 
-    §3's map spans authorities whose local parts are numeric, uppercase or doubly prefixed, and §4
-    states a casing rule for UniProt alone. Enforcing a guessed rule for the other ten would be
-    inventing a fact with no home; the clause stays open for them, with a trigger recorded in §8.
+    §4 determines the local part for the authorities that carry their own prefix and for UniProt;
+    it fixes nothing for the numeric and opaque ones, and enforcing a guessed rule there would be
+    inventing a fact with no home. The clause stays open for those, with a trigger recorded in §8.
+
+    `hgnc:4053` was in this list until 2026-08-09, cited as an authority with a *numeric* local
+    part. HGNC's identifier is `HGNC:4053`, so the citation was wrong and the example it licensed
+    was a second spelling of a `Gene` id.
     """
-    assert canonical_value(["hgnc:4053", "pmid:21139048", "unimod:121"], "STRING[]")
+    assert canonical_value(["pmid:21139048", "unimod:121"], "STRING[]")
     assert canonical_value(["chebi:CHEBI:15377", "go:GO:0032020"], "STRING[]")
     assert canonical_value(["doi:10.1038/s41416-021-01444-4"], "STRING[]")
+
+
+def test_two_spellings_of_one_gene_do_not_reach_the_hash() -> None:
+    """§4: an `hgnc:` local part renders HGNC's identifier verbatim, `HGNC:` and all.
+
+    The two-spellings-one-id shape, at the position where it is worst: `Gene.id` *is* `Gene`'s
+    whole identity, so a fork here is two nodes for one gene rather than two ids for one node's
+    content. At 3ca5868 all three spellings below were accepted.
+    """
+    assert check_curie_case("hgnc:HGNC:7532") == "hgnc:HGNC:7532"
+    for stripped in ("hgnc:7532", "hgnc:hgnc:7532", "hgnc:Hgnc:7532"):
+        with pytest.raises(KeyError_) as ei:
+            check_curie_case(stripped)
+        assert "hgnc:HGNC:7532" in str(ei.value)
+
+
+def test_the_gene_spelling_is_refused_inside_the_hashing_path_too() -> None:
+    """The list path, which is the only hashing route an `hgnc:` value can reach today.
+
+    **What this does not cover, asserted rather than assumed.** The other route into the check is
+    `identity_tuple`'s anchor loop, and it iterates the *label's own* `spec.anchors` — a value
+    handed in under a type the spec does not name is dropped, not checked. `Gene` anchors nothing,
+    so an `evidence_id` assertion here would pass while testing nothing, which is the vacuity this
+    file was widened to stop. The assertion below is on the fact that makes the gap real, so that
+    adding `Gene` to any spec's anchors fails here and the coverage claim gets revisited.
+    """
+    assert canonical_value(["hgnc:HGNC:7532"], "STRING[]")
+    with pytest.raises(KeyError_):
+        canonical_value(["hgnc:7532"], "STRING[]")
+
+    assert "Gene" not in {anchor for spec in schema.IDENTITY.values() for anchor, _ in spec.anchors}
+    assert evidence_id("ModifierAssignment", {}, {"Gene": "hgnc:7532"})  # dropped, not checked
 
 
 def test_a_null_list_element_still_renders_as_null_not_as_the_word() -> None:

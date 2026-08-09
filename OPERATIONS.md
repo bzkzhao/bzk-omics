@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.9 |
-| Last reviewed | 2026-08-08 |
+| Version | 0.10 |
+| Last reviewed | 2026-08-09 |
 | Depends on | `ARCHITECTURE.md`, `ONTOLOGY.md` |
 | Authoritative for | Backup, cache policy, dependency pinning, rebuild discipline |
 
@@ -64,7 +64,9 @@ This requires a nightly export of manual assertions from the graph to JSON, sinc
 
 ## 3. Cache policy
 
-The UniProt cache is content-addressed and immutable: an entry is keyed on accession, isoform and sequence version, and a new version is a new entry rather than an overwrite (I2). Over a multi-year project it grows without bound.
+The UniProt cache is **two tiers, and only one of them is content-addressed and immutable.** A *sequence* is keyed on the full accession — isoform suffix included — and its sequence version, `seq/{accession}#sv{n}.txt`, so a new version is a new file rather than an overwrite (I2). An *entry* is keyed on the bare canonical accession, `entry/{canonical}.json`, with no version in the path, so a re-fetch replaces it. Over a multi-year project both grow without bound.
+
+**Corrected 2026-08-09: this section said the property held of "the cache", describing the sequence tier's key while doing so.** `ONTOLOGY.md` §8 I9 carried the same overstatement in the same words, and both were written after `bzk/resolve/uniprot.py`'s docstring had already called the entry tier *"a mutable snapshot of the current UniProt entry"* — the code was accurate and the two documents were not. It matters because the entry tier is where `sequence_version` is read from, and that value is embedded in every `ModificationSite` key: refresh the entry tier and a rebuild re-keys sites against today's UniProt. **Measured 2026-08-09, the exposure is latent and not realised** — all 2,261 entry files still carry their original ingestion `fetched_at`, and `bzk drift` fetches into a throwaway directory rather than through the live cache, which is the only reason a weekly drift run has not been silently re-capturing an I9 input all along. Nothing enforces that; it is one `refresh=True` against the default cache directory away from happening. **Versioning the entry tier's key is this section's to decide**, and it blocks `ONTOLOGY.md` §11 Q12 — what the entry cache must store for `Gene` to be mintable — because every answer to Q12 is a re-write of that path. Tracked with a trigger in `HANDOFF.md` §8.
 
 **Retention:** keep entries accessed within 90 days, plus every entry referenced by a live `ModificationSite` regardless of age. Evict the remainder.
 

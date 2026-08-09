@@ -575,12 +575,14 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     `test_rebuild.py`.
     """
     found, modules, asserts = sweep()
-    # Denominated at the exact current surface, 2026-08-08. It read `asserts >= 600` against 633,
-    # which tolerated deleting a twentieth of the suite's assertions — the case its own failure
-    # message names. A legitimate reduction lowers these numbers in the same change, the same
-    # discipline the multiset carries; additions never trip it, because an added *match* is caught
-    # by the multiset rather than by this floor.
-    assert modules >= 20 and asserts >= 655, (
+    # Denominated at the exact current surface, re-denominated 2026-08-09 (655 -> 660, the five
+    # assertions the `hgnc` local-part guard added). It read `asserts >= 600` against 633, which
+    # tolerated deleting a twentieth of the suite's assertions — the case its own failure message
+    # names. A legitimate reduction lowers these numbers in the same change, the same discipline
+    # the multiset carries; additions never trip it, because an added *match* is caught by the
+    # multiset rather than by this floor — but leaving the floor behind the surface reintroduces
+    # exactly the slack the re-denomination removed, so it moves with every addition too.
+    assert modules >= 20 and asserts >= 660, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.26 |
-| Last reviewed | 2026-08-08 |
+| Version | 1.27 |
+| Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
 | Authoritative for | Node types, edge types, field semantics, invariants |
@@ -59,7 +59,7 @@ All external identifiers are **CURIEs** — `prefix:local_id` — resolved again
 | Prefix | Authority | Example |
 |---|---|---|
 | `uniprot` | UniProtKB | `uniprot:P05161` |
-| `hgnc` | HGNC | `hgnc:4053` |
+| `hgnc` | HGNC | `hgnc:HGNC:4053` |
 | `ensembl` | Ensembl | `ensembl:ENSG00000187608` |
 | `unimod` | Unimod | `unimod:121` |
 | `mod` | PSI-MOD | `mod:00492` |
@@ -241,7 +241,7 @@ CREATE REL TABLE ANNOTATED_IN(FROM Protein TO Pathway, source STRING, evidence_c
 
 | Node | Prefix | Example |
 |---|---|---|
-| `Gene` | `hgnc:` | `hgnc:5699` |
+| `Gene` | `hgnc:` | `hgnc:HGNC:4053` |
 | `Modifier` | `uniprot:` | `uniprot:P05161` |
 | `Pathway` | `reactome:` | `reactome:R-HSA-1169408` |
 | `Disease` | `mondo:` | `mondo:MONDO_0004992` |
@@ -269,7 +269,11 @@ A `ModificationSite` key composes **exactly one** `ProteinSequence`, and since A
 - **`sequence_version`** renders as a bare decimal integer, unpadded: `#sv4`, never `#sv04`.
 - **`residue`** is a single uppercase letter: `K`, never `k`.
 - **`accession`** keeps UniProt's own casing, uppercase, with any `-N` suffix: `P09914-2`.
-- **CURIE prefixes** are lowercase and spelled exactly as in the §3 map. The *local part* keeps its authority's casing, so `chebi:CHEBI:15377` and `go:GO:0032020` are correct as written.
+- **CURIE prefixes** are lowercase and spelled exactly as in the §3 map. The *local part* is the authority's own identifier **rendered verbatim** — its casing, and any prefix the authority itself carries — so `chebi:CHEBI:15377` and `go:GO:0032020` are correct as written.
+
+  **Sharpened from *"keeps its authority's casing"* 2026-08-09, and `hgnc` corrected with it.** The old wording named only case, while the two examples beside it demonstrated something wider: ChEBI's identifier *is* `CHEBI:15377` and GO's *is* `GO:0032020`, so what those rows carry verbatim is the whole identifier, redundant prefix included. HGNC is the same shape — the identifier HGNC issues and returns is `HGNC:7532`, measured against `rest.genenames.org` — and §3's row was the one place in the map where the authority's rendering was stripped. It is now `hgnc:HGNC:4053`, and a `Gene` id is `hgnc:HGNC:7532`. The alternative reading, that the local part is the bare number and this authority is exempt, requires a reason none of the three other doubly-prefixed rows needed, and none is available to state. Doubling reads badly; two ids for one gene is worse, and at 3ca5868 `hgnc:7532`, `hgnc:HGNC:7532` and `hgnc:hgnc:7532` were all accepted by the key builder — three spellings, one gene.
+
+  **Enforced for `uniprot` and `hgnc`; open for the rest.** `keys.check_curie_case` refuses a local part that is not the authority's rendering for exactly those two, because they are the two that occupy an identifying position — `uniprot:` in `candidate_proteins`, and `hgnc:` as of this amendment. The rule above now *determines* the correct form for `chebi`, `go` and `mondo` as well, so for those three what is left is a guard and not a decision; the remaining authorities' local parts are numeric or opaque and the document fixes nothing further about them. Tracked in `HANDOFF.md` §8.
 
 `ModificationSite.id` is deterministic and content-derived, so the same site ingested from two datasets resolves to one node.
 
@@ -822,7 +826,9 @@ Normative. Violations are ingestion errors, not warnings.
 - **I8 — Curated design.** Every `Sample` reaches an `Analysis` with `kind = 'curation'` via `SAMPLE_GENERATED_BY`. Any result derived from a curation with `confidence = 'inferred'` is labelled as such in every view and export, naming the `basis`. Experimental design inferred from filenames is never presented as though it came from the submitters.
 - **I9 — Reproducible rebuild.** The graph is a derived artifact, never authoritative. Given `raw/` (content-addressed), the curation export, **the UniProt sequence cache**, and this DDL, the entire graph must be regenerable from scratch. Curation records and manual inferences are the only non-derivable content; they serialise to a plain JSON export alongside the graph and are versioned independently. This is what converts schema change from a migration problem into a compute-time problem — see §10.
 
-  **The cache is the fourth input, added 2026-08-07 (was §11 Q6).** It is not a performance optimisation and never was: `ProteinSequence.sequence` comes from UniProt, UniProt is mutable, and a superseded `sv` may not be refetchable at all — so a rebuild that reaches the network cannot be relied on to reproduce the sequence a site was pinned to. The cache belongs in the **same class as `raw/`**: captured external state, immutable once captured, keyed so that a new version is a new entry rather than an overwrite. `raw/` is content-addressed by digest; the cache is addressed by `{accession}#sv{n}`, which is an identity the authority itself guarantees not to reuse. Neither is regenerable from anything local, and calling either one a cache was the error. `rebuild.py` has always treated it as an input — it is explicitly not dropped — so this states an arrangement that already existed rather than changing behaviour.
+  **The cache is the fourth input, added 2026-08-07 (was §11 Q6).** It is not a performance optimisation and never was: `ProteinSequence.sequence` comes from UniProt, UniProt is mutable, and a superseded `sv` may not be refetchable at all — so a rebuild that reaches the network cannot be relied on to reproduce the sequence a site was pinned to. The cache belongs in the **same class as `raw/`**: captured external state that should be immutable once captured, keyed so that a new version is a new entry rather than an overwrite. `raw/` is content-addressed by digest. Neither is regenerable from anything local, and calling either one a cache was the error. `rebuild.py` has always treated it as an input — it is explicitly not dropped — so this states an arrangement that already existed rather than changing behaviour.
+
+  **Corrected 2026-08-09: the cache is two tiers and only one of them has that property.** This paragraph said *"the cache is addressed by `{accession}#sv{n}`, which is an identity the authority itself guarantees not to reuse"*, and that describes the **sequence** tier alone. The **entry** tier is `entry/{canonical}.json` — no version in the path — so a re-fetch overwrites it, and `bzk/resolve/uniprot.py`'s own docstring has always called it *"a mutable snapshot of the current UniProt entry"*. The code was accurate and this sentence was not. **It is material rather than cosmetic:** the entry tier is where `sequence_version` comes from, `sequence_version` is embedded in every `ModificationSite` key, and so a refreshed entry tier re-keys sites against today's UniProt. I9's reproducibility therefore rests today on the fact that **nothing refreshes it** — `bzk drift` fetches into a throwaway directory precisely so it does not, and every one of the 2,261 entry files still carries its original ingestion `fetched_at` (1,054 on 2026-08-07, 1,207 on 2026-08-08, measured 2026-08-09). That is a property of no caller doing it, not of the design. Versioning the entry tier's key is the fix and it is a cache-layout change `OPERATIONS.md` §3 owns; recorded as an item with a trigger in `HANDOFF.md` §8 rather than made here, because §11 Q12 depends on it and would otherwise be settled on top of it.
 - **I10 — Unattributed enzymes.** No `SiteObservation` may be presented as the product of a named enzyme except through a live `EnzymeAssociation`. A site whose modifier is assigned but whose enzyme is not is displayed as *unattributed*, never as the canonical writer or eraser for that modifier.
 - **I11 — Quantitative retention.** Every observation persists its per-sample quantitative values in the columnar store, not merely the statistics derived from them. No pipeline stage may discard the matrix after computing a `DifferentialResult`. This is what makes the statistical layer genuinely pluggable: any test — moderated *t*, permutation with s0, or something not yet written — is recomputable from stored values without re-ingestion. A platform retaining only log₂FC and adjusted *p* is married to whichever test produced them.
 - **I12 — No tryptic assumptions.** Core code makes no assumption that peptides terminate in K or R, that a peptide carries at most one modification, or that a peptide maps to exactly one protein. Immunopeptidomics violates the first, multi-modified peptides the second, shared peptides the third. These are free to accommodate now and expensive to retrofit.
@@ -840,9 +846,19 @@ Normative. Violations are ingestion errors, not warnings.
 
 *Reference identifiers are real; the `bzk:` evidence ids are illustrative stubs standing in for the content-derived digests defined in §3; quantitative values and the site position are illustrative, not measured.*
 
+**Corrected 2026-08-09: the `Gene` line read `hgnc:5699 (MX1)`, and `HGNC:5699` is not MX1.** It is
+`IGHVIII-38-1`, an immunoglobulin heavy variable pseudogene, measured against
+`rest.genenames.org/fetch/hgnc_id/HGNC:5699`; MX1 is `HGNC:7532`, measured against
+`/fetch/symbol/MX1`, whose `uniprot_ids` is `['P20591']` and so agrees with the `Protein` line
+below it. The identifier was **real and attached to the wrong gene**, which is the failure mode one
+level in from the one the sentence above guards against: *"reference identifiers are real"* was
+true, and the assertion made with it was false. `hgnc:5699` was also §4's example for the `Gene`
+row, where every other row copies §3's example verbatim — so the stray value had two homes and
+neither had been checked against the authority.
+
 ```
 Reference
-  Gene           hgnc:5699  (MX1)
+  Gene           hgnc:HGNC:7532  (MX1)
   Protein        uniprot:P20591                      (stable; no sequence)
   ProteinSequence uniprot:P20591#sv3, sequence_version 3
                               <-[HAS_SEQUENCE]- uniprot:P20591
@@ -981,15 +997,65 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
     disk — 2,261 cached entry files, none containing a cross-reference.
 
     The question is therefore not *where does an HGNC id come from* but *what should the entry cache
-    store*, and it is open because either answer has a cost: widening `_Entry` re-fetches every
-    cached accession, and caching the payload changes what an I9 input contains. Recorded here
-    rather than settled because the choice is about the cache's contract, which `OPERATIONS.md` §3
-    and §11 Q6 both bear on.
+    store*. Recorded here rather than settled because the choice is about the cache's contract,
+    which `OPERATIONS.md` §3 and §11 Q6 both bear on.
+
+    **Three things established 2026-08-09, and the question is narrower for them but still open.**
+
+    *The stated cost was wrong, and in the direction that matters.* This entry said *"widening
+    `_Entry` re-fetches every cached accession"*. That is true only of a field **without** a
+    default: `_load_entry` reconstructs `_Entry(**{k: v for k, v in data.items() if k in known})`
+    and treats a `TypeError` as a miss, so a required field invalidates every cached file while a
+    defaulted one loads clean. Measured both ways against a copy of a real cache file with a
+    session that raises on any call: `hgnc_id: str | None = None` loaded `P20591` with
+    `gene='MX1'` and `hgnc_id=None` and **no fetch**; `hgnc_id: str` refetched. So the two
+    spellings of *"widen `_Entry`"* are a full re-capture and a silent no-op, and the no-op is the
+    worse one — it yields a column that reads *this gene has no HGNC id* on 2,261 entries where it
+    means *this was never captured*, which is exactly the absence §3 classifies as `contingent`.
+
+    *Neither option is available as an overwrite.* Both amount to re-writing `entry/{canonical}.json`,
+    and that path is the tier whose non-compliance with I9's own no-overwrite sentence is recorded
+    at §8 I9 above. Re-capturing 2,261 entries would replace the snapshot every current
+    `sequence_version` came from, as a side effect of a gene build. **Settle the entry tier's key
+    first**; this question sits on top of it and cannot be answered independently.
+
+    *Coverage, so the cost is weighed against a measured benefit rather than a hoped one.* Frame:
+    the 2,261 canonical accessions with a tier-1 entry file. Stratified on cached `entry_type`,
+    *n* = 40 per stratum by deterministic systematic selection, fetched in memory and never
+    written to the cache; an HGNC hit is a `uniProtKBCrossReferences` element with
+    `database == "HGNC"` and an `id` matching `^HGNC:[0-9]+$`. Swiss-Prot (*N* = 1,125): **40/40**,
+    95% CI [0.912, 1.000]. TrEMBL (*N* = 1,058): **37/40**, 95% CI [0.801, 0.974]. Inactive
+    (*N* = 78): **censused, not sampled — 0 of 78**, exact. Frame-weighted point estimate
+    **~2,104 of 2,261**. Across all 198 entries fetched, **no entry carried more than one** HGNC
+    cross-reference, so one `Gene` per `Protein` is a function at this scale and `ENCODES`'
+    `ONE_MANY` holds. Projected onto the graph's accessions (Swiss-Prot 2,264, TrEMBL 1,045,
+    Inactive 72, no cached entry 1,180): **~3,231 of 4,561**, and the sample cannot place that
+    below ~2,900 or above 3,309.
 
     Bounding what minting `Gene` would reach, measured on the current graph: of 4,561 accessions,
     **3,254** have a cached entry carrying a symbol and **1,307** do not — 1,180 with no cached
     entry at all, because the site adapter mints a `Protein` for every candidate accession while
-    resolving only the razor picks, and 127 whose entry carries no `gene`.
+    resolving only the razor picks, and 127 whose entry carries no `gene`. The HGNC-id denominator
+    is a **different** number for a reason worth keeping: a cached symbol does not imply a cached
+    cross-reference. Measured, the two land close — ~3,231 against 3,254 — but they land close by
+    coincidence of two unrelated gaps and not because one implies the other.
+
+    *What a `Protein` with no `Gene` would have to mean, before a builder is written.* On the
+    current graph the absence would have **four** distinguishable causes — never resolved (1,180),
+    resolved to an inactive entry (72), resolved but UniProt reports no gene (127), and resolved
+    with a gene but no HGNC cross-reference (~78 by the TrEMBL rate) — and none of them is
+    recoverable from the graph, because a missing node records nothing. ADR-0021 requires an
+    absence to be `determined` or `curated`; an undifferentiated missing `Gene` is neither. A
+    builder must therefore record which cause applies, or the 29% shortfall becomes indistinguishable
+    from *"this protein has no gene"*, which is the shape I3 and I10 exist to refuse elsewhere.
+
+    *Authority-assignment is settled and was never the open part.* §4's shape test is about
+    **composition** — *the id **is** the external identifier, CURIE-prefixed; nothing local composes
+    it* — and `hgnc:HGNC:7532` meets it. That UniProt rather than HGNC is what hands us the id is a
+    fact about the resolution route, not about the key's shape, and it changes nothing. For the same
+    reason `bzk/ontology/seed.py`'s *"a `Gene` from HGNC"* survives: it contrasts nodes resolved
+    from outside against the `Modifier` set the project asserts in version control, and `Gene` is
+    the former either way.
 
 **Resolved**
 

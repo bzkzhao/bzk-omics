@@ -26,6 +26,13 @@ which is the shape `HANDOFF.md` §8 catalogues three times over.
    shortcut awaiting a one-line swap — it stays until `Gene` exists, and swapping it for
    `Protein.name` would be reading a protein description where a symbol is meant, which is the
    `Protein names` / `Gene names` error `HANDOFF.md` §6 records costing fourteen silent misses.
+
+   **How long it stays, narrowed 2026-08-09 and no longer open-ended.** `Gene` is blocked on one
+   thing: no I9 input holds an HGNC id, and every route to capturing one re-writes the UniProt
+   entry cache's non-versioned path, which `OPERATIONS.md` §3 must settle first. The identifiers
+   themselves are plentiful — sampled coverage is 40/40 Swiss-Prot and 37/40 TrEMBL — so the
+   blocker is the cache's contract and not the data. Reach when it lands: **~3,231 of 4,561**
+   accessions, the rest being the razor-pick resolution policy's shortfall rather than the cache's.
 2. **The quantitative matrix is now stored (I11) — corrected 2026-08-08.** This said
    `quant_ref` was null and `quant.duckdb` never created. Both are false since `bzk/quant/`
    (ADR-0004, ADR-0013): `quant_ref` is `site_values` on every observation and the store holds
