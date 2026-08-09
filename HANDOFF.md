@@ -580,7 +580,7 @@ clause rather than by which was easier to write.
 | §4 l.265 accession uppercase | **Refuse** | A lowercase accession is not another spelling of a UniProt accession, it is a malformed one, and repairing it asserts more than the input supports (I19's discipline). Two concrete costs of normalizing: `resolve/nodes.py` writes `accession` into the node from the same raw string, so an uppercased id would sit on a node whose own column contradicted it; and a curator's typo becomes permanently invisible, because the repaired id is well-formed and resolves |
 | §4 l.266 **first** clause — CURIE prefix lowercase | **Refuse** | The values are node ids. `store.py` writes them as edge endpoints and as `candidate_proteins` elements from the raw change-set, so normalizing the hashed copy alone would leave the id correct and the content it identifies wrong — a worse state than the fork. The builder also cannot tell a CURIE from free text generically, so a blanket normalize is unavailable; the check fires only when a prefix case-folds onto a §3-map prefix, and once detection is that precise, refusal is precise too |
 | §4 l.266 **second** clause — the local part renders the authority's identifier verbatim | **Refuse; `uniprot` and `hgnc`** | Added 2026-08-08 as a correction, not a new clause: see the row below. Scoped to the authorities in an identifying position — `uniprot:` fills `candidate_proteins` on four node types, and `hgnc:` *is* `Gene`'s identity. UniProt's half is §4 l.265's accession clause reaching the second position l.266 names. Scoped to the segment before the first `#` for UniProt, because a composed key continues past it in lowercase; not for HGNC, which anchors no composed key |
-| — the same clause, `hgnc` | **Refuse, added 2026-08-09** | The clause read *"keeps its authority's casing"*, which is silent about a *missing* prefix, and §3's map was the one row that stripped one: `hgnc:4053` where HGNC issues `HGNC:4053`. So `hgnc:7532`, `hgnc:HGNC:7532` and `hgnc:hgnc:7532` were all accepted — three spellings, one gene, in a field that is the whole of that gene's identity. §4 is sharpened from *casing* to *the authority's rendering*, which is what its own `chebi:CHEBI:15377` and `go:GO:0032020` examples always demonstrated. Enforced before the first `Gene` is minted, which is the only point at which it costs nothing. **This row is the class's third instance and the first caught before data existed**, rather than after |
+| — the same clause, `hgnc` `chebi` `go` `mondo` | **Refuse, added 2026-08-09** | The clause read *"keeps its authority's casing"*, which is silent about a *missing* prefix, and §3's map was the one row that stripped one: `hgnc:4053` where HGNC issues `HGNC:4053`. So `hgnc:7532`, `hgnc:HGNC:7532` and `hgnc:hgnc:7532` were all accepted — three spellings, one gene, in a field that is the whole of that gene's identity. §4 is sharpened from *casing* to *the authority's rendering*, which is what its own `chebi:CHEBI:15377` and `go:GO:0032020` examples always demonstrated — so the other three prefixed authorities are determined by the same sentence and are guarded in the same change, not deferred to their node types. **This row is the class's third instance and the first caught before data existed**, rather than after |
 
 The general rule the split follows: **normalize when both spellings are legal renderings of one
 value; refuse when one spelling is simply wrong.** Refusal is also this module's existing answer to
@@ -613,23 +613,25 @@ row above records it. **This is the same shape as the two defects it corrects:**
 more confident than the thing it justifies — here, "closed" asserted of a sentence whose second half
 nothing read.
 
-**Open clause, with a trigger: the local part of the other nine authorities — and the split
-inside them changed 2026-08-09.** It was one class: *unenforced because §4 fixes nothing to
-enforce*. Sharpening §4 from *casing* to *the authority's rendering* split it in two, and only one
-half is still that.
+**The class shrank rather than gaining a trigger, 2026-08-09.** It was one open clause: *the local
+part of the other ten authorities, unenforced because §4 fixes nothing to enforce.* Sharpening §4
+from *casing* to *the authority's rendering* split it, and the determined half was closed in the
+same change rather than recorded with a trigger.
 
-- **Determined but unguarded: `chebi`, `go`, `mondo`.** §4's rule now fixes their local parts —
-  `CHEBI:`, `GO:`, `MONDO_` — so what is left is writing the check, not deciding anything. **This
-  is the weaker position of the two and it is named as such**, because it is the shape
-  `CLAUDE.md`'s point 3 warns about: a machine-checkable rule left as prose. It is not written
-  here because `Pathway`, `Disease` and `Drug` are out of scope and hold no nodes, so there is
-  nothing to fork; that is a scope decision, not a coverage claim. **Trigger: the first of those
-  three node types to be minted, or any `chebi:`/`go:`/`mondo:` value entering an identifying
-  field.**
-- **Genuinely undetermined: `ensembl`, `unimod`, `mod`, `reactome`, `doi`, `pmid`.** §4 fixes
-  nothing for them and guessing would be inventing a fact with no home (`CLAUDE.md` § Working
-  style). **Trigger: the first of them to enter an identifying field or an anchor.** At that point
-  §4 states the rendering before the builder enforces it, in that order.
+- **Closed: `hgnc`, `chebi`, `go`, `mondo`** — the four whose identifiers carry their own prefix,
+  in `keys._LOCAL_PART_PREFIX`, each with a §3-example-passes / stripped-form-refused pair in
+  `tests/test_keys.py`. **`chebi`, `go` and `mondo` were written with `hgnc` and not deferred**,
+  and the reason is the whole lesson of this entry: the argument for deferring them — no nodes,
+  the node types out of scope, nothing can fork — is verbatim the argument that was available for
+  `hgnc` right up until `Gene` came into scope with three live spellings. Once the rule determines
+  the form, what is left is a check, and a determined-but-unguarded rule held as prose is exactly
+  what `CLAUDE.md`'s verification point 3 refuses. Cheap now; a re-mint after population.
+- **Still open, genuinely undetermined: `ensembl`, `unimod`, `mod`, `reactome`, `doi`, `pmid`.**
+  §4 fixes nothing for them and guessing would be inventing a fact with no home (`CLAUDE.md`
+  § Working style). **Trigger: the first of them to enter an identifying field or an anchor.** At
+  that point §4 states the rendering before the builder enforces it, in that order. The open set
+  is asserted in `tests/test_keys.py` as the complement of the enforced one, so it cannot drift
+  out of step with `CURIE_PREFIXES` without failing.
 
 `tests/test_keys.py::test_the_local_part_check_is_scoped_to_the_authorities_section_4_fixes`
 records the boundary as an assertion rather than as prose. **`hgnc:4053` was in that test's list,
@@ -1040,8 +1042,9 @@ always showed. Nine of §3's ten rows already complied; `hgnc` was the one that 
 alternative reading needed one authority declared exempt with no reason available to state. Guarded
 in `keys.check_curie_case`, not recorded as prose — three spellings were accepted before it
 (`hgnc:7532`, `hgnc:HGNC:7532`, `hgnc:hgnc:7532`), in the field that *is* a gene's identity, and the
-guard is free only while the table is empty. What it reaches for `chebi`, `go` and `mondo` is stated
-in §8 rather than left implied: determined by the rule, deliberately unguarded, with a trigger.
+guard is free only while the table is empty. **`chebi`, `go` and `mondo` were guarded in the same
+change**, because the sharpened rule determines them too and the case for deferring them — no
+nodes, node types out of scope — is word for word the case that left `hgnc` open until it was not.
 
 **Why `Gene` was not minted, established rather than preferred.** The prediction registered in
 `ROADMAP.md` before any of this ran was that it would not be, with a falsifier — *if any route

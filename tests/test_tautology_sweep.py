@@ -263,6 +263,28 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "canonical_value(8, 'DOUBLE') == canonical_value(8.0, 'DOUBLE') == '8.0'",
             1,
         ),
+        # Classified individually 2026-08-09, with the local-part guard.
+        #
+        # Not an instance: the right side is the loop's *input*, not this call's output, so nothing
+        # here compares a computation with itself. Its content is narrow and worth stating —
+        # `check_curie_case` either returns its argument or raises, so `f(x) == x` can only fail
+        # against an implementation that **repairs**. That is exactly the contract §4 fixes
+        # (refuse, never normalize), and the assertion is the only thing pinning it at this call
+        # site. Pinned rather than strengthened: a wider claim would need a second return path
+        # that does not exist.
+        ("test_keys.py", "check_curie_case(curie) == curie", 1),
+        # Not an instance either, and a genuine partition: the enforced prefixes come from
+        # `keys._LOCAL_PART_PREFIX` and the open ones are written out, so a prefix added to
+        # `schema.CURIE_PREFIXES` without being classified fails here rather than being silently
+        # unenforced. Neither side is derived from the other.
+        (
+            "test_keys.py",
+            (
+                "set(keys._LOCAL_PART_PREFIX) | {'uniprot'} | {'unimod', 'pmid', 'ensembl', "
+                "'reactome', 'doi', 'mod'} == set(schema.CURIE_PREFIXES)"
+            ),
+            1,
+        ),
         (
             "test_keys.py",
             "evidence_id('Analysis', SITE_ANALYSIS, child_values=a) == evidence_id('Analysis', SITE_ANALYSIS, child_values=b)",
@@ -575,14 +597,14 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     `test_rebuild.py`.
     """
     found, modules, asserts = sweep()
-    # Denominated at the exact current surface, re-denominated 2026-08-09 (655 -> 660, the five
-    # assertions the `hgnc` local-part guard added). It read `asserts >= 600` against 633, which
+    # Denominated at the exact current surface, re-denominated 2026-08-09 (655 -> 662, the seven
+    # assertions the local-part guard added). It read `asserts >= 600` against 633, which
     # tolerated deleting a twentieth of the suite's assertions — the case its own failure message
     # names. A legitimate reduction lowers these numbers in the same change, the same discipline
     # the multiset carries; additions never trip it, because an added *match* is caught by the
     # multiset rather than by this floor — but leaving the floor behind the surface reintroduces
     # exactly the slack the re-denomination removed, so it moves with every addition too.
-    assert modules >= 20 and asserts >= 660, (
+    assert modules >= 20 and asserts >= 662, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

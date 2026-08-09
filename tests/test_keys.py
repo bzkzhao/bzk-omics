@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from bzk.ontology import schema
+from bzk.ontology import keys, schema
 from bzk.ontology.keys import (
     KeyError_,
     canonical_parameters_json,
@@ -275,17 +275,51 @@ def test_a_composed_reference_key_survives_the_local_part_check() -> None:
 def test_the_local_part_check_is_scoped_to_the_authorities_section_4_fixes() -> None:
     """Stated as a test because it is a decision, not an omission — see `HANDOFF.md` §8.
 
-    §4 determines the local part for the authorities that carry their own prefix and for UniProt;
-    it fixes nothing for the numeric and opaque ones, and enforcing a guessed rule there would be
-    inventing a fact with no home. The clause stays open for those, with a trigger recorded in §8.
+    §4 determines the local part for UniProt and for the four authorities that carry a prefix
+    inside their own identifiers; it fixes nothing for the numeric and opaque ones, and enforcing
+    a guessed rule there would be inventing a fact with no home. The clause stays open for those,
+    with a trigger recorded in §8.
 
     `hgnc:4053` was in this list until 2026-08-09, cited as an authority with a *numeric* local
     part. HGNC's identifier is `HGNC:4053`, so the citation was wrong and the example it licensed
     was a second spelling of a `Gene` id.
     """
     assert canonical_value(["pmid:21139048", "unimod:121"], "STRING[]")
-    assert canonical_value(["chebi:CHEBI:15377", "go:GO:0032020"], "STRING[]")
+    assert canonical_value(["ensembl:ENSG00000187608", "reactome:R-HSA-1169408"], "STRING[]")
     assert canonical_value(["doi:10.1038/s41416-021-01444-4"], "STRING[]")
+
+    # The open set is the complement of the enforced one, asserted rather than listed twice.
+    assert set(keys._LOCAL_PART_PREFIX) | {"uniprot"} | {
+        "unimod",
+        "pmid",
+        "ensembl",
+        "reactome",
+        "doi",
+        "mod",
+    } == set(schema.CURIE_PREFIXES)
+
+
+def test_every_authority_that_prefixes_its_own_identifier_is_guarded() -> None:
+    """`chebi`, `go` and `mondo` came with `hgnc` (2026-08-09), not after their node types exist.
+
+    The argument for deferring them — no nodes, out of scope, nothing can fork — is the argument
+    that left `hgnc` unguarded until `Gene` came into scope carrying three live spellings. §4's
+    sharpened rule determines all four, so what was left was a check rather than a decision.
+
+    Each §3 example is asserted to pass and its stripped form to be refused, which is the pairing
+    that makes this a two-spellings-one-id guard rather than a smoke test.
+    """
+    for curie, stripped in (
+        ("hgnc:HGNC:4053", "hgnc:4053"),
+        ("chebi:CHEBI:15377", "chebi:15377"),
+        ("go:GO:0032020", "go:0032020"),
+        ("mondo:MONDO_0004992", "mondo:0004992"),
+    ):
+        assert check_curie_case(curie) == curie
+        with pytest.raises(KeyError_):
+            check_curie_case(stripped)
+        with pytest.raises(KeyError_):
+            canonical_value([stripped], "STRING[]")
 
 
 def test_two_spellings_of_one_gene_do_not_reach_the_hash() -> None:
@@ -299,7 +333,7 @@ def test_two_spellings_of_one_gene_do_not_reach_the_hash() -> None:
     for stripped in ("hgnc:7532", "hgnc:hgnc:7532", "hgnc:Hgnc:7532"):
         with pytest.raises(KeyError_) as ei:
             check_curie_case(stripped)
-        assert "hgnc:HGNC:7532" in str(ei.value)
+        assert "hgnc:HGNC:" in str(ei.value)  # the message names the form, not a repair
 
 
 def test_the_gene_spelling_is_refused_inside_the_hashing_path_too() -> None:

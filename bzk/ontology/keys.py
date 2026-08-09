@@ -57,6 +57,18 @@ _COLUMN_TYPES: dict[str, dict[str, str]] = {t.name: dict(t.columns) for t in sch
 #: built here rather than in `schema.py` so the mirror of the §3 *table* stays a mirror of it.
 _KNOWN_PREFIXES: frozenset[str] = schema.CURIE_PREFIXES | {"bzk"}
 
+#: §4: *"the local part is the authority's own identifier rendered verbatim"*. These four
+#: authorities carry a prefix inside their own identifiers, so the rendering is determinate and the
+#: rule is checkable; every value in this map is the literal §3 example's local-part head. The
+#: authorities absent from it are absent because §4 fixes nothing about their local parts, not
+#: because they are exempt — see `check_curie_case` and `HANDOFF.md` §8.
+_LOCAL_PART_PREFIX: dict[str, str] = {
+    "hgnc": "HGNC:",
+    "chebi": "CHEBI:",
+    "go": "GO:",
+    "mondo": "MONDO_",
+}
+
 
 class KeyError_(ValueError):
     """A node cannot be keyed — a required identifying value is missing or malformed."""
@@ -100,12 +112,10 @@ def check_curie_case(value: str) -> str:
     cannot catch an *unknown* prefix, which is a §3-map question rather than a casing one.
 
     *"The local part is the authority's own identifier rendered verbatim"* is enforced **for
-    `uniprot` and `hgnc`**, and the scoping is a decision rather than an omission. §3's map spans
-    authorities whose local parts are numeric (`unimod:121`, `pmid:21139048`), uppercase
-    (`ensembl:ENSG…`) or carry the authority's own prefix (`chebi:CHEBI:15377`, `go:GO:0032020`,
-    `mondo:MONDO_…`, and — since 2026-08-09 — `hgnc:HGNC:4053`). These two are enforced because
-    they are the two in an identifying position: `candidate_proteins` is identifying on four node
-    types and holds `uniprot:` ids, and `Gene.id` is the whole of `Gene`'s identity.
+    `uniprot` and for every authority that carries its own prefix** — `hgnc`, `chebi`, `go`,
+    `mondo`, in `_LOCAL_PART_PREFIX`. §3's remaining local parts are numeric (`unimod:121`,
+    `pmid:21139048`), uppercase (`ensembl:ENSG…`) or opaque (`doi:`, `reactome:`), and §4 fixes
+    nothing about them; guessing a rule there would invent a fact with no home.
 
     **`hgnc` added 2026-08-09 with §4's sharpening, and it is the reason the sharpening happened.**
     The clause used to read *"keeps its authority's casing"*, which says nothing about a missing
@@ -114,14 +124,18 @@ def check_curie_case(value: str) -> str:
     and the fork was invisible because no `Gene` node exists yet to fork. Enforced before the first
     one is minted rather than after, which is the only time it is free.
 
+    **`chebi`, `go` and `mondo` came with it, and the reason not to write them was the reason
+    `hgnc` was unguarded yesterday.** They hold no nodes and their node types are out of scope, so
+    nothing can fork today — which is exactly the argument that was available for `hgnc` right up
+    until `Gene` came into scope and three spellings turned out to be live. The sharpened rule
+    *determines* their form, so what remained was writing a check, not making a decision, and a
+    determined-but-unguarded rule recorded as prose is the shape `CLAUDE.md`'s verification point 3
+    names. Cheap now; a re-mint once any of the three is populated.
+
     What is checked is the authority's rendering, not the authority's grammar: `hgnc:HGNC:abc`
     passes. Validating the whole identifier is a wider claim than §4 makes, and the same line is
     drawn for `uniprot` — `check_accession_case` refuses a mis-cased accession and says nothing
     about a malformed one.
-
-    `chebi`, `go` and `mondo` are now *determined* by §4's rule and merely unguarded; the rest are
-    unenforced because the document fixes nothing to enforce. Both are recorded with a trigger in
-    `HANDOFF.md` §8, and neither is in an identifying position today.
 
     The local-part check is scoped to the segment before the first `#`, because a composed §4 key
     continues past it in lowercase — `uniprot:P20591#sv4#K48#unimod:121` is canonical as written.
@@ -140,16 +154,18 @@ def check_curie_case(value: str) -> str:
         # One home for the rule: the message names the accession segment, which is the part at
         # fault. Refusal mode follows `check_accession_case` for the same reasons.
         check_accession_case(local.split("#", 1)[0])
-    if prefix == "hgnc" and not local.startswith("HGNC:"):
-        # No `#` split here, unlike the UniProt branch: `hgnc:` anchors no composed key in §4, and
-        # splitting would change nothing for any value this can be handed — `hgnc:7532#x` fails on
-        # either side of it. Left out rather than copied across for symmetry it does not have.
+    required = _LOCAL_PART_PREFIX.get(prefix)
+    # No `#` split here, unlike the UniProt branch above: none of these four anchors a composed §4
+    # key, and splitting would change nothing for any value they can be handed — `hgnc:7532#x`
+    # fails on either side of it. Left out rather than copied across for a symmetry it lacks.
+    if required is not None and not local.startswith(required):
         raise KeyError_(
-            f"{value!r} does not render HGNC's identifier verbatim in the local part; §4 fixes it "
-            "as the authority spells it, 'HGNC:' and the number, giving 'hgnc:HGNC:7532'. Refused "
-            "rather than repaired, for `check_accession_case`'s reasons: this value is a node id "
-            "and the whole of a `Gene`'s identity, so normalizing the hashed copy alone would "
-            "leave the id and the node's own column disagreeing"
+            f"{value!r} does not render the authority's identifier verbatim in the local part; §4 "
+            f"fixes it as the authority spells it, so the local part begins {required!r} — "
+            f"{prefix}:{required}… . Refused rather than repaired, for `check_accession_case`'s "
+            "reasons: this value is a node id, and on an authority-assigned node it is the whole "
+            "of that node's identity, so normalizing the hashed copy alone would leave the id and "
+            "the node's own column disagreeing"
         )
     return value
 
