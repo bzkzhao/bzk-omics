@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.14 |
+| Version | 1.15 |
 | Last reviewed | 2026-08-08 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -175,7 +175,7 @@ The signature takes a file and a mapping — never a directory convention. Searc
 
 **Adapter responsibilities beyond parsing.** Measured against PXD018299: drop `Reverse` and `Potential contaminant` rows before anything else; normalise sample names (one replicate carries an instrument run ID); convert PRIDE `ftp://` locations to `https://ftp.pride.ebi.ac.uk`; record rather than apply the localisation threshold; emit the full candidate protein set, never the razor pick alone.
 
-**Identifier translation is first-class.** Gene symbol, UniProt accession and protein description are three namespaces for one entity, and search output carries all three inconsistently (`Gene names`, `Proteins`, `Protein names`, all semicolon-separated). Without translation the user cannot ask a question in the vocabulary they think in — a query for "ADAR" must reach a row keyed on `P55265`. Resolution prefers reviewed Swiss-Prot entries over TrEMBL where both appear in a candidate set, recorded as `ProteinAssignment` basis rather than applied silently.
+**Identifier translation is first-class.** Gene symbol, UniProt accession and protein description are three namespaces for one entity, and search output carries all three inconsistently (`Gene names`, `Proteins`, `Protein names`, all semicolon-separated). Without translation the user cannot ask a question in the vocabulary they think in — a query for "ADAR" must reach a row keyed on `P55265`. **Where each namespace lives was settled 2026-08-08** (`ONTOLOGY.md` §4): the symbol on `Gene.symbol`, the accession on `Protein.accession`, the protein description on `Protein.name`. Three namespaces, three columns — which is why routing the symbol onto `Protein.name` was rejected: it would collapse two of the three into one column and leave the third homeless. Resolution prefers reviewed Swiss-Prot entries over TrEMBL where both appear in a candidate set, recorded as `ProteinAssignment` basis rather than applied silently.
 
 **No branching on pipeline metadata** (I13). `acquisition_mode`, `search_engine` and `library_type` are recorded fields. A conditional on their value anywhere outside `adapters/` means the abstraction has leaked and the next pipeline change becomes a rewrite rather than a new module.
 

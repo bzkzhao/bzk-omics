@@ -89,8 +89,17 @@ def resolve_to_nodes(
         result = resolve_one(accession)
         pid = protein_key(accession)
         protein_id[accession] = pid
-        # `Protein` carries only its accession. `name` and `organism_taxid` are real columns but the
-        # resolver reports neither, and filling them from `gene` or an assumption would be inventing.
+        # `Protein` carries only its accession. **Withdrawn and replaced 2026-08-08 — the old
+        # comment read "the resolver reports neither, and filling them from `gene` or an assumption
+        # would be inventing", and its premise was half false.** The resolver does report one of
+        # them: `Resolution.gene` exists (`uniprot.py`) and is populated on every `ok` path — 2,128
+        # of 2,261 cached entries carry it. What was right is the conclusion for `name`, and for a
+        # reason the comment did not give: `Resolution.gene` is a **gene symbol**, and `Protein.name`
+        # holds UniProt's *protein* name (§4). Writing the symbol here would make `Gene.symbol`
+        # redundant — two homes for one fact — so the symbol's route is `Gene`, which cannot be
+        # minted because `Gene.id` is an `hgnc:` CURIE and the entry cache stores the parse rather
+        # than the payload that carries the id (§11 Q12). `organism_taxid` genuinely is unreported.
+        # So both columns stay null, and this is now a routing decision rather than an absence.
         nodes.append({NODE_TYPE_KEY: "Protein", "id": pid, "accession": accession})
 
         if result.status != "ok":

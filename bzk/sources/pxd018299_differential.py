@@ -16,9 +16,16 @@ which is the shape `HANDOFF.md` §8 catalogues three times over.
 **Two things this cannot yet do from the graph alone, both real gaps rather than shortcuts:**
 
 1. **Gene symbols never enter the graph.** `Gene` has no nodes and `Protein.name` is null on all
-   4,441, so "which of the 14 published targets" is unanswerable from stored content and the symbol
-   is read from the file's `Gene names` column here. `ROADMAP.md`'s v0.1 exit criterion is
-   *"12-of-14 through the real pipeline"*; the pipeline is real, the *identification* is not yet.
+   **4,561** (corrected 2026-08-08 from 4,441), so "which of the 14 published targets" is
+   unanswerable from stored content and the symbol is read from the file's `Gene names` column
+   here. `ROADMAP.md`'s v0.1 exit criterion is *"12-of-14 through the real pipeline"*; the pipeline
+   is real, the *identification* is not yet.
+
+   **Decided 2026-08-08 (ONTOLOGY.md §4, §11 Q12): the symbol's home is `Gene.symbol`, not
+   `Protein.name`.** So this module's `Gene names` read at the identification step below is not a
+   shortcut awaiting a one-line swap — it stays until `Gene` exists, and swapping it for
+   `Protein.name` would be reading a protein description where a symbol is meant, which is the
+   `Protein names` / `Gene names` error `HANDOFF.md` §6 records costing fourteen silent misses.
 2. **The quantitative matrix is now stored (I11) — corrected 2026-08-08.** This said
    `quant_ref` was null and `quant.duckdb` never created. Both are false since `bzk/quant/`
    (ADR-0004, ADR-0013): `quant_ref` is `site_values` on every observation and the store holds

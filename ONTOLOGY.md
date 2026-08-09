@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.25 |
+| Version | 1.26 |
 | Last reviewed | 2026-08-08 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -192,7 +192,13 @@ CREATE NODE TABLE Protein(
                                 -- no separate isoform column. Stable identity: no
                                 -- sequence, no version. See ADR-0005.
   accession STRING,
-  name STRING,
+  name STRING,                  -- UniProt's recommended PROTEIN name, not a gene symbol.
+                                -- Stated 2026-08-08: the column was uncommented and the
+                                -- question is not open, because `Gene.symbol` above already
+                                -- holds "HGNC approved symbol" — reading this column as a
+                                -- gene name makes that one redundant, and two homes for one
+                                -- fact is a defect (`CLAUDE.md`). A plain property, not an
+                                -- EvidencedInference: see below.
   organism_taxid INT64,
   PRIMARY KEY (id));
 
@@ -266,6 +272,31 @@ A `ModificationSite` key composes **exactly one** `ProteinSequence`, and since A
 - **CURIE prefixes** are lowercase and spelled exactly as in the §3 map. The *local part* keeps its authority's casing, so `chebi:CHEBI:15377` and `go:GO:0032020` are correct as written.
 
 `ModificationSite.id` is deterministic and content-derived, so the same site ingested from two datasets resolves to one node.
+
+**Where a gene symbol lives, and why `Protein.name` is not it (2026-08-08).** UniProt reports both a
+protein name and a gene name for an accession, and this schema has a column for each — `Protein.name`
+and `Gene.symbol`. Routing the symbol onto `Protein.name` because it is the column that happens to be
+reachable would make `Gene.symbol` redundant and put one fact in two places. **The symbol's only home
+is `Gene.symbol`, reached through an `hgnc:` id.** What that forecloses is stated rather than left to
+be discovered: **target identification cannot be answered from `Protein` alone** — asking which of a
+set of gene symbols a result belongs to requires `Gene`, so until `Gene` is minted that question is
+answered from the deposit's own columns and not from stored content.
+
+**A name from UniProt is a plain property, not an `EvidencedInference` (2026-08-08).** It is an
+authority's own field copied at resolution time, exactly as `ProteinSequence.sequence` and
+`sequence_version` are, and the platform chooses nothing and derives nothing in copying it. The
+precedent is ADR-0024, which **rejected** *"the promotion is an inference and is recorded as one"*
+and made it a keying rule with a recorded basis; the cost of that error was a spurious
+`ProteinAssignment` basis row and a conflict with I14. Reaching for the inference machinery because a
+fact came from outside would be the same error, and "inference" is not the cautious default merely
+because it sounds like one.
+
+One asymmetry is worth naming rather than leaving to be found. Captured external state is normally
+protected here by the pinned cache and the drift check — but that mechanism keys on
+`sequence_version`, and **nothing keys on a name**. A name UniProt changes is therefore invisible to
+`bzk drift` in a way a changed sequence is not. That is a limit of the protection, not a reason to
+model the name as an inference: an `EvidencedInference` would record who asserted it, not notice when
+it changed.
 
 **Both the sequence version and the isoform are part of the key**, and for the same reason: position numbering is only meaningful relative to a specific sequence. `P05161#sv1#K42` and `P05161#sv2#K42` may be different lysines because the sequence was amended; `P09914#K376` and `P09914-2#K376` are different lysines because the isoforms differ in length and numbering.
 
@@ -939,6 +970,26 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
 11. **Is §7 stored or projected at export?** `RESULT_FOR_SITE` (§5) and `WAS_DERIVED_FROM` (§7) declare the same endpoints — `DifferentialResult → SiteObservation` — and say the same thing: this result was computed from that observation. ADR-0023 removed two such duplicate pairs and guarded the class, and this one survives the guard only because the two differ in multiplicity (`MANY_ONE` against none declared), which is an accident of drafting rather than a distinction. It is deliberately **not** folded into that ADR, because the fix is not a rename. §7 opens *"Provenance is a PROV-O mapping, not a log"*, and a mapping materialised as a second stored relationship is the same defect one layer up: two homes for one fact, kept in step by nothing.
 
     **Proposed resolution: project, do not store.** §7's PROV-O relationships that restate a domain edge should be a *view* computed at export — `prov:wasDerivedFrom` emitted from `RESULT_FOR_SITE` when an RO-Crate or PROV document is written — leaving one stored edge and no possibility of divergence. That keeps §7 honest to its own opening sentence and costs nothing today, since nothing exports yet. What the proposal does **not** settle, and what makes this a question rather than an amendment: `WAS_GENERATED_BY`, `USED`, `WAS_ASSOCIATED_WITH` and `WAS_EXECUTED_BY` have no domain twin, so they must stay stored — which means §7 becomes *partly* stored and *partly* projected, and the boundary needs stating rather than leaving to whoever writes the exporter. **Settle with the first export path**, which is also when I18 must land (`HANDOFF.md` §8, EX class). Surfaced 2026-08-07 while enumerating duplicate relationships for ADR-0023.
+
+12. **What must the resolver persist for `Gene` to be mintable?** `Gene.id` is an `hgnc:` CURIE (§4),
+    and `Resolution.gene` carries a *symbol* — `MX1`, not `HGNC:7532` — so `Gene` cannot be minted
+    from what the resolver holds today. Measured 2026-08-08 rather than assumed: UniProt's payload
+    **does** carry the id (`{"database": "HGNC", "id": "HGNC:7532", "properties": [{"key":
+    "GeneName", "value": "MX1"}]}` for `P20591`), so **no new authority and no second network
+    dependency is needed**. What is missing is on this side: `bzk/resolve/uniprot.py` parses eight
+    fields out of that payload and caches *the parse*, not the payload, so the id is nowhere on
+    disk — 2,261 cached entry files, none containing a cross-reference.
+
+    The question is therefore not *where does an HGNC id come from* but *what should the entry cache
+    store*, and it is open because either answer has a cost: widening `_Entry` re-fetches every
+    cached accession, and caching the payload changes what an I9 input contains. Recorded here
+    rather than settled because the choice is about the cache's contract, which `OPERATIONS.md` §3
+    and §11 Q6 both bear on.
+
+    Bounding what minting `Gene` would reach, measured on the current graph: of 4,561 accessions,
+    **3,254** have a cached entry carrying a symbol and **1,307** do not — 1,180 with no cached
+    entry at all, because the site adapter mints a `Protein` for every candidate accession while
+    resolving only the razor picks, and 127 whose entry carries no `gene`.
 
 **Resolved**
 

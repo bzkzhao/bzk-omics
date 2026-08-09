@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.18 |
+| Version | 1.19 |
 | Last reviewed | 2026-08-08 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -98,10 +98,12 @@ step, divergence accounted for exactly, every miss traced*. That part is met. Th
    `welch_t` (the sanity check) exists, and §4 is explicit the two are not interchangeable — the
    `s0` curvature changes which sites pass. Needs permutation FDR too, which is also unwritten.
    Its recovery number is a **separate baseline** and will not necessarily be 12.
-2. **Gene symbols never enter the graph.** `Gene` has 0 nodes and `Protein.name` is null on every
-   one, so "which of the 14 targets" is unanswerable from stored content — the differential run
+2. **Gene symbols never enter the graph.** `Gene` has 0 nodes and `Protein.name` is null on all
+   4,561, so "which of the 14 targets" is unanswerable from stored content — the differential run
    reads the deposit's `Gene names` column. Until this lands, *"through the real pipeline"* is
    false for the identification step, whatever the pipeline does.
+
+   **Decided 2026-08-08 and no longer open as a modelling question**: the symbol's home is `Gene.symbol`, not `Protein.name` — routing it onto `Protein` would make `Gene.symbol` redundant (ONTOLOGY.md §4). The blocker is now named and measured: `Gene.id` is an `hgnc:` CURIE, `Resolution.gene` is a *symbol*, and UniProt's payload does carry the id (`HGNC:7532` for `P20591`, measured) while the entry cache stores the parse rather than the payload — so nothing on disk has it. ONTOLOGY.md §11 Q12 holds the open part, which is what the cache should store. Reach if it were minted: **3,254 of 4,561** accessions have a cached symbol; 1,307 do not.
 3. ~~**I11 is unmet.**~~ **met 2026-08-08 for `SiteObservation` **only**** — `bzk/quant/`, ADR-0004 and ADR-0013; `ProteinObservation` retains nothing, see below. `quant.duckdb` is created by `rebuild`, `quant_ref` is `site_values` on all 2,029 `SiteObservation`s, and **48,696 measured-or-null cells** are retained (2,029 sites × 12 samples × 2 quantities). The matrix is no longer
    re-read from the deposit each run, and the statistics layer is pluggable in fact rather than in
    principle: an alternative test is recomputable from stored values. Values are **measured and
@@ -116,7 +118,8 @@ worth little without it since the point of a second test is running it over the 
 
 ~~**Write the DuckDB quantitative layer (I11).**~~ **Done 2026-08-08.** `bzk/quant/store.py`,
 `quant_ref` populated by the adapter, `quant.duckdb` created by `rebuild`. Two remain of the three:
-`perseus_s0` over the retained matrix, and gene symbols.
+`perseus_s0` over the retained matrix, and gene symbols — of which the *modelling* half is settled
+as of 2026-08-08 and only the cache question (§11 Q12) is open.
 
 Before starting, run `python -m bzk.rebuild` and confirm it reports 2,029 sites; if it does not, the
 deposit or the archive has moved and that is the finding, not a setup problem.
@@ -926,6 +929,52 @@ The clock prediction is withdrawn as **not established either way**, and the 6.8
 run-to-run variation with nothing to attribute. The pre-registration stated a test method for the id
 diff and none for the clock, which is how a single draw came to close a prediction.
 
+
+#### Where a gene symbol lives — decided 2026-08-08, and what stopped it landing
+
+**Four questions; three were already answered by documents and only one was open.**
+
+*What carries the symbol.* `Gene.symbol`, not `Protein.name`. §4 gives `Gene` a `symbol` column
+reading *"HGNC approved symbol"*, so routing UniProt's `geneName.value` onto `Protein.name` would
+make that column redundant — two homes for one fact. `Protein.name` was uncommented in the DDL and
+is now stated: UniProt's recommended **protein** name. **What it forecloses, said rather than
+discovered:** target identification cannot be answered from `Protein` alone, so it stays on the
+deposit's `Gene names` until `Gene` is minted — and swapping in `Protein.name` would be reading a
+description where a symbol is meant, the exact error §6 records costing fourteen silent misses.
+
+*Property or inference.* A plain property. It is an authority's own field copied at resolution time,
+as `sequence` and `sequence_version` are, and the platform chooses nothing in copying it. ADR-0024 is
+the precedent and it runs this way: it **rejected** *"the promotion is an inference and is recorded
+as one"*, at the cost of a spurious `ProteinAssignment` basis row and a conflict with I14. One
+asymmetry named rather than left: the pinned-cache-plus-drift protection keys on `sequence_version`
+and **nothing keys on a name**, so a renamed protein is invisible to `bzk drift` — a limit of the
+protection, not an argument for the inference machinery, which records who asserted a thing and not
+when it changed.
+
+*Which component owns it.* Already answered — `ARCHITECTURE.md` §2 declares `resolve/nodes.py` as
+*accession → `Protein` + `ProteinSequence`*, and a fact UniProt asserts about an accession arrives on
+the `Resolution` that module consumes. Checked rather than treated as open, and it was not open.
+
+*`Gene` and `ENCODES`.* Reported, not built (`ONTOLOGY.md` §11 Q12). **The prompt's premise for this
+one was half wrong and the correction matters:** the cached entry files cannot be read for an HGNC
+cross-reference, because `_load_entry` writes `asdict(_Entry)` — eight fields — and never stores the
+payload. So the question was answered by one live fetch instead: UniProt **does** carry it
+(`{"database": "HGNC", "id": "HGNC:7532", …}` for `P20591`), 238 cross-references across 81
+databases. **No new authority and no second network dependency.** What is missing is on this side.
+
+**Measured starting state, and a shortfall worth its own line.** 4,561 `Protein` nodes, 0 named, 0
+`Gene`; 2,261 cached entry files, 2,128 carrying a `gene`. Of the graph's 4,561 accessions only
+**3,254** would get a symbol from cached bytes — **1,307 short**, of which 1,180 have no cached entry
+at all. That is not cache decay: the site adapter mints a `Protein` for every candidate accession
+while resolving only the razor picks, so a third of the graph's proteins were never resolved. Any
+future `Gene` minting inherits that shortfall, and it is a property of the adapter's resolution
+policy rather than of the cache.
+
+**One stale code comment withdrawn.** `resolve/nodes.py` said *"the resolver reports neither, and
+filling them from `gene` or an assumption would be inventing"*. Half false: `Resolution.gene` exists
+and is populated on every `ok` path. The conclusion for `name` survives — for a reason the comment
+did not give — and `organism_taxid` genuinely is unreported. It now reads as a routing decision
+rather than an absence.
 
 ### Unenforced invariants (audit 2026-08-07), by class
 
