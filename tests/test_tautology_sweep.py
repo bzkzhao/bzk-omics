@@ -369,7 +369,7 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         (
             "test_query_real_graph.py",
             (
-                "census == {'encoded': 1059, 'unresolved': 3492, 'no_cross_reference': 10, "
+                "census == {'encoded': 1054, 'unresolved': 3492, 'no_cross_reference': 15, "
                 "'not_captured': 0}"
             ),
             1,
@@ -646,9 +646,23 @@ def _run_in_a_mutated_copy(evidence: Evidence, scope: tuple[str, ...]) -> int:
 
     A copy rather than the working tree, for two reasons: a crash mid-run would otherwise leave the
     tree mutated, and an in-place whole-suite run would re-enter this module.
+
+    **`__pycache__` is excluded, and it was not until 2026-08-09.** `copytree` uses `copy2`, so a
+    copied `.pyc` arrives with the mtime bookkeeping that made it valid where it came from, and the
+    interpreter in the copy then loads **the working tree's last compiled bytecode** in preference
+    to the source beside it. Observed rather than reasoned: with `__pycache__` copied, this helper
+    reported a failure in `/home/user/…/tests/test_query_real_graph.py` — the *original* path,
+    embedded in the stale code object — asserting a figure the source in the copy no longer
+    contained; excluding it, the same run is 378 passed. That makes the omission the sharpest
+    version of the defect this module exists to find: **the instrument that classifies every other
+    assertion could report a result it had not computed**, in either direction, because the mutation
+    it applied to the source need never have been executed. Every recorded classification here rests
+    on this function, so it is the one place a stale read is not merely a flake.
     """
     root = TESTS.parent
-    ignore = shutil.ignore_patterns(".venv", ".git", ".pytest_cache", ".ruff_cache")
+    ignore = shutil.ignore_patterns(
+        ".venv", ".git", ".pytest_cache", ".ruff_cache", ".mypy_cache", "__pycache__"
+    )
     with tempfile.TemporaryDirectory() as tmp:
         copy = pathlib.Path(tmp) / "repo"
         shutil.copytree(root, copy, ignore=ignore, symlinks=True)

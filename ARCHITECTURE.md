@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.18 |
+| Version | 1.19 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -20,7 +20,7 @@ This document is expected to change weekly during v0.1. Decisions recorded here 
 | Language | Python 3.12 | The proteomics ecosystem is Python. `pyteomics`, `pyopenms`, UniProt clients, `polars` all exist and are tested. Reimplementing them elsewhere is a category error. |
 | Package management | `uv` | Fast, lockfile-based, single-binary. Supports the one-afternoon install promise. |
 | API | FastAPI | Typed, async, generates OpenAPI for the front end for free. |
-| Graph store | Kùzu, **pinned `==0.11.3`** | Embedded, Cypher, columnar, MIT-licensed, no server process. Pre-1.0, so the pin is not optional — see `OPERATIONS.md` §4. |
+| Graph store | Kùzu, **pinned `==0.11.3`** | Embedded, Cypher, columnar, MIT-licensed, no server process. Pre-1.0, so the pin is not optional — see `OPERATIONS.md` §4.2. |
 | Columnar store | DuckDB | Embedded, fast aggregation over site × sample matrices, reads Parquet directly. |
 | DataFrames | Polars | Lazy evaluation and predictable memory on wide quantitative tables. |
 | Statistics | Pluggable registry over NumPy / SciPy | See §4. |

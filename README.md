@@ -13,13 +13,13 @@ A diGly site stays ambiguous between ubiquitin, NEDD8 and ISG15 until knockout, 
 
 | | |
 |---|---|
-| Phase | Exploration complete; implementation not started |
+| Phase | Implementation under way — ingestion, rebuild, query and a minimal interface run end to end |
 | v0.1 target | One laboratory — the Pinto-Fernández group, CAMS Oxford Institute |
-| Last updated | 2026-08-06 |
-| Working software | None yet |
+| Last updated | 2026-08-09 |
+| Working software | `python -m bzk.rebuild` builds the graph from PXD018299; `streamlit run bzk/ui/app.py` reads it. Install with `uv sync --frozen` — see [`OPERATIONS.md`](OPERATIONS.md) §4 |
 | Validation | Published result reproduced — see [`ROADMAP.md`](ROADMAP.md) § Measured findings |
 | Timeline | 8 weeks part-time from a working environment |
-| Blocking | Development environment |
+| Blocking | Nothing for the rebuild path. The statistical layer waits on the collaborator meeting ([`ROADMAP.md`](ROADMAP.md) § Measured findings) |
 
 ---
 
@@ -44,7 +44,7 @@ Each fact has exactly one home. This file links; it does not restate. If a numbe
 | [`ONTOLOGY.md`](ONTOLOGY.md) | Normative schema — node and edge types, fields, invariants |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Stack, storage layout, module boundaries |
 | [`ROADMAP.md`](ROADMAP.md) | Scope, milestones, measured findings, recorded assumptions |
-| [`OPERATIONS.md`](OPERATIONS.md) | Backup, cache policy, dependency pinning, testing |
+| [`OPERATIONS.md`](OPERATIONS.md) | Installation, backup, cache policy, dependency pinning, testing |
 | [`GLOSSARY.md`](GLOSSARY.md) | Terminology |
 | [`decisions/`](decisions/) | Architecture decision records — append-only, never edited |
 
@@ -102,6 +102,15 @@ One line each. Each is enforced by a numbered invariant in [`ONTOLOGY.md`](ONTOL
 ## Changelog
 
 Append at the top. Do not edit past entries.
+
+### 2026-08-09 — the demo rehearsed from a cold clone
+The install path, the first-run rebuild cost and three demo failure modes were executed rather than
+assumed. Six findings, four of them documentation: no install procedure existed anywhere
+(`OPERATIONS.md` §4.1 now has one), a rebuild from an empty cache costs 37 minutes rather than two,
+a rebuild with no `raw/` exits 0 over an empty graph, and `streamlit run` binds every interface. The
+graph reproduced 12,774 ids from nothing with five exceptions, and the cause was a superseded parse
+frozen in the entry cache rather than anything at UniProt. Status table above corrected; it had said
+implementation had not started.
 
 ### 2026-08-06 — narrowed to one laboratory
 v0.1 reframed around a single named user rather than a general market. Success metric is now whether someone in that group uses it unaided on their own data. Unbuilt observation subtypes marked as design headroom rather than roadmap.

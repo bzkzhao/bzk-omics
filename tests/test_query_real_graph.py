@@ -14,9 +14,13 @@ estimated — neither had a figure in the tree before that, only the mechanism:
 * **Coverage.** With no `~/.bzk-omics` at all, **10 of 383 tests skip**: seven here, two in
   `test_pxd018299_baseline.py`, one in `test_protein_groups.py`. **Ten tests, not four gate sites**
   — the gate is per-fixture and per-test, and counting modules understates it by more than half.
-* **Wall clock.** This module alone runs in **46.9 s**, because `site_keying` is called 2,029 times
-  to check a property only meaningful over all of them. The full suite is **233–302 s (n = 3)**
-  with a graph present and **76.6 s** without one.
+* **Wall clock.** This module alone runs in **46.9 s** (*n* = 1), because `site_keying` is called
+  2,029 times to check a property only meaningful over all of them. The full suite is
+  **107–302 s (n = 5)** with a graph present and **77–89 s (n = 2)** without one. The upper range
+  read *233–302 s (n = 3)* until 2026-08-09, when a cold clone ran the same suite against the same
+  graph in **107.2 s** and this checkout ran it in **188.8 s** — so the spread is now 3× rather than
+  1.3×, and the paragraph below was already the right conclusion two revisions before it had this
+  much evidence.
 
 **The wall-clock figures were narrower here on 2026-08-09 and the narrowing was wrong.** This block
 read *"37.3 s"* and *"168.7 s … 55.7 s"*, each from a single run, and the next session's
@@ -154,9 +158,9 @@ def test_nothing_in_the_real_graph_is_unprovenanced(conn: kuzu.Connection) -> No
 def test_the_gene_absence_census_matches_the_recorded_partition(conn: kuzu.Connection) -> None:
     census = gq.gene_absence_census(conn)
     assert census == {
-        "encoded": 1059,
+        "encoded": 1054,
         "unresolved": 3492,
-        "no_cross_reference": 10,
+        "no_cross_reference": 15,
         "not_captured": 0,
     }
     assert sum(census.values()) == 4561

@@ -617,9 +617,9 @@ def test_gene_absence_mirrors_section_4() -> None:
         f"schema.GENE_ABSENCE {sorted(schema.GENE_ABSENCE)} != §4 {sorted(set(named) - {'NULL'})}"
     )
     assert named == {
-        "NULL": "1,059",
+        "NULL": "1,054",
         "unresolved": "3,492",
-        "no_cross_reference": "10",
+        "no_cross_reference": "15",
         "not_captured": "0",
     }
     assert sum(int(v.replace(",", "")) for v in named.values()) == 4561, (

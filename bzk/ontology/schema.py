@@ -121,10 +121,11 @@ CURIE_PREFIXES: frozenset[str] = frozenset(
 #
 # The column is NULL exactly when an `ENCODES` edge reaches the protein. Otherwise it names which
 # of three absences this is, because a missing edge on its own reads as *this protein has no gene*
-# in all three and only one of them is close to that. Measured 2026-08-09: 3,492 `unresolved`,
-# 10 `no_cross_reference`, 0 `not_captured`, against 1,059 with an edge — the largest is the site
-# adapter's razor-pick resolution policy and the smallest by a factor of 349 is the state a reader
-# would take the absence to mean.
+# in all three and only one of them is close to that. Measured 2026-08-09 on a rebuild from an empty
+# cache: 3,492 `unresolved`, 15 `no_cross_reference`, 0 `not_captured`, against 1,054 with an edge —
+# the largest is the site adapter's razor-pick resolution policy and the smallest by a factor of 233
+# is the state a reader would take the absence to mean. The figures were 10 and 1,059 until that
+# rebuild, and §4 records why no committed version of the code produces those.
 GENE_ABSENCE: dict[str, str] = {
     "unresolved": "not resolved in this ingestion (the adapter resolves only the razor picks)",
     "no_cross_reference": "resolved; UniProt reports no HGNC cross-reference for this accession",

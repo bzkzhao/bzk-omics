@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.33 |
+| Version | 1.34 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -1585,6 +1585,101 @@ live-lock case is already established and implemented and is not re-established.
 **Nothing is built.** No features, no panels, no read-layer additions. A panel needing something the
 read layer does not expose is reported.
 
+### The cold clone: I9 held on 12,774 ids and lost five, and the cause was our own code, 2026-08-09
+
+**Run against the pre-registration two entries above.** A clone of `7f50216` from GitHub into an
+empty directory, `~/.bzk-omics` moved aside rather than deleted, install from the pins, `raw/`
+fetched by the documented path, `python -m bzk.rebuild` from nothing. Nothing was built.
+
+| Prediction | Instrument | Result |
+|---|---|---|
+| Per-label id sets identical, all 12 labels, symmetric difference 0 | per-label set diff | **missed on one label.** 11 of 12 exact; `Gene` lost 5 and gained 0. No id *moved* anywhere |
+| Counts identical; refusals **27**; `gene_absence` **1,059 / 3,492 / 10**; `Gene` **1,044**; `ENCODES` **1,059** | rebuild report and Cypher | **refusals 27 held**, every node and edge count held except `Gene` **1,039** and `ENCODES` **1,054**; partition **1,054 / 3,492 / 15 / 0** |
+| Digests of both BJC files and the deposit match `sources/` | `raw_store.verify` | **held**, 4 of 4 |
+| Suite: **10 skip** with no `~/.bzk-omics`, **0 skip** with the graph; **233–302 s** | `pytest -q -rs` | **10 and 0 held.** Wall clock **89.1 s** without a graph and **107.2 s** with one — both **below** the registered range, which was measured on a busier machine |
+| Panels: 12 of 14, `DDX58`/`OAS1` unattributable, three distinct absence notices | `AppTest` | **held**, exactly |
+
+**Outcome 3 by its shape and not by its cause, which is why the report does not stop there.** The
+registration accepted a changed `Gene` count in advance, on the reasoning that a changed
+cross-reference moves no id and cascades into no digest. No id moved and nothing cascaded — but
+**UniProt did not change.** The immutable tier came back byte-identical, 3,013 of 3,013 sequences
+and 2,182 of 2,182 pins, zero version movement. What changed is that `_fetch_entry` took the
+**first** HGNC cross-reference until 07:58 UTC on 2026-08-09, and the seven affected snapshots were
+written between 06:30 and 06:50 — under the superseded rule, an hour before the fix. `_load_entry`
+treats only `NOT_CAPTURED` as a miss, so a snapshot holding a stale-but-present value is a cache hit
+forever and the fix could not reach them. Three measurements settle it rather than suggest it:
+**0 of 2,261** warm snapshots carry `AMBIGUOUS` against **7 of 2,260** cold ones — under the current
+rule a probability-zero result if those entries had ever been read by it; the five lost genes are
+all histones (`P62805`, `P62807`, `P68431`, `P84243`, `Q6FI13`), the textbook one-protein-many-loci
+case; and `P62805` carries **14** HGNC cross-references at UniProt today, of which the warm snapshot
+holds exactly the first. So the warm graph asserted `H4C1 encodes P62805` and four more like it —
+one locus named as *the* gene of a protein UniProt attributes to fourteen.
+
+**The generalisation, which is worth more than the five nodes.** A derived-store guarantee needs its
+inputs to be **re-derivable by the code that reads them**, and *unmodified* is a strictly weaker
+property that looks identical from outside. `raw/` and the sequence tier store bytes and have it.
+The entry tier stores a **parse** and does not: a change to the parser silently invalidates every
+file, leaves every mtime and every `fetched_at` untouched, and no check in the tree looks. That is
+the same split `OPERATIONS.md` §3.1 drew for identity-bearing fields, arrived at from the other
+direction — and §3.1's *"correct only because they are still the original capture"* is the sentence
+this falsifies, since they **are** the original capture and that turned out to be compatible with
+being wrong.
+
+**Wall clock: 37 m 14.5 s, and the decomposition is the usable part.** 194 s of CPU (8.7%); 2,260
+entries and 3,013 sequences fetched, 5,273 round trips at ~0.40 s each. The write path that
+dominates a warm rebuild is ~4% of this. The registered shape — *dominated by fetches rather than by
+the write path* — **held**, and no figure was registered for the total, correctly. **A wrong reading
+was taken and corrected mid-run and it belongs here:** an early estimate of ~12 s per accession was
+computed from three spot counts whose spacing had not been recorded, i.e. a rate with no clock. A
+15-second poller then measured **~1.0 s per accession** flat from the first sample to the last. The
+error was 12× and the instrument was the problem, not the network.
+
+**Three demo failure modes, all three answered.** **A stale holder:** the recorded advice — *wait for
+the rebuild to finish and reload* — is complete, because there is no state to be stranded in. Kùzu's
+lock is an OS file lock released by the kernel, so a holder killed with `SIGKILL` leaves nothing on
+disk and the next read succeeds immediately; verified both ways, and the live case incidentally
+re-verified against the real rebuild at 25 minutes in rather than the 25 seconds recorded before.
+**Without the network:** all three panels render inside a network namespace with only loopback. The
+app is genuinely offline-capable, which nothing in the tree had claimed either way. **Without
+`raw/`:** the app runs — `graph.kuzu` alone is enough to carry into a room — but the two findings
+around it are worse than the mode itself. `bzk rebuild` over an empty content store **exits 0** and
+reports `done` (`OPERATIONS.md` §5), and the app then renders that empty graph with the gene panel
+claiming *"Present but unattributable"* for all fourteen symbols — an assertion about content that is
+not there, from the one read-layer entry point of five that does not check whether its table is
+empty (`HANDOFF.md` §8).
+
+**What the install rehearsal cost, before any of that.** No install procedure existed in the tree at
+all: `ARCHITECTURE.md` named `uv` and credited it with *"the one-afternoon install promise"*,
+`HANDOFF.md`'s history block assumed `uv` and Python 3.12 were already present, and `README.md` said
+*"Working software: None yet"* under a Status table last touched three days and six milestones
+earlier. The machine's `python3` was **3.11.15**, which cannot run this project. `uv sync --frozen`
+is now `OPERATIONS.md` §4.1, with the figures. Two more defaults were found by running rather than
+reading: `streamlit run` binds `0.0.0.0` — falsifying the *served locally* condition the I18 reading
+was published under two commits earlier — and reports usage statistics.
+
+**A seventh, found by the turn's own closing checks rather than by the clone.** Correcting the
+census figure turned `test_tautology_sweep.py` red on an unrelated row, and the row was innocent:
+`_run_in_a_mutated_copy` copies the repository with `shutil.copytree` and did not exclude
+`__pycache__`, so the copy loaded **the working tree's last compiled bytecode** in preference to the
+source beside it. Demonstrated with a planted value rather than argued: a test file was edited to
+assert `9999`, run once to compile, restored to `1054`, and the copy then failed asserting **9999** —
+a number present in no file in that copy — while the same copy taken without `__pycache__` passed.
+Python's default invalidation compares source **size and mtime-in-seconds**, and `9999` and `1054`
+are the same size, so an edit-and-restore inside one second is invisible to it; the working tree
+itself was serving the stale value for several minutes before this was noticed. **The instrument
+that classifies every assertion in the sweep could therefore report a result it had not computed,
+in either direction**, since the mutation it applied to a source file need never have been executed.
+Excluded now, with the demonstration in the helper's docstring. This is the same shape as ADR-0019's
+`_index` and the four vacuous invariant checks — a check reporting clean because it never ran — and
+it is the third time it has appeared in a mutation harness rather than in the code under test.
+
+**The scoreboard, since four of the six findings were documentation.** Predictions about output were
+five and four held. Every one of the six findings came from somewhere else: from executing a
+procedure that had never been executed, from comparing two trees, and from reading a server's own
+log. The registration said the install was expected to have gaps and that the gaps were the output;
+that was the only part of it that anticipated what the run would actually produce.
+
+
 ### The platform made an invisible analytical choice, 2026-08-07
 
 **The clearest finding of the project, because it is the project's own failure mode.** `VISION.md`
@@ -1790,7 +1885,7 @@ MaxQuant site-table adapter. DuckDB quantitative layer. **`welch_t` with BH firs
 
 A site moves from ambiguous to `basis = uba7_knockout, confidence = confirmed`, and the superseded assignment remains inspectable.
 
-Two things the old wording also assumed and that are **not yet true**, both blocking a literal reading of "through the real pipeline": gene symbols never enter the graph (`Gene` has no nodes, `Protein.name` is null on all **4,561** — corrected 2026-08-08 from 4,441, which the repository contradicts in five places), so target identification still reads the deposit's `Gene names`. **Decided 2026-08-08 and no longer open as a modelling question**: the symbol's home is `Gene.symbol`, not `Protein.name` — routing it onto `Protein` would make `Gene.symbol` redundant (ONTOLOGY.md §4). The blocker is now named and measured: `Gene.id` is an `hgnc:` CURIE, `Resolution.gene` is a *symbol*, and UniProt's payload does carry the id (`HGNC:7532` for `P20591`, measured) while the entry cache stores the parse rather than the payload — so nothing on disk has it. ONTOLOGY.md §11 Q12 holds the open part, which is what the cache should store — and as of 2026-08-09 Q12 is itself **blocked on a layer below it**: every answer re-writes `cache/uniprot/entry/{canonical}.json`, a tier whose key carries no version and which `ONTOLOGY.md` §8 and `OPERATIONS.md` §3 both wrongly called immutable until that date. **Both were settled on 2026-08-09**: the tier was split (`OPERATIONS.md` §3.1), Q12 was answered, and `Gene` was minted — **1,044 nodes, 1,059 `ENCODES` edges**, with `gene_absence` naming why the other 3,502 proteins have none. Target identification is answerable from stored content: 12 of 14 by exact symbol, 13 counting the `DDX58`→`RIGI` rename. The projected reach of ~3,231 was wrong by a factor of three because it counted cached entries rather than resolved accessions.; and I11 is met at **site grain only** since 2026-08-08: `quant_ref` is `site_values` on all 2,029 `SiteObservation`s and `quant.duckdb` holds 48,696 cells, so the site matrix is retained rather than re-read (ADR-0004, ADR-0013) — while `ProteinObservation` retains nothing, no adapter writing its cells. Gene symbols and the protein grain both remain on that reading.
+Two things the old wording also assumed and that are **not yet true**, both blocking a literal reading of "through the real pipeline": gene symbols never enter the graph (`Gene` has no nodes, `Protein.name` is null on all **4,561** — corrected 2026-08-08 from 4,441, which the repository contradicts in five places), so target identification still reads the deposit's `Gene names`. **Decided 2026-08-08 and no longer open as a modelling question**: the symbol's home is `Gene.symbol`, not `Protein.name` — routing it onto `Protein` would make `Gene.symbol` redundant (ONTOLOGY.md §4). The blocker is now named and measured: `Gene.id` is an `hgnc:` CURIE, `Resolution.gene` is a *symbol*, and UniProt's payload does carry the id (`HGNC:7532` for `P20591`, measured) while the entry cache stores the parse rather than the payload — so nothing on disk has it. ONTOLOGY.md §11 Q12 holds the open part, which is what the cache should store — and as of 2026-08-09 Q12 is itself **blocked on a layer below it**: every answer re-writes `cache/uniprot/entry/{canonical}.json`, a tier whose key carries no version and which `ONTOLOGY.md` §8 and `OPERATIONS.md` §3 both wrongly called immutable until that date. **Both were settled on 2026-08-09**: the tier was split (`OPERATIONS.md` §3.1), Q12 was answered, and `Gene` was minted — **1,039 nodes, 1,054 `ENCODES` edges**, with `gene_absence` naming why the other 3,507 proteins have none (1,044 / 1,059 / 3,502 until the cold-clone rebuild the same day corrected them — ONTOLOGY.md §4). Target identification is answerable from stored content: 12 of 14 by exact symbol, 13 counting the `DDX58`→`RIGI` rename. The projected reach of ~3,231 was wrong by a factor of three because it counted cached entries rather than resolved accessions.; and I11 is met at **site grain only** since 2026-08-08: `quant_ref` is `site_values` on all 2,029 `SiteObservation`s and `quant.duckdb` holds 48,696 cells, so the site matrix is retained rather than re-read (ADR-0004, ADR-0013) — while `ProteinObservation` retains nothing, no adapter writing its cells. Gene symbols and the protein grain both remain on that reading.
 
 ### Weeks 7–8 — output and consolidation
 Minimal Streamlit or notebook interface: query, volcano, provenance panel. Ambiguity and correction status visible everywhere a number appears. ADRs 0004–0014 written. Rebuild tested against the full dataset.

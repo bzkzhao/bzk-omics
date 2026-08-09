@@ -28,7 +28,7 @@ which is the shape `HANDOFF.md` §8 catalogues three times over.
    `Protein names` / `Gene names` error `HANDOFF.md` §6 records costing fourteen silent misses.
 
    **`Gene` landed 2026-08-09 and this read is now a choice rather than a necessity.** The graph
-   holds 1,044 `Gene` nodes and 1,059 `ENCODES` edges, and 12 of the 14 published symbols are
+   holds 1,039 `Gene` nodes and 1,054 `ENCODES` edges, and 12 of the 14 published symbols are
    answerable from stored content — 13 counting `DDX58`, which HGNC renamed and the graph carries
    as `RIGI` (`hgnc:HGNC:19102`). So this module *could* stop reading `Gene names`. It has not
    been switched over, because doing so changes what the differential identifies against and

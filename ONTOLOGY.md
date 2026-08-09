@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.30 |
+| Version | 1.31 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -283,16 +283,16 @@ A `ModificationSite` key composes **exactly one** `ProteinSequence`, and since A
 `ModificationSite.id` is deterministic and content-derived, so the same site ingested from two datasets resolves to one node.
 
 **`Protein.gene_absence` — three absences that must not read as one (2026-08-09).** `Gene` and
-`ENCODES` were minted on 2026-08-09, and **3,502 of 4,561 proteins got no gene**. Those absences
+`ENCODES` were minted on 2026-08-09, and **3,507 of 4,561 proteins got no gene**. Those absences
 have three different causes and nothing in a missing edge distinguishes them, which is the shape
 this platform exists to refuse — an absent `ENCODES` would otherwise read as *this protein has no
 gene* in every one of the three. The column is a closed enum, `NULL` exactly when the edge exists:
 
 | Value | Meaning | Count at 2026-08-09 |
 |---|---|---|
-| `NULL` | An `ENCODES` edge reaches this protein | 1,059 |
+| `NULL` | An `ENCODES` edge reaches this protein | 1,054 |
 | `unresolved` | The accession was **not resolved in this ingestion**. Not a fact about the protein: the site adapter resolves only the razor picks and mints a `Protein` for every other candidate in a protein group, so this is that policy's shortfall. Some of these accessions *are* in the UniProt cache from earlier work — the column says what this build did, not what is knowable | 3,492 |
-| `no_cross_reference` | Resolved, and UniProt reports no usable HGNC cross-reference — none at all, or several, which `resolve/uniprot.py`'s `AMBIGUOUS` refuses rather than picking between. The nearest of the three to a statement about the entity, and still UniProt's statement rather than HGNC's | 10 |
+| `no_cross_reference` | Resolved, and UniProt reports no usable HGNC cross-reference — none at all (**10**), or several, which `resolve/uniprot.py`'s `AMBIGUOUS` refuses rather than picking between (**5**). The nearest of the three to a statement about the entity, and still UniProt's statement rather than HGNC's | 15 |
 | `not_captured` | Resolved before `hgnc_id` was captured, and not re-resolved since (`resolve/uniprot.py`'s `NOT_CAPTURED`, §11 Q12) | 0 |
 
 **The counts are why the column exists rather than a note, and they are not what was predicted.**
@@ -302,6 +302,29 @@ every `Protein` in the graph passes through the resolver and only the razor pick
 dominant absence is three times larger than predicted and is entirely an artefact of the adapter's
 resolution policy, while the one a reader would take for a biological statement is **10**. Getting
 that ratio wrong by that much is precisely why the reason is a column rather than a footnote.
+
+**Corrected the same day by a rebuild from a cold clone: the counts above were `1,059 / 3,492 / 10 / 0`
+over 1,044 genes, and no committed version of the code produces them.** A rebuild from an empty
+cache gives **1,054 / 3,492 / 15 / 0** over **1,039** genes, and the five that vanished are histones
+— `P62805` (H4), `P62807` (H2B), `P68431` (H3), `P84243` (H3-3A), `Q6FI13` (H2A). The cause is not
+UniProt. `_fetch_entry` took the **first** HGNC cross-reference until `AMBIGUOUS` replaced that rule
+at 07:58 UTC, and the snapshots for those entries were written between 06:30 and 06:50, under the
+superseded rule. `_load_entry` treats only `NOT_CAPTURED` as a miss, so a snapshot holding a *stale
+but present* `hgnc_id` is a cache hit forever and the fix could not reach the seven entries it was
+written for. The measurements that settle it rather than suggest it: **0 of 2,261** warm snapshots
+carry `AMBIGUOUS` against **7 of 2,260** cold ones; the immutable tier is byte-identical across the
+two — 3,013 of 3,013 sequences and 2,182 of 2,182 pins, zero drift; and `P62805` carries **14** HGNC
+cross-references at UniProt today, of which the warm snapshot held exactly the first.
+
+**What the warm graph was therefore asserting.** `H4C1 encodes P62805`, and four more like it: one
+locus named as *the* gene of a protein UniProt attributes to as many as fourteen. That is an
+inference rendered as a measurement, which is the thing this column exists to prevent — and it
+survived because the fix landed in code that the cache stood in front of. The `AMBIGUOUS` fold's
+own justification is spent with it: `resolve/nodes.py` reasons that a fourth enum value would be
+*"a column nothing populates"* on the strength of the state being **measured 0 of 198 times**, and
+the whole-cache measurement is now 7. Whether several cross-references should read as
+`no_cross_reference` at all is a modelling question this correction does not settle — it is
+recorded with a trigger in `HANDOFF.md` §8.
 `not_captured` is 0 in the graph and **1 in the cache** — `P20591`, which appears nowhere in the
 deposit — so the state is real, reachable and currently unoccupied, and is enumerated for that
 reason rather than removed.
@@ -860,6 +883,27 @@ Normative. Violations are ingestion errors, not warnings.
   **Corrected 2026-08-09: the cache is two tiers and only one of them has that property.** This paragraph said *"the cache is addressed by `{accession}#sv{n}`, which is an identity the authority itself guarantees not to reuse"*, and that describes the **sequence** tier alone. The **entry** tier is `entry/{canonical}.json` — no version in the path — so a re-fetch overwrites it, and `bzk/resolve/uniprot.py`'s own docstring has always called it *"a mutable snapshot of the current UniProt entry"*. The code was accurate and this sentence was not. **It is material rather than cosmetic:** the entry tier is where `sequence_version` comes from, `sequence_version` is embedded in every `ModificationSite` key, and so a refreshed entry tier re-keys sites against today's UniProt. I9's reproducibility therefore rests today on the fact that **nothing refreshes it** — `bzk drift` fetches into a throwaway directory precisely so it does not, and every one of the 2,261 entry files still carries its original ingestion `fetched_at` (1,054 on 2026-08-07, 1,207 on 2026-08-08, measured 2026-08-09). That is a property of no caller doing it, not of the design.
 
   **Settled 2026-08-09, and this paragraph's own prescription was wrong.** It read *"Versioning the entry tier's key is the fix"* while `OPERATIONS.md` §3 read that it *"is this section's to decide"* — one document calling settled what the other called open, which `CLAUDE.md` § Single source of truth forbids in either direction. **`OPERATIONS.md` §3 is right that it was open, and is where the answer now lives; versioning is not the fix.** A versioned entry key exchanges a silent overwrite for an ambiguous read — with two captures present nothing says which a rebuild must use, and unlike `raw/` (whose curation record cites a `content_hash`) or the sequence tier (whose version is named by the site key itself), the entry tier is read *before* any id exists. What I9 requires is not that the entry tier be immutable but that **nothing identity-bearing be read from a mutable file**, and that is what §3 now arranges: the identity-bearing fields move to a write-once pin beside the sequence, keyed by the version, and the entry file is declared the mutable snapshot it has always been. This paragraph states the finding and defers the layout; §3 states the layout.
+
+  **Executed 2026-08-09, from a clone with no `~/.bzk-omics` at all — the first time I9 has been run
+  from the state it describes.** Three of the four inputs came from the repository and PRIDE; the
+  fourth, the cache, was **reconstituted from the network** over 37 minutes and 5,273 fetches. The
+  result is the strongest evidence I9 has and it is uneven, so both halves are stated. **The claim
+  held where it is load-bearing:** every id reproduced — 12,774 across twelve labels, symmetric
+  difference **0** on eleven of them — refusals **27** unchanged, and the immutable tier came back
+  byte-identical, 3,013 of 3,013 sequences and 2,182 of 2,182 pins, **zero drift** and zero version
+  movement against a two-day-old archive. **The claim did not hold on the twelfth label, and the
+  reason is this paragraph's own sentence turned inside out.** Above, I9's reproducibility is said to
+  rest on the fact that *nothing refreshes* the entry tier. That is true and it is not enough:
+  nothing refreshed it, and the snapshots were nonetheless written by a version of `_fetch_entry`
+  that no longer exists, so the tier preserved a **superseded parse** rather than a faithful capture.
+  Five `Gene` nodes and five `ENCODES` edges in the warm graph could not be regenerated, because the
+  code that produced them had been corrected an hour after they were cached and the correction could
+  not reach a cache hit (§4, `Protein.gene_absence`). **The generalisation is the part to keep:** for
+  a derived-store guarantee, an input being *unmodified* is a weaker property than it appears —
+  what I9 needs is that the input be **re-derivable by the code that reads it**, and a parse frozen
+  in a snapshot is neither raw capture nor current derivation. `raw/` has this property because it
+  stores bytes; the sequence tier has it because it stores bytes; the entry tier does not, because it
+  stores a parse. That is a sharper statement of the same split §3.1 draws, arrived at by running it.
 - **I10 — Unattributed enzymes.** No `SiteObservation` may be presented as the product of a named enzyme except through a live `EnzymeAssociation`. A site whose modifier is assigned but whose enzyme is not is displayed as *unattributed*, never as the canonical writer or eraser for that modifier.
 - **I11 — Quantitative retention.** Every observation persists its per-sample quantitative values in the columnar store, not merely the statistics derived from them. No pipeline stage may discard the matrix after computing a `DifferentialResult`. This is what makes the statistical layer genuinely pluggable: any test — moderated *t*, permutation with s0, or something not yet written — is recomputable from stored values without re-ingestion. A platform retaining only log₂FC and adjusted *p* is married to whichever test produced them.
 - **I12 — No tryptic assumptions.** Core code makes no assumption that peptides terminate in K or R, that a peptide carries at most one modification, or that a peptide maps to exactly one protein. Immunopeptidomics violates the first, multi-modified peptides the second, shared peptides the third. These are free to accommodate now and expensive to retrofit.
@@ -1023,7 +1067,7 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
     **Proposed resolution: project, do not store.** §7's PROV-O relationships that restate a domain edge should be a *view* computed at export — `prov:wasDerivedFrom` emitted from `RESULT_FOR_SITE` when an RO-Crate or PROV document is written — leaving one stored edge and no possibility of divergence. That keeps §7 honest to its own opening sentence and costs nothing today, since nothing exports yet. What the proposal does **not** settle, and what makes this a question rather than an amendment: `WAS_GENERATED_BY`, `USED`, `WAS_ASSOCIATED_WITH` and `WAS_EXECUTED_BY` have no domain twin, so they must stay stored — which means §7 becomes *partly* stored and *partly* projected, and the boundary needs stating rather than leaving to whoever writes the exporter. **Settle with the first export path**, which is also when I18 must land (`HANDOFF.md` §8, EX class). Surfaced 2026-08-07 while enumerating duplicate relationships for ADR-0023.
 
 12. ~~**What must the resolver persist for `Gene` to be mintable?**~~ **Closed 2026-08-09: it
-    persisted it, and `Gene` was minted — 1,044 nodes and 1,059 `ENCODES` edges.** The remaining
+    persisted it, and `Gene` was minted — 1,039 nodes and 1,054 `ENCODES` edges.** The remaining
     question this raised is settled in the same place: `Gene.id` reads from the **mutable snapshot**,
     and `OPERATIONS.md` §3.1 records why that is permitted rather than an exception. The original
     entry follows, because its measurements are what the answer rests on.

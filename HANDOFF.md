@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.25 |
+| Version | 1.26 |
 | Last reviewed | 2026-08-09 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -31,7 +31,7 @@ cd bzk-omics
 uv init --python 3.12
 ```
 
-Pin exactly, not with compatible-release specifiers. `OPERATIONS.md` §4 explains why for Kùzu specifically.
+Pin exactly, not with compatible-release specifiers. `OPERATIONS.md` §4.2 explains why for Kùzu specifically.
 
 ```
 kuzu           # pin the exact version you install; pre-1.0, minor releases have changed behaviour
@@ -62,17 +62,31 @@ Follow `ROADMAP.md` § Milestones. This adds the granularity that document delib
 **What runs today, end to end:**
 
 ```
+uv sync --frozen                                # build .venv from the lockfile (OPERATIONS.md 4.1)
 python -m bzk.sources.pride                     # fetch the deposit into the content store
-python -m bzk.rebuild                           # graph from the four I9 inputs, ~120 s
+python -m bzk.sources.protein_groups            # fetch proteinGroups + the two BJC tables
+python -m bzk.rebuild                           # graph from the four I9 inputs
 python -m bzk.drift                             # validate the sequence archive, ~35 min, weekly
 python -m bzk.sources.pxd018299_differential    # the differential run and its populations
+streamlit run bzk/ui/app.py \
+  --server.address localhost --browser.gatherUsageStats false   # three panels over bzk/query/
 ```
+
+**Corrected 2026-08-09 by rehearsing it from a cold clone.** Three of these lines were missing —
+the install (nothing in the tree said `uv sync`), the `protein_groups` fetch, and the app — and the
+rebuild's `~120 s` was a **warm-cache** figure carrying no such label: from an empty cache the same
+command took **37 m 14 s**, essentially all of it network. Both flags on the last line are
+load-bearing rather than tidy; `OPERATIONS.md` §4.1 says why. Timings live in `OPERATIONS.md` §5,
+not here.
 
 **The graph** (rebuilt 2026-08-07, post-ADR-0024): 2,029 `SiteObservation`s each with a
 `ModifierAssignment`, 2,029 `ModificationSite`s, 4,561 `Protein`s, 1,062 `ProteinSequence`s, 3
 `Modifier`s, 12 `Sample`s, 2 `Analysis` (curation + ingestion), **0 `ProteinAssignment`** — see
 §6.3, deliberately empty. 27 rows refused. Two independent replays reproduce **11,730 ids
-identically**.
+identically** — the figure predates `Gene`, and a **third replay on 2026-08-09 from a clone with no
+cache at all** reproduced **12,774** across twelve labels with symmetric difference **0** on eleven
+of them. The twelfth is `Gene`, where five nodes did not come back; `ONTOLOGY.md` §4 records why,
+and it is not UniProt.
 
 **The sequence archive is drift-checked but the receipt no longer covers it** (2026-08-08 05:03 UTC,
 2,845 sequences, 0 drifts, 34m30s — against **3,014** now). The archive grew on 2026-08-09 when
@@ -92,7 +106,7 @@ authoritative; **do not quote 12 of 14 as a reproduction.**
 
 **Schema is 57 tables** (24 node + 33 rel) since ADR-0023 dropped two duplicates.
 
-**`Gene` and `ENCODES` are minted — 1,044 genes, 1,059 edges, 2026-08-09.** Every `Protein`
+**`Gene` and `ENCODES` are minted — 1,039 genes, 1,054 edges, 2026-08-09.** Every `Protein`
 without one carries `gene_absence` saying which of three absences it is (§4): **3,492 unresolved**
 — the site adapter resolves only razor picks — **10 no_cross_reference**, 0 `not_captured`. That
 partition is enforced at the change-set by `invariants._check_gene_absence`, written because the
@@ -111,7 +125,7 @@ step, divergence accounted for exactly, every miss traced*. That part is met. Th
    `welch_t` (the sanity check) exists, and §4 is explicit the two are not interchangeable — the
    `s0` curvature changes which sites pass. Needs permutation FDR too, which is also unwritten.
    Its recovery number is a **separate baseline** and will not necessarily be 12.
-2. ~~**Gene symbols never enter the graph.**~~ **Closed 2026-08-09.** `Gene` holds 1,044 nodes and
+2. ~~**Gene symbols never enter the graph.**~~ **Closed 2026-08-09.** `Gene` holds 1,039 nodes and
    the 14 targets are answerable from stored content. `Protein.name` is still null on all 4,561 and
    stays so by decision (§4) — the symbol's home is `Gene.symbol`. What remains on the differential
    side is that `bzk/sources/pxd018299_differential.py` still reads the deposit's `Gene names`
@@ -120,7 +134,7 @@ step, divergence accounted for exactly, every miss traced*. That part is met. Th
 
    **Decided 2026-08-08 and no longer open as a modelling question**: the symbol's home is `Gene.symbol`, not `Protein.name` — routing it onto `Protein` would make `Gene.symbol` redundant (ONTOLOGY.md §4).
 
-   **Minted 2026-08-09 (§11 Q12, closed).** 1,044 `Gene`, 1,059 `ENCODES`. The pre-registered projection was 1,104 and 3,230 and was wrong in an instructive way: it assumed every graph `Protein` passes through the resolver, and only the ~1,069 razor picks do. So `Gene` answers *which of the 14 targets* from stored content — 12 by exact symbol, 13 once `DDX58`/`RIGI` is allowed for — while 3,492 proteins carry `gene_absence = 'unresolved'`, which is the adapter's resolution policy and not a fact about them.
+   **Minted 2026-08-09 (§11 Q12, closed).** 1,039 `Gene`, 1,054 `ENCODES`. The pre-registered projection was 1,104 and 3,230 and was wrong in an instructive way: it assumed every graph `Protein` passes through the resolver, and only the ~1,069 razor picks do. So `Gene` answers *which of the 14 targets* from stored content — 12 by exact symbol, 13 once `DDX58`/`RIGI` is allowed for — while 3,492 proteins carry `gene_absence = 'unresolved'`, which is the adapter's resolution policy and not a fact about them.
 3. ~~**I11 is unmet.**~~ **met 2026-08-08 for `SiteObservation` **only**** — `bzk/quant/`, ADR-0004 and ADR-0013; `ProteinObservation` retains nothing, see below. `quant.duckdb` is created by `rebuild`, `quant_ref` is `site_values` on all 2,029 `SiteObservation`s, and **48,696 measured-or-null cells** are retained (2,029 sites × 12 samples × 2 quantities). The matrix is no longer
    re-read from the deposit each run, and the statistics layer is pluggable in fact rather than in
    principle: an alternative test is recomputable from stored values. Values are **measured and
@@ -138,14 +152,25 @@ worth little without it since the point of a second test is running it over the 
 
 **This block was two revisions stale on gene symbols and is corrected 2026-08-09, independently of
 the read path.** It said gene symbols had a settled *modelling* half with *"only the cache question
-(§11 Q12) open"*. Q12 was answered on 2026-08-09 and `Gene` was minted the same day — 1,044 nodes,
-1,059 `ENCODES` edges, three named absence states. **One of the three remains: `perseus_s0` over the
+(§11 Q12) open"*. Q12 was answered on 2026-08-09 and `Gene` was minted the same day — 1,039 nodes,
+1,054 `ENCODES` edges, three named absence states. **One of the three remains: `perseus_s0` over the
 retained matrix**, which waits on the meeting.
 
 ~~**Nothing reads the graph.**~~ ~~**The query half landed; the interface is unbuilt.**~~
 **Both landed 2026-08-09.** `bzk/query/` answers five questions over Kùzu and `bzk/ui/app.py` is
 the minimal Streamlit interface over it: three panels, `streamlit run bzk/ui/app.py`. The notebooks
 are untouched and still read the deposit rather than Kùzu.
+
+**The demo was rehearsed from a cold clone on 2026-08-09 and the tree did not survive it intact.**
+Nothing was built; six things were found, and the order matters because the first three are the ones
+that would have run out the clock in front of a real audience. **(1)** No install procedure existed
+anywhere — `OPERATIONS.md` §4.1 now has one. **(2)** `bzk rebuild` from an empty cache takes **37
+minutes**, not the two the tree implied. **(3)** With no `raw/` it exits **0** over an empty graph.
+**(4)** The graph reproduced id-for-id except five `Gene` nodes that no committed code can produce
+(`ONTOLOGY.md` §4). **(5)** The app is served on every interface by default and reports usage
+statistics, both contradicting claims made two commits earlier. **(6)** Over an empty graph the gene
+panel says *"Present but unattributable"* — an assertion about content that is not there. Four
+of the six are documentation and are corrected; **(3)** and **(6)** are code and are in §8. A **seventh** came from the closing checks rather than the clone and is fixed here: `test_tautology_sweep.py`'s mutation harness copied `__pycache__` into its temporary tree and so could run **stale bytecode instead of the source it had just mutated** — the classifier for every assertion in the sweep, able to report a result it had not computed. `ROADMAP.md` § *Measured findings* has the demonstration.
 
 **Two things the interface established rather than assumed.** Kùzu takes a single writer lock, so
 the app **cannot read the graph while `bzk rebuild` holds it** — `query.connect` raises
@@ -154,6 +179,15 @@ renders that state rather than a traceback or a silent retry. And **I18's EX tri
 §8 I18 says *"queries and views within the local instance are unrestricted"*, a screen is such a
 view, and there is no download button — one would fire it, and a test asserts its absence. That
 reading holds only while the app is served locally, which the entry does not say and this does.
+
+**Corrected 2026-08-09: it is not served locally by default, so the condition the reading rests on
+was unmet from the day it was written.** Bare `streamlit run` binds **`0.0.0.0`** and prints a
+Network URL and an External URL — observed in the server's own log, `Uvicorn server started on
+0.0.0.0:8599`. The condition was stated and never checked, in the same block that congratulated
+itself on stating it. `OPERATIONS.md` §4.1 now carries the two flags that make it true, and the
+same run found the second default: Streamlit reports *"Collecting usage statistics"* unless told
+not to, in a project whose first word is local-first. Neither is fixed in the repository — a
+`.streamlit/config.toml` is the right fix and is §8's.
 
 **One read-layer gap reported and deliberately not closed.** A caller cannot ask whether an absent
 symbol's locus is present under another name: `DDX58` returns `UNATTRIBUTABLE` while `RIGI` is
@@ -456,6 +490,11 @@ All three cost time during exploration. All three are the same class: code that 
 | ~~**A change-set could not hold `Protein` and `Modifier` for one accession**~~ **Fixed 2026-08-07 — ADR-0019 corrected** | `bzk/ontology/invariants.py`, `bzk/ontology/store.py`, ADR-0019 | Found by the first real run that seeded `Modifier` nodes: §3 keys **both `Protein` and `Modifier` on bare `uniprot:`**, so ISG15 is `uniprot:P05161` under both — the protein a diGly search reports as a razor pick, and the modifier its K-GG remnant might have come from. That is this project's anchor domain, not an edge case. ADR-0019 said node ids are unique within a change-set and the code read that as unique *globally*; Kùzu stores the two in separate tables and was never troubled. Corrected to **(label, id)** in three places, and the second and third are the dangerous ones: `store.py` resolved an edge's endpoint labels through `{id: node}`, so a collision would have picked the wrong label, `MATCH`ed the wrong table and **written nothing** — the silent failure its own comment already warned about; and `_index` was global, so I2's `HAS_SEQUENCE` clause would have read `.get('accession')` off a `Modifier`, got `None`, and **skipped the check** rather than raising. Both are the shape this repository keeps meeting: a check reporting clean because it never ran. Edges still name endpoints by bare id, which is unambiguous only because no relationship admits both labels in one role — now asserted by `test_no_relationship_role_admits_two_labels_that_can_share_an_id`, mutation-tested, so the day that stops being true is a red test rather than a wrong answer. Resolved |
 | **ADR-0019 has become the change-set format specification, not a decision record** | `decisions/0019-changeset-structural-validation.md`, `ARCHITECTURE.md` §3 | It now carries **five dated amendments** — the fifth hole (multiplicity), the sixth (node type declared at all), the `__label__` rename, the reserved-namespace rule, and the (label, id) correction — and between them they *are* the format: what a node is, what an edge is, which keys are structural, how endpoints resolve. `decisions/README.md` says a record is *"never edited; a changed decision gets a new record"*, and the dated-section style is the compromise that keeps the trail readable, which is the rule's purpose. But a living specification is not a decision, and the two want different homes: a decision is read once to learn why, a specification is read repeatedly to learn what. **Eventually the format moves to `ARCHITECTURE.md` §3 and ADR-0019 keeps only its original decision** — change-sets are self-contained, structural validation precedes invariants — with the amendments becoming the specification's history rather than the ADR's. **Trigger: the next amendment.** A sixth is the point at which the trail stops being a trail. Not done now: moving it while it is still accumulating would mean moving it twice. No |
 | **`store.py` writes one statement per node and per edge — measured at scale 2026-08-07** | `bzk/ontology/store.py` | Flagged as fine at 16 nodes and untested beyond that. Now measured on the real deposit: **90.3 s to write 20,294 statements** (11,386 node statements + 8,908 edge statements — corrected 2026-08-08; the parenthetical said *nodes* and *edges*, decomposing a total of statements with the two words the rename removed, in the row cited as the reason to rename), **4.45 ms each, 225 statements/second**. For context in the same run, the adapter's `parse` — reading 2.8 MB, resolving 1,054 accessions off a warm cache, validating the whole change-set — takes **0.75 s**. So the write is **120× the cost of producing what it writes**, and it is the whole of the replay's wall clock. Not optimised here, deliberately: `MERGE` per statement is what makes replay idempotent (I7/I9), and batching changes the write path's semantics, not just its speed. The obvious move is one parameterised `UNWIND` per label and per relationship, which preserves `MERGE` and should collapse 20,294 round trips into ~21. **That would bring the write "under 10 s" — and that figure is an extrapolation from 225 statements/second, not a benchmark.** It is flagged here because, as of 2026-08-07, **it is the only unmeasured number left in the document set**: the drift check's ~980 s became 973.7 s measured, the rebuild's cost became 119.9 s measured, the archive's size became 8.3 MB measured, and the sequence-drift exposure became 40 of 2,056 measured. An estimate that is the last of its kind is one nobody re-examines, because there is no longer a habit of re-examining estimates — so it is named as the last one rather than left to become quietly permanent. **It stays an extrapolation until someone benchmarks the `UNWIND` form**, and no decision should rest on the 10 s. **Trigger: the second dataset, or any interactive path that rebuilds.** At one dataset, 90 s is tolerable; at ten it is 15 minutes and nobody re-runs it. No |
+| **`query.gene_symbols` claims `UNATTRIBUTABLE` over an empty `Gene` table** | `bzk/query/graph.py`, `bzk/ui/app.py` | Found by the cold-clone rehearsal 2026-08-09, driving the app over a graph built with no `raw/`. All fourteen symbols render as *"Present but unattributable — the key given is not enough. The graph holds what would answer this and cannot reach it from the key supplied"*. The graph holds nothing, so the screen states something the data cannot support — the rule `CLAUDE.md` opens with. **It is one function, not a class**: `differential_table`, `imputation_state` and `refusals` all test `_node_tables`/`_count` before choosing an absence, and `gene_symbols` is the only one of the five that does not — and the only one whose absence value asserts *presence*. The correct value is already defined and named for this exact case: `NOT_STORED`, *"the node type the question reads is empty, so the question was not answered"*. Not fixed here because the turn that found it registered no code change; the fix is a table check and a second guard in `tests/test_query.py` over a gene-less fixture, which is what the two existing fixtures (one gene, 1,039 genes) cannot see. **Trigger: the next change to `bzk/query/`.** No — but it is a false statement on screen |
+| **`bzk rebuild` exits 0 when there is no deposit to ingest** | `bzk/rebuild.py`, `OPERATIONS.md` §5 | With an empty content store it logs `no deposit in the content store for curation_PXD018299.json; sites not ingested`, `continue`s, and reports `done: 57 tables, … 0 deposit(s), 0 site observation(s), 0 refused` with exit status **0**. Nothing is concealed — the condition is on stdout — but the *status* says success, so a script, a Makefile or a CI step reads a clean rebuild, and §5's discipline (*a rebuild that produces a different result is a regression; stop and find out why*) has nothing implementing it. The same applies to the `no adapter recognises …` branch beside it. The fix is a non-zero exit, or a `--expect-deposits` flag, and choosing between them is a decision about whether rebuild is a recovery tool that must never refuse (§5 says it must not refuse on staleness, for good reasons that may extend here). **Trigger: the first time rebuild runs unattended** — CI, a cron, or a demo script. No |
+| **Streamlit's two defaults contradict the project: binds `0.0.0.0`, reports usage statistics** | `bzk/ui/`, a `.streamlit/config.toml` that does not exist | Measured 2026-08-09 from the server's own log: bare `streamlit run bzk/ui/app.py` prints `Uvicorn server started on 0.0.0.0:8599` plus a Network and an External URL, and `Collecting usage statistics`. The first falsifies the *served locally* condition the I18 reading in §3 rests on; the second is a local-first product phoning home. `OPERATIONS.md` §4.1 documents the two flags that fix both, which is a procedure and not a default — anyone typing the bare command still gets both. The repository fix is a committed `.streamlit/config.toml` with `server.address` and `browser.gatherUsageStats`, plus a test that reads it, so the guarantee survives someone forgetting a flag. **Trigger: the next change to `bzk/ui/`, or the first time the app is run in front of anyone.** No |
+| **`AMBIGUOUS` folds into `no_cross_reference`, and the measurement that justified the fold is dead** | `bzk/resolve/nodes.py`, `ONTOLOGY.md` §4 | `_gene_absence` maps several HGNC cross-references onto the same value as none at all, reasoning that a fourth enum value would be *"a column nothing populates"* for a state **measured 0 of 198 times**. The cold-clone rebuild measured it over the whole cache: **7 of 2,260** entries, five of which reach the graph, so `no_cross_reference` now holds 15 proteins of which a third have *too many* cross-references rather than none. The two are different facts about UniProt and the column says one of them. They are also different in what a curator would do: no cross-reference is a gap to report upstream, several is a modelling question about histone-like multi-locus proteins. **Trigger: fired — the state is populated.** The decision (fourth enum value, or keep the fold and say so in §4) is a modelling one and belongs to a turn that registers it. No |
+| **The content store keeps objects nothing references, and nothing can tell them apart from inputs** | `bzk/provenance/raw_store.py`, `~/.bzk-omics/raw/` | The warm tree holds **6** objects; a cold clone running every documented fetcher produces **4**. The extra two are BJC supplementary files pulled by hand during the 2026-08-09 investigation, cited by no curation record, no fetcher and no document — searched for by digest and by filename, zero hits. They are harmless: I9 replay reads what the curation records cite, so an orphan is ignored rather than ingested. What is missing is any way to *know* that — a content-addressed store with no reachability notion cannot distinguish an input from a leftover, so `raw/` grows and nobody can safely prune it. Note the direction: the cold tree is the correct one and the warm tree accumulated. **Trigger: the first `raw/` large enough that someone wants to delete something.** No |
 | ~~**The rebuild's drift check now refetches every cached sequence**~~ **Split out 2026-08-07 — `bzk drift`** | `bzk/drift.py`, `bzk/rebuild.py`, `OPERATIONS.md` §1/§5 | The drift check was never a rebuild step: rebuild reconstructs derived state from the I9 inputs, this validates one of those inputs against the outside world, and the graph is byte-identical either way — shown rather than argued, since two replays that skipped it reproduced the same 11,389 ids as one that did not. Welded, it cost ~980 s of a 1,057 s rebuild; split and both measured end to end, **`rebuild` is 119.9 s and `bzk drift` is 973.7 s** over 1,029 sequences. That run reported zero drift, which says only that the check runs — the archive was hours old (see the self-guaranteeing-measurement row below). Nothing about the check is weakened — it still refetches every archived sequence with `refresh=True`, because §11 Q5's failure is invisible to anything that trusts the version number. **What answers *"what stops someone rebuilding for a year without ever drift-checking"* is the receipt**, not the split: `bzk drift` writes `~/.bzk-omics/cache/uniprot/.drift` (timestamp, count, digest of the set checked, outcome), and `rebuild` reports staleness from it every run. It never *refuses* — rebuild is the disaster-recovery path (`OPERATIONS.md` §1) and a network check in front of recovery is worse than a stale check. The digest is load-bearing: a check that covered 20 sequences yesterday says nothing about the 1,028 ingested this morning, and "checked 1 day ago" would be true and misleading. Resolved |
 | **The site adapter applies a localisation threshold and records it nowhere (I16)** | `bzk/adapters/maxquant_sites.py`, `ONTOLOGY.md` §5.4/§8 I16 | New with Slice 4a, and created by it: 242 of 2,298 rows are dropped at `Localization prob >= 0.75`, and the graph holds **one `Analysis`, of kind `curation`** — nothing records the threshold, the quantity, or that a filter was applied at all. I16 says *"every `Analysis` records which quantity it consumed and the filters applied, including the localisation threshold"*, and it is not violated only because the adapter emits no `Analysis` to violate it: the check iterates over nodes that do not exist. That is the invisible-choice defect I16 exists to prevent, arriving through the gap rather than through the field. The fix is a search-output `Analysis` — `kind = 'external'`, `external_tool = 'maxquant'`, `parameters_observed = false` (I19), `quantity = 'intensity_multiplicity_summed'`, `localization_threshold`, `filters_applied` — which the observations attach to. Deliberately not added in Slice 4a, which was scoped to wiring: it touches I15's `Imputation` requirement and I19's flag, both decisions rather than plumbing. Now also `ROADMAP.md` § The platform made an invisible analytical choice, because 10.5% of a dataset removed by an unrecorded number is a measured finding about this platform, not only a task. **Trigger: before any result is derived from these observations**, i.e. the first thing Slice 4b does. **Yes** — for Slice 4b, no for the ingestion standing as it is |
 | **I18 obligation: an export must state its sequence-archive staleness** | export boundary, `bzk/drift.py`, `ONTOLOGY.md` §8 I18 | **A named obligation on unbuilt work, recorded rather than assumed.** The drift split makes staleness *visible* (a line in `rebuild`'s output) but not *consequential* — a console line is ignorable by construction. What makes it consequential is the export boundary, where this project already refuses embargoed datasets (I18) and flags `unprovenanced` results: **an export, figure or report derived from `ModificationSite` positions whose archive was last drift-checked more than N days ago must state so, in the same channel and by the same rule.** N is `OPERATIONS.md`'s to set; `drift.STALE_AFTER_DAYS` is 7 today and is a *reporting* threshold only, enforced nowhere. This is written down because the strongest half of an accepted proposal depended on it, and a dependency on unbuilt work that is not named is a dependency that quietly does not happen. **Trigger: the first export, report or figure-writing path** — the same trigger I18 itself already carries, so the two land together or neither does. No — but the drift split is materially weaker until it does |
