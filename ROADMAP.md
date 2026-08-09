@@ -1954,8 +1954,7 @@ machine-dependently, which is worse than failing.** Run literally: `python` is
 `/usr/local/bin/python`, **3.11.15**, with a user-site `requests`, so `bzk.sources.pride` and
 `bzk.sources.protein_groups` **succeeded** — right bytes, right digests, wrong interpreter — and the
 run died on the third line at `ModuleNotFoundError: No module named 'kuzu'`, which points at a
-dependency rather than at the interpreter. Corrected in place. Nothing else in the procedure was
-wrong.
+dependency rather than at the interpreter. Corrected in place — **and the class is not closed**: three more imperative bare-`python` lines survive at `HANDOFF.md:241`, `:316` and `:392`, named there and deliberately not swept, because this was a freeze run and correcting the documented run path was its remit. The many *references* to `python -m …` across the tree — instrument columns, dated records of what a past rebuild reported — are a different thing and are right as they stand. Nothing else in the procedure was wrong.
 
 **`bzk drift` was not run and is named as unrun.** Above 35 minutes at 3,013 sequences on a turn
 already carrying a 39-minute rebuild, and §5 records that a run over an archive that has not aged

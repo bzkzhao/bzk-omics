@@ -88,6 +88,17 @@ block gets two silent successes and then an error that points at a dependency ra
 interpreter. The flags on the last line are gone because `.streamlit/config.toml` now carries both
 values (§4.1); the bare command is the documented one.
 
+**The block is corrected and the class is not closed, which this says rather than leaves to be
+inferred.** Three more imperative uses of a bare `python -m …` survive in this document — `:241`
+(*run `python -m bzk.rebuild` and confirm it reports 2,029 sites*), `:316` (*run it with
+`python -m bzk.sources.pxd018299_sites`*) and `:392` (*must run `python -m bzk.sources.pride`
+first*) — and each fails the same way on a machine whose `python` is not the venv's. They are
+**not** fixed here: the run that found this was a freeze rehearsal, and correcting the documented
+run path was its remit while sweeping the document was not. The mentions that are *references*
+rather than instructions — `README.md`'s Status row, `ROADMAP.md`'s instrument columns, this
+document's dated records of what a past rebuild reported — are a different thing and are correct as
+they stand.
+
 **The graph** (rebuilt 2026-08-07, post-ADR-0024): 2,029 `SiteObservation`s each with a
 `ModifierAssignment`, 2,029 `ModificationSite`s, 4,561 `Protein`s, 1,062 `ProteinSequence`s, 3
 `Modifier`s, 12 `Sample`s, 2 `Analysis` (curation + ingestion), **0 `ProteinAssignment`** — see
