@@ -36,6 +36,7 @@ plotting library; `api/` is its consumer.
 
 from bzk.query.graph import (
     ABSENT,
+    DEFAULT_GRAPH,
     Absence,
     DifferentialRow,
     GeneSymbolAnswer,
@@ -43,16 +44,21 @@ from bzk.query.graph import (
     Provenance,
     RefusalAnswer,
     SiteKeying,
+    analysis_ids,
     connect,
     differential_table,
+    gene_absence_census,
     gene_symbols,
     imputation_state,
     refusals,
+    site_ids,
     site_keying,
+    unprovenanced,
 )
 
 __all__ = [
     "ABSENT",
+    "DEFAULT_GRAPH",
     "Absence",
     "DifferentialRow",
     "GeneSymbolAnswer",
@@ -60,10 +66,14 @@ __all__ = [
     "Provenance",
     "RefusalAnswer",
     "SiteKeying",
+    "analysis_ids",
     "connect",
     "differential_table",
+    "gene_absence_census",
     "gene_symbols",
     "imputation_state",
     "refusals",
+    "site_ids",
     "site_keying",
+    "unprovenanced",
 ]

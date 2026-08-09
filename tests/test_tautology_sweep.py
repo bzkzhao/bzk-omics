@@ -380,6 +380,14 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         # Which two of the fourteen are absent, not merely how many. `DDX58` is the one that
         # matters: absent under its own name while the gene is present as `RIGI`.
         ("test_query_real_graph.py", "absent == ['DDX58', 'OAS1']", 1),
+        # Classified individually 2026-08-09, with the interface. Neither is an instance: the right
+        # side of each is the `Absence` enum or a literal, and neither is produced by the left.
+        # Both are the two halves of one contract that has to be asserted as two — a mapping can be
+        # complete and still say the same thing twice, which is the blank-grid failure with extra
+        # steps. Confirmed by mutation: making two absences share a headline fails the second and
+        # not the first.
+        ("test_ui.py", "set(ui_absence.RENDERING) == set(Absence)", 1),
+        ("test_ui.py", "len(set(headlines)) == len(Absence) == 4", 1),
         ("test_perseus.py", "dataset['content_hash'] == content_hash(TABLE.read_bytes())", 1),
         (
             "test_perseus.py",
@@ -693,15 +701,15 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     found, modules, asserts = sweep()
     # Denominated at the exact current surface, re-denominated three times on 2026-08-09: 655 ->
     # 662 for the local-part guard, 662 -> 687 for `tests/test_pins.py` (also the twenty-first
-    # module), 687 -> 714 for `Gene` and its change-set check, and 714 -> 786 for the read path,
-    # which is also the twenty-second and twenty-third modules. It read `asserts >= 600`
-    # against 633, which
+    # module), 687 -> 714 for `Gene` and its change-set check, 714 -> 786 for the read path (also
+    # the twenty-second and twenty-third modules), and 786 -> 821 for the interface (the
+    # twenty-fourth). It read `asserts >= 600` against 633, which
     # tolerated deleting a twentieth of the suite's assertions — the case its own failure message
     # names. A legitimate reduction lowers these numbers in the same change, the same discipline
     # the multiset carries; additions never trip it, because an added *match* is caught by the
     # multiset rather than by this floor — but leaving the floor behind the surface reintroduces
     # exactly the slack the re-denomination removed, so it moves with every addition too.
-    assert modules >= 23 and asserts >= 786, (
+    assert modules >= 24 and asserts >= 821, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

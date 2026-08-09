@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.31 |
+| Version | 1.32 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -39,7 +39,7 @@ One ingestion path, one dataset, one statistical test, no web frontend.
 | `ProteinAssignment` | As a node, per `ONTOLOGY.md` §6.3. Same shape and cardinality as `ModifierAssignment`, so no additional machinery |
 | `Imputation` | As a node, per `ONTOLOGY.md` §6.5. **Several per `Analysis`** — `IMPUTATION_FOR` is `MANY_ONE` (§6.5 DDL), so an analysis's imputation state is a *set*. This row read *"One per `Analysis`"* until 2026-08-09 and contradicted the normative DDL; corrected here under `CLAUDE.md` § Conventions rather than worked around in the code that reads it. §8 I15's *substantially imputed* is defined on a `DifferentialResult`, not on an `Analysis`, so the set does not collapse to a flag either |
 | Curation and analysis records | I8, I15, I16, I19 — every choice recorded |
-| **Output via notebook or minimal Streamlit** | No SvelteKit. Visualisation is not the differentiator and can wait. **The query half landed 2026-08-09** — `bzk/query/` answers five questions over the graph and is what an interface sits on; the interface itself is unbuilt, and the three `colab_*.ipynb` files still read the deposit rather than Kùzu |
+| **Output via notebook or minimal Streamlit** | No SvelteKit. Visualisation is not the differentiator and can wait. **Met 2026-08-09** — `bzk/query/` answers five questions and `bzk/ui/app.py` displays three panels over it, with all four `Absence` values rendered as four distinct claims. No volcano and no notebook: the three `colab_*.ipynb` files still read the deposit rather than Kùzu, and there is nothing to plot until a `DifferentialResult` exists |
 | Rebuild script | Written in week 1, run weekly. I9 is only true if tested |
 | `tests/` from week 1 | Invariant violations, adapter fixtures, resolution edge cases |
 
@@ -1452,6 +1452,55 @@ trigger. Nothing here binds anything; the app is run by hand.
 as blank. The read layer distinguishes four; a screen that shows one is the layer's central decision
 discarded at the last step, and it is the step where a reader actually forms a belief.
 
+#### Outcome, 2026-08-09 — every panel prediction held; the wall-clock one missed and its precision claim was the worse half
+
+| Prediction | Result |
+|---|---|
+| No id moves, no count changes | **held** — 12,774 ids, 0 lost and 0 gained on every one of the 12 labels |
+| Panel 1: basis on 2,029/2,029, `displaced_protein` on exactly 522, the same set | **held** (asserted in `test_query_real_graph.py`); the panel renders both cases — default site `A0A024R571#sv1#K138` shows `razor` / *not promoted*, and `Q00341#sv3#K90` shows `reviewed_preferred` with `displaced_protein: uniprot:A0A024R4E5` |
+| Panel 2: 12 present, 2 `UNATTRIBUTABLE`, `RIGI` at `hgnc:HGNC:19102`, unjoined | **held** — *"12 of 14 requested symbols are present"*; `DDX58` and `OAS1` each render `present=False`, `absence=unattributable`, and no element names both a symbol and its rename |
+| Panel 3: three distinct absence renderings; all four `Absence` values distinguishable | **held** — `NOT_STORED` (differential), `NOT_RETAINED` (refusals), `NOT_STORED` ×2 (one per `Analysis`), all on screen at once with different text. `NONE_FOUND` does not occur on this graph, which is why the exhaustiveness assertion exists rather than the screen being the only check |
+| Skip count stays **10** | **held** — 10 of 383, unchanged; the UI tests build their own fixture and do not gate |
+| Suite **150–200 s, ±20 s at best** | **missed: 233 / 238 / 302 s** |
+
+**The wall-clock miss, and why the precision claim was the worse half.** The new tests add **5.1 s**
+— `test_ui.py` runs in five seconds — so the suite did not get slower because of this turn. It was
+168.7 s and 170.2 s in one session and is 233–302 s in the next, which is the machine, and it is the
+same shape as `bzk rebuild`'s wall clock two entries above: **three consecutive runs measure a
+session, not a command.** The prediction was drawn from last session's two observations 1.5 s apart,
+and the ±20 s was a hedge against exactly the wrong thing — the interval should have been wide
+enough to survive a different session, not tight enough to reflect one. Both figures in
+`test_query_real_graph.py` are corrected to ranges with their *n*.
+
+**The import rule found a read-layer gap on its first use, which is the rule working.** `bzk/ui/`
+may import `bzk.query` and nothing else from `bzk/`. The first panel needed a list of site ids for
+a selector, the read layer did not expose one, and **the first draft wrote a `MATCH` in the
+renderer** — the exact leak. `query.site_ids` and `query.analysis_ids` were added to the read layer
+instead, and a test now parses every import in `bzk/ui/*.py`. Reported rather than absorbed because
+it is the difference between a constraint and a habit: the rule cost something on day one and was
+paid rather than relaxed.
+
+**One assertion passed for the wrong reason and was caught by mutation.** Panel one's test asserted
+`IFIT1_2 in text`; replacing the displaced accession with the word *(promoted)* left it green,
+because the same accession appears in the candidate list two lines below. It now asserts the
+composed line, `` `displaced_protein`: **uniprot:P09914-2** ``. Fourth time this suite has been
+caught by an assertion satisfied by a different element than the one it names.
+
+**The I18 boundary was tested and did not fire.** §8 I18's own sentence — *"queries and views within
+the local instance are unrestricted"* — settles it: a screen is such a view. No download button was
+added, and a test asserts that no module in `bzk/ui/` contains `download_button`, `write_text(`,
+`open(`, `to_csv` or `savefig`.
+
+**One read-layer gap reported and not closed.** A caller cannot ask whether an absent symbol's locus
+is present under another name. `DDX58` returns `UNATTRIBUTABLE`; `RIGI` is present at
+`hgnc:HGNC:19102`; nothing joins them and the UI shows both without linking them. Whether the read
+layer should offer that comparison is a read-layer question and the renderer is the wrong place to
+answer it.
+
+**The four measured-empty claims in `bzk/query/` still hold** — 0 `DifferentialResult`, 0
+`Imputation`, the `unprovenanced` dict, and refusals not being retained. Nothing was ingested this
+turn either; they were checked and left.
+
 ### The platform made an invisible analytical choice, 2026-08-07
 
 **The clearest finding of the project, because it is the project's own failure mode.** `VISION.md`
@@ -1662,13 +1711,21 @@ Two things the old wording also assumed and that are **not yet true**, both bloc
 ### Weeks 7–8 — output and consolidation
 Minimal Streamlit or notebook interface: query, volcano, provenance panel. Ambiguity and correction status visible everywhere a number appears. ADRs 0004–0014 written. Rebuild tested against the full dataset.
 
-**The *query* half landed 2026-08-09; the interface did not.** `bzk/query/` answers the five
-questions an interface would ask, and *"ambiguity and correction status visible everywhere a number
-appears"* is enforced there rather than deferred to the renderer: no bare number leaves the layer,
-every `prov:Entity` row carries its I5 provenance status, and an absent answer is a value from a
-closed set rather than an empty list. What is untouched is the volcano, the provenance *panel*, and
-anything that writes a file — which is also where I18's embargo check has to land (`HANDOFF.md` §8,
-EX).
+**The *query* half landed 2026-08-09, and the interface followed the same day.** `bzk/query/`
+answers the five questions and enforces *"ambiguity and correction status visible everywhere a
+number appears"* rather than deferring it to the renderer: no bare number leaves the layer, every
+`prov:Entity` row carries its I5 provenance status, and an absent answer is a value from a closed
+set rather than an empty list. `bzk/ui/app.py` is the minimal Streamlit interface over it — three
+panels, no chart, no export — and it carries that requirement one step further: the four `Absence`
+values render as **four distinct claims**, each naming the sibling a blank grid would collapse it
+onto, and the empty panels stay on screen rather than being hidden until they have rows.
+
+**What is untouched.** The volcano — there is nothing to plot, `DifferentialResult` being empty —
+and anything that writes a file, which is where I18's embargo check has to land (`HANDOFF.md` §8,
+EX). That trigger did **not** fire here: §8 I18's own sentence is *"queries and views within the
+local instance are unrestricted"*, a screen is such a view, and no download button was added. The
+*provenance panel* named in this block is partly met: I5's status is on every site row, but as a
+line of text rather than a panel of its own.
 
 *Exit:* *"which sites are lost on ISG15 knockdown across all my datasets"* returns a cited, provenanced answer, and every displayed number carries its inference status.
 

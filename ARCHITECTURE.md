@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.17 |
+| Version | 1.18 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -85,6 +85,7 @@ bzk/
   quant/         # DuckDB layer, normalisation
   query/         # the read path over Kùzu; returns records carrying their inference status
   stats/         # moderated t-test, BH, protein-level adjustment
+  ui/            # `streamlit run bzk/ui/app.py` — imports bzk.query and nothing else from bzk/
   provenance/    # PROV-O mapping, content hashing; raw_store.py is the content-addressed raw/
   drift.py       # `bzk drift` — validates the sequence archive against UniProt; writes a receipt
   http.py        # the injected-HTTP protocols the three network-touching modules share
@@ -117,6 +118,27 @@ file contained, and an adapter that filters silently makes that claim false — 
 rather than hide. This is not bookkeeping: `maxquant_sites.py`'s residue check produces the
 sequence-drift measurement on record in `ROADMAP.md` § Measured findings entirely through this
 channel, and a `logging.warning` would have left it unmeasurable.
+
+**`ui/` is the terminal consumer, one step past `query/` (2026-08-09).** The same boundary test
+places it: it **produces a screen consumed by a person**, and nothing in `bzk/` consumes it. That is
+the far end of the axis `curation/` sits at the near end of, so it is a sibling and not part of
+`query/` — a read layer whose only caller was its own renderer would have no reason to return
+records rather than strings. It is **not** `web/`, which is reserved for SvelteKit at v0.2 and is a
+different stack, and **not** `api/`, because FastAPI routes are consumed by a front end and this is
+one. It lives inside `bzk/` rather than beside it so `ruff` and `mypy` cover it on their existing
+targets.
+
+**It imports `bzk.query` and nothing else from `bzk/`.** No `kuzu`, no Cypher, no schema. The
+constraint is what makes *"the UI derives nothing"* checkable rather than a habit: a panel that
+needs a value `bzk/query/` does not return is a **read-layer gap to report**, and the import rule is
+what stops it being closed with a second Cypher query in the renderer instead.
+
+**Two things established about running it, 2026-08-09.** Kùzu takes a single writer lock, so the app
+**cannot read the graph while `bzk rebuild` holds it** — `query.connect` raises `IO exception: Could
+not set lock on file`, and the app renders that rather than crashing. And a Streamlit screen is a
+*view within the local instance*, which `ONTOLOGY.md` §8 I18 declares unrestricted, so it does not
+fire `HANDOFF.md` §8's EX trigger; a download button would, and there is none. That reading holds
+only while the app is served locally.
 
 **`query/` is the read path, and it is a sibling rather than part of `ontology/` (2026-08-09).**
 The boundary test this section applies to `curation/` is *what a module produces and who consumes

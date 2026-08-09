@@ -273,6 +273,31 @@ def unprovenanced(conn: kuzu.Connection) -> dict[str, tuple[int, int]]:
     return out
 
 
+# ── Enumeration: the ids a caller needs before it can ask any of the five questions ─────────────
+
+
+def site_ids(conn: kuzu.Connection) -> list[str]:
+    """Every `ModificationSite` id, sorted. See `analysis_ids` for why these two exist."""
+    return [str(r[0]) for r in _rows(conn, "MATCH (s:ModificationSite) RETURN s.id ORDER BY s.id")]
+
+
+def analysis_ids(conn: kuzu.Connection) -> list[str]:
+    """Every `Analysis` id, sorted.
+
+    **These two were added 2026-08-09 by the first caller, and the reason is worth keeping.**
+    `bzk/ui/` may import `bzk.query` and nothing else from `bzk/` — no `kuzu`, no Cypher — so that
+    *the UI derives nothing* is checkable rather than a habit. The first panel written against that
+    rule immediately needed a list of site ids to put in a selector, which this layer did not
+    expose; the first draft reached for `_rows` with a `MATCH` in it, which is precisely the leak
+    the rule exists to catch. The gap was real and it is closed **here**, in the read layer, rather
+    than worked around in the renderer.
+
+    They are enumerations and not questions: no `Absence`, no status, no records. A caller that
+    needs to *know something* about a site calls `site_keying`; these only say which ones exist.
+    """
+    return [str(r[0]) for r in _rows(conn, "MATCH (a:Analysis) RETURN a.id ORDER BY a.id")]
+
+
 # ── Q1: the differential table for an Analysis ──────────────────────────────────────────────────
 
 

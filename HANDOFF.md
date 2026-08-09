@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.24 |
+| Version | 1.25 |
 | Last reviewed | 2026-08-09 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -142,9 +142,31 @@ the read path.** It said gene symbols had a settled *modelling* half with *"only
 1,059 `ENCODES` edges, three named absence states. **One of the three remains: `perseus_s0` over the
 retained matrix**, which waits on the meeting.
 
-~~**Nothing reads the graph.**~~ **The query half landed 2026-08-09.** `bzk/query/` answers five
-questions over Kùzu and is what an interface sits on; the interface, the notebooks and anything that
-writes a file are untouched, and the last of those is where I18 has to land (§8, EX).
+~~**Nothing reads the graph.**~~ ~~**The query half landed; the interface is unbuilt.**~~
+**Both landed 2026-08-09.** `bzk/query/` answers five questions over Kùzu and `bzk/ui/app.py` is
+the minimal Streamlit interface over it: three panels, `streamlit run bzk/ui/app.py`. The notebooks
+are untouched and still read the deposit rather than Kùzu.
+
+**Two things the interface established rather than assumed.** Kùzu takes a single writer lock, so
+the app **cannot read the graph while `bzk rebuild` holds it** — `query.connect` raises
+`IO exception: Could not set lock on file`, verified 25 s into a running rebuild, and the app
+renders that state rather than a traceback or a silent retry. And **I18's EX trigger did not fire**:
+§8 I18 says *"queries and views within the local instance are unrestricted"*, a screen is such a
+view, and there is no download button — one would fire it, and a test asserts its absence. That
+reading holds only while the app is served locally, which the entry does not say and this does.
+
+**One read-layer gap reported and deliberately not closed.** A caller cannot ask whether an absent
+symbol's locus is present under another name: `DDX58` returns `UNATTRIBUTABLE` while `RIGI` is
+present at `hgnc:HGNC:19102`, and nothing joins them. The UI shows both and links neither, because
+making the comparison for the reader would assert a synonymy the graph does not hold. **Whether the
+read layer should offer that comparison is open**; the renderer is the wrong place to decide it.
+
+**One gap found and closed, and the way it was found is the point.** `bzk/ui/` may import
+`bzk.query` and nothing else from `bzk/`. The first panel written against that rule needed a list
+of site ids for a selector, which the read layer did not expose, and the first draft reached for a
+`MATCH` in the renderer — exactly the leak the rule exists to catch. `query.site_ids` and
+`query.analysis_ids` were added to the read layer instead. A test parses every import in
+`bzk/ui/*.py` and fails on `kuzu` or on any `bzk` import outside `bzk.query` / `bzk.ui`.
 
 **Corrected 2026-08-09: this block implied that what remains waits on the meeting, and one item does
 not.** `perseus_s0` does. **Running the Perseus adapter on a real export does not**, and it was

@@ -11,16 +11,23 @@ query would have made coverage a function of who runs the suite, which is the th
 The two costs are stated rather than absorbed, and both were measured on 2026-08-09 rather than
 estimated — neither had a figure in the tree before that, only the mechanism:
 
-* **Coverage.** With no `~/.bzk-omics` at all, **10 of 372 tests skip**: seven here, two in
+* **Coverage.** With no `~/.bzk-omics` at all, **10 of 383 tests skip**: seven here, two in
   `test_pxd018299_baseline.py`, one in `test_protein_groups.py`. **Ten tests, not four gate sites**
   — the gate is per-fixture and per-test, and counting modules understates it by more than half.
-* **Wall clock.** This module alone runs in **37.3 s**, because `site_keying` is called 2,029 times
-  to check a property only meaningful over all of them. The full suite is **168.7 s** with a graph
-  present and **55.7 s** without one, so what the skipping tests cost between them is ~113 s — most
-  of the suite's runtime, for ten tests.
+* **Wall clock.** This module alone runs in **46.9 s**, because `site_keying` is called 2,029 times
+  to check a property only meaningful over all of them. The full suite is **233–302 s (n = 3)**
+  with a graph present and **76.6 s** without one.
 
-Both were accepted deliberately, and the second is the one to watch: a suite that is three times
-slower where the data exists is a suite people run where it does not.
+**The wall-clock figures were narrower here on 2026-08-09 and the narrowing was wrong.** This block
+read *"37.3 s"* and *"168.7 s … 55.7 s"*, each from a single run, and the next session's
+measurements were 46.9 s and 233/238/302 s against a suite that had grown by five seconds of new
+tests. So the movement is the machine, not the code, and the same mistake was made here as with
+`bzk rebuild`'s wall clock two entries running: **a figure from one session is not a baseline.**
+The range is stated with its *n* and nothing finer than *three to five minutes with a graph, about
+a minute without* is available from this instrument.
+
+Both costs were accepted deliberately, and the coverage one is the one to watch: a suite that is
+three times slower where the data exists is a suite people run where it does not.
 
 Everything asserted here is a figure recorded in `ROADMAP.md` or `ONTOLOGY.md`, so a divergence is a
 finding about the graph rather than about this file.
