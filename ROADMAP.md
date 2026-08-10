@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.50 |
+| Version | 1.51 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -2479,12 +2479,14 @@ tension.** That is two `DifferentialResult`s over one observation — corrected 
 Q7's own entry rather than re-derived. The fixture is the demonstration: `bzk:dr1`, `bzk:dr3` and
 `bzk:dr4` each carry `RESULT_FOR_SITE` alone and `bzk:dr2` carries `RESULT_FOR_PROTEIN` alone.
 
-**`ONTOLOGY.md`:1073's `ADJUSTED_BY` collision is read and not closed here.** It sits in the same
+**`ONTOLOGY.md` §11 Q7's `ADJUSTED_BY` collision is read and not closed here.** It sits in the same
 entry: `ADJUSTED_BY` is absent from §3's anchor list, so two corrected results differing only in
 their baseline both mint `bzk:1529fff2e684983da8b8983e266cefb5`. I20 does not touch it and its
 reasoning does not depend on it — I20 counts edges out of a result and never keys one — so this
 turn neither closes nor disturbs it. Registered here so the disclaimer is on the record rather than
-implied by silence.
+implied by silence. **Closed the next day by ADR-0025**, and this paragraph's line reference was
+`:1073` when written and is `:1100` now — corrected here, and the reason it is worth a sentence is
+that a line number is the one cross-reference form in this tree that rots without anything moving.
 
 #### (2) The coverage question, measured before being characterised
 
@@ -2888,6 +2890,51 @@ a faithful future implementation and is not a claim about today's graph.
 **What would make this turn a failure rather than a decision.** Amending `schema.py` and
 `ONTOLOGY.md` together so the mirror check never had the chance to fail, or reporting a green guard
 without saying that nothing produces the case it guards.
+
+#### Outcome, 2026-08-10 — every prediction held, and the amendment landed
+
+| Prediction | Result |
+|---|---|
+| **1,362** ids move — every `DifferentialResult` and no other | **held** — `DifferentialResult: 1362 → 1362, left 1362, arrived 1362, unchanged 0` |
+| **0** non-`DifferentialResult` ids move; 15 labels, 14,134 ids | **held** — 14 of 15 labels unmoved, totals identical |
+| Every edge count identical | **held** |
+| Refusals **27**, sites **2,029** | **held** |
+| The five queries | **held** — `(0,1)`/`(0,2029)`/`(0,1362)`; 1,362 rows and `NONE_FOUND` twice; one analysis at I15; `NOT_RETAINED`; 12 of 14 |
+| The collision separates after and collides before | **held** — `bzk:1529fff2…` twice before; `bzk:c5ab52d2…` and `bzk:8fdc78a9…` after |
+| `tests/test_schema.py` fails between the two edits | **held**, and it failed **twice** — see below |
+
+**The mirror failed in two directions, and the second was the more useful.** With §3 amended and
+`schema.py` untouched, `test_schema_identity_matches_ontology_table` named the missing anchor:
+`Extra items in the right set: ('DifferentialResult', 'ADJUSTED_BY')`. So did
+`test_identity_table_matches_ddl` — but for a different reason, and it caught a mistake in the
+amendment rather than the amendment's absence. **The first draft put the explanation inside §3's
+anchors cell**, and that cell is parsed for backticked all-caps tokens; the prose contained
+`` `MANY_ONE` ``, which the parser read as a relationship, and the guard fired with
+*relationship(s) {'MANY_ONE'} cited without a node type*. That guard exists so *a bare edge name
+cannot slip past the direction check*, and it worked on the first thing that tried it. The
+explanation moved below the table, where §3's other notes live, and the cell carries citations only.
+
+**Five mutations, each read back off disk before its run.** Removing the anchor → four
+`test_keys.py` failures plus the mirror. Pointing it at `Analysis` instead → the same five, which is
+the right answer: an anchor on the wrong label is not a weaker version of this one. Widening
+`ADJUSTED_BY` to `MANY_MANY` → **two** failures, `test_the_self_anchor_depends_on_a_many_one_relationship`
+and the DDL mirror, which is the load-bearing dependency made visible. Adding a **second**
+self-anchor → **one** failure, the structural claim alone. Omitting a null anchor from the tuple
+instead of rendering it → **one** failure, the test that explains why 1,362 ids moved. The last two
+are the sharpest: each fires at exactly the assertion that names it.
+
+**One new assertion matched the sweep and it is pinned, not withdrawn.**
+`self_anchored == {'DifferentialResult': ['DifferentialResult']}` — a literal display against a value
+computed from `schema.IDENTITY`, caught by Pass D because the call is in the binding rather than the
+comparison. Made to fail by the second-self-anchor mutation. The other four guards' equalities do
+not match the net: `adjusted_by.multiplicity == "MANY_ONE"` and `.pairs == (…)` compare an attribute
+against a literal with no call on either side and no bare name, so neither pass reaches them. Floor
+re-denominated **942 → 949**, same 27 modules.
+
+**What this turn did not do.** No acyclicity check: a two-cycle and a self-loop validated before the
+amendment and validate after, and the amendment makes them unkeyable rather than illegal. `schema.py`'s
+`ADJUSTED_BY` multiplicity is untouched, as scoped — the amendment depends on it rather than forcing
+it. And the guard is exercised only by a constructed pair, because no writer here emits `applied`.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07

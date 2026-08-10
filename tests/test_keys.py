@@ -509,6 +509,89 @@ def test_protein_sequence_without_a_version_is_refused() -> None:
         protein_sequence_key("uniprot:P20591", None)
 
 
+# ── ADR-0025: the baseline a correction was computed against is part of its identity ────────────
+
+CORRECTED = {"protein_adjusted": "applied", "adjustment_method": "residual_vs_protein_lfc"}
+CORRECTED_ANCHORS = {
+    "Analysis": "bzk:an1",
+    "SiteObservation": "bzk:obs1",
+    "Contrast": "bzk:c1",
+}
+
+
+def test_two_corrections_against_different_baselines_are_two_results() -> None:
+    """**The collision §11 Q7 demonstrated on 2026-08-07, now refused by the identity tuple.**
+
+    Before ADR-0025 both of these minted `bzk:1529fff2e684983da8b8983e266cefb5` — the id that entry
+    records — because the tuple contained no trace of the baseline at all. It is reachable under a
+    faithful implementation rather than a contrived one: at I14's measured 82% multi-mapping an
+    honest correction of an ambiguous site is computed against *each* candidate parent, and
+    `ADJUSTED_BY` is `MANY_ONE`, so each correction needs its own result.
+
+    **Nothing in this repository produces the case, and that is why this test exists rather than a
+    fixture.** `perseus.py` records protein-grain results as uncorrected by construction, the 1,362
+    results in the graph are all `not_applied`, and no writer emits `applied` at all. A pass here is
+    evidence the key builder separates two baselines — not evidence that anything produces two.
+    """
+    against_dr2 = evidence_id(
+        "DifferentialResult", CORRECTED, {**CORRECTED_ANCHORS, "DifferentialResult": "bzk:dr2"}
+    )
+    against_dr9 = evidence_id(
+        "DifferentialResult", CORRECTED, {**CORRECTED_ANCHORS, "DifferentialResult": "bzk:dr9"}
+    )
+    assert against_dr2 != against_dr9
+    # Asserted against the recorded digest, not merely against each other: *these two differ* would
+    # also hold if the anchor were dropped and some other field had been perturbed by accident.
+    assert "bzk:1529fff2e684983da8b8983e266cefb5" not in (against_dr2, against_dr9)
+
+
+def test_the_baseline_reaches_the_tuple_by_name() -> None:
+    """The line that was missing. Asserted on the tuple rather than on the digest, because a digest
+    changing says something moved and not that the right thing did."""
+    tuple_text = identity_tuple(
+        "DifferentialResult", CORRECTED, {**CORRECTED_ANCHORS, "DifferentialResult": "bzk:dr2"}
+    )
+    assert "@DifferentialResult=bzk:dr2" in tuple_text
+
+
+def test_an_uncorrected_result_renders_a_null_baseline_rather_than_omitting_it() -> None:
+    """Why the amendment re-minted all 1,362 ids, none of which carries the edge.
+
+    A null anchor still renders, so a result that will never be corrected has its tuple changed by
+    an anchor it does not use. Asserted so the cost of the next anchor is visible before it is paid
+    rather than discovered by a diff.
+    """
+    tuple_text = identity_tuple(
+        "DifferentialResult",
+        {"protein_adjusted": "not_applied", "adjustment_method": None},
+        {"Analysis": "bzk:an1", "SiteObservation": "bzk:obs1", "Contrast": "bzk:c1"},
+    )
+    assert "@DifferentialResult=" in tuple_text
+
+
+def test_adjusted_by_is_the_only_self_referential_anchor() -> None:
+    """ADR-0025's structural claim, checked against the map rather than stated in prose.
+
+    A second one would inherit the ordering obligation and the unkeyable-cycle property without
+    anyone deciding to take them on, which is the shape of change this assertion exists to stop
+    passing silently.
+    """
+    self_anchored = {
+        label: [a for a, _rel in spec.anchors if a == label]
+        for label, spec in schema.IDENTITY.items()
+        if any(a == label for a, _rel in spec.anchors)
+    }
+    assert self_anchored == {"DifferentialResult": ["DifferentialResult"]}
+
+
+def test_the_self_anchor_depends_on_a_many_one_relationship() -> None:
+    """§3: an anchor must be single-valued. This one is, only because `ADJUSTED_BY` is `MANY_ONE` —
+    a multiplicity that was incidental before ADR-0025 and is load-bearing after it."""
+    adjusted_by = next(r for r in schema.REL_TABLES if r.name == "ADJUSTED_BY")
+    assert adjusted_by.multiplicity == "MANY_ONE"
+    assert adjusted_by.pairs == (("DifferentialResult", "DifferentialResult"),)
+
+
 # ── The builder covers every label the schema declares ──────────────────────────────────────────
 
 

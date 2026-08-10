@@ -333,6 +333,12 @@ IDENTITY: dict[str, Identity] = {
             ("SiteObservation", "RESULT_FOR_SITE"),
             ("ProteinObservation", "RESULT_FOR_PROTEIN"),
             ("Contrast", "RESULT_IN_CONTRAST"),
+            # The **only self-referential anchor** in this map (ADR-0025, 2026-08-10). A corrected
+            # result is identified partly by the baseline it was computed against; without it two
+            # corrections of one site against different parents mint one id. Single-valued because
+            # `ADJUSTED_BY` is MANY_ONE below — that multiplicity is load-bearing now, not
+            # incidental, and widening it would remove this anchor by §3's own rule.
+            ("DifferentialResult", "ADJUSTED_BY"),
         ),
     ),
     "Person": Identity(fields=("orcid", "name")),

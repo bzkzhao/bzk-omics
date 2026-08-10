@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.34 |
+| Version | 1.35 |
 | Last reviewed | 2026-08-10 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -282,6 +282,23 @@ on the record: a truncated `protein_groups` download that succeeded on retry, an
 self-match that exits the wrapper 144 while the rebuild exits 0 — the same one as last time.
 `OPERATIONS.md` §1.1 now names `~/.bzk-omics` the **input**, `.cold1` a **leftover** that may be
 deleted, and `.warm` a **reproducibility instrument** that is not deleted and is not an input.
+
+**`ADJUSTED_BY` is an anchor — ADR-0025, 2026-08-10, and §11 Q7's second half is closed.** A
+corrected result is now identified partly by the baseline it was computed against; without it two
+corrections of one site against different parents minted one id, and that collision reproduced
+digit for digit against shipped code — `bzk:1529fff2e684983da8b8983e266cefb5`, the id Q7 recorded on
+2026-08-07 — before the amendment separated them. **Q7's *free today and will not stay free* was
+right and this repository did not act on it**: the differential writer landed 1,362 results on
+2026-08-09, so **1,362 of 1,362 ids moved**, every one for an anchor it does not use, because a null
+anchor still renders. Paid rather than avoided, because the cost was established first — nothing
+outside the graph cites a live result id, `rebuild` drops them and the differential regenerates
+them. **It is the first self-referential anchor in the identity table.** Structural validation is
+order-blind, so the ordering obligation is the producer's; `ADJUSTED_BY`'s `MANY_ONE` is what makes
+the anchor single-valued and is **load-bearing now rather than incidental**; and a cycle becomes
+unkeyable while a hand-written one validates exactly as before, with no acyclicity check asserted
+anywhere. The guard covers a case **nothing in this repository produces** — all 1,362 results are
+`not_applied` and no writer emits `applied` — so a green test says the key builder separates two
+baselines, not that two exist.
 
 **The enumeration is the more useful half, and it found three kinds where the model had one.**
 Declared-filter drops (43 decoys and contaminants, 242 localisation, 667 presence rule) are a

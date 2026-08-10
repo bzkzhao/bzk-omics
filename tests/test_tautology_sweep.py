@@ -306,6 +306,17 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "evidence_id('Analysis', protein) == evidence_id('Analysis', dict(protein))",
             1,
         ),
+        # ADR-0025's structural claim, classified 2026-08-10 and the turn's only new match. Not an
+        # instance: the right side is a literal display and the left is computed from
+        # `schema.IDENTITY`, which is not the expression that produced it. Made to fail by adding a
+        # second self-anchor (`("ProteinAssignment", "SUPERSEDES")`) — one failure, this test alone.
+        # Pass D catches it rather than Pass C, because the call is in the binding
+        # (`schema.IDENTITY.items()`) and not in the comparison.
+        (
+            "test_keys.py",
+            "self_anchored == {'DifferentialResult': ['DifferentialResult']}",
+            1,
+        ),
         ("test_keys.py", "protein == 'uniprot:P20591'", 1),
         ("test_keys.py", "sequence == 'uniprot:P20591#sv4'", 1),
         ("test_keys.py", "site == 'uniprot:P20591#sv4#K48#unimod:121'", 1),
@@ -799,10 +810,11 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # exists to replace, so the number is re-read from `sweep()` rather than incremented.
     #
     # 926 -> 942 and 26 -> 27 on 2026-08-10, for I20's cases and
-    # `tests/test_query_absence_coverage.py` (the twenty-seventh). Checked rather than assumed: the
-    # floor was read off `sweep()` again, and the `>=` did not fail on the additions — it cannot,
-    # which is the standing reason this line moves by hand.
-    assert modules >= 27 and asserts >= 942, (
+    # `tests/test_query_absence_coverage.py` (the twenty-seventh); then 942 -> 949 the same day for
+    # ADR-0025's five guards, no new module. Checked rather than assumed each time: the floor is
+    # read off `sweep()` again, and the `>=` did not fail on the additions — it cannot, which is
+    # the standing reason this line moves by hand.
+    assert modules >= 27 and asserts >= 949, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
