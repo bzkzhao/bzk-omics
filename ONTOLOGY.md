@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.34 |
+| Version | 1.35 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -933,6 +933,23 @@ Normative. Violations are ingestion errors, not warnings.
   difference and had to argue that its cause was in this repository rather than at UniProt; a second
   run with no difference is what turns that argument into a measurement, because an internal cause
   would have recurred and an external one had no opportunity to appear.
+
+  **A third time, 2026-08-10, and what it adds is the code that changed rather than the day that
+  passed.** Five things had landed since the second rehearsal — the MaxQuant protein adapter, I20 and
+  its checker, the empty-table coverage guard, the differential writer, and eight ADRs — so this is
+  the first cold rebuild whose *code* differs from the graph it is compared against. It reproduced
+  **15 labels, 14,134 ids, symmetric difference 0 on every label**, every edge count identical,
+  refusals 27, and a cache identical in file set, in every sequence byte, in every pin and in the
+  same **7** `AMBIGUOUS` snapshots; the fetch count was **5,273** for the third consecutive run.
+  **I20 is the reason this run says something the second could not**: it runs at write time over
+  every one of the 1,362 `DifferentialResult`s the second command writes, so a cold replay now
+  passes through a check that did not exist when the reference graph was built, and the graph is
+  unchanged by it.
+
+  **The same caveat applies with one day less force and is not dropped.** A day is still far inside
+  UniProt's release cadence, so this is again no evidence about a release boundary. What is new is
+  that *the reader of the inputs moved and the output did not* — which is the property I9 actually
+  claims, and the one the two same-code runs could not separate from *nothing moved at all*.
 - **I10 — Unattributed enzymes.** No `SiteObservation` may be presented as the product of a named enzyme except through a live `EnzymeAssociation`. A site whose modifier is assigned but whose enzyme is not is displayed as *unattributed*, never as the canonical writer or eraser for that modifier.
 - **I11 — Quantitative retention.** Every observation persists its per-sample quantitative values in the columnar store, not merely the statistics derived from them. No pipeline stage may discard the matrix after computing a `DifferentialResult`. This is what makes the statistical layer genuinely pluggable: any test — moderated *t*, permutation with s0, or something not yet written — is recomputable from stored values without re-ingestion. A platform retaining only log₂FC and adjusted *p* is married to whichever test produced them.
 - **I12 — No tryptic assumptions.** Core code makes no assumption that peptides terminate in K or R, that a peptide carries at most one modification, or that a peptide maps to exactly one protein. Immunopeptidomics violates the first, multi-modified peptides the second, shared peptides the third. These are free to accommodate now and expensive to retrofit.

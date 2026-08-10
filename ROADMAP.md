@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.48 |
+| Version | 1.49 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -2723,6 +2723,67 @@ receipt, and `bzk drift`'s two runs both happened in `.warm`. Over `.warm` it sa
 drift-checked 2 day(s) ago over a DIFFERENT set (2,845 then, 3,014 now)*, which is the archive
 digest doing exactly what it was written for. So the line does not conflate *this archive was never
 checked* with *the command has never run*, and no fix is proposed.
+
+
+#### Outcome, 2026-08-10 — every prediction held, and two figures widened
+
+| Prediction | Result |
+|---|---|
+| Per-label diff against the live tree: 15 labels, 14,134 ids, symmetric difference 0, edge counts identical | **held** — `labels whose id SET differs: none` |
+| `Gene` 1,039, `ENCODES` 1,054, refusals 27, sites 2,029, `DifferentialResult` 1,362 | **held**, all five |
+| Cache: 2,260 / 3,013 / 2,182, **7** `AMBIGUOUS`, digests `cacd8d24…` and `01b0e854…` | **held** — entry, sequence and pin set diffs all empty, both digests equal |
+| Fetch count **5,273** | **held** — the same integer a third time |
+| Suite: **435** tests, **0** skipped with the graph; **11** with no `~/.bzk-omics` | **held** — 435 passed in 296.58 s; 424 passed, 11 skipped in 97.85 s |
+| The five queries | **held** — `(0,1)`/`(0,2029)`/`(0,1362)`, 1,362 rows and `NONE_FOUND` twice, one analysis at I15, `NOT_RETAINED`, 12 of 14 |
+| §4.1 installs as written | **held** — `uv sync --frozen`, exit 0, no edit to the procedure |
+
+**The suite figure is a measurement and it is 435, against the 391 this section recorded** for the
+first rehearsal. No running total was kept across the five turns that grew it, which is why it is
+reported rather than derived.
+
+**Two figures widened, and neither was predicted, correctly.** The cold rebuild took **2,396.2 s
+(39 m 56.2 s)** — **22 s above** the top of the *n* = 2 band it was compared against. No wall-clock
+prediction was registered because §5 puts this instrument's resolution at nothing finer than about
+two minutes, and 22 s is an order of magnitude inside that; the range moves to **37 m 14 s –
+39 m 56 s, *n* = 3**. The install took **9.1 s** against 7.5 s and 6.0 s, so §4.1's figure becomes
+**6.0–9.1 s, *n* = 3**. Both are widenings of an interval that a smaller *n* could not have
+anticipated, which is the correction this document has now applied to the same two numbers three
+times.
+
+**The mid-run rate was polled at 60-second spacing and the spacing is recorded with it**, per the
+12× error this section carries: **~129 round trips per minute**, flat from the first sample to the
+last, which is 0.47 s per trip. That is the *within-run* rate and it sits between the second run's
+706-second window (0.50 s) and the whole-run averages (0.40–0.44 s), so the non-flatness the second
+run found is confirmed with a coarser clock rather than contradicted.
+
+**Two failures, in the order they happened.**
+
+**(1) `python -m bzk.sources.protein_groups` died after 63.8 s** with
+`requests.exceptions.ChunkedEncodingError: ('Connection broken: IncompleteRead(6895685 bytes read,
+9165560 more expected)')` — a truncated download of the 16 MB proteinGroups file, leaving **3 of 4**
+`raw/` objects present. Re-running it succeeded in 16.1 s. **This is a transient and not a procedure
+defect**, and it is recorded rather than smoothed over because the procedure has no retry and the
+next person will meet it: the fetcher is not idempotent-by-resume, it simply refetches, and the
+content store's digest addressing is what makes a second attempt safe. All four objects verified
+afterwards — every directory name equals the SHA-256 of the file inside it, and all four digests
+equal the live tree's.
+
+**(2) The background wrapper exited 144 while the rebuild exited 0.** `pkill -f "cold3/poll.sh"`
+matched its own shell's command line, which contains that string, and killed the wrapper. The
+rebuild's own `EXIT=0` and its full report were already in the log. Same error as the second
+rehearsal; no measurement was affected, and it is named again because it is a property of the
+harness rather than of the tree.
+
+**The registered outcomes, resolved.** The result is **identical**, the weakest of the four, and it
+is weaker still than the second rehearsal's for the reason that section already states — one day is
+far inside UniProt's release cadence. What this run adds that the second could not is that **the
+code moved and the output did not**: five landings separate this clone from the reference graph, and
+I20 now runs at write time over all 1,362 `DifferentialResult`s the second command writes. None of
+the other three outcomes arose. No refusal delta (27 exactly, so the amended-sequence case named in
+advance did not fire), no `Gene` or `ENCODES` movement, and no id moved.
+
+**`.cold1` was not deleted in this turn.** The decision records that it may be; acting on it is not
+a measurement and nothing here needed the space.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07
