@@ -156,6 +156,17 @@ class RefusalAnswer:
     omitted, because *the population report is not reconstructible from the graph* is a fact about
     stored content that a caller should be able to discover by asking rather than by reading a
     document.
+
+    **Re-examined the same day and left standing on purpose, which is different from left alone.**
+    Whether a refusal should be retained was taken up and answered *no* at the node level: it has no
+    entity to be, `evidence_id` refuses a label §3 does not carry, and `unprovenanced` iterates §7's
+    `prov:Entity` list, so such a node would sit outside the only invariant this module enforces.
+    ADR-0004's rule puts a per-input-row fact in the columnar store, which `bzk/query/` does not
+    reach — so storing it there would move this gap rather than close it, in the way
+    `substantially_imputed = None` already documents. `adapters/base.py` carries the three-kinds
+    enumeration that goes with the decision. **`NOT_RETAINED` therefore keeps a live case**, and it
+    is the only one of the four `Absence` values that does: it is the answer to a question no query
+    can answer, as distinct from one this graph happens not to hold.
     """
 
     dataset_id: str | None

@@ -57,6 +57,30 @@ class Refusal:
     `reason` is a short stable slug so refusals can be counted by kind; `detail` is for the human
     reading the report and may name values. Deliberately not an exception: one unusable row must not
     sink a batch of thousands, and a per-row raise would make the count unobtainable.
+
+    **The model is unchanged as of 2026-08-09; what that day added is the boundary around it.**
+    Enumerating every population that loses rows found **three kinds and not one**, and this type is
+    only the second:
+
+    * **Declared-filter drops** — decoys and contaminants (43), localisation (242), the presence
+      rule (667). The criterion is stated in advance and recorded in `Analysis.filters_applied`;
+      nothing about an individual row is interesting, because the row failed a threshold. These are
+      **not** `Refusal`s and must not become them: a count against a declared filter is a different
+      fact from a row the platform could not key.
+    * **Keying failures** — this type. 27 on PXD018299: `residue_mismatch` 15, `unresolved_protein`
+      11, `no_razor_pick` 1, behind which sit 7 accessions the resolver could not key. The
+      platform's own machinery failed against a specific row, and the row is worth naming
+      individually — residue drift is a finding about UniProt rather than about data quality.
+    * **Unreadable input** — `perseus.py` raises `PerseusError` for a missing column or an
+      undeclared contrast and produces **no `Refusal` at all**. That is not a second adapter
+      disagreeing with the sentence above: *deliberately not an exception* is about **rows**, and a
+      file with no usable column has no rows to refuse.
+
+    **A refusal is not an entity**, decided the same day and recorded in `ROADMAP.md`
+    § *Measured findings*: it has no id by construction, `evidence_id` refuses a label §3 does not
+    carry, and `unprovenanced` iterates §7's `prov:Entity` list — so a node type here would sit
+    outside the one invariant the read layer enforces. Nothing is stored; `query.refusals` answers
+    `NOT_RETAINED` and that remains true.
     """
 
     row: str

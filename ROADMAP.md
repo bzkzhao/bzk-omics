@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.42 |
+| Version | 1.43 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -2195,6 +2195,69 @@ query return something is what step 0 was told not to do.**
 **No collision sweep is predicted**, because step 0 does not land on a node type and there is nothing
 to sweep. **The interface is not touched**: nothing stored changes, so nothing on screen changes, and
 `absences_panel` already renders `NOT_RETAINED` with its detail beneath the heading.
+
+
+### Refusals are not entities, and the enumeration was the finding, 2026-08-09
+
+**Run against the pre-registration above. Every prediction held and nothing was stored.**
+
+| Prediction | Result |
+|---|---|
+| No id moves and no count changes: 14,134 ids over fifteen labels | **held** — every per-label set, edge count and partition identical |
+| Refusal counts: 27 (15 / 11 / 1), 7, 0, 667, 43 and 242 | **held**, all measured rather than quoted |
+| `query.refusals` → `NOT_RETAINED`, `reasons = ()` | **held**, unchanged |
+| The other four queries unchanged | **held** — 1,362 rows for `welch_t`, `NONE_FOUND` twice, `(0, 1362)` unprovenanced, one analysis satisfying I15, 12 of 14 |
+| `NOT_RETAINED` keeps a live case | **held**, and it is now the *only* value of the four whose case is a fact no query can answer |
+
+**No collision sweep was run and none was predicted**, because step 0 did not land on a node type.
+
+**The three structural facts that decided it, each probed rather than argued.** `unprovenanced`
+iterates §7's `prov:Entity` list, so a label outside it is neither provenanced nor flagged —
+`Modifier` has three rows and the query does not mention it. `evidence_id("Refusal", …)` raises
+*`'Refusal'` has no identity spec in `schema.IDENTITY`*, so identity is a precondition and not
+paperwork; composing one over `(dataset, row, reason)` would identify a thing that does not exist
+by a file-local MaxQuant id, and including `detail` would make prose identity-bearing. And
+ADR-0004's own rule — *one-per-entity is a graph property, one-per-entity-per-sample is columnar* —
+puts a per-**input-row** fact in neither, because there is no entity for it to be one of.
+
+**Why no legible form was written either, which is a decision and not an omission.** A count is
+one-per-`Analysis` and would be a graph property by the same rule. A **bare total** is the error
+`gene_absence` exists to refuse: *27 refused* says the population is incomplete without saying that
+**15 of them are sequence drift**, which is the finding. By reason needs a mini-format inside a
+`STRING[]` or a column per slug; columnar puts the breakdown where `bzk/query/` cannot reach, which
+is the state `substantially_imputed = None` already documents, so it would move the gap rather than
+close it. **Minting a shape to make one query return something is what step 0 was told not to do.**
+The absence is pinned by a test instead, both halves mutation-tested, so adding `Refusal` to the DDL
+or an identity row for it fails rather than passing quietly.
+
+**Three kinds, not five instances of one — and the model covered the middle one only.**
+
+| Kind | Members | Why it is its own kind |
+|---|---|---|
+| Declared-filter drops | decoys and contaminants **43**, localisation **242**, presence rule **667** | the criterion is stated in advance and lives in `Analysis.filters_applied`; the row failed a threshold and nothing about it individually is interesting |
+| Keying failures | the **27** — `residue_mismatch` 15, `unresolved_protein` 11, `no_razor_pick` 1 — behind which sit **7** accessions the resolver could not key | the platform's own machinery failed against a specific row; residue drift is a finding about UniProt, not about data quality |
+| Unreadable input | `perseus.py`'s four `PerseusError` raises, **0** `Refusal` objects | file-level. `base.py`'s *deliberately not an exception* is about **rows**, and a file with no usable column has no rows to refuse — so the two adapters do not conflict |
+
+**One premise in the enumeration was wrong, and measuring is what showed it.** The resolver's
+per-accession failures are **7**, all `no sequence_version` — not the 3,492 `unresolved` in
+`gene_absence`. Those 3,492 are candidate accessions the adapter never sends to the resolver;
+`ResolvedProteins.candidate_nodes` mints them with that value. Two populations wearing one word,
+and the eleven `unresolved_protein` refusals are rows over the seven, not over the 3,492.
+
+**The larger finding came from confirming the state, not from the question.** `python -m
+bzk.rebuild` **drops the 1,362 `DifferentialResult`s** along with the `Contrast`, the `Imputation`
+and one `Analysis`, and does not regenerate them — they are written by a second command the rebuild
+does not run, and `differential_table` goes back to `NOT_STORED`. **I9 is intact**: running the
+differential straight afterwards restored the graph to exactly its prior state — 14,134 ids over
+fifteen labels, every per-label set, edge count and `gene_absence` figure identical, and **4,090
+node and 5,450 edge statements**, which have no earlier baseline in the tree. What was false is
+`OPERATIONS.md` §5's opening sentence read as *this command restores the graph*; corrected there,
+and `HANDOFF.md` §3's ordering is now load-bearing rather than a convenience.
+
+**The interface was not touched, and that is the disclosure rather than an omission.** Nothing
+stored changed, so nothing on screen changed; `absences_panel` already renders `NOT_RETAINED` with
+its detail. `ROADMAP.md` § *Weeks 7–8*'s *ambiguity and correction status visible everywhere a
+number appears* is not engaged, because this turn put no number anywhere.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07

@@ -33,7 +33,10 @@ with it from here, because a renderer is not the only consumer.
    the two that produced none; `imputation_state` answers for it and returns `NONE_FOUND` for the
    others. Neither of those two call sites changed — the *answer* did, from a claim about the store
    to a claim about the analysis, which is exactly what an absence value buys and a bare `[]` would
-   have hidden. `refusals` still cannot be answered at all.
+   have hidden. `refusals` still cannot be answered at all — **and after the question was taken up
+   and answered on 2026-08-09, it is the one that stays that way**: a refusal is not an entity, so
+   there is nothing for this module to read. It is the only live case `NOT_RETAINED` has, which is
+   what keeps the fourth value from being a member with no instance.
 
 **What this module does not do.** It writes no file, so `ONTOLOGY.md` §8 **I18**'s embargo check
 does not land here and is not weakened here — `HANDOFF.md` §8's EX class puts it at the first

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.30 |
+| Version | 1.31 |
 | Last reviewed | 2026-08-09 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -66,6 +66,7 @@ uv sync --frozen                                        # build .venv (OPERATION
 .venv/bin/python -m bzk.sources.pride                   # fetch the deposit into the content store
 .venv/bin/python -m bzk.sources.protein_groups          # fetch proteinGroups + the two BJC tables
 .venv/bin/python -m bzk.rebuild                         # graph from the four I9 inputs
+#   ^ drops the computed results; the differential below must follow it (OPERATIONS.md 5)
 .venv/bin/python -m bzk.drift                           # validate the sequence archive, weekly
 .venv/bin/python -m bzk.sources.pxd018299_differential  # the differential run and its populations
 streamlit run bzk/ui/app.py                             # three panels over bzk/query/
@@ -226,6 +227,29 @@ denominator is per-sample in `quant.duckdb`; refusals are still `NOT_RETAINED`; 
 still 12 of 14; and §11 Q1's `Contrast` placement is not forced by one analysis over one dataset.
 `perseus_s0` still waits on the meeting, so the second baseline and its own recovery number do not
 exist yet.
+
+**Refusals: asked, answered no, and nothing stored — 2026-08-09.** A refusal is **not an entity**.
+It has no id by construction; `evidence_id` refuses a label §3 does not carry; `unprovenanced`
+iterates §7's `prov:Entity` list, so a `Refusal` node would sit outside the only invariant the read
+layer enforces; and §7 opens *provenance is a mapping, not a log*. ADR-0004's rule puts a
+per-input-row fact in the columnar store, which `bzk/query/` does not reach — so storing it there
+moves the gap rather than closing it. `query.refusals` still answers `NOT_RETAINED`, which is now
+**the only live case that value has**, and `tests/test_adapters_base.py` pins the absence so the
+next person re-opens the argument instead of discovering a hole.
+
+**The enumeration is the more useful half, and it found three kinds where the model had one.**
+Declared-filter drops (43 decoys and contaminants, 242 localisation, 667 presence rule) are a
+threshold's effect and belong to `filters_applied`; keying failures are the 27, behind which sit 7
+accessions the resolver could not key; unreadable input is `perseus.py`'s four `PerseusError`
+raises, which produce no `Refusal` at all and do not contradict `base.py` — *deliberately not an
+exception* is about rows. **One premise corrected on the way**: the resolver's failures are **7**,
+not `gene_absence`'s 3,492, which are candidates the adapter never sends to it.
+
+**And confirming the state found something bigger than the question.** `bzk rebuild` **drops the
+1,362 `DifferentialResult`s and does not regenerate them** — they come from a second command. The
+pair reproduces the graph exactly (14,134 ids, every per-label set identical), so I9 holds; what was
+false is `OPERATIONS.md` §5's sentence about what one command reconstructs, corrected there, and the
+order in §3's block above is now load-bearing rather than a convenience.
 
 **Two things the interface established rather than assumed.** Kùzu takes a single writer lock, so
 the app **cannot read the graph while `bzk rebuild` holds it** — `query.connect` raises

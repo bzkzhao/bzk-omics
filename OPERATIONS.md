@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.17 |
+| Version | 0.18 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `ARCHITECTURE.md`, `ONTOLOGY.md` |
 | Authoritative for | Installation, backup, cache policy, dependency pinning, rebuild discipline |
@@ -174,6 +174,8 @@ The same discipline applies to DuckDB and Polars, though both are more stable.
 ## 5. Rebuild discipline
 
 `bzk rebuild` drops the graph and the quantitative store, then reconstructs both from `raw/`, the curation export, and the current DDL.
+
+**It does not reconstruct everything the graph held — corrected 2026-08-09, by running it.** Since the `welch_t` results landed, a rebuild leaves `DifferentialResult`, `Contrast` and `Imputation` at **0** and `Analysis` at 2, because those are written by `python -m bzk.sources.pxd018299_differential`, a second command the rebuild does not run. Measured the same day: 3 → 2 analyses, 1,362 → 0 results, and `query.differential_table` back at `NOT_STORED`. **I9 is not violated and the distinction matters** — the results *are* derivable from the same four inputs, and running the differential straight after the rebuild restored the graph to **exactly** its prior state, 14,134 ids over fifteen labels with every per-label set, edge count and `gene_absence` figure identical. What is false is the sentence above read as *this command restores the graph*: it restores what the ingestion path writes. **`HANDOFF.md` §3's block lists the two in order and that order is now load-bearing** rather than a convenience — anything computed after ingestion has to be re-run behind every rebuild, and nothing today makes that automatic or reports that it was skipped.
 
 **Run it weekly, and after every schema change.** The claim in I9 — that schema change is a compute cost rather than a migration — is true only while this is verified. An untested rebuild path is an assumption, not an invariant.
 
