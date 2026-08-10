@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.53 |
+| Version | 1.54 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -2685,7 +2685,9 @@ resolution at *nothing finer than about two minutes*, the cold range is *n* = 2 
 instrument **does** resolve is the fetch count, which reproduced exactly across both prior runs, so
 that is where the falsifiable claim sits. If any rate is estimated mid-run the **poll spacing is
 recorded with it**: `ROADMAP.md` § *Measured findings* carries a 12× error that came from three spot
-counts with no clock.
+counts with no clock. **The requirement is met by an instrument rather than by discipline since
+2026-08-10** — `python -m bzk.fetch_progress` puts the interval on every sample line, so a
+figure taken with it cannot be reported without its clock.
 
 **Registered outcomes, weakest first.**
 
@@ -3089,6 +3091,80 @@ might have counted then is not recoverable from here.
 `Superseded by` row at all, and `0013` uses `| Field | Value |` where the others use `| | |`. An
 absent row means *not superseded*, which the guard reads correctly; a missing **Status** row would
 fail, because that one is asserted present.
+
+
+### Instruments the documents named that had no home, 2026-08-10
+
+**No pre-registration: this turn writes no nodes and predicts nothing about the graph.** State
+confirmed with the five checks only — a rebuild is not needed and none was run.
+
+**The poller. Four recorded figures rested on an instrument that was not in the repository.**
+`OPERATIONS.md` §5's 706-second window at 15-second spacing, `ROADMAP.md`'s 12× correction, the
+second rehearsal's window and the third's 60-second samples. No `poll.sh`, no `scripts/`, no
+`tools/` — each run rebuilt one from memory.
+
+**Where it landed, and the reasoning is the whole of the decision.** Three shapes were weighed. A
+root-level `scripts/` would falsify `ARCHITECTURE.md` §3's module tree, which enumerates that level,
+and would raise a fourth lint target — a question `CLAUDE.md` point 1 governs with two precedents,
+one widening and one permanent exclusion. A documented procedure in `OPERATIONS.md` costs nothing
+structurally and guarantees nothing. **Neither was needed, because `bzk/drift.py` is the exact
+precedent**: an operational instrument the platform does not import, living in `bzk/`, run as
+`python -m bzk.drift`. So `bzk/fetch_progress.py` is a module beside it — already inside `ruff bzk`
+and `mypy bzk`, so **no target widens and CLAUDE.md point 1 is not engaged**, and the module tree
+gains one line rather than a directory.
+
+**Nowhere was the third option and it was rejected on a cost that is now paid.** An instrument
+reconstructed each time is not a defect if what it measures is recorded with its spacing — but the
+same `pkill -f` self-match was written twice by the same process, and the fix is not a better
+pattern. **`pkill -f` matches the full command line of every process, and the killer's own argv
+contains the pattern**, so any pattern sufficient to find the poller is present in the process
+searching for it. `--watch-pid` asks the kernel about one pid; there is no pattern to match.
+
+**Establishing what the three pollers measured was required before choosing, and it produced a
+finding.** All three counted the same quantity — files arriving in `cache/uniprot/entry/` and
+`cache/uniprot/seq/`. **What differs is the unit, and the conversion is stated nowhere beside the
+figures**: the first reported *~1.0 s per accession*, the later two *0.50* and *0.47 s per round
+trip*. With 2,260 entries and 3,013 sequences a cold run is 2.3332 trips per accession, so
+1.0 / 2.3332 = 0.4286 — inside `OPERATIONS.md` §5's whole-run 0.40–0.44 s per fetch. The figures are
+one measurement in two units, and a reader comparing them without the factor reads a 2.5×
+disagreement that does not exist. The module prints both units on every line for that reason.
+
+**Eight mutations, each read back off disk before its run.** Removing the watched-pid stop, the
+backstop, the dead-pid branch, the spacing from the line, the previous-sample rate, the first-sample
+guard, the per-accession unit, and summing the two tiers at the point of reading — each fails the
+test that names it. **One fails by hanging rather than by going red**: with the backstop removed an
+unwatched poller has no termination condition at all, so the call never returns and the suite stops
+instead of failing. Measured at 45 s under the harness, and recorded in the test that owns it rather
+than softened with an in-process watchdog.
+
+**The commands, and the decision is not the one the framing suggested.** `pyproject.toml` declares
+no `[project.scripts]`, so `bzk rebuild` and `bzk drift` are not installed names. The shorthand
+appears in **37 places** across the document set, which reframes it: they are used as *names for two
+operations*, not as command lines, and rewriting 37 sentences into `python -m bzk.rebuild` would
+make the prose worse without making it truer. **Declaring console scripts was rejected** because
+`bzk rebuild` with a space is not a script name — it is a `bzk` executable with a subcommand
+dispatcher, a CLI this project has never had, that no run on record used, and that would change what
+an install produces to make sentences true about something never executed. So §5 declares the
+shorthand at its head, states the invocations, and **says what the decision costs**: a reader meeting
+one of the 37 without that paragraph can still type a command that does not exist. `:224` and `:279`
+carry the invocation inline as well.
+
+**It does not reach the three bare-`python` lines** at `HANDOFF.md`:241, :316 and :392. Those are
+about *which interpreter* — `python` against `.venv/bin/python` — and are separately named; this is
+about whether the name exists at all. Stated rather than swept in.
+
+**One of the two cited failure modes has no record in the repository, and this turn transcribes it
+rather than relocating it.** The `pkill` self-match is in `ROADMAP.md` twice and `HANDOFF.md` once.
+The stale-monitor echoes — a completed background run notifying twice through monitors still armed —
+appear in no document; they are from the session transcripts. Recorded here as transcription, which
+is a weaker provenance than everything around it.
+
+**No sweep matches were added.** The surface grew to 29 modules and 986 asserts and the match set did
+not move: every equality in the new module compares against a literal display, which Pass C excludes
+by construction. The floor moved 28/967 → 29/986 by hand, and that a growing surface added zero
+matches is exactly what the floor exists to keep visible, since the multiset alone would have said
+nothing. **File counts in three checks moved**, as expected of a committed module: `ruff` and `mypy`
+now cover **75** source files against 73, and the suite is **460** tests against 449.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07

@@ -860,8 +860,12 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # ADR-0025's five guards, no new module; then 949 -> 967 and 27 -> 28 for
     # `tests/test_decision_index.py` (the twenty-eighth). Checked rather than assumed each time:
     # the floor is read off `sweep()` again, and the `>=` did not fail on the additions — it
-    # cannot, which is the standing reason this line moves by hand.
-    assert modules >= 28 and asserts >= 967, (
+    # cannot, which is the standing reason this line moves by hand. Then 967 -> 986 and 28 -> 29
+    # for `tests/test_fetch_progress.py` — **which added no match at all**: every one of its
+    # equalities compares against a literal display, which Pass C excludes by construction. A
+    # turn that grows the surface and the match set by zero is exactly the case this floor exists
+    # to keep visible, since the multiset alone would have said nothing.
+    assert modules >= 29 and asserts >= 986, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

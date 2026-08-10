@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.36 |
+| Version | 1.37 |
 | Last reviewed | 2026-08-10 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -69,6 +69,7 @@ uv sync --frozen                                        # build .venv (OPERATION
 #   ^ drops the computed results; the differential below must follow it (OPERATIONS.md 5)
 .venv/bin/python -m bzk.drift                           # validate the sequence archive, weekly
 .venv/bin/python -m bzk.sources.pxd018299_differential  # the differential run and its populations
+.venv/bin/python -m bzk.fetch_progress --watch-pid $!   # beside a cold rebuild; records the spacing
 streamlit run bzk/ui/app.py                             # three panels over bzk/query/
 ```
 
@@ -298,6 +299,23 @@ unkeyable while a hand-written one validates exactly as before, with no acyclici
 anywhere. The guard covers a case **nothing in this repository produces** — all 1,362 results are
 `not_applied` and no writer emits `applied` — so a green test says the key builder separates two
 baselines, not that two exist.
+
+**The poller four figures rest on is in the repository — 2026-08-10, `bzk/fetch_progress.py`.**
+`OPERATIONS.md` §5 cited a 706-second window at 15-second spacing, `ROADMAP.md` three more pollers
+including the 12× correction, and **none of them existed**: each run rebuilt one from memory. It
+lives beside `drift.py` — an operational instrument the platform does not import, run as
+`python -m` — so no lint target widens and no root directory joins the module tree. **It terminates
+itself**, which is the failure that reached the record twice: `pkill -f` matches the full command
+line of every process and the killer's own argv contains the pattern, so a narrower pattern is the
+same bug waiting; `--watch-pid` asks the kernel about one pid and there is no pattern to match.
+Eight mutations, each read back off disk; one of them **hangs** rather than failing, which is
+recorded in the test that owns it. Establishing what the three pollers measured found the figures
+commensurable and the conversion unstated: one reported per accession and two per round trip, and
+2,260 entries with 3,013 sequences make 2.3332 trips per accession, so *~1.0 s per accession* and
+*0.43 s per fetch* are one measurement. **`bzk rebuild` and `bzk drift` are names, not executables**
+— `pyproject.toml` declares no `[project.scripts]` — and §5 now says so at its head rather than
+leaving 37 uses to be discovered; declaring a CLI was rejected because `bzk rebuild` with a space
+needs a subcommand dispatcher nobody has asked for and no run on record used.
 
 **The three ADR-number enumerations are guarded — 2026-08-10, `tests/test_decision_index.py`.**
 Nine assertions over `ARCHITECTURE.md` §5, README's Written and Queued tables and `decisions/`

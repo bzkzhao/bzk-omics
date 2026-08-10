@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.23 |
+| Version | 1.24 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -90,7 +90,9 @@ bzk/
   analysis/      # change-sets for runs the platform performed, over observations already stored
   ui/            # `streamlit run bzk/ui/app.py` — imports bzk.query and nothing else from bzk/
   provenance/    # PROV-O mapping, content hashing; raw_store.py is the content-addressed raw/
-  drift.py       # `bzk drift` — validates the sequence archive against UniProt; writes a receipt
+  drift.py       # `python -m bzk.drift` — validates the sequence archive; writes a receipt
+  fetch_progress.py  # `python -m bzk.fetch_progress` — polls cache growth during a cold
+                 # rebuild, recording the spacing with every sample; stops on --watch-pid
   http.py        # the injected-HTTP protocols the three network-touching modules share
   api/           # FastAPI routes
 web/             # SvelteKit
