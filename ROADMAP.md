@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.49 |
+| Version | 1.50 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -2784,6 +2784,110 @@ advance did not fire), no `Gene` or `ENCODES` movement, and no id moved.
 
 **`.cold1` was not deleted in this turn.** The decision records that it may be; acting on it is not
 a measurement and nothing here needed the space.
+
+
+### Pre-registration: `ADJUSTED_BY` as an anchor, 2026-08-10
+
+**Written and committed before any code.** Steps 0 and 0b were measured first; both permit the
+amendment, so the turn proceeds.
+
+**The starting state.** `ruff check bzk tests`, `ruff format --check bzk tests`, `mypy bzk tests`
+clean; `pytest tests/test_schema.py` 20 passed. Id set captured before anything: **15 labels, 14,134
+ids**, `DifferentialResult` 1,362.
+
+#### Step 0 — it is no longer free, and the cost is measured rather than characterised
+
+**The collision reproduces exactly against shipped code, before any amendment.** Two corrected
+results differing only in their baseline, keyed through `keys.evidence_id`, both mint
+**`bzk:1529fff2e684983da8b8983e266cefb5`** — the id §11 Q7's second half recorded on 2026-08-07,
+matched digit for digit. The tuple is the seven lines that record shows, and the baseline appears in
+none of them.
+
+**§11 Q7 says the amendment *is free today and will not stay free*. That sentence was true on
+2026-08-07 and is false now.** The differential writer landed 1,362 `DifferentialResult`s on
+2026-08-09. Measured by recomputing every one of them with the anchor added to the spec in memory:
+**1,362 of 1,362 ids move.** The `@ProteinObservation= null` line in the recorded tuple is exactly
+why — an absent anchor still renders, so adding one changes the tuple for results that will never
+carry the edge. **0 of the 1,362 carry an `ADJUSTED_BY` edge and all 1,362 are `not_applied`**, so
+every one of them moves for a field none of them uses.
+
+**What that costs, established rather than assumed.** Searched: **nothing outside the graph cites a
+live `DifferentialResult` id.** No test asserts one — `tests/test_query_real_graph.py` and
+`tests/test_rebuild.py` contain no `bzk:` literal at all; `tests/fixtures/valid_changeset.json` uses
+hand-written ids (`bzk:dr1`…`bzk:dr4`) that no builder recomputes; the only complete recorded id in
+the document set is the collision demonstration's, which is constructed and not live. `bzk rebuild`
+**drops** all 1,362 and `python -m bzk.sources.pxd018299_differential` regenerates them, which is
+§5's recorded two-command shape. So *ids move* is cheap here in a way it is not for
+`ModificationSite`, whose keys are cited by position in every downstream claim — and the reason is
+structural, not a matter of scale: these ids are **derived on demand and referenced by nothing**.
+
+#### Step 0b — the first self-referential anchor, probed rather than reasoned
+
+No `Identity` in `schema.py` anchors on its own label. Five probes against the shipped validator,
+because the differential turn's three wrong premises were found on this exact surface:
+
+| Probe | Result |
+|---|---|
+| Corrected result listed **before** its baseline in the node list | **validates** — and so does the reverse. ADR-0019 constrains *presence*, not order |
+| A **two-cycle**, `R1 ADJUSTED_BY R2` and `R2 ADJUSTED_BY R1` | **validates** today |
+| A **self-loop**, `R ADJUSTED_BY R` | **validates** today |
+| One result naming **two** baselines | **refused** — `STRUCTURE — ADJUSTED_BY is MANY_ONE` |
+| `evidence_id` called baseline-first on a DAG | keys both, `bzk:4a317881…` then `bzk:77aaecc7…` |
+
+**The self-anchor is workable and the ordering dependency is real but confined.** Structural
+validation is order-blind, so the change-set carries no ordering obligation; the obligation is on
+the **producer**, which must key the baseline before the result that anchors on it — a topological
+order, and `ADJUSTED_BY` being `MANY_ONE` means each node has at most one such edge, so the
+dependency graph is a forest.
+
+**`ADJUSTED_BY` is already single-valued, so §3:89's anchor rule is satisfied without touching
+multiplicity.** `MANY_ONE` from `DifferentialResult` to `DifferentialResult` means each *source*
+appears at most once, which the fourth probe confirms the validator enforces. **`schema.py`:588 is
+therefore not forced to change**, and the amendment depends on it staying `MANY_ONE` — that
+dependency is new and is recorded in the ADR.
+
+**One consequence the amendment introduces, named and not guarded.** A cycle validates today and
+will still validate after; what changes is that it becomes **unkeyable** — computing either id needs
+the other's. So `evidence_id` cannot *produce* a cycle, which is a strengthening, and a hand-written
+one remains constructible exactly as it is now. No acyclicity invariant is added: that is a new
+invariant and outside this turn's scope, and the amendment neither creates the hole nor widens it.
+
+#### Step 1 — the amendment and its record
+
+`ONTOLOGY.md` §3's identity table moves first, `schema.py`'s `IDENTITY` mirrors it, and
+`tests/test_schema.py` checks the mirror in four directions. **ADR-0025**, the next free number —
+`decisions/README.md`'s Queued table reserves only 0018, whose subject is typed API routes.
+
+**Status: `Proposed`.** Of README's three branches, `Superseded` is false — this record replaces no
+earlier decision, it completes one §11 Q7 left open — and `Accepted` would assert a review that has
+not happened, which is the branch nine of ten informative records took and the one the 2026-08-09
+convention exists to stop repeating.
+
+#### Step 2 — what the guard covers, stated so a pass cannot be misread
+
+The two-`evidence_id` demonstration is run **before** the amendment (it collides, shown above) and
+after (it separates), the same shape the I20 probe used. **The collision is unreachable through any
+current writer**: `perseus.py`:256 records protein-grain results as uncorrected by construction, the
+1,362 are all `not_applied`, and nothing emits `applied` at all. So the guard is exercised **only by
+a constructed case**, and a green test is evidence the key builder separates two baselines — not
+evidence that anything in this repository produces two. §11 Q7's 82%-multi-mapping argument is about
+a faithful future implementation and is not a claim about today's graph.
+
+**Predictions.**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| **1,362** ids move — every `DifferentialResult` and no other | per-label id-set diff against the capture | exact integer, exact set |
+| **0** non-`DifferentialResult` ids move; 15 labels, 14,134 ids, every other per-label set identical | the same diff | exact set equality |
+| Every edge count identical, including `RESULT_FOR_SITE` 1,362 and `WAS_GENERATED_BY` 1,362 | `store.count_edges` | exact integers |
+| Refusals **27**, sites **2,029**, `Gene` 1,039, `ENCODES` 1,054 | the rebuild's report | exact integers |
+| The five queries: `(0,1)`/`(0,2029)`/`(0,1362)`; 1,362 rows for `welch_t` and `NONE_FOUND` twice; one analysis at I15; `NOT_RETAINED`; 12 of 14 | the queries | exact |
+| The collision separates after the amendment and collides before | two `evidence_id` calls each side | exact — two distinct digests |
+| `tests/test_schema.py` fails on the §3 table before `schema.py` is amended | run it between the two edits | exact — the mirror check names the anchor |
+
+**What would make this turn a failure rather than a decision.** Amending `schema.py` and
+`ONTOLOGY.md` together so the mirror check never had the chance to fail, or reporting a green guard
+without saying that nothing produces the case it guards.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07
