@@ -570,6 +570,18 @@ def gene_symbols(conn: kuzu.Connection, symbols: Sequence[str]) -> list[GeneSymb
     reach the branch. The check is `Gene`-specific rather than *is the graph empty*, because the
     condition being reported is about the table this query reads and a graph with proteins and no
     genes is a real state — the resolver returning no usable cross-reference for any accession.
+
+    **The class is machine-checked since 2026-08-10, and the sentence above needed one word.** It
+    said *the only one of the five queries without it*, which was true of the four that carry an
+    `Absence` and silent about the rest: `__all__` exports **nine** queries, and five —
+    `site_keying`, `site_ids`, `analysis_ids`, `unprovenanced`, `gene_absence_census` — sat outside
+    any statement of the property. `tests/test_query_absence_coverage.py` now runs **all nine**
+    against a DDL-only graph and requires the classified answer, keyed off `__all__` so an added
+    export is unclassified rather than exempt. What it was written from is that none of the nine is
+    silent today: the two censuses key every category at zero and the two enumerations return `[]`,
+    which for an enumeration has one reading. So the guard freezes a property rather than repairing
+    one — and the *syntactic* version, *every query consults a table before it matches*, stays
+    rejected on the grounds this paragraph gives.
     """
     if "Gene" not in _node_tables(conn) or _count(conn, "Gene") == 0:
         return [

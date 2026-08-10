@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.46 |
+| Version | 1.47 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -2538,6 +2538,68 @@ entry (`connect`), which fails loudly by forcing a decision rather than skipping
 omission — keyed off a list someone maintains beside `__all__` rather than off `__all__` itself —
 or an I20 whose two mutations are caught by something other than I20. Both are the class recorded at
 `HANDOFF.md`:593 and :954, and both are tested for by mutating the thing the guard names.
+
+#### Outcome, 2026-08-10 — every prediction held, and the classification is self-checking
+
+| Prediction | Result |
+|---|---|
+| No id moves — 15 labels, 14,134 ids, every per-label set and edge count identical | **held**, id-for-id against the capture taken before the rebuild |
+| I20 refuses `neither` and `both`; exactly-one validates at both grains | **held** — the four probe cases invert exactly, each error naming `I20` |
+| Both refusals arrive at I20, not at structural validation | **held** — established by the pre-change probe, where all four validated |
+| Removing `"I20": _check_I20` fails exactly the two refusal tests and nothing else | **missed, and the miss is better than the prediction** — **four** tests fail, not two |
+| Every existing fixture already satisfies I20 | **held** — `bzk:dr1`, `bzk:dr3`, `bzk:dr4` carry `RESULT_FOR_SITE` alone and `bzk:dr2` `RESULT_FOR_PROTEIN` alone; 0 other tests moved |
+| The guard classifies 9 exports; a tenth fails, named | **held** — `Extra items in the right set: 'newly_added_query'` |
+| A changed signature fails through `bind` | **held** — `TypeError: missing a required keyword-only argument: 'grain'` |
+| The nine DDL-only values are what the guard asserts | **held**, unchanged from the pre-registered table |
+| The sweep floor does not fail on the additions and must be moved by hand | **held** — 26/926 → 27/942, re-read from `sweep()` |
+
+**The one miss is a prediction that was too narrow about its own guard.** Removing I20 from
+`_CHECKS` fails **four** tests: the two refusal cases, `test_I20_accepts_a_result_at_either_grain`
+and `test_valid_changeset_passes_every_check` — because `validate(..., only="I20")` raises
+`ValueError: unknown or non-write-time invariant` when the id is not registered. So the registry
+entry is guarded from both sides, by tests that assert the check *fires* and by tests that assert it
+*runs at all*, and the prediction counted only the first kind. Recorded as a miss because it was
+stated as an exact count.
+
+**Three mutations on I20, each read back off disk before its run.** Removing the registry entry →
+four failures, all naming I20. Relaxing `len(named) == 1` to `<= 1` → **one** failure, the `neither`
+case alone, which is the sharpest of the three: it separates the two halves of the invariant so
+neither can be carried by the other. Hard-coding `_RESULT_EDGES` to `RESULT_FOR_SITE` → four
+failures including the DDL-derivation test, on its own line —
+`{'RESULT_FOR_SITE'} == {'RESULT_FOR_PROTEIN', 'RESULT_FOR_SITE'}`.
+
+**Four on the coverage guard, and one of them is the mutation this turn was told to make.** Adding
+an export without classifying it fails `test_every_exported_query_is_classified` **by name** — that
+is the anti-omission property, and breaking an existing export would not have tested it. Changing a
+classified export's signature fails at `bind`. Removing `gene_symbols`' empty-`Gene` check fails the
+value assertion and nothing else. Writing `group="absence"` on `site_ids` fails the group check,
+which is what makes `group` a claim rather than a label: it is decided from whether an `Absence` is
+reachable in the return, not from what the row says.
+
+**What the coverage guard cannot do, recorded rather than closed.** A callable added to `__all__`
+that is not a query must be excluded by name in `NOT_A_QUERY`, which holds one entry (`connect`).
+That is an escape hatch, and the reason it is acceptable is that it is loud: the export is forced
+into the registry or into that set, and both are edits someone has to write. A pattern — *anything
+whose first parameter is `conn`* — would have made the exclusion an accident of naming instead.
+
+**Three assertions classified in the sweep, none withdrawn.** The closest call is
+`set(_RESULT_EDGES) == declared`, where both sides read `schema.REL_TABLES`: it is not an instance
+because they are two different filters over one source and the property asserted is that the source
+is shared, demonstrated by the hard-coding mutation failing on that line. What it cannot catch is a
+change made to both sides at once, which is why the literal pair on the next line is not redundant.
+
+**§11 Q7 is closed and `ONTOLOGY.md`:1073's `ADJUSTED_BY` collision is not.** I20 counts edges out
+of a result and never keys one, so its reasoning does not touch the collision, and nothing here
+narrows or widens it.
+
+**One correction on the list had no target, and that is recorded rather than silently skipped.** A
+*reflection-driven `Absence` guard* had been carried as a want to be corrected; searching the whole
+tree — every `.py` and every `.md` — returns **zero** occurrences of the phrase or of anything
+describing it. It was never written down, so there was nothing to correct. The guard this turn
+wrote is behavioural rather than reflective and was designed against the rejection recorded in
+`graph.py`, not against that item. Noted here because *the correction was already discharged* and
+*the correction had no target* are different states, and a list that cannot tell them apart is how
+a want survives being satisfied.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07

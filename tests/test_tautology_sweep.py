@@ -309,7 +309,29 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_keys.py", "protein == 'uniprot:P20591'", 1),
         ("test_keys.py", "sequence == 'uniprot:P20591#sv4'", 1),
         ("test_keys.py", "site == 'uniprot:P20591#sv4#K48#unimod:121'", 1),
+        # I20's DDL-derivation check, classified 2026-08-10. **The closest call in `PINNED` and it
+        # is not an instance, for a reason that had to be measured.** Both sides read
+        # `schema.REL_TABLES`, so the right side looks like the expression that produced the left —
+        # but they are two *different* filters over one source, and the property asserted is that
+        # the source is the same. Made to fail: replacing the module's predicate with
+        # `r.name == "RESULT_FOR_SITE"` gives `{'RESULT_FOR_SITE'} == {'RESULT_FOR_PROTEIN',
+        # 'RESULT_FOR_SITE'}` **on this line**. What it cannot catch is a change made to both sides
+        # at once, which is why the next line in that test pins `declared` against a literal pair —
+        # the two assertions are a pair and neither is redundant.
+        ("test_invariants.py", "set(_RESULT_EDGES) == declared", 1),
         ("test_maxquant.py", "accessions == ['P20591', 'P19525']", 1),
+        # The coverage guard's two, classified 2026-08-10. Neither is an instance and each was made
+        # to fail by a mutation of the thing it names rather than of something upstream.
+        #
+        # Left: a query's return over a DDL-only graph. Right: a value in `EXPECTED`, measured once
+        # and then a literal — not a producer, and not re-derived at assert time. Removing
+        # `gene_symbols`' empty-`Gene` check fails here and nowhere else.
+        ("test_query_absence_coverage.py", "observed == expectation.expected", 1),
+        # Left: the registry's keys. Right: computed from `bzk.query.__all__`. This is the whole
+        # anti-omission mechanism, so it is the one assertion in that module that must not be
+        # satisfiable by the registry alone. Adding an unclassified export fails it by name —
+        # `Extra items in the right set: 'newly_added_query'`.
+        ("test_query_absence_coverage.py", "set(EXPECTED) == _exported_queries()", 1),
         # The protein adapter's three, classified individually 2026-08-10. None is an instance, and
         # each was made to fail by a mutation of the adapter recorded in `ROADMAP.md`
         # § *Outcome: the MaxQuant protein adapter*.
@@ -775,7 +797,12 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # re-denominating, and nothing failed — because nothing can: `>=` is silent about a surface
     # that grew. A floor that moves only when someone remembers is the shape of check this module
     # exists to replace, so the number is re-read from `sweep()` rather than incremented.
-    assert modules >= 26 and asserts >= 926, (
+    #
+    # 926 -> 942 and 26 -> 27 on 2026-08-10, for I20's cases and
+    # `tests/test_query_absence_coverage.py` (the twenty-seventh). Checked rather than assumed: the
+    # floor was read off `sweep()` again, and the `>=` did not fail on the additions — it cannot,
+    # which is the standing reason this line moves by hand.
+    assert modules >= 27 and asserts >= 942, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

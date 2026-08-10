@@ -4,7 +4,7 @@ The invariants of ONTOLOGY.md §8 are errors, not warnings (CLAUDE.md): a violat
 `InvariantError`, which ingestion must let propagate rather than downgrade.
 
 **Enforced here** (write-time, over the staged change-set):
-  I2, I3, I4, I10, I14, I15, I16, I19 — one checker each — plus **change-set structural
+  I2, I3, I4, I10, I14, I15, I16, I19, I20 — one checker each — plus **change-set structural
   validation** (ADR-0019): every referent an edge names is present, every edge endpoint carries
   the node label `schema.py` declares for that relationship, every edge type is a relationship in
   the DDL, every relationship's multiplicity is respected (a MANY_ONE source or a ONE_MANY
@@ -513,6 +513,69 @@ def _check_I19(nodes: list[Node], edges: list[Edge]) -> None:
             )
 
 
+#: The two ways a `DifferentialResult` names what it measures (§7). Read from `schema.REL_TABLES`
+#: rather than listed, so a third grain's result edge is caught here by the DDL that declares it
+#: instead of by someone remembering to widen a tuple — which is the shape of omission I20's own
+#: `neither` case was.
+_RESULT_EDGES: tuple[str, ...] = tuple(
+    sorted(
+        r.name
+        for r in schema.REL_TABLES
+        if r.src == "DifferentialResult" and r.name.startswith("RESULT_FOR_")
+    )
+)
+
+
+def _check_I20(nodes: list[Node], edges: list[Edge]) -> None:
+    """I20 — every `DifferentialResult` attaches to exactly one of §7's `RESULT_FOR_*` edges.
+
+    **Closes §11 Q7, answered 2026-08-07 and outstanding only for its number and this function.**
+    The deferral it replaced — *once `perseus.py` emits results at both grains* — is the circular
+    shape ADR-0023 names: the adapter chooses how many result edges to emit, so counting its output
+    reports its own choice back. The evidence was never in the adapter.
+
+    **The two halves rest on different evidence, and that is why the message distinguishes them.**
+    *At least one* is empirical: before `aefd4e9`, the valid fixture's `bzk:dr2` carried
+    `WAS_GENERATED_BY` and nothing else — a result attached to no observation it measures, sitting
+    in the seed every invariant test validated against, passing. *At most one* is by construction:
+    `bzk/analysis/differential.py` emits `RESULT_FOR_SITE` alone and `bzk/adapters/perseus.py`
+    emits `RESULT_FOR_PROTEIN` alone, so nothing here can produce a result with both and the case
+    is reachable only from a hand-written change-set.
+
+    **Neither case is caught by ADR-0019's structural validation**, measured before this was written
+    rather than assumed: a change-set whose result carries no `RESULT_FOR_*` edge validates, and so
+    does one carrying both. That matters because a guard whose failure arrives from somewhere else
+    establishes the somewhere else — the reason an assertion was withdrawn on 2026-08-10.
+
+    **Not §3's *a single site-level `Analysis` emits both*.** That is a different axis: two results
+    over one observation, corrected and uncorrected, **both site-grain and both attaching by
+    `RESULT_FOR_SITE`** — so exactly-one holds per result and the two clauses never meet.
+    Correspondingly this counts edges *per result*, never per analysis or per observation.
+    """
+    reached: dict[Any, set[str]] = defaultdict(set)
+    for rel in _RESULT_EDGES:
+        for edge in _edges(edges, rel):
+            reached[edge["from"]].add(rel)
+    for result in _nodes(nodes, "DifferentialResult"):
+        rid = result.get("id")
+        named = sorted(reached.get(rid, set()))
+        if len(named) == 1:
+            continue
+        raise InvariantError(
+            "I20",
+            f"DifferentialResult {rid!r} attaches to {named or 'none'} of "
+            f"{list(_RESULT_EDGES)}; a result measures exactly one thing. "
+            + (
+                "A result measuring nothing is an orphan statistic — a number with no observation "
+                "behind it (ONTOLOGY.md §8 I20, §11 Q7)."
+                if not named
+                else "A result carrying both would claim one computation over two grains; §3's "
+                "*a single site-level Analysis emits both* is two results, both site-grain "
+                "(ONTOLOGY.md §8 I20, §11 Q7)."
+            ),
+        )
+
+
 def _check_gene_absence(nodes: list[Node], edges: list[Edge]) -> None:
     """Every `Protein` names an `ENCODES` edge **or** a reason it has none — never neither (§4).
 
@@ -559,6 +622,7 @@ _CHECKS: dict[str, Callable[[list[Node], list[Edge]], None]] = {
     "I15": _check_I15,
     "I16": _check_I16,
     "I19": _check_I19,
+    "I20": _check_I20,
     "GENE_ABSENCE": _check_gene_absence,
 }
 

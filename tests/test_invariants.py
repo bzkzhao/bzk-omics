@@ -53,7 +53,7 @@ def e(rel: str, frm: str, to: str) -> dict[str, str]:
 def test_valid_changeset_passes_every_check() -> None:
     cs = json.loads(VALID_CHANGESET.read_text())
     validate(cs["nodes"], cs["edges"])  # structural + all checks: must not raise
-    for inv in ["I2", "I3", "I4", "I10", "I14", "I15", "I16", "I19"]:
+    for inv in ["I2", "I3", "I4", "I10", "I14", "I15", "I16", "I19", "I20"]:
         validate(cs["nodes"], cs["edges"], only=inv)  # each check accepts valid input
 
 
@@ -219,6 +219,76 @@ def test_I4_protein_adjusted_must_be_in_the_enum() -> None:
         validate(nodes, [], only="I4")
     assert ei.value.invariant == "I4"
     assert "must be one of" in str(ei.value)
+
+
+# ── I20: a result measures exactly one thing (§11 Q7, minted 2026-08-10) ──────────────────────
+
+
+def test_I20_a_result_attached_to_nothing_is_refused() -> None:
+    """The `at least one` half, and it is the case that **actually occurred here**: before
+    `aefd4e9` the valid fixture's `bzk:dr2` carried `WAS_GENERATED_BY` and nothing else, in the
+    seed every invariant test validated against, passing."""
+    nodes = [n("DifferentialResult", id="bzk:dr1", log2fc=3.4, protein_adjusted="not_applied")]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [], only="I20")
+    assert ei.value.invariant == "I20"
+    assert "orphan statistic" in str(ei.value)
+
+
+def test_I20_a_result_attached_to_both_grains_is_refused() -> None:
+    """The `at most one` half. Reachable only from a hand-written change-set: nothing in `bzk/`
+    emits both — `analysis/differential.py` emits `RESULT_FOR_SITE` alone and `adapters/perseus.py`
+    `RESULT_FOR_PROTEIN` alone — which is why this is the one case with no producer."""
+    nodes = [
+        n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR"),
+        n("ProteinObservation", id="bzk:pobs1", candidate_proteins=[MX1]),
+        n("DifferentialResult", id="bzk:dr1", log2fc=3.4, protein_adjusted="not_applied"),
+    ]
+    edges = [
+        e("RESULT_FOR_SITE", "bzk:dr1", "bzk:obs1"),
+        e("RESULT_FOR_PROTEIN", "bzk:dr1", "bzk:pobs1"),
+    ]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, edges, only="I20")
+    assert ei.value.invariant == "I20"
+    # Asserted on text only the `both` branch produces. The two branches share a first sentence,
+    # and `test_I2_site_key_version_must_match_its_target` records what asserting on shared text
+    # costs: a red test that goes red for the wrong reason.
+    assert "two grains" in str(ei.value)
+    assert "orphan statistic" not in str(ei.value)
+
+
+def test_I20_accepts_a_result_at_either_grain() -> None:
+    """Non-vacuity, and it is the assertion that stops I20 becoming *refuse every result*. Both
+    grains, because a check written against one would be satisfied by the wrong constant."""
+    for rel, obs, node in (
+        ("RESULT_FOR_SITE", "bzk:obs1", n("SiteObservation", id="bzk:obs1", peptide_sequence="LL")),
+        (
+            "RESULT_FOR_PROTEIN",
+            "bzk:pobs1",
+            n("ProteinObservation", id="bzk:pobs1", candidate_proteins=[MX1]),
+        ),
+    ):
+        nodes = [node, n("DifferentialResult", id="bzk:dr1", protein_adjusted="not_applied")]
+        validate(nodes, [e(rel, "bzk:dr1", obs)], only="I20")
+
+
+def test_I20_reads_its_edge_list_from_the_ddl_rather_than_a_literal() -> None:
+    """The tuple a third grain's result edge would have to be added to is derived, not typed.
+
+    §7 is the only declaration of which edges attach a result to what it measures, so a
+    `RESULT_FOR_PEPTIDE` added there is covered without an edit here. That is the same omission
+    shape as I20's own `neither` case — a fact stated in one place and not mirrored in the other.
+    """
+    from bzk.ontology.invariants import _RESULT_EDGES
+
+    declared = {
+        r.name
+        for r in schema.REL_TABLES
+        if r.src == "DifferentialResult" and "RESULT_FOR" in r.name
+    }
+    assert set(_RESULT_EDGES) == declared
+    assert declared == {"RESULT_FOR_SITE", "RESULT_FOR_PROTEIN"}
 
 
 def test_I10_enzyme_attribution_requires_a_live_association() -> None:

@@ -38,6 +38,16 @@ with it from here, because a renderer is not the only consumer.
    there is nothing for this module to read. It is the only live case `NOT_RETAINED` has, which is
    what keeps the fourth value from being a member with no instance.
 
+   **This rule is machine-checked since 2026-08-10, across all nine exports rather than the four it
+   was written about.** `tests/test_query_absence_coverage.py` runs every query in `__all__`
+   against a DDL-only graph and requires its classified answer, keyed off `__all__` so an added
+   export is unclassified rather than silently exempt. The five it reaches beyond the
+   `Absence`-carrying four satisfy the rule a different way and the classification records which:
+   `site_keying` returns `None`, which is its whole return type's absence; `site_ids` and
+   `analysis_ids` are enumerations, where `[]` has one reading; and `unprovenanced` and
+   `gene_absence_census` key **every** category at zero rather than omitting it, so an empty
+   container is never what they answer with.
+
 **What this module does not do.** It writes no file, so `ONTOLOGY.md` §8 **I18**'s embargo check
 does not land here and is not weakened here — `HANDOFF.md` §8's EX class puts it at the first
 export, report or figure-writing path. It renders nothing, opens no HTTP port, and imports no

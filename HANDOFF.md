@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.32 |
+| Version | 1.33 |
 | Last reviewed | 2026-08-10 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -258,6 +258,19 @@ the value reader moved to `maxquant.cell_value` and `sample_nodes` to `adapters/
 conventions that had been one home short. `ROADMAP.md` § *Outcome: the MaxQuant protein adapter*
 carries all of it.
 
+**Two properties that held by construction are now asserted — 2026-08-10.** **I20** is minted and
+enforced: every `DifferentialResult` attaches to exactly one of `RESULT_FOR_SITE` or
+`RESULT_FOR_PROTEIN`, closing §11 Q7, which had been answered on 2026-08-07 with only its number and
+its checker outstanding. Probed first, and it is a new check rather than a restatement: `neither`
+and `both` **both validated** under ADR-0019's structural validation before the checker existed. Its
+edge list is derived from §7's DDL, so a third grain is covered by declaring it. And
+`tests/test_query_absence_coverage.py` runs **all nine** exported queries against a DDL-only graph
+— not the four that carry an `Absence`, which is the coverage the class was previously stated at —
+keyed off `__all__`, with the arguments bound through `inspect.signature` so an added export, a
+renamed one and a changed signature all fail rather than skip. Measured while writing it: **no
+export is silent over an empty graph today**, so the guard freezes a property rather than repairing
+one, and `gene_absence_census` keys all four §4 states at zero rather than returning `{}`.
+
 **The enumeration is the more useful half, and it found three kinds where the model had one.**
 Declared-filter drops (43 decoys and contaminants, 242 localisation, 667 presence rule) are a
 threshold's effect and belong to `filters_applied`; keying failures are the 27, behind which sit 7
@@ -473,7 +486,7 @@ deposit or the archive has moved and that is the finding, not a setup problem.
 
 ### Weeks 1–2
 
-**`tests/test_invariants.py` first, and failing.** One case per invariant that can be checked at write time — I2, I3, I4, I10, I14, I15, I16, I19. Each constructs a violating node and asserts the write is rejected. Write these before the schema exists; they will fail to import, which is correct.
+**`tests/test_invariants.py` first, and failing.** One case per invariant that can be checked at write time — I2, I3, I4, I10, I14, I15, I16, I19, and I20 since 2026-08-10. Each constructs a violating node and asserts the write is rejected. Write these before the schema exists; they will fail to import, which is correct.
 
 **`bzk/ontology/schema.py`** — generate the Kùzu DDL from `ONTOLOGY.md` §4–6 rather than hand-writing it. A dict of node and edge definitions that emits Cypher. This is what makes a field rename a regeneration instead of a search across the codebase.
 
@@ -1291,7 +1304,8 @@ cross-reference — and a missing node records none of them.
 
 ### Unenforced invariants (audit 2026-08-07), by class
 
-The write-time change-set checks (I2, I3, I4, I10, I14, I15, I16, I19) and change-set structural
+The write-time change-set checks (I2, I3, I4, I10, I14, I15, I16, I19, **I20** since 2026-08-10)
+and change-set structural
 validation (ADR-0019) are enforced in `bzk/ontology/invariants.py`. The rest are not yet enforced;
 grouped by *how* they must be enforced, so a source-tree lint is not mistaken for a data check.
 
