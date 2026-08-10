@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.35 |
+| Version | 1.36 |
 | Last reviewed | 2026-08-10 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -212,8 +212,7 @@ seed for 0007 was wrong** — it read *local moderated t-test over an R dependen
 account contradicts and which makes the 0007→0011 supersession incoherent; the seed is marked wrong
 in place and the evidence is in the record. **Both enumerations of reserved numbers were stale** —
 `decisions/README.md` listed 0004 and 0013 as queued after they were written, and omitted 0018,
-which the seed list reserves. Reconciled. Nothing checks the three enumerations against each other,
-which is the standing item this does not close.
+which the seed list reserves. Reconciled. ~~Nothing checks the three enumerations against each other~~ — **`tests/test_decision_index.py` does, since 2026-08-10**, nine assertions with every parsed set carrying a pinned count. This is no longer the standing item it was.
 
 **The graph holds computed results, 2026-08-09.** `python -m bzk.sources.pxd018299_differential`
 writes what it computes: **1,362** `DifferentialResult`s under one `Analysis`
@@ -299,6 +298,19 @@ unkeyable while a hand-written one validates exactly as before, with no acyclici
 anywhere. The guard covers a case **nothing in this repository produces** — all 1,362 results are
 `not_applied` and no writer emits `applied` — so a green test says the key builder separates two
 baselines, not that two exist.
+
+**The three ADR-number enumerations are guarded — 2026-08-10, `tests/test_decision_index.py`.**
+Nine assertions over `ARCHITECTURE.md` §5, README's Written and Queued tables and `decisions/`
+itself, with **every parsed set carrying a pinned count** — the half without which two failed parses
+compare equal, and not hypothetical here: the first row-regex found **zero** Written rows against a
+table of 24, and the first strike counter counted all 18 seeds against a pinned 17. Eight mutations,
+each read back off disk. **What §5 cannot support is asserted nowhere** — it stops at `0018`, so
+*every Written entry appears in §5* is false for `0019`–`0025`. **The round-trip is readable and
+deliberately unasserted**: the tautology sweep runs the whole suite in a copy excluding `.git`, where
+`git log` is fatal, so a git-backed assertion would redden that module for an unrelated reason.
+**One disagreement was found and not fixed**: `0014` says `Superseded by ADR-0017` and `0017` says
+`Supersedes —`; `0017` is Accepted and append-only, so the asymmetry is pinned as a named exception
+and a second one fails.
 
 **The enumeration is the more useful half, and it found three kinds where the model had one.**
 Declared-filter drops (43 decoys and contaminants, 242 localisation, 667 presence rule) are a

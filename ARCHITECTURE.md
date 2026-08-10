@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.22 |
+| Version | 1.23 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
@@ -315,6 +315,15 @@ This ordering exists because the invariants are the product. Adapters that inges
 The seeds these records were written from. **All but one are written; the index with links is
 [`decisions/README.md`](decisions/README.md) § Written**, which is the single home for what exists
 and at what status. This list stays as the record of what was seeded and in what words.
+
+**Its role is unchanged and two of its claims are now machine-checked** (`tests/test_decision_index.py`,
+2026-08-10). The *all but one* count is asserted against `decisions/` — it was wrong once, when only
+`0005` and `0017` were struck while eleven more had been written — and the **unstruck** set is
+asserted equal to README's Queued table, which is the disagreement of 2026-08-09 in the form it took.
+What is **not** asserted, because it is false by construction, is that every written record appears
+here: this list stops at `0018` and `0019`–`0025` were never seeded. A strike on a number means
+written; `0007`'s second strike, through its wording, is a correction mark and the parser does not
+read it as membership.
 
 - ~~`0001`~~ Two-graph model: reference and evidence disjoint
 - ~~`0002`~~ Python over TypeScript for the backend

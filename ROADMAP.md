@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.52 |
+| Version | 1.53 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -3033,6 +3033,62 @@ file, moving a number between Queued and Written, **emptying** a table, and addi
 one-sided supersession. The tautology shape is the specific risk — two sets derived from one parse
 compare equal whatever the parse did — so every set is compared against a **pinned count** as well
 as against its counterpart.
+
+#### Outcome, 2026-08-10 — every prediction held, and the pinned count caught a defect in the guard
+
+| Prediction | Result |
+|---|---|
+| No id moves — 15 labels, 14,134 ids, every per-label set and edge count identical | **held** |
+| `decisions/` **24** files; Written **24**; Queued **1**; §5 **18** lines, **17** struck | **held**, all five |
+| Statuses **15** `Accepted`, **6** `Proposed`, **3** `Superseded` | **held** |
+| Disagreements on the five holding relationships: **0** | **held** |
+| Disagreements on reciprocity: **1**, the pair `(0017, 0014)` | **held** — pinned as the one named exception |
+| Refusals **27**, sites **2,029**, `DifferentialResult` **1,362** | **held** |
+| The five queries unchanged | **held** |
+
+**The pinned count earned itself before any mutation ran.** The first strike counter read
+`sum(1 for _, struck in seeds)` — no condition — and counted all **18** seed lines against a pinned
+**17**. It is the *assertion named a field it did not read* shape, in the very line written to
+prevent a vacuous comparison, and nothing but the pinned integer would have caught it: the set
+comparisons it guards were all green. That is the second time in this module's short life the
+non-vacuity half fired on its own author, the first being the row-regex that matched zero rows
+against a table of 24.
+
+**Eight mutations, each read back off disk before its run, plus a ninth for the one direction the
+eight did not reach.** A planted file with no row → 3 failures; a planted row with no file → 3; `0018`
+moved Queued → Written → 3; the Written table emptied → 2; the seed list emptied → 3; a seed
+un-struck → 2. Two fire at exactly one test each, which is the sharpest discrimination available
+here: a **second one-sided supersession** (`0016` superseded by `0019`, with `0019` silent) and a
+**one-character link break** on `0022`. The ninth covers `forward - backward`, which none of the
+eight could reach — `0019 Supersedes ADR-0016` with `0016` saying nothing back gives
+`{('0019', '0016')} == set()`.
+
+**Thirteen new sweep matches, classified individually, none withdrawn.** Five are computed values
+against pinned literals; five compare sets parsed from **different documents or the filesystem**;
+one compares the two README tables; one is a computed list against `[]`. Only `forward`/`backward`
+are drawn from a single parse, and they read two different header fields — both directions were made
+to fail separately, which is what distinguishes them from the tautology shape. Floor re-denominated
+**949 → 967**, **27 → 28** modules.
+
+**One disagreement found, and not fixed.** `0014` carries `Superseded by | ADR-0017`; `0017` carries
+`Supersedes | —`. The fact is recorded in three other places, so what is missing is the reciprocal
+row rather than the decision — but `0017` is `Accepted`, and `decisions/README.md` records that
+since 2026-08-07 an Accepted ADR is amended only by a superseding ADR. Editing it to make the guard
+green would breach the convention the directory exists to keep, so the guard carries the asymmetry
+as a named exception with its reason and fails on a second one. **Fixed nothing; pinned one.**
+
+**Two things measured that the records had wrong, corrected rather than absorbed.** The bulk
+*"Add files via upload"* set is **six** records (`0001`, `0002`, `0003`, `0015`, `0016`, `0017`), not
+five; and re-measured at 24 records the informative population is **18**, of which **8** first appear
+`Accepted`, 7 `Proposed` and 3 `Superseded`, against README's *nine of ten*. ADR-0022 remains the
+only completed round-trip. Both figures were measured on 2026-08-09 at a smaller directory and are
+replaced by the current measurement rather than diagnosed — what a different rule for *readable*
+might have counted then is not recoverable from here.
+
+**Two header shapes exist in `decisions/` and neither is a defect.** `0004` and `0013` carry no
+`Superseded by` row at all, and `0013` uses `| Field | Value |` where the others use `| | |`. An
+absent row means *not superseded*, which the guard reads correctly; a missing **Status** row would
+fail, because that one is asserted present.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07

@@ -213,6 +213,52 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             1,
         ),
         ("test_curation_content_hash.py", "accession == PXD018299_SITES.accession", 1),
+        # ── tests/test_decision_index.py, classified individually 2026-08-10 ──────────────────
+        # Thirteen matches, none an instance, each made to fail by a mutation of the surface it
+        # names. Every one is either a computed value against a **pinned literal** or two sets
+        # parsed from **different documents** — the shape the tautology risk here would be is two
+        # sets from one parse, and only `forward`/`backward` come from one call. That pair reads
+        # two *different header fields*, and both directions were made to fail separately.
+        #
+        # Pinned counts. Each fails when its own surface is emptied or grown: a planted file (A),
+        # a planted row (B), 0018 moved out of Queued (C), the Written table emptied (D), the seed
+        # list emptied (E), a seed un-struck (F).
+        ("test_decision_index.py", "len(_files()) == EXPECTED_FILES", 1),
+        ("test_decision_index.py", "len(_written()) == EXPECTED_WRITTEN_ROWS", 1),
+        ("test_decision_index.py", "len(_queued()) == EXPECTED_QUEUED_ROWS", 1),
+        ("test_decision_index.py", "len(seeds) == EXPECTED_SEED_LINES", 1),
+        # The one that caught a defect in its own guard before any mutation: the first draft read
+        # `sum(1 for _, struck in seeds)` — no condition — and counted 18 against a pinned 17.
+        (
+            "test_decision_index.py",
+            "sum((1 for _, struck in seeds if struck)) == EXPECTED_SEED_STRUCK",
+            1,
+        ),
+        # Two independently parsed surfaces on each side: the filesystem against README's Written
+        # table, in both directions. Fails on a planted file (A) and a planted row (B) respectively.
+        ("test_decision_index.py", "written - files == set()", 1),
+        ("test_decision_index.py", "files - written == set()", 1),
+        # A computed list against a literal; `missing` is built from `Path.exists()`, so the
+        # filesystem is the other side rather than the parse. Fails on a one-character link break.
+        ("test_decision_index.py", "missing == []", 1),
+        # `ARCHITECTURE.md` against `decisions/README.md` — two documents, two parsers. Fails on
+        # 0018 moved to Written, on the seed list emptied, and on a seed un-struck.
+        ("test_decision_index.py", "unstruck == set(_queued())", 1),
+        # Three surfaces in one line: seeded numbers, the directory, and Queued.
+        ("test_decision_index.py", "unwritten == set(_queued())", 1),
+        # The two README tables against each other. Fails on 0018 appearing in both.
+        (
+            "test_decision_index.py",
+            "{number for number, _ in _written()} & set(_queued()) == set()",
+            1,
+        ),
+        # Status counts against a pinned literal, so a 25th record fails until it is classified.
+        ("test_decision_index.py", "counted == EXPECTED_STATUSES", 1),
+        # The only pair drawn from one parse, and it reads two different header fields. Made to
+        # fail on its own: `0019 Supersedes ADR-0016` with 0016 silent gives
+        # `{('0019', '0016')} == set()`. The reciprocal direction is pinned as an exception below
+        # it and fails on a second one-sided pair.
+        ("test_decision_index.py", "forward - backward == set()", 1),
         (
             "test_curation_loader.py",
             "len(set(loaded.sample_ids.values())) == len(loaded.sample_ids)",
@@ -811,10 +857,11 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     #
     # 926 -> 942 and 26 -> 27 on 2026-08-10, for I20's cases and
     # `tests/test_query_absence_coverage.py` (the twenty-seventh); then 942 -> 949 the same day for
-    # ADR-0025's five guards, no new module. Checked rather than assumed each time: the floor is
-    # read off `sweep()` again, and the `>=` did not fail on the additions — it cannot, which is
-    # the standing reason this line moves by hand.
-    assert modules >= 27 and asserts >= 949, (
+    # ADR-0025's five guards, no new module; then 949 -> 967 and 27 -> 28 for
+    # `tests/test_decision_index.py` (the twenty-eighth). Checked rather than assumed each time:
+    # the floor is read off `sweep()` again, and the `>=` did not fail on the additions — it
+    # cannot, which is the standing reason this line moves by hand.
+    assert modules >= 28 and asserts >= 967, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
