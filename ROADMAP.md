@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.45 |
+| Version | 1.46 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -2439,6 +2439,105 @@ and the curation record's twelve `Sample`s are the diGly run, sharing no member.
 mapping used for the offline measurement was constructed in memory from the column names, is not a
 curation record, and was never written. What changed is *which layer* the gap is in: the adapter was
 the blocker on 2026-08-09 and the deposit's sample mapping is the blocker now.
+
+
+### Pre-registration: I20's checker and the empty-table coverage guard, 2026-08-10
+
+**Written and committed before any code.** Two properties that hold by construction today and are
+asserted nowhere. This turn writes no nodes.
+
+**The starting state.** `ruff check bzk tests`, `ruff format --check bzk tests` and `mypy bzk tests`
+clean; `pytest tests/test_schema.py` 20 passed. Id set captured before anything: **15 labels, 14,134
+ids**, `Gene` 1,039, `ENCODES` 1,054, `ProteinObservation` 0, `protein_values` 0.
+
+#### (1) Q7 — the answer is on record; what is missing is the number and the function
+
+§11 Q7 was answered 2026-08-07 and the deferral it replaced — *once `perseus.py` emits results at
+both grains* — is the circular shape ADR-0023 named: the adapter chooses how many result edges to
+emit, so counting its output reports its own choice back. The constraint is **at-least-one by
+evidence** (the `neither` case occurred here, in the valid fixture, before `aefd4e9`) and
+**at-most-one by construction** (no source computes one result at two grains). It is minted as
+**I20** — I1–I19 are taken and no reserved number sits between them.
+
+**Probed against the validator before predicting, because last turn's withdrawn assertion was one
+that failed via structural validation rather than at its own line.** Over a change-set carrying a
+`Dataset`, an `Analysis`, an `Imputation`, a `Contrast` and a `DifferentialResult`: **exactly one
+`RESULT_FOR_PROTEIN` validates, exactly one `RESULT_FOR_SITE` validates, `neither` validates, and
+`both` validates.** So neither failing case is reachable through ADR-0019's structural validation —
+this is a genuinely new check and not a restatement of one, and that is established rather than
+assumed.
+
+**Which of the two the code can construct, read exhaustively rather than sampled.** Two modules emit
+a result edge: `bzk/analysis/differential.py:156` emits `RESULT_FOR_SITE` and nothing else, and
+`bzk/adapters/perseus.py:274` emits `RESULT_FOR_PROTEIN` and nothing else. **Nothing in `bzk/` can
+construct `both`** — it is reachable only from a hand-written change-set, which is what the test
+will be. `neither` is constructible by any caller that omits the edge, and was.
+
+**`ONTOLOGY.md`:123's *a single site-level `Analysis` emits both* is a different axis and is not in
+tension.** That is two `DifferentialResult`s over one observation — corrected and uncorrected —
+**both site-grain, both attaching by `RESULT_FOR_SITE`**, so exactly-one holds per result. Read from
+Q7's own entry rather than re-derived. The fixture is the demonstration: `bzk:dr1`, `bzk:dr3` and
+`bzk:dr4` each carry `RESULT_FOR_SITE` alone and `bzk:dr2` carries `RESULT_FOR_PROTEIN` alone.
+
+**`ONTOLOGY.md`:1073's `ADJUSTED_BY` collision is read and not closed here.** It sits in the same
+entry: `ADJUSTED_BY` is absent from §3's anchor list, so two corrected results differing only in
+their baseline both mint `bzk:1529fff2e684983da8b8983e266cefb5`. I20 does not touch it and its
+reasoning does not depend on it — I20 counts edges out of a result and never keys one — so this
+turn neither closes nor disturbs it. Registered here so the disclaimer is on the record rather than
+implied by silence.
+
+#### (2) The coverage question, measured before being characterised
+
+`bzk/query/__init__.py`'s `__all__` exports **nine** query functions plus `connect` and the types.
+Four carry an `Absence`, one returns `SiteKeying | None`, four return plain containers. Measured
+against a DDL-only graph, before writing anything:
+
+| Export | Over a DDL-only graph |
+|---|---|
+| `differential_table` | `([], Absence.NOT_STORED)` |
+| `imputation_state` | `absence=NOT_STORED`, `satisfies_i15=False` |
+| `refusals` | `absence=NOT_RETAINED` |
+| `gene_symbols` | `NOT_STORED` per symbol, `detail` naming the empty `Gene` table |
+| `site_keying` | `None` |
+| `site_ids` / `analysis_ids` | `[]` |
+| `unprovenanced` | `{'Dataset': (0, 0), 'SiteObservation': (0, 0), 'DifferentialResult': (0, 0)}` |
+| `gene_absence_census` | `{'unresolved': 0, 'no_cross_reference': 0, 'not_captured': 0, 'encoded': 0}` |
+
+**One premise of this turn is corrected by that table.** `gene_absence_census` was described as
+returning *an empty dict over a DDL-only graph with nothing to say why*. It does not: it keys **all
+four** §4 states at zero, which is the `test_the_attributed_form_is_available_where_a_protein_is_in_hand`
+convention — *an omitted key and a zero read differently* — and an all-zero census says the
+`Protein` table is empty without ambiguity. `unprovenanced` is the same shape. So of the four plain
+containers, two answer by keying every category at zero and two are enumerations, where an empty
+list has no second reading. **No export is silent over an empty graph today.** That is the fact the
+guard freezes; it is not a defect being fixed.
+
+**Whether the classification can be made self-checking — the question this turn has to answer, not
+assume.** Registered as answerable **yes**, with the two holes named and each closed by a specific
+mechanism: an *added* export is caught by set equality between the registry and the exported
+callables, and a *changed signature* on a classified export is caught by binding the recorded
+arguments through `inspect.signature`. What remains, and is recorded rather than closed, is that a
+non-query callable added to `__all__` must be excluded by name — an explicit escape hatch of one
+entry (`connect`), which fails loudly by forcing a decision rather than skipping silently.
+
+**Predictions.**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| **No id moves**: 15 labels, 14,134 ids, every per-label set and every edge count identical | per-label id-set diff against the capture taken before the rebuild | exact set equality |
+| I20 refuses `neither` and refuses `both`; exactly-one validates at **both** grains | `invariants.validate` over hand-built change-sets | the error names `I20`; four cases, exact |
+| Both refusals arrive **at I20**, not at structural validation | the pre-change probe above already shows all four validating | exact — an `InvariantError` whose first field is `I20` |
+| Removing `"I20": _check_I20` from `_CHECKS` fails **exactly** the two refusal tests and nothing else in the suite | mutation in a copy, read back before running | exact test names, exact count |
+| Every existing fixture already satisfies I20, so no other test moves | `pytest` | exact — 0 other failures |
+| The coverage guard classifies **9** exports; adding a tenth export without classifying it fails, naming it | add a query to `graph.py` and `__all__` in a mutated copy | exact — the failure message contains the new name |
+| Changing a classified export's signature fails the guard through `bind` | mutation | exact — `TypeError` from `inspect.signature(...).bind` |
+| The nine values in the table above are exactly what the guard asserts | the guard itself, over a DDL-only graph | exact enum identity and exact containers |
+| The sweep floor at `test_tautology_sweep.py:778` (**26 / 926**) does **not** fail on the additions and must be re-denominated by hand | run `sweep()` | exact integers |
+
+**What would make this turn a failure rather than a decision.** A coverage guard that passes by
+omission — keyed off a list someone maintains beside `__all__` rather than off `__all__` itself —
+or an I20 whose two mutations are caught by something other than I20. Both are the class recorded at
+`HANDOFF.md`:593 and :954, and both are tested for by mutating the thing the guard names.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07
