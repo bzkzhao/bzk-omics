@@ -3231,6 +3231,55 @@ wrong layer. Any guard would be exercised only by constructed cases, as I20's an
 **Out of scope and named:** `ADJUSTED_BY`'s multiplicity, protein-grain results, and a general cycle
 check over other edges — if the reasoning raises the last, it is reported and not built.
 
+#### Step 1 pre-registration — a guard is warranted, and it is not the acyclicity check
+
+**Written and committed after step 0's measurements and before any code.** Step 0 answered *not
+distinguishable* on every count, so the gate opened; what follows is registered before the checker
+exists, because step 1's own shape was only decidable once step 0 had run.
+
+**The guard is an identity check, not a cycle check, and that is the finding.** *An `ADJUSTED_BY`
+edge obliges the source's id to encode its target* — recompute the id from the node's identifying
+fields and the anchor ids its own change-set names, and require equality. **Acyclicity falls out of
+it**: a cycle needs each id to encode the other's, which needs `sha256` to determine its own input,
+measured in step 0 to have no fixed point in 12 iterations. So the invariant the record contemplated
+is subsumed by a narrower one, and no cycle check is written.
+
+**Two shapes were measured against each other before choosing, because the weaker one is tempting.**
+A *weak* form — *the id must not be the one it would have with no baseline* — closes the null door
+and nothing else. Measured: a two-cycle assembled from two ids each minted honestly against some
+**third** baseline, then cross-linked, **passes the weak form and is refused by the strong form at
+both ends** (`bzk:4dab180e…`, `bzk:2e3ceb59…`). The weak form was rejected on that measurement.
+
+**The strong form unscoped refuses the valid fixture, measured rather than discovered later.**
+`bzk:dr1` is a hand-written mnemonic and recomputes to `bzk:3f1d92bfc9477eb7adb5e0c6b3df70f8`;
+`bzk:dr1` also appears in ten hand-written change-sets in `tests/test_invariants.py`. So the check is
+scoped to ids that **claim** to be digests — `bzk:` + `keys.DIGEST_HEX` lowercase hex — and a
+hand-written id stays outside it, which is exactly the fixture route ADR-0025 already records as the
+one that survives. That scope is a real limit and is stated in §8 rather than left to be found.
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| A correction whose id was minted with a **null** self-anchor is refused, naming **I21** | `validate(..., only="I21")` over a constructed change-set | the error's first field is `I21` |
+| The same change-set **validates** under another invariant, so the refusal is I21's and not structural validation's | `validate(..., only="I2")` on the identical input | validates |
+| A correction whose id **does** name its baseline validates | the same | validates |
+| A two-cycle built from ids minted against other baselines is refused at the **first** member reached | the same | the error names `I21` |
+| A hand-written id (`bzk:dr1`) carrying an `ADJUSTED_BY` edge is **ignored** | the same | validates |
+| A result with **no** `ADJUSTED_BY` edge is ignored — the shape all 1,362 shipped results have | the same | validates |
+| Removing `"I21": _check_I21` from `_CHECKS` fails **exactly 6** tests and nothing else | mutation in a copy, read back off disk before the run | exact count, exact names |
+| Scoping dropped (every id checked) fails the two tests that depend on the scope | the same | exact count |
+| Recomputing with the self-anchor forced to `None` — the bug itself — fails the refusal test **and** the acceptance test | the same | exact count |
+| **No id moves**: 15 labels, 14,134 ids, every per-label set and edge count identical | per-label id-set diff against `open_before.json` | exact set equality |
+| The five checks stay clean; the suite grows by the new tests only | `pytest`, `ruff`, `mypy` | exact counts |
+
+**What it will not cover, registered now so a pass cannot be misread.** Nothing in this repository
+produces the case: no writer emits `protein_adjusted='applied'`, all 1,362 shipped results are
+`not_applied` and none carries an `ADJUSTED_BY` edge, so **it is exercised only by constructed
+cases**, exactly as I20's and ADR-0025's own guard are. A green suite says the checker separates a
+correction from its baseline, not that any correction exists. And the check reads anchor ids from
+the change-set's own edges, so it obliges a change-set carrying an `ADJUSTED_BY` edge to carry that
+result's other anchor edges too — an obligation ADR-0019's self-containment already implies and I20
+already imposes for `RESULT_FOR_*`, stated because it is new for the other three.
+
 
 ### The platform made an invisible analytical choice, 2026-08-07
 
