@@ -1,6 +1,6 @@
 """Invariant enforcement tests.
 
-One case per write-time invariant (I2, I3, I4, I10, I14, I15, I16, I19), each asserting the
+One case per write-time invariant (I2, I3, I4, I10, I14, I15, I16, I19, I20, I21), each asserting the
 specific message so an untested second branch cannot hide (F2); the branch tests that F2 found
 missing; a shared valid change-set every check accepts, proving none rejects unconditionally (F3);
 the missing-referent cases that used to pass vacuously (F1); and change-set structural validation
@@ -53,7 +53,7 @@ def e(rel: str, frm: str, to: str) -> dict[str, str]:
 def test_valid_changeset_passes_every_check() -> None:
     cs = json.loads(VALID_CHANGESET.read_text())
     validate(cs["nodes"], cs["edges"])  # structural + all checks: must not raise
-    for inv in ["I2", "I3", "I4", "I10", "I14", "I15", "I16", "I19", "I20"]:
+    for inv in ["I2", "I3", "I4", "I10", "I14", "I15", "I16", "I19", "I20", "I21"]:
         validate(cs["nodes"], cs["edges"], only=inv)  # each check accepts valid input
 
 
@@ -289,6 +289,219 @@ def test_I20_reads_its_edge_list_from_the_ddl_rather_than_a_literal() -> None:
     }
     assert set(_RESULT_EDGES) == declared
     assert declared == {"RESULT_FOR_SITE", "RESULT_FOR_PROTEIN"}
+
+
+# ── I21: a correction's id names its baseline (ADR-0025's null door) ──────────────────────────
+#
+# Every case here is **constructed**. No writer in this repository emits `protein_adjusted =
+# 'applied'`, all 1,362 shipped results are `not_applied` and none carries an `ADJUSTED_BY` edge,
+# so a green run says the checker separates a correction from its baseline — never that any
+# correction exists. The same is true of I20's cases and of ADR-0025's own.
+
+_ANALYSIS = "bzk:an1"
+_CONTRAST = "bzk:c1"
+_CORRECTED = {"protein_adjusted": "applied", "adjustment_method": "residual_vs_protein_lfc"}
+
+
+def _result_id(observation: str, baseline: str | None, **props: object) -> str:
+    """Mint a `DifferentialResult` id the way a producer would — or, with `baseline=None`, the way
+    the null door does."""
+    from bzk.ontology.keys import evidence_id
+
+    anchors = {"Analysis": _ANALYSIS, "Contrast": _CONTRAST, "SiteObservation": observation}
+    if baseline is not None:
+        anchors["DifferentialResult"] = baseline
+    return evidence_id("DifferentialResult", n("DifferentialResult", **props), anchors)
+
+
+def _context() -> list[dict[str, object]]:
+    """The referents every correction below anchors on. A change-set is self-contained (ADR-0019),
+    so these are present or structural validation refuses before I21 is reached."""
+    return [
+        n("Analysis", id=_ANALYSIS, kind="processing", parameters_observed=True),
+        n("Contrast", id=_CONTRAST, label="KO vs WT"),
+    ]
+
+
+def _correction(
+    rid: str, observation: str, baseline: str
+) -> tuple[list[dict[str, object]], list[dict[str, str]]]:
+    """A site-grain correction and the four edges that anchor it.
+
+    All four, because I21 recomputes from the anchors the change-set names: a change-set carrying
+    an `ADJUSTED_BY` edge must carry the result's other anchor edges too, or the recomputation
+    cannot reproduce the id. I20 already imposes that for `RESULT_FOR_*`.
+    """
+    return (
+        [
+            n("SiteObservation", id=observation, peptide_sequence="LLQFIDKELVR"),
+            n("DifferentialResult", id=rid, **_CORRECTED),
+        ],
+        [
+            e("WAS_GENERATED_BY", rid, _ANALYSIS),
+            e("RESULT_IN_CONTRAST", rid, _CONTRAST),
+            e("RESULT_FOR_SITE", rid, observation),
+            e("ADJUSTED_BY", rid, baseline),
+        ],
+    )
+
+
+def _baseline(bid: str) -> tuple[list[dict[str, object]], list[dict[str, str]]]:
+    """The protein-level result a correction points at, as a referent."""
+    return (
+        [
+            n("ProteinObservation", id="bzk:pobs1", candidate_proteins=[MX1]),
+            n("DifferentialResult", id=bid, protein_adjusted="not_applied"),
+        ],
+        [e("RESULT_FOR_PROTEIN", bid, "bzk:pobs1")],
+    )
+
+
+def test_I21_refuses_a_correction_minted_through_the_null_door() -> None:
+    """The reachable failure: a producer emits the edge and never passes the anchor.
+
+    ADR-0025 made `ADJUSTED_BY` identifying; the key builder permits an absent anchor, so omitting
+    it mints a real id in which the baseline is invisible — and two corrections against different
+    parents are one node again, which is the collision that ADR was written to close.
+    """
+    rid = _result_id("bzk:obs1", None, **_CORRECTED)
+    nodes, edges = _correction(rid, "bzk:obs1", "bzk:base")
+    base_nodes, base_edges = _baseline("bzk:base")
+    with pytest.raises(InvariantError) as ei:
+        validate(_context() + nodes + base_nodes, edges + base_edges, only="I21")
+    assert ei.value.invariant == "I21"
+    assert "no baseline at all" in str(ei.value)
+
+
+def test_I21_refusal_is_its_own_and_not_structural_validations() -> None:
+    """A guard whose failure arrives from somewhere else establishes the somewhere else.
+
+    The identical change-set passes structural validation — `validate(..., only="I2")` runs
+    ADR-0019 first and then a check with nothing to say here — so the refusal above is I21's.
+    An assertion was withdrawn on 2026-08-10 for failing at the wrong layer; this is the check
+    that would have caught it.
+    """
+    rid = _result_id("bzk:obs1", None, **_CORRECTED)
+    nodes, edges = _correction(rid, "bzk:obs1", "bzk:base")
+    base_nodes, base_edges = _baseline("bzk:base")
+    cs = (_context() + nodes + base_nodes, edges + base_edges)
+    validate(*cs, only="I2")  # structure + a different invariant: must not raise
+    with pytest.raises(InvariantError):
+        validate(*cs, only="I21")
+
+
+def test_I21_accepts_a_correction_whose_id_names_its_baseline() -> None:
+    """Non-vacuity: without this, *refuse every correction* would pass the refusal tests."""
+    rid = _result_id("bzk:obs1", "bzk:base", **_CORRECTED)
+    nodes, edges = _correction(rid, "bzk:obs1", "bzk:base")
+    base_nodes, base_edges = _baseline("bzk:base")
+    validate(_context() + nodes + base_nodes, edges + base_edges, only="I21")
+
+
+def test_I21_refuses_a_cycle_assembled_from_ids_minted_against_other_baselines() -> None:
+    """Acyclicity, and the case that rules out the weaker form of this invariant.
+
+    Both ids are minted **honestly**, each against a real third baseline, and the edges are then
+    crossed into a two-cycle. Neither id is its own no-baseline form, so *the id must differ from
+    its no-baseline form* accepts this pair. Recomputation refuses it, at whichever member the
+    edge list reaches first. A cycle whose ids genuinely encoded each other would need `sha256` to
+    determine its own input, so it is unsatisfiable rather than merely absent.
+    """
+    a = _result_id("bzk:obsA", "bzk:baseC", **_CORRECTED)
+    b = _result_id("bzk:obsB", "bzk:baseD", **_CORRECTED)
+    nodes_a, edges_a = _correction(a, "bzk:obsA", b)
+    nodes_b, edges_b = _correction(b, "bzk:obsB", a)
+    with pytest.raises(InvariantError) as ei:
+        validate(_context() + nodes_a + nodes_b, edges_a + edges_b, only="I21")
+    assert ei.value.invariant == "I21"
+    assert "a different one" in str(ei.value)
+
+
+def test_I21_leaves_a_hand_written_id_alone() -> None:
+    """The scope, asserted rather than left as a comment.
+
+    `bzk:dr1` claims no digest, so it is not held to one. This is why the valid fixture's four
+    `bzk:dr*` results and the six change-sets in this module that mint one did not have to be
+    re-keyed, and it is the same fixture route ADR-0025 records as the one a cycle survives on.
+    """
+    nodes, edges = _correction("bzk:dr1", "bzk:obs1", "bzk:dr2")
+    base_nodes, base_edges = _baseline("bzk:dr2")
+    validate(_context() + nodes + base_nodes, edges + base_edges, only="I21")
+
+
+def test_I21_is_silent_on_a_result_that_carries_no_adjusted_by_edge() -> None:
+    """The shape all 1,362 shipped results have: `not_applied`, no edge, digest-shaped id.
+
+    The id here is minted through the null door deliberately — with no `ADJUSTED_BY` edge that is
+    not a defect but the correct tuple, which is exactly why the trigger is the edge and not the
+    `protein_adjusted` value.
+    """
+    rid = _result_id("bzk:obs1", None, protein_adjusted="not_applied")
+    nodes = [
+        n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR"),
+        n("DifferentialResult", id=rid, protein_adjusted="not_applied"),
+    ]
+    validate(nodes, [e("RESULT_FOR_SITE", rid, "bzk:obs1")], only="I21")
+
+
+def test_I21_fires_under_the_full_validate_over_an_otherwise_valid_change_set() -> None:
+    """Reachability, which `only="I21"` cannot establish and which the other six do not check.
+
+    Every case above targets one check. That is deliberate — on a hand-built change-set I3 raises
+    first, because a `SiteObservation` with no `ModifierAssignment` is refused — but it means a
+    checker registered in `_CHECKS` and never reached would pass all six. The valid fixture
+    satisfies every check, so re-keying its corrected result `bzk:dr1` through the null door
+    isolates I21 as the only thing wrong with it, and the same fixture re-keyed to the id that
+    *does* name its baseline validates: the digest is the difference, not the re-keying.
+    """
+    cs = json.loads(VALID_CHANGESET.read_text())
+    dr1 = next(node for node in cs["nodes"] if node.get("id") == "bzk:dr1")
+    anchors = {
+        label: edge["to"]
+        for label, rel in schema.IDENTITY["DifferentialResult"].anchors
+        for edge in cs["edges"]
+        if edge["type"] == rel and edge["from"] == "bzk:dr1"
+    }
+
+    def rekeyed(new_id: str) -> tuple[list[dict[str, object]], list[dict[str, str]]]:
+        nodes = [
+            dict(node, id=new_id) if node.get("id") == "bzk:dr1" else node for node in cs["nodes"]
+        ]
+        edges = [
+            dict(edge, **{role: new_id for role in ("from", "to") if edge[role] == "bzk:dr1"})
+            for edge in cs["edges"]
+        ]
+        return nodes, edges
+
+    from bzk.ontology.keys import evidence_id
+
+    without = {k: v for k, v in anchors.items() if k != "DifferentialResult"}
+    with pytest.raises(InvariantError) as ei:
+        validate(*rekeyed(evidence_id("DifferentialResult", dr1, without)))
+    assert ei.value.invariant == "I21"
+    validate(*rekeyed(evidence_id("DifferentialResult", dr1, anchors)))  # must not raise
+
+
+def test_I21_reads_its_anchors_from_the_identity_table_and_all_five_point_outward() -> None:
+    """The recomputation is only right if every anchor is an edge *out of* the result.
+
+    §3's table is the authority and `_RESULT_ANCHORS` mirrors it, so a sixth anchor is recomputed
+    against without an edit here — the same derivation I20's edge list uses. What that derivation
+    cannot do on its own is check *direction*: an anchor whose relationship runs the other way
+    would contribute nothing to `anchors_of` and I21 would then refuse every correction with a
+    `null` in its recomputed tuple. That is the guard-against-the-wrong-endpoint shape, so it is
+    asserted rather than assumed.
+    """
+    from bzk.ontology.invariants import _RESULT_ANCHORS
+
+    # `_RESULT_ANCHORS` *is* `schema.IDENTITY["DifferentialResult"].anchors` — asserting the two
+    # equal was written here first and `test_tautology_sweep.py` caught it as a match on the spot,
+    # which is the one thing that comparison could ever have established. What is not a tautology
+    # is the count and the direction, and §3's table itself is guarded by `tests/test_schema.py`.
+    declared = {r.name: (r.src, r.dst) for r in schema.REL_TABLES}
+    assert len(_RESULT_ANCHORS) == 5
+    for label, rel in _RESULT_ANCHORS:
+        assert declared[rel] == ("DifferentialResult", label)
 
 
 def test_I10_enzyme_attribution_requires_a_live_association() -> None:

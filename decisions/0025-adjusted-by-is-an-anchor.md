@@ -57,10 +57,38 @@ a forest: each result has at most one baseline.
 **2. A cycle becomes unkeyable, which is a strengthening rather than a hazard.** A two-cycle
 (`R1 ADJUSTED_BY R2`, `R2 ADJUSTED_BY R1`) and a self-loop (`R ADJUSTED_BY R`) both **validate
 today** and both still validate after this change; the amendment neither creates that hole nor
-widens it. What it adds is that `evidence_id` **cannot produce** either, because computing one id
+widens it. ~~What it adds is that `evidence_id` **cannot produce** either, because computing one id
 needs the other's. A cycle therefore survives only where ids are hand-written, which is the fixture
 route. **No acyclicity check is asserted anywhere**, before or after — stated because a reader
-meeting the ordering obligation would reasonably look for one.
+meeting the ordering obligation would reasonably look for one.~~
+
+**Corrected 2026-08-10, before this record was Accepted.** *This edit is an ordinary one and not a
+breach of the append-only rule.* `decisions/README.md` draws that line **by status rather than by
+elapsed time** and says so in its own second sentence — *"Correcting a record during review is an
+ordinary edit to a `Proposed` document — that is what the status is for"* — and this record is
+`Proposed`. **That is the only reason it is an edit**: had this been `Accepted`, the correction
+below would be ADR-0026 superseding this one, because a sentence inside the record that argued for
+the amendment is exactly the kind of thing that must die visibly.
+
+`evidence_id` **can** produce an id for a member of a cycle. It resolves nothing — `anchor_ids` is
+an argument, and an absent anchor is permitted outright — so a caller who omits the self-anchor gets
+a real id with `@DifferentialResult=␀null` in the tuple. What cannot be produced is the
+**cyclically-determined** id, which is the *producer's* impossibility and is where consequence 1
+already puts the ordering obligation.
+
+**The wording mattered because it concealed a live hole, not because it was loose.** The same
+omission that keys a cycle also **re-mints this ADR's own collision**: two corrections against
+different baselines, both minted with a null self-anchor, are one node again —
+`bzk:3473130e9cb7f1198196ee40b0e30727`, measured against shipped code. I4 accepts it (it reads the
+edge, never the id), I20 is silent (it counts `RESULT_FOR_*`), and structural validation recomputes
+no ids. So the amendment above closed the collision only for producers that choose to supply the
+anchor it added.
+
+**Closed by I21** (`ONTOLOGY.md` §8, 2026-08-10): a digest-shaped id carrying an `ADJUSTED_BY` edge
+must encode that edge's target. **Acyclicity is subsumed by it** — a cycle needs `sha256` to
+determine its own input, and a cycle assembled from ids minted against *third* baselines is refused
+at both ends. A cycle among **hand-written** ids still validates, exactly as this consequence
+originally said: I21 governs ids that claim to be digests, and the fixture route is untouched.
 
 **3. `ADJUSTED_BY`'s `MANY_ONE` multiplicity is now load-bearing.** §3's rule is that an anchor must
 be single-valued, and this anchor satisfies it only because §7 declares the relationship `MANY_ONE`

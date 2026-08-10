@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any
 
 from bzk.ontology import schema
@@ -298,6 +299,16 @@ def identity_tuple(
 
     `anchor_ids` maps anchor node type -> that node's id; absent anchors are permitted (not every
     anchor applies to every instance — a `DifferentialResult` has either a site or a protein).
+
+    **That permission is a door, and I21 is the lock on the one anchor where it was load-bearing.**
+    An omitted anchor renders `␀null`, indistinguishable from an anchor that genuinely does not
+    apply, so a caller who simply fails to pass `ADJUSTED_BY` gets a real id in which the baseline
+    is invisible — which re-mints the collision ADR-0025 added that anchor to close, measured at
+    `bzk:3473130e9cb7f1198196ee40b0e30727`. Nothing here can refuse it: this function is handed the
+    anchors and resolves none, which is also why it neither recurses nor hangs on a cycle. The
+    obligation therefore sits at write time — `invariants._check_I21` recomputes a digest-shaped
+    `DifferentialResult` id against the edges its change-set names. This clause was cited by none
+    of the three documents that reasoned about the self-anchor, and all three were imprecise.
     `child_values` maps child node type -> the child nodes, whose *values* are folded in; the set is
     sorted so several children of one parent cannot fork the id by enumeration order.
     """
@@ -359,6 +370,22 @@ def evidence_id(
     """`bzk:` + truncated SHA-256 over the canonical identity tuple (ADR-0020)."""
     tup = identity_tuple(label, node, anchor_ids, child_values)
     return "bzk:" + hashlib.sha256(tup.encode("utf-8")).hexdigest()[:DIGEST_HEX]
+
+
+_DIGEST_ID = re.compile(rf"\Abzk:[0-9a-f]{{{DIGEST_HEX}}}\Z")
+
+
+def is_digest_id(value: object) -> bool:
+    """Does this id *claim* to be an `evidence_id` digest (§3, ADR-0020)?
+
+    A claim, never a proof: only recomputation establishes that a digest is the right one, which is
+    what `invariants._check_I21` does for the one anchor where the difference bites. What this
+    separates is a minted id from a **hand-written** one — `bzk:dr1`, the fixture and test
+    change-sets' mnemonics, which assert nothing about their own content and so cannot be held to
+    it. Living here rather than in `invariants.py` keeps the shape with `DIGEST_HEX`, which defines
+    it; a checker restating `32` would be a second home for one fact.
+    """
+    return isinstance(value, str) and _DIGEST_ID.fullmatch(value) is not None
 
 
 # ── Reference keys: the readable composite templates of §4 ──────────────────────────────────────

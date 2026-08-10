@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.55 |
+| Version | 1.56 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -2838,6 +2838,12 @@ because the differential turn's three wrong premises were found on this exact su
 | One result naming **two** baselines | **refused** — `STRUCTURE — ADJUSTED_BY is MANY_ONE` |
 | `evidence_id` called baseline-first on a DAG | keys both, `bzk:4a317881…` then `bzk:77aaecc7…` |
 
+**Rows 2 and 3 are measurements of 2026-08-10 and stand; what they measured has since changed.**
+Both cases still validate where the ids are **hand-written**, which is what the probe used. Where
+the ids claim to be digests, **I21 refuses both** as of the same day — the two-cycle at whichever
+member is reached first, the self-loop because an id cannot encode itself. The probe is not
+falsified; the state it probed is no longer the current one.
+
 **The self-anchor is workable and the ordering dependency is real but confined.** Structural
 validation is order-blind, so the change-set carries no ordering obligation; the obligation is on
 the **producer**, which must key the baseline before the result that anchors on it — a topological
@@ -2852,9 +2858,18 @@ dependency is new and is recorded in the ADR.
 
 **One consequence the amendment introduces, named and not guarded.** A cycle validates today and
 will still validate after; what changes is that it becomes **unkeyable** — computing either id needs
-the other's. So `evidence_id` cannot *produce* a cycle, which is a strengthening, and a hand-written
-one remains constructible exactly as it is now. No acyclicity invariant is added: that is a new
+the other's. ~~So `evidence_id` cannot *produce* a cycle, which is a strengthening, and a hand-written
+one remains constructible exactly as it is now.~~ No acyclicity invariant is added: that is a new
 invariant and outside this turn's scope, and the amendment neither creates the hole nor widens it.
+
+**The struck sentence is corrected 2026-08-10 and it was the wrong half that was wrong.**
+`evidence_id` *can* produce an id for a member of a cycle — it resolves nothing, and an omitted
+anchor is permitted — so what it cannot produce is the **cyclically-determined** id, which is the
+producer's impossibility. The gap that phrasing hid is not the cycle at all: the same omission
+re-mints ADR-0025's own collision, since two corrections against different baselines both minted
+with a null self-anchor are one node again. Closed by **I21**, and the following turn's outcome
+entry carries the measurements. *Outside this turn's scope* was the right call on the acyclicity
+check specifically — it was subsumed rather than built.
 
 #### Step 1 — the amendment and its record
 
@@ -3279,6 +3294,115 @@ correction from its baseline, not that any correction exists. And the check read
 the change-set's own edges, so it obliges a change-set carrying an `ADJUSTED_BY` edge to carry that
 result's other anchor edges too — an obligation ADR-0019's self-containment already implies and I20
 already imposes for `RESULT_FOR_*`, stated because it is new for the other three.
+
+
+### The gap was never the cycle — I21, and four homes corrected, 2026-08-10
+
+**Every step-0 prediction held, and the answer they add up to is that ADR-0025 closed its own
+collision only for producers that chose to co-operate.**
+
+| Prediction | Outcome |
+|---|---|
+| The null-anchor case is **not distinguishable** by any existing check | **held** — I4, I20 and ADR-0019's structural validation all validate it |
+| I4 refuses `applied` with **no** `ADJUSTED_BY` edge | **held** — `InvariantError: I4` |
+| I4 **accepts** `applied` whose id was minted with a null self-anchor, the edge present | **held** — it reads the edge, never the id |
+| I20 is silent on it | **held** — it counts `RESULT_FOR_*` |
+| **Two corrections against different baselines, both minted with a null anchor, collide** | **held** — both `bzk:3473130e9cb7f1198196ee40b0e30727`; supply the anchor and they separate |
+| The 2-cycle validates end to end | **held** |
+| No id moves; refusals 27, sites 2,029, results 1,362 | **held** — 15 labels, 14,134 ids, symmetric difference **0** on every label and every edge count identical to the capture taken before the rebuild dropped it, over `python -m bzk.rebuild` then `python -m bzk.sources.pxd018299_differential` |
+| The five checks stay clean; the suite grows by the new tests only | **held** — 468 tests against 460, **75** source files unchanged because no module was added |
+
+**The tuple line is the whole finding in one row.** A null self-anchor renders
+`@DifferentialResult=␀null` — character for character what a legitimately absent
+`@ProteinObservation` renders — so the disagreement between an id that says *no baseline* and an
+edge that says *baseline X* is invisible at every layer, by construction rather than by omission.
+Nothing in this repository recomputes an id from a stored change-set. Now one thing does.
+
+**The decision: a guard is warranted, and it is not the acyclicity check the record contemplated.**
+I21 — *an `ADJUSTED_BY` edge obliges the source's id to encode its target*. Acyclicity is subsumed:
+a cycle needs each id to encode the other's, which needs `sha256` to determine its own input.
+Measured rather than argued — the corrected result **recomputes exactly** from its own anchors, and
+a cycle has **no fixed point in 12 iterations**. So the suggestion the reasoning raised — a general
+acyclicity invariant — is reported here and was **not built**, because a narrower check already
+implies it.
+
+**The weak form was measured against the strong one and rejected on the measurement.** *The id must
+differ from its no-baseline form* closes the null door and nothing else: two ids minted honestly
+against a **third** baseline each, then cross-linked into a two-cycle (`bzk:4dab180e…`,
+`bzk:2e3ceb59…`), **pass** it. I21 refuses them at both ends. That case is why I21 recomputes.
+
+**The scope is a real limit and was found by measurement, not by argument.** Unscoped, the strong
+form **refuses the valid fixture**: `bzk:dr1` is a hand-written mnemonic and recomputes to
+`bzk:3f1d92bfc9477eb7adb5e0c6b3df70f8`. **The step-1 pre-registration said *ten hand-written
+change-sets besides* and that figure was not measured when it was written; counted, it is six** —
+six change-sets in `tests/test_invariants.py` mint a `DifferentialResult` with that id, and the
+fixture carries four `bzk:dr*` results of which one is corrected. The direction of the finding is
+unchanged and the number was wrong, which is why it is corrected here rather than quietly. So I21
+governs ids that *claim* to be digests — `bzk:` + `keys.DIGEST_HEX` hex, a claim and never a proof —
+and a hand-written id stays outside it. That leaves the fixture route exactly as ADR-0025 already
+records it, and **no fixture or test change-set was re-keyed**.
+
+**Eight tests, not the six registered, and the two extra are the ones that would have been missed.**
+The layer question is asserted rather than assumed: the same change-set that I21 refuses
+**validates** under `validate(..., only="I2")`, which runs ADR-0019 first, so the refusal is I21's
+own — the check that would have caught the assertion withdrawn on 2026-08-10 for failing at the
+wrong layer. The second addition is **reachability**, and it was found by asking what `only="I21"`
+cannot establish: all six registered cases target the checker directly, and a checker registered in
+`_CHECKS` and never reached would pass every one of them. On a hand-built change-set the full
+`validate` raises **I3** first — a `SiteObservation` with no `ModifierAssignment` — so the fixture is
+the instrument: re-keyed through the null door it is refused by the full `validate` at I21 and by
+nothing else, and re-keyed to the id that *does* name its baseline it validates. The digest is the
+difference, not the re-keying.
+
+**Four mutations, each read back off disk before its run, each over the whole suite.**
+
+| Mutation | Result |
+|---|---|
+| **A** — `"I21": _check_I21` removed from `_CHECKS` | **9 failed, 459 passed.** Seven of the eight I21 tests, `test_valid_changeset_passes_every_check`, and the sweep. Registered as **6**; the miss is the same one I20's turn made — `validate(..., only="I21")` raises `ValueError` on an unknown invariant, so every *accepting* case fails too, not just the refusing ones |
+| **B** — the digest scope dropped, every id held to a recomputation | **4 failed.** `test_valid_changeset_passes_every_check`, `test_I21_leaves_a_hand_written_id_alone`, **`test_adapters_base.py::test_parsed_observations_validate_as_a_changeset`**, and the sweep |
+| **C** — the recomputation itself omits the self-anchor: the bug the guard exists to catch | **5 failed.** The refusal, layer, acceptance and full-`validate` cases, and the sweep |
+| **D** — `is_digest_id` accepts anything beginning `bzk:` | **4 failed**, the identical set to B |
+
+**Three things the mutations established that the tests alone did not.** **B named a third consumer
+of the fixture**: `_ReplayAdapter` in `tests/test_adapters_base.py` parses `valid_changeset.json` and
+hands it to `validate`, so the fixture's hand-written `bzk:dr1` reaches I21 by a path neither the
+fixture test nor the scope test goes through. Dropping the scope reddens all three, which is the
+measurement behind *no fixture was re-keyed* rather than an assurance about one file. **C is caught
+by the acceptance case, not the refusal case** — with the anchor omitted from the recomputation the
+crossed cycle is still refused, for the right outcome by the wrong computation, and only
+*accepts-a-correction-whose-id-names-its-baseline* goes red. A guard tested by refusals alone would
+have survived it. And **the eighth test correctly does not move under A**: the anchor-direction case
+reads `_RESULT_ANCHORS`, not the registry, so a mutation to the registry has nothing to say to it.
+
+**The sweep's `test_every_classified_instance_re_runs_its_recorded_evidence` fails in all four and
+is not four catches.** It re-runs the suite over its recorded evidence, so it is red whenever the
+suite is red. It is listed because omitting it would make the counts unreproducible.
+
+**One tautology was written and caught in the same turn, by this repository's own sweep.** The
+anchor-direction test first asserted `set(_RESULT_ANCHORS) == set(schema.IDENTITY['Differential\
+Result'].anchors)`. `_RESULT_ANCHORS` **is** that expression, so the assertion compared a value to
+itself, and `tests/test_tautology_sweep.py` matched it on the first run. It was removed rather than
+pinned; the count and the direction remain, and they are not tautologies. That is the sweep catching
+new code rather than the audit that created it, which had not happened before.
+
+**What this did not cover, stated rather than implied.** It is exercised **only by constructed
+cases** — no writer emits `protein_adjusted='applied'`, all 1,362 shipped results are `not_applied`
+and none carries the edge — so a green suite says the checker separates a correction from its
+baseline, never that any correction exists. It reaches **one** anchor: the other four can still be
+omitted at minting with nothing noticing, and that class is not machine-checked here because a
+general id-recomputation check over every node type is a different and much larger capability. And
+it obliges a change-set carrying an `ADJUSTED_BY` edge to carry the result's other anchor edges too;
+ADR-0019's self-containment already implies that and I20 already imposes it for `RESULT_FOR_*`, but
+it is new for `WAS_GENERATED_BY` and `RESULT_IN_CONTRAST`.
+
+**Four homes carried the imprecise sentence and none of them cited the clause that makes it false.**
+`decisions/0025`:57–62, `ROADMAP.md`:2853–2856, `ONTOLOGY.md`:91 and — found while correcting them —
+`ONTOLOGY.md` §11 Q7's own closing note, which repeated it in the very entry that recorded the
+collision. All four are corrected in place with the original struck. `keys.identity_tuple`'s *absent
+anchors are permitted* now names I21, so the clause and the invariant that depends on it are no
+longer one-way. **The ADR edit is an ordinary one, not a supersession**: `decisions/README.md` binds
+append-only to `Accepted` and ADR-0025 is `Proposed`. That it is Proposed is the only reason — had
+it been Accepted this would have been ADR-0026 to fix a sentence in an unratified record.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07

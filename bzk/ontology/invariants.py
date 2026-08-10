@@ -4,7 +4,7 @@ The invariants of ONTOLOGY.md §8 are errors, not warnings (CLAUDE.md): a violat
 `InvariantError`, which ingestion must let propagate rather than downgrade.
 
 **Enforced here** (write-time, over the staged change-set):
-  I2, I3, I4, I10, I14, I15, I16, I19, I20 — one checker each — plus **change-set structural
+  I2, I3, I4, I10, I14, I15, I16, I19, I20, I21 — one checker each — plus **change-set structural
   validation** (ADR-0019): every referent an edge names is present, every edge endpoint carries
   the node label `schema.py` declares for that relationship, every edge type is a relationship in
   the DDL, every relationship's multiplicity is respected (a MANY_ONE source or a ONE_MANY
@@ -58,7 +58,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable
 from typing import Any
 
-from bzk.ontology import schema
+from bzk.ontology import keys, schema
 from bzk.ontology.schema import (
     CONFIDENCE,
     PROTEIN_ADJUSTED,
@@ -576,6 +576,81 @@ def _check_I20(nodes: list[Node], edges: list[Edge]) -> None:
         )
 
 
+#: `DifferentialResult`'s anchors, read from `schema.IDENTITY` — the §3 table the key builder
+#: mirrors — rather than listed here, so a sixth anchor is recomputed against without an edit. This
+#: reads each as an edge whose *source* is the result, which is true of all five and is asserted in
+#: `tests/test_invariants.py` rather than here: an anchor declared in the other direction would
+#: contribute `null` to the recomputation and refuse every correction, and that is a red test rather
+#: than a package that will not import.
+_RESULT_ANCHORS: tuple[tuple[str, str], ...] = schema.IDENTITY["DifferentialResult"].anchors
+
+
+def _check_I21(nodes: list[Node], edges: list[Edge]) -> None:
+    """I21 — a correction's id names the baseline it was computed against (ADR-0025's null door).
+
+    **What ADR-0025 left open, and it is not the acyclicity gap that record contemplated.** That ADR
+    made `ADJUSTED_BY` an anchor so two corrections of one site against different parents stop
+    minting one id. Nothing obliged a producer to *supply* it: `keys.identity_tuple` permits an
+    absent anchor outright, because not every anchor applies to every instance. Omit it and the
+    tuple carries `@DifferentialResult=␀null` — indistinguishable from a genuinely inapplicable
+    anchor — and the two corrections are one node again, at
+    `bzk:3473130e9cb7f1198196ee40b0e30727`, measured against shipped code before this was written.
+
+    **Nothing else sees it.** `_check_I4` reads the `ADJUSTED_BY` edge and never the id, so a result
+    minted through the null door with the edge present validates. `_check_I20` counts `RESULT_FOR_*`.
+    ADR-0019's structural validation recomputes no ids at all — measured, because a guard whose
+    failure arrives from somewhere else establishes the somewhere else, and one was withdrawn here
+    for exactly that on 2026-08-10. So this fires at its own line.
+
+    **Acyclicity is subsumed rather than asserted.** A cycle needs each id to encode the other's,
+    which needs `sha256` to determine its own input — no fixed point in 12 iterations, and
+    unsatisfiable by construction rather than merely unreached. The weaker rule *the id must differ
+    from its no-baseline form* would close the null door and **not** this: two ids each minted
+    honestly against some third baseline, then cross-linked, pass it and are refused here at both
+    ends. That measurement is why this recomputes rather than compares against a null form.
+
+    **Digest-shaped ids only, and that is a real limit.** `bzk:dr1` claims no digest and is left
+    alone, so the valid fixture's four `bzk:dr*` results and the six hand-built change-sets in
+    `tests/test_invariants.py` that mint one did not have to be re-keyed — and a hand-written cycle survives exactly as ADR-0025 already records. **Nothing in
+    this repository produces the case**: no writer emits `protein_adjusted='applied'`, all 1,362
+    shipped results are `not_applied` and none carries the edge, so this is exercised only by
+    constructed cases, as I20's and ADR-0025's own guard are.
+    """
+    adjusted = _edges(edges, "ADJUSTED_BY")
+    if not adjusted:  # the shape all 1,362 shipped results have; nothing to recompute
+        return
+
+    anchors_of: dict[Any, dict[str, str]] = defaultdict(dict)
+    for label, rel in _RESULT_ANCHORS:
+        for edge in _edges(edges, rel):
+            anchors_of[edge["from"]][label] = edge["to"]
+    results = _index(nodes, "DifferentialResult")
+
+    for edge in adjusted:
+        rid = edge["from"]
+        result = results.get(rid)
+        if result is None or not keys.is_digest_id(rid):
+            # A referent re-staged without its node is structural validation's business; a
+            # hand-written id asserts nothing about its own content and cannot be held to it.
+            continue
+        anchors = anchors_of[rid]
+        expected = keys.evidence_id("DifferentialResult", result, anchors)
+        if expected == rid:
+            continue
+        # Which of the two failures this is, since they read very differently to whoever has to
+        # fix it: a producer that never passed the anchor, or one that passed the wrong node.
+        without = {k: v for k, v in anchors.items() if k != "DifferentialResult"}
+        null_door = rid == keys.evidence_id("DifferentialResult", result, without)
+        raise InvariantError(
+            "I21",
+            f"DifferentialResult {rid!r} is ADJUSTED_BY {edge['to']!r} but its id encodes "
+            + ("no baseline at all" if null_door else "a different one")
+            + f"; the id naming this baseline is {expected!r}. Since ADR-0025 the baseline is "
+            "part of identity (§3), so a correction whose id omits it cannot be told from a "
+            "correction of the same site against a different parent (ONTOLOGY.md §8 I21).",
+        )
+
+
 def _check_gene_absence(nodes: list[Node], edges: list[Edge]) -> None:
     """Every `Protein` names an `ENCODES` edge **or** a reason it has none — never neither (§4).
 
@@ -623,6 +698,7 @@ _CHECKS: dict[str, Callable[[list[Node], list[Edge]], None]] = {
     "I16": _check_I16,
     "I19": _check_I19,
     "I20": _check_I20,
+    "I21": _check_I21,
     "GENE_ABSENCE": _check_gene_absence,
 }
 

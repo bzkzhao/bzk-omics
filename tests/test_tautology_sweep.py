@@ -865,7 +865,23 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # equalities compares against a literal display, which Pass C excludes by construction. A
     # turn that grows the surface and the match set by zero is exactly the case this floor exists
     # to keep visible, since the multiset alone would have said nothing.
-    assert modules >= 29 and asserts >= 986, (
+    #
+    # 986 -> 993 on 2026-08-10 for I21's eight cases, module count unchanged at 29 — they live in
+    # `tests/test_invariants.py`. The new equalities were classified one at a time rather than in
+    # aggregate: two are `ei.value.invariant == "I21"` and one is `len(_RESULT_ANCHORS) == 5`, all
+    # comparisons against a literal display, which Pass C excludes exactly as it excludes the same
+    # shape for I2 through I20; one is `declared[rel] == ("DifferentialResult", label)`, a
+    # comparison against a value the test derives from `schema.REL_TABLES`, which Pass C also
+    # excludes as a literal display. The remaining additions are `in str(...)` membership
+    # assertions, which this pass never matched.
+    #
+    # **The match set moved by one and then back to zero, and the one was real.** The direction
+    # test was written with `set(_RESULT_ANCHORS) == set(schema.IDENTITY['DifferentialResult']
+    # .anchors)` in it, and this module matched it immediately: `_RESULT_ANCHORS` *is* that
+    # expression, so the assertion compared a value to itself. It was removed rather than pinned.
+    # That is this module catching a tautology in the same turn it was written, which is the first
+    # time it has done so on new code rather than on the audit that created it.
+    assert modules >= 29 and asserts >= 993, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

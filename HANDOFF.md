@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.37 |
+| Version | 1.38 |
 | Last reviewed | 2026-08-10 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -300,6 +300,27 @@ anywhere. The guard covers a case **nothing in this repository produces** — al
 `not_applied` and no writer emits `applied` — so a green test says the key builder separates two
 baselines, not that two exist.
 
+**Corrected 2026-08-10, the same day: the paragraph above is right about the cycle and the cycle was
+never the gap.** *A cycle becomes unkeyable* rested on `evidence_id` being unable to produce one. It
+can. It resolves nothing — `anchor_ids` is an argument and an absent anchor is permitted outright —
+so a caller who simply omits the self-anchor gets a real id with `@DifferentialResult=␀null` in the
+tuple. What cannot be produced is the *cyclically-determined* id, which is the **producer's**
+impossibility, and is where ADR-0025 already puts the ordering obligation. **The wording mattered
+because it hid a live hole rather than because it was loose**: the same omission re-mints ADR-0025's
+own collision — two corrections against different baselines, both minted with a null self-anchor,
+are one node again at `bzk:3473130e9cb7f1198196ee40b0e30727`, measured against shipped code — and I4
+accepts it (it reads the edge, never the id), I20 is silent, and structural validation recomputes no
+ids. So the amendment closed the collision only for producers that chose to supply the anchor it
+added. **Closed by I21** (`ONTOLOGY.md` §8): a digest-shaped id carrying an `ADJUSTED_BY` edge must
+encode that edge's target. **Acyclicity is subsumed and no cycle check was written** — a cycle needs
+`sha256` to determine its own input. The weaker rule *the id must differ from its no-baseline form*
+was measured and rejected: two ids each minted honestly against a **third** baseline and then
+cross-linked pass it, and I21 refuses them at both ends. **A hand-written id stays outside it**, so
+the fixture route survives exactly as ADR-0025 records and no fixture had to be re-keyed. Same
+standing as the paragraph above — no writer emits `applied`, so it is exercised only by constructed
+cases. Three documents carried the imprecise sentence and **none of them cited the clause that makes
+it false**; that clause, `keys.identity_tuple`'s *absent anchors are permitted*, now names I21.
+
 **The poller four figures rest on is in the repository — 2026-08-10, `bzk/fetch_progress.py`.**
 `OPERATIONS.md` §5 cited a 706-second window at 15-second spacing, `ROADMAP.md` three more pollers
 including the 12× correction, and **none of them existed**: each run rebuilt one from memory. It
@@ -545,7 +566,7 @@ deposit or the archive has moved and that is the finding, not a setup problem.
 
 ### Weeks 1–2
 
-**`tests/test_invariants.py` first, and failing.** One case per invariant that can be checked at write time — I2, I3, I4, I10, I14, I15, I16, I19, and I20 since 2026-08-10. Each constructs a violating node and asserts the write is rejected. Write these before the schema exists; they will fail to import, which is correct.
+**`tests/test_invariants.py` first, and failing.** One case per invariant that can be checked at write time — I2, I3, I4, I10, I14, I15, I16, I19, and I20 and I21 since 2026-08-10. Each constructs a violating node and asserts the write is rejected. Write these before the schema exists; they will fail to import, which is correct.
 
 **`bzk/ontology/schema.py`** — generate the Kùzu DDL from `ONTOLOGY.md` §4–6 rather than hand-writing it. A dict of node and edge definitions that emits Cypher. This is what makes a field rename a regeneration instead of a search across the codebase.
 
@@ -1363,7 +1384,7 @@ cross-reference — and a missing node records none of them.
 
 ### Unenforced invariants (audit 2026-08-07), by class
 
-The write-time change-set checks (I2, I3, I4, I10, I14, I15, I16, I19, **I20** since 2026-08-10)
+The write-time change-set checks (I2, I3, I4, I10, I14, I15, I16, I19, **I20** and **I21** since 2026-08-10)
 and change-set structural
 validation (ADR-0019) are enforced in `bzk/ontology/invariants.py`. The rest are not yet enforced;
 grouped by *how* they must be enforced, so a source-tree lint is not mistaken for a data check.
