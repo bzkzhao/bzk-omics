@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.51 |
+| Version | 1.52 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -2935,6 +2935,104 @@ re-denominated **942 → 949**, same 27 modules.
 amendment and validate after, and the amendment makes them unkeyable rather than illegal. `schema.py`'s
 `ADJUSTED_BY` multiplicity is untouched, as scoped — the amendment depends on it rather than forcing
 it. And the guard is exercised only by a constructed pair, because no writer here emits `applied`.
+
+
+### Pre-registration: guarding the three enumerations of ADR numbers, 2026-08-10
+
+**Written and committed before any code.** Nothing is built but the guard. This turn touches no
+writer, so `bzk rebuild` and the differential are run as a **state check** and nothing is predicted
+to change.
+
+#### Step 0 — four surfaces, three of them records
+
+`decisions/README.md` § *Which is the enumeration that can rot* counts **three**, and the asymmetry
+is worth stating rather than inferring: `ARCHITECTURE.md` §5's seed list, README's **Written** table
+and README's **Queued** table are the three places a number is *recorded*; `decisions/` is the
+**referent** those records are about, not a fourth record. A file cannot disagree with itself, so
+the guard compares each record against the directory and against the others.
+
+**§5 is narrower than it looks and one tempting relationship is not an invariant.** It holds
+`0001`–`0018` and nothing beyond, because `0019`–`0025` were never seeded. So *every Written entry
+appears in §5* is **false by construction** — measured: 7 records (`0019`–`0025`) are in the
+directory and absent from §5 — and cannot be made an invariant. What §5 does support is its
+*unstruck* set and its header's count claim.
+
+**A struck seed line means written, and a struck description means something else.** `0007`'s line
+strikes the number **and** its wording, because the seed was wrong and the record establishes which
+of two accounts holds. The parser therefore reads the strike on the **number only**; a second strike
+inside the prose is a correction mark and carries no membership meaning. Measured: 18 seed lines,
+**17 struck**, **1 unstruck** (`0018`).
+
+**Measured at this commit — five relationships hold and one does not.**
+
+| Relationship | At `fdc8ef3` |
+|---|---|
+| Written numbers == directory numbers, both directions | **holds** — 24 and 24, symmetric difference empty |
+| Every Written link resolves to a file | **holds** — 24 of 24 |
+| §5's unstruck set == Queued | **holds** — `{0018}` both |
+| Queued disjoint from Written | **holds** |
+| §5's header *all but one are written* | **holds** — 18 seeds, exactly one (`0018`) absent from the directory |
+| `Supersedes` reciprocal with `Superseded by` | **does not hold** — see Step 2 |
+
+**What a zero licenses, stated in advance.** Both tables were reconciled **by hand** on 2026-08-09.
+A clean first run is therefore evidence about *that reconciliation*, not about the class: it says the
+hand-fix was correct and complete on the day, and says nothing about whether the enumerations stay
+in step — which is the whole point of committing the check rather than repeating the audit.
+
+#### Step 1 — where the guard lives, and its non-vacuity half
+
+**A new module, `tests/test_decision_index.py`.** `tests/test_schema.py` is the precedent for a
+document-versus-code mirror, and it is the wrong home here: its subject is the DDL, nothing in
+`bzk/` reads `decisions/`, and adding a filesystem-and-Markdown check to it would make its own
+docstring false. `tests/` is nonetheless the only executable surface this project has, and a check
+that lives anywhere else is the procedure that does not re-run.
+
+**The parser must be shown to find what it claims to parse.** A Markdown table drifts and a regex
+that matches nothing passes by omission — the failure `tests/test_query_absence_coverage.py` was
+built against. **This was hit while preparing the turn**: a first row-regex matched **zero** Written
+rows against a table holding 24, and any comparison keyed off it would have been green. So each
+parsed set has its **count pinned**, and the mutation set includes **emptying a table**, not only
+corrupting a row.
+
+#### Step 2 — the status convention, and the one relationship that does not hold
+
+Measured now: **15 `Accepted`, 6 `Proposed` (`0006`, `0008`, `0009`, `0010`, `0012`, `0025`), 3
+`Superseded` (`0007`, `0011`, `0014`)**; ADR-0025 landed `Proposed` last turn, so any earlier figure
+is stale by one. Of the four candidate checks:
+
+* **A status is one of the three named values** — writable, holds (0 outside the set).
+* **A `Superseded` record names a successor that exists** — writable, holds 3 of 3.
+* **`Supersedes` is reciprocal with `Superseded by`** — **writable, and it fails.** `0014` carries
+  `Superseded by | ADR-0017`; `0017` carries `Supersedes | —`. One-sided, one instance.
+* **The round-trip itself** — **readable here and not writable as a suite assertion**, established
+  rather than asserted. Every one of the 24 has a first commit git can read, and the informative
+  ones can be classified. But `tests/test_tautology_sweep.py` runs the **whole suite** inside a copy
+  that excludes `.git`, and `git log` there returns *fatal: not a git repository* — so a
+  git-dependent assertion would turn that module red for a reason unrelated to what it checks. The
+  measurement is recorded in prose instead.
+
+**The one-sided pair is not fixed by editing `0017`.** It is `Accepted`, and `decisions/README.md`
+records that from 2026-08-07 the convention holds strictly — an Accepted ADR is amended only by a
+superseding ADR. So the guard asserts the two directions that hold and pins the asymmetry as a
+**named exception with its reason**, the `NOT_A_QUERY` shape: a *second* one-sided pair fails.
+
+**Predictions.**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| **No id moves** — 15 labels, 14,134 ids, every per-label set and edge count identical | per-label id-set diff against a capture taken before the state check | exact set equality |
+| `decisions/` holds **24** files; Written **24** rows; Queued **1** row; §5 **18** lines, 17 struck | the guard's own parsers | exact integers |
+| Statuses: **15** `Accepted`, **6** `Proposed`, **3** `Superseded` | the guard | exact integers |
+| Disagreement count on the five holding relationships: **0** | the guard | exact integer |
+| Disagreement count on reciprocity: **1**, the pair `(0017, 0014)` | the guard | exact — the pair named |
+| Refusals **27**, sites **2,029**, `DifferentialResult` **1,362** | the state check's own reports | exact integers |
+| The five queries unchanged | the queries | exact |
+
+**Mutation discipline, registered in advance.** Adding a file without a row, adding a row without a
+file, moving a number between Queued and Written, **emptying** a table, and adding a second
+one-sided supersession. The tautology shape is the specific risk — two sets derived from one parse
+compare equal whatever the parse did — so every set is compared against a **pinned count** as well
+as against its counterpart.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07
