@@ -611,10 +611,19 @@ def _check_I21(nodes: list[Node], edges: list[Edge]) -> None:
 
     **Digest-shaped ids only, and that is a real limit.** `bzk:dr1` claims no digest and is left
     alone, so the valid fixture's four `bzk:dr*` results and the six hand-built change-sets in
-    `tests/test_invariants.py` that mint one did not have to be re-keyed — and a hand-written cycle survives exactly as ADR-0025 already records. **Nothing in
-    this repository produces the case**: no writer emits `protein_adjusted='applied'`, all 1,362
-    shipped results are `not_applied` and none carries the edge, so this is exercised only by
-    constructed cases, as I20's and ADR-0025's own guard are.
+    `tests/test_invariants.py` that mint one did not have to be re-keyed — and a hand-written cycle
+    survives exactly as ADR-0025 already records. **Nothing in this repository produces the case**:
+    no writer emits `protein_adjusted='applied'`, all 1,362 shipped results are `not_applied` and
+    none carries the edge, so this is exercised only by constructed cases, as I20's and ADR-0025's
+    own guard are.
+
+    **The trigger is the edge, not the node, and that is what makes it writable at all.** The
+    general form — *every digest-shaped id recomputes* — was measured over `bzk rebuild` and the
+    differential before this scope was settled, and it is refused by the real ingestion: 1,362
+    `SiteObservation`s and 36 `Sample`s are staged with **no** anchor edge in the change-set that
+    stages them, because ADR-0019 permits a node to be re-staged as a referent (see `_check_I14`).
+    A change-set that emits `ADJUSTED_BY` is producing the relationship rather than re-staging a
+    referent, which is the one moment the baseline is known to be present.
     """
     adjusted = _edges(edges, "ADJUSTED_BY")
     if not adjusted:  # the shape all 1,362 shipped results have; nothing to recompute

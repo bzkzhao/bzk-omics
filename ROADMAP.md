@@ -3388,12 +3388,35 @@ new code rather than the audit that created it, which had not happened before.
 **What this did not cover, stated rather than implied.** It is exercised **only by constructed
 cases** — no writer emits `protein_adjusted='applied'`, all 1,362 shipped results are `not_applied`
 and none carries the edge — so a green suite says the checker separates a correction from its
-baseline, never that any correction exists. It reaches **one** anchor: the other four can still be
-omitted at minting with nothing noticing, and that class is not machine-checked here because a
-general id-recomputation check over every node type is a different and much larger capability. And
-it obliges a change-set carrying an `ADJUSTED_BY` edge to carry the result's other anchor edges too;
-ADR-0019's self-containment already implies that and I20 already imposes it for `RESULT_FOR_*`, but
-it is new for `WAS_GENERATED_BY` and `RESULT_IN_CONTRAST`.
+baseline, never that any correction exists. And it obliges a change-set carrying an `ADJUSTED_BY`
+edge to carry the result's other anchor edges too; ADR-0019's self-containment already implies that
+and I20 already imposes it for `RESULT_FOR_*`, but it is new for `WAS_GENERATED_BY` and
+`RESULT_IN_CONTRAST`.
+
+**I21 is an instance of a class — *an id must encode its anchors* — and the class is not closed.
+Whether it *can* be closed was measured rather than asserted, because a note is not allowed to
+stand in for a guard that is writable.** `store.py`:120 is the single funnel every write passes, so
+wrapping `invariants.validate` there counts the real population. Over `bzk rebuild` and the
+differential, digest-shaped nodes staged **without every anchor edge their id was minted from**:
+
+| Label | staged | short of an anchor edge |
+|---|---|---|
+| `SiteObservation` | 7,449 | **1,362** — no `Dataset`, no `ModificationSite` in that change-set |
+| `ModifierAssignment` | 7,449 | **7,449** |
+| `Sample` | 72 | **36** — no `Experiment` |
+| `DifferentialResult` | 1,362 | 1,362, but **only of anchors that do not apply** — `ProteinObservation` at site grain, and no baseline |
+| `Analysis`, `Experiment`, `Imputation` | 7 / 3 / 1 | 0 |
+
+**So the general check is not writable today, and the reason is structural rather than
+effortful.** ADR-0019 permits a node to be **re-staged as a referent** — `_check_I14` says so in
+code, *"No edges in this batch is not a violation"* — and the ingestion actually does it, 1,398
+times for `SiteObservation` and `Sample` alone. A rule that every digest-shaped id must recompute
+would refuse every one of them, so closing this class means changing the change-set contract, not
+adding an assertion. **I21 escapes precisely because its trigger is the edge and not the node**: a
+change-set that emits `ADJUSTED_BY` is producing the relationship, which is the one moment the
+baseline is known to be present. That is the measurement that makes the scope a design decision
+rather than an omission, and it is recorded here rather than as a `HANDOFF.md` §8 note, because a
+note would imply an assertion someone merely has not written yet.
 
 **Four homes carried the imprecise sentence and none of them cited the clause that makes it false.**
 `decisions/0025`:57–62, `ROADMAP.md`:2853–2856, `ONTOLOGY.md`:91 and — found while correcting them —
