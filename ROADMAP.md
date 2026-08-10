@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.43 |
+| Version | 1.44 |
 | Last reviewed | 2026-08-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -2258,6 +2258,105 @@ and `HANDOFF.md` §3's ordering is now load-bearing rather than a convenience.
 stored changed, so nothing on screen changed; `absences_panel` already renders `NOT_RETAINED` with
 its detail. `ROADMAP.md` § *Weeks 7–8*'s *ambiguity and correction status visible everywhere a
 number appears* is not engaged, because this turn put no number anywhere.
+
+
+### Pre-registration: what a MaxQuant protein adapter would mean, 2026-08-09
+
+**Written and committed before any adapter code.** `ProteinObservation` has 0 nodes and the reason
+is upstream of retention: the adapter does not exist. The reader does, guarded, and the file is in
+`raw/` with a pinned digest.
+
+**The starting state, measured before predicting anything.** `python -m bzk.rebuild` **1 m 50.3 s**
+— 2,029 sites, 27 refusals, 12,782 node and 10,283 edge statements, 48,696 cells — then
+`python -m bzk.sources.pxd018299_differential` **52.7 s**, restoring the pair's state exactly:
+**15 labels, 14,134 ids**, every per-label set and edge count identical to the capture taken before
+the rebuild. `ProteinObservation` **0**, `Gene` 1,039, `ENCODES` 1,054.
+
+**What the adapter inherits, read rather than re-derived.** `maxquant.read_table` drops **six spill
+lines** in this exact file — each carrying 147 tabs, so the field count matches the header and every
+structural check passes — using the file's own contiguous `id` column rather than a heuristic; and
+it reads bytes and decodes explicitly against the CRLF hazard. The adapter inherits both by going
+through the reader, which is what `maxquant.py` was written early to provide.
+
+**The identity is settled and is not re-decided.** `ProteinObservation` keys on `candidate_proteins`
+anchored on `Dataset` alone (§3, ADR-0022): a `MANY_MANY` `RESOLVES_TO_PROTEIN` cannot be an anchor,
+and the observed group replaces the single-`Protein` anchor that forced a razor pick. The adapter
+reads **`Protein IDs`** — the group as the search reported it — which is also the first entry of
+`perseus.PROTEIN_COLUMNS`, so the two adapters agree without a decision. `Majority protein IDs` is
+MaxQuant's own narrowing to the subset carrying half the peptides; §6.3 calls that its razor-rule
+inference, and reading it would silently substitute an inference for the observation.
+
+**The storage question is not reopened.** `quant.duckdb`'s `protein_values` exists, the row shape is
+identical to `site_values` by ADR-0004's contract, and `value` is nullable because a null cell is a
+measurement the search did not report. Nothing about writing protein cells contradicts it.
+
+**Measured on the real file, before the adapter existed, so the predictions below are derived and
+not read off a run.** 4,988 physical lines → **4,982** rows after six spill lines → **4,797** after
+`Reverse` and `Potential contaminant`. `Protein IDs` is non-empty on **all 4,797**; 4,133 (86.2%)
+name more than one accession; the largest group holds 57. Distinct accessions **23,807**, and the
+sum of group sizes is **23,807** as well — MaxQuant's groups are disjoint, so those two coincide by
+construction rather than by luck. Fourteen quantitative columns per family (`Intensity `,
+`LFQ intensity `, `iBAQ `).
+
+**Step 1's decisions.**
+
+**A group with no razor pick is not a case here.** At site grain a pick is unavoidable because the
+`ModificationSite` key carries a protein-specific position; at protein grain ADR-0022 made the group
+*the identity*, so there is nothing to pick and `no_razor_pick` has no analogue. The three site slugs
+do **not** transfer: `no_razor_pick` cannot arise, `unresolved_protein` cannot (no sequence is
+needed — a protein-level quantification measures a gene product, not a sequence version, §3), and
+`residue_mismatch` cannot (no residue). **One new slug is defined and it is a counted kind and
+nothing more**: `empty_protein_group`, for a row whose accession list is empty, because
+`candidate_proteins` is identifying and an empty list would key every such row identically.
+**Measured 0 instances on this file**, so it is tested against a synthetic row rather than a real one.
+
+**What `Analysis` and `Dataset` this belongs to.** §3 keys `Dataset` on `content_hash`, so the
+proteinGroups file is a **second `Dataset`** — a different digest, already pinned in `pride.py`. It
+therefore needs its own ingestion `Analysis` with its own `USED` edge, and `unprovenanced` will
+compute a status for it as a `prov:Entity`.
+
+**The registered outcome is that the ingestion does not happen, and this is registered before the
+adapter is written rather than discovered while writing it.** The proteinGroups file's fourteen
+columns are the **proteome** run — `WT_P_2hGradient1`, `KO_INF_P_2hGradient2` and so on — and the
+curation record's twelve `Sample`s are the **diGly** run's raw files. The two sets do not overlap in
+a single member. Minting samples from the fourteen column names is what I8 forbids in as many words:
+*experimental design inferred from filenames is never presented as though it came from the
+submitters*. §5.3's `filename_inference` basis exists for exactly this and would sanction a second
+curation record — **and the mapping is not deducible even so**: KO/none has **five** columns for
+three replicates, three of which name replicate 1
+(`KO_P_2hGradient1`, `KO_P_2hGradient1_190305112303`, `KO_P_2hGradient1_2ul`), and `_2ul` is a
+different injection volume, which is a different preparation rather than the same sample. Nothing in
+the deposit says which is the replicate, whether they are technical replicates to be averaged, or
+whether one is a failed run. **Authoring that mapping is a human judgement and this turn does not
+make it.**
+
+**So `I11`'s protein half is not met, decided against I11's own wording rather than by analogy.**
+*Every observation persists its per-sample quantitative values in the columnar store.* With zero
+`ProteinObservation`s the clause is vacuously true and unmet; with observations and no `Sample` to
+key a cell to it cannot be met, and writing observations with `quant_ref` set and no cells would
+assert retention that did not happen — the DDL calls a null `quant_ref` the violation state, and a
+non-null one over an empty table is worse than the state it names.
+
+**Predictions.**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| **The graph does not change**: 15 labels, 14,134 ids, every per-label set, edge count and `gene_absence` figure identical | per-label set diff against the capture | exact set equality |
+| `ProteinObservation` stays **0**; `Dataset` stays **1**; `protein_values` stays **0 cells** | Cypher and DuckDB | exact integers |
+| The adapter, run offline against the real file, would emit **4,797** `ProteinObservation`, **23,807** distinct `Protein`, **4,797** `REPORTS_PROTEIN`, **23,807** `RESOLVES_TO_PROTEIN`, **0** refusals, and **67,158** cells were a fourteen-sample mapping supplied | the adapter over the real file, without writing | exact integers |
+| The five queries are unchanged — 1,362 rows for `welch_t`, `NONE_FOUND` twice, `(0, 1362)` unprovenanced, one analysis satisfying I15, `NOT_RETAINED`, 12 of 14 | the queries | exact |
+
+**Probed before predicting, and the protein grain differs from the site grain in a way that matters.**
+Against the validator: a `Dataset` + `ProteinObservation` + its `Protein`s with both edges validates;
+so does the same batch **without `quant_ref`**, **without `REPORTS_PROTEIN`** and **without
+`RESOLVES_TO_PROTEIN`**. **No invariant fires at protein grain.** I3 forces a `ModifierAssignment`
+onto every `SiteObservation` and there is no counterpart here, so correctness rests entirely on the
+adapter and its tests. Self-containment still bites: an accession absent from the batch is refused
+by name.
+
+**Out of scope and registered as such**: the comparison against `protein_groups.py`'s survey is made
+*available* by an adapter producing the same population by a different route, and is not made here —
+it is its own pre-registration. No protein-grain differential results, no `RESULT_FOR_PROTEIN`.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07
