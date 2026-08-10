@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.31 |
-| Last reviewed | 2026-08-09 |
+| Version | 1.32 |
+| Last reviewed | 2026-08-10 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
 
@@ -236,6 +236,27 @@ per-input-row fact in the columnar store, which `bzk/query/` does not reach — 
 moves the gap rather than closing it. `query.refusals` still answers `NOT_RETAINED`, which is now
 **the only live case that value has**, and `tests/test_adapters_base.py` pins the absence so the
 next person re-opens the argument instead of discovering a hole.
+
+**The MaxQuant protein adapter is written and the ingestion is not — 2026-08-10.**
+`bzk/adapters/maxquant_protein_groups.py`, 27 tests, six guards each made to fail. Run offline over
+`HAP1_USP18KO_proteinGroups.txt` it emits **4,797** `ProteinObservation` over **23,807** `Protein`,
+0 refusals, **67,158** cells, in 0.726 s — every pre-registered figure exact. **Nothing was
+written**, and that was registered before the code existed: the file's fourteen quantitative columns
+are the *proteome* run (`WT_P_2hGradient1`, `KO_INF_P_2hGradient2`, …) and the curation record's
+twelve `Sample`s are the *diGly* run, sharing no member, so there is no `Sample` to key a cell to.
+Minting fourteen from the column names is what I8 forbids, and the mapping is not deducible even
+with §5.3's `filename_inference` basis — KO/none has five columns for three replicates, three of
+them naming replicate 1, one at a different injection volume. **So I11's protein half is still
+unmet, and the blocker moved from the pipeline to the deposit's sample mapping.**
+
+Three things the turn found rather than built. **I14's second half does fire at protein grain**,
+which the pre-registration's own probe had measured as *no invariant fires here* — it removed the
+edges entirely, and I14 only fires on a strict non-empty subset. **`iBAQ` has no columns in this
+file**, contradicting a measurement recorded the day before. And **a reported `0` is 39.8% of this
+matrix**; the first draft folded it to null, which `maxquant_sites.py` had already refused to do, so
+the value reader moved to `maxquant.cell_value` and `sample_nodes` to `adapters/base.py` — two
+conventions that had been one home short. `ROADMAP.md` § *Outcome: the MaxQuant protein adapter*
+carries all of it.
 
 **The enumeration is the more useful half, and it found three kinds where the model had one.**
 Declared-filter drops (43 decoys and contaminants, 242 localisation, 667 presence rule) are a
@@ -1137,6 +1158,18 @@ went on to say. Corrected by moving the line to the paragraph rather than the pa
 nodes and no cells, so `quant_ref` is null there. That is the violation state the column exists to
 show, and it is visible rather than hidden. `PeptideObservation` and `EnrichmentObservation` are
 deferred subtypes with no table at all, so I11 does not reach them.
+
+**Re-checked 2026-08-10 and the verdict is unchanged, with one clause of it now false.** *No
+adapter that writes either* is out of date: `bzk/adapters/maxquant_protein_groups.py` exists, is
+tested, and run offline over `HAP1_USP18KO_proteinGroups.txt` emits 4,797 `ProteinObservation`s with
+`quant_ref = 'protein_values'` and **67,158 cells**. The rest stands, and for a reason upstream of
+the adapter: **the ingestion did not run and I11's protein half is still unmet.** That file's
+fourteen quantitative columns are the *proteome* run and the curation record's twelve `Sample`s are
+the *diGly* run, sharing no member, so there is no `Sample` to key a cell to — and authoring the
+mapping from column names is what I8 forbids being presented as the submitters' design. `ROADMAP.md`
+§ *Outcome: the MaxQuant protein adapter* has the measurement and the reasoning. Until a curation
+record for the proteome run exists, `protein_values` holds **0 cells** and `ProteinObservation` has
+**0 nodes** — the same state as before, now with the adapter no longer the reason.
 
 #### Two measurements whose records were larger than what they established — 2026-08-08
 

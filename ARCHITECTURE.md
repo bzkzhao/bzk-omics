@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.21 |
-| Last reviewed | 2026-08-09 |
+| Version | 1.22 |
+| Last reviewed | 2026-08-10 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
 | Authoritative for | Language and library choices, storage layout, module boundaries |
@@ -73,8 +73,10 @@ bzk/
     loader.py
   adapters/      # ingestion; one module per search engine or analysis tool
     perseus.py   # analysis-output (ADR-0017); protein grain, no network in the parse path
-    maxquant.py  # the guarded table reader every MaxQuant module goes through
+    maxquant.py  # the guarded table reader every MaxQuant module goes through, and the
+                 # conventions two MaxQuant readers must not disagree about (a reported 0)
     maxquant_sites.py  # search-output; site grain, resolver injected, refusals counted
+    maxquant_protein_groups.py  # search-output; protein grain, no resolver — no sequence needed
     fragpipe.py
     diann.py
     base.py      # the adapter contract

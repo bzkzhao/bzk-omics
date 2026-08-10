@@ -51,13 +51,19 @@ I13 holds: `search_engine` and the rest are recorded on the `Dataset`, never bra
 
 from __future__ import annotations
 
-import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from bzk.adapters import maxquant
-from bzk.adapters.base import Edge, Node, ParsedObservations, Refusal, SampleMapping
+from bzk.adapters.base import (
+    Edge,
+    Node,
+    ParsedObservations,
+    Refusal,
+    SampleMapping,
+    sample_nodes,
+)
 from bzk.ontology import invariants, schema, seed
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.ontology.keys import evidence_id, modification_site_key, protein_key
@@ -111,14 +117,6 @@ class MaxQuantSiteError(ValueError):
     """A MaxQuant site table cannot be ingested. Never downgraded to a warning (`CLAUDE.md`)."""
 
 
-#: `Sample` columns, so a descriptor can be narrowed to the node inside it. `SampleMapping.samples`
-#: holds *descriptors* (`base.py`), and the curation loader's carry a `mapping_key` — the column
-#: header the curation was written against — which is not a DDL column and must not reach the graph.
-_SAMPLE_COLUMNS = frozenset(
-    c for t in schema.NODE_TABLES if t.name == "Sample" for c, _ in t.columns
-)
-
-
 #: Which deposit column prefix carries which of §5's closed quantities. One home for the mapping,
 #: so a new quantity is a row here rather than a string in the reader.
 QUANTITY_COLUMNS: dict[str, str] = {
@@ -153,41 +151,6 @@ def _sample_columns(mapping: SampleMapping, column: Mapping[str, int]) -> list[t
             )
         placed.append((str(sample["id"]), label))
     return placed
-
-
-def _cell_value(row: Sequence[str], column: Mapping[str, int], name: str) -> float | None:
-    """One measured value, or `None` where the search reported nothing.
-
-    Three spellings of "nothing reported" all become `None`, and one lookalike deliberately does
-    not. Blank, unparseable and **MaxQuant's literal `NaN`** are absences — measured on PXD018299,
-    the `Ratio mod/base` columns are `NaN` for 196 of the first 200 rows, and letting `float()`
-    accept that text would store a NaN *value* where the deposit means no value. **A reported `0`
-    stays `0`**: MaxQuant writes zero for an undetected intensity, and reading that convention as
-    absence is an interpretation the adapter has no licence to make (I19) — it is the statistics
-    layer's to make and record.
-
-    Stored rather than skipped, so "not measured" stays distinguishable from "not ingested"
-    (ADR-0013): an absent row cannot say which it was.
-    """
-    index = column.get(name)
-    if index is None:
-        return None
-    text = row[index].strip()
-    if not text:
-        return None
-    try:
-        value = float(text)
-    except ValueError:
-        return None
-    return None if math.isnan(value) else value
-
-
-def _sample_nodes(mapping: SampleMapping) -> list[Node]:
-    """The `Sample` nodes inside the mapping's descriptors, with non-column keys dropped."""
-    return [
-        {NODE_TYPE_KEY: "Sample", **{k: v for k, v in s.items() if k in _SAMPLE_COLUMNS}}
-        for s in mapping.samples
-    ]
 
 
 @dataclass(frozen=True)
@@ -345,7 +308,7 @@ class MaxQuantSiteAdapter:
         }
         resolved = resolve_to_nodes(keyed, resolver=resolve_one)
 
-        nodes: list[Node] = _sample_nodes(mapping) + seed.modifier_nodes() + list(resolved.nodes)
+        nodes: list[Node] = sample_nodes(mapping) + seed.modifier_nodes() + list(resolved.nodes)
         edges: list[Edge] = list(resolved.edges)
 
         dataset = {
@@ -668,7 +631,7 @@ class MaxQuantSiteAdapter:
                 observation_id=observation_id,
                 sample_id=sample_id,
                 quantity=quantity,
-                value=_cell_value(row, column, f"{prefix}{label}"),
+                value=maxquant.cell_value(row, column, f"{prefix}{label}"),
             )
             for sample_id, label in sample_columns
             for quantity, prefix in sorted(QUANTITY_COLUMNS.items())

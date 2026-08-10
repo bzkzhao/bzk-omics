@@ -310,6 +310,40 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_keys.py", "sequence == 'uniprot:P20591#sv4'", 1),
         ("test_keys.py", "site == 'uniprot:P20591#sv4#K48#unimod:121'", 1),
         ("test_maxquant.py", "accessions == ['P20591', 'P19525']", 1),
+        # The protein adapter's three, classified individually 2026-08-10. None is an instance, and
+        # each was made to fail by a mutation of the adapter recorded in `ROADMAP.md`
+        # § *Outcome: the MaxQuant protein adapter*.
+        #
+        # Two artefacts of one `parse`, not one artefact against its own producer: the left is the
+        # set of `RESOLVES_TO_PROTEIN` **edges**, the right the observation **node**'s stored field.
+        # They are built from one local list, which is why they agree.
+        #
+        # **The mutation that establishes it is `protein_ids[:0]`, and `[:1]` establishes nothing
+        # here.** Narrowing the loop to one candidate does fail the test — but at
+        # `invariants.validate` inside `parse`, raising I14 before the assertion is reached, so it
+        # measures the invariant and not this line. Emptying the loop is the case I14 deliberately
+        # permits (no edges is a node re-staged as a referent, ADR-0019), so `parse` returns and the
+        # assertion fails on its own line: `assert set() == {…P20591, …P09914, …P05161}`. That gap
+        # is exactly what this assertion covers and the invariant does not.
+        (
+            "test_maxquant_protein_groups.py",
+            "reached == set(observation['candidate_proteins'])",
+            1,
+        ),
+        # Against a literal display of three accessions the fixture names; the `set()` on the left
+        # is deduplication, not the producer. Made to fail with
+        # `candidate_nodes([*group, "Q9NRZ9"])` — an extra `Protein` no edge names is a valid
+        # change-set, so it survives `parse` and reaches the assertion.
+        (
+            "test_maxquant_protein_groups.py",
+            "set(protein_ids) == {f'uniprot:{MX1}', f'uniprot:{IFIT1}', f'uniprot:{ISG15}'}",
+            1,
+        ),
+        # A third assertion in the same test, `sorted(protein_ids) == sorted(set(protein_ids))`, was
+        # **withdrawn rather than pinned**: it cannot fail, because `parse` validates before
+        # returning and structural validation refuses a duplicate `(label, id)`, so no `parsed`
+        # carrying one ever reaches an assert. Removing the adapter's `staged_proteins` filter fails
+        # the test inside `parse`, which establishes that guard and not the line.
         ("test_maxquant_sites.py", "set(modifiers) == set(schema.GG_REMNANT_MODIFIERS)", 1),
         # Classified individually 2026-08-09, with the identity pin. None is an instance; each is
         # recorded with what it would take to make it fail, and two were made to fail by the
@@ -733,7 +767,15 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # the multiset carries; additions never trip it, because an added *match* is caught by the
     # multiset rather than by this floor — but leaving the floor behind the surface reintroduces
     # exactly the slack the re-denomination removed, so it moves with every addition too.
-    assert modules >= 24 and asserts >= 821, (
+    #
+    # **And it did not move, twice, which is the slack arriving by the route that sentence names.**
+    # 821 -> 926 and 24 -> 26 on 2026-08-10, covering `tests/test_analysis_differential.py` (the
+    # twenty-fifth, landed at `91ba011` on 2026-08-09) as well as this turn's protein adapter (the
+    # twenty-sixth). The differential turn added a module and its assertions without
+    # re-denominating, and nothing failed — because nothing can: `>=` is silent about a surface
+    # that grew. A floor that moves only when someone remembers is the shape of check this module
+    # exists to replace, so the number is re-read from `sweep()` rather than incremented.
+    assert modules >= 26 and asserts >= 926, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

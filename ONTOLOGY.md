@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.32 |
-| Last reviewed | 2026-08-09 |
+| Version | 1.33 |
+| Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
 | Authoritative for | Node types, edge types, field semantics, invariants |
@@ -748,11 +748,19 @@ CREATE REL TABLE ASSIGNS_PROTEIN(FROM ProteinAssignment TO Protein, MANY_ONE);
 | `orthogonal_evidence` | Isoform-specific knockdown, transcript evidence | `confirmed` |
 
 **No current adapter emits a `ProteinAssignment`, and that is the design rather than a gap
-(2026-08-07).** A reader meeting this node type should know that it is deliberately empty. The one
-search-output adapter that exists reads a MaxQuant site table, and such a table supports a **keying
+(2026-08-07).** A reader meeting this node type should know that it is deliberately empty. ~~The one
+search-output adapter that exists~~ **the first search-output adapter** reads a MaxQuant site table,
+and such a table supports a **keying
 choice** — which sequence a site is pinned to, forced by ADR-0023 — not an **origin inference**,
-which is what this node records. The bases that would populate it need evidence the table does not
-carry: `unique_peptide` needs a distinguishing peptide observed elsewhere in the dataset,
+which is what this node records. **A second search-output adapter arrived 2026-08-10
+(`maxquant_protein_groups.py`) and does not change the verdict**, for the opposite reason: at
+protein grain ADR-0022 made the observed group the identity, so there is no pick to record and no
+narrowing to weigh — `candidate_proteins` carries the whole group and `RESOLVES_TO_PROTEIN` reaches
+every member. `Majority protein IDs` is the one narrowing on offer and the adapter does not read it,
+because §6.3 classifies it as MaxQuant's razor-rule inference rather than an observation.
+
+The bases that would populate it need evidence neither table
+carries: `unique_peptide` needs a distinguishing peptide observed elsewhere in the dataset,
 `orthogonal_evidence` needs isoform-specific knockdown or transcript data, `unambiguous` needs a
 group of one (18% of rows, and there the pick is not an inference either). `razor` and `leading`
 are the search engine's own picks, which §6.3 records as *not ground truth*; emitting an assignment

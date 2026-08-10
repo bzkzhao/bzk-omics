@@ -20,6 +20,8 @@ from dataclasses import field as dc_field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
+from bzk.ontology.invariants import NODE_TYPE_KEY
+from bzk.ontology.schema import NODE_TABLES
 from bzk.quant import store as quant_store
 
 # A change-set node is `{invariants.NODE_TYPE_KEY: <node type>, "id", **columns}` and an edge is
@@ -43,6 +45,30 @@ class SampleMapping:
 
     curation_analysis_id: str
     samples: list[dict[str, Any]]  # per-sample descriptors: label, genotype, treatment, replicate…
+
+
+#: `Sample`'s DDL columns, so a descriptor can be narrowed to the node inside it. Read from the
+#: schema rather than listed, so a column added to §4 needs no edit here.
+_SAMPLE_COLUMNS = frozenset(c for t in NODE_TABLES if t.name == "Sample" for c, _ in t.columns)
+
+
+def sample_nodes(mapping: SampleMapping) -> list[Node]:
+    """The `Sample` nodes inside a mapping's descriptors, with non-column keys dropped.
+
+    `SampleMapping.samples` holds **descriptors**, not change-set nodes, and the curation loader's
+    carry a `mapping_key` — the column header the curation was written against — which is not a DDL
+    column and must not reach the graph.
+
+    **Lives here, and not in `maxquant_sites.py` where it was written, since 2026-08-10.** Any
+    adapter emitting `Sample` nodes from a mapping owes the same narrowing, and the protein adapter
+    was written without it: `mapping_key` went into the change-set and `_validate_structure`'s
+    column check did not catch it, because that check names node *types* and not stray columns. The
+    test that caught it is a copy of the site adapter's, which is the shape of a fact with two homes.
+    """
+    return [
+        {NODE_TYPE_KEY: "Sample", **{k: v for k, v in s.items() if k in _SAMPLE_COLUMNS}}
+        for s in mapping.samples
+    ]
 
 
 @dataclass(frozen=True)

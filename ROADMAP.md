@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.44 |
-| Last reviewed | 2026-08-09 |
+| Version | 1.45 |
+| Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
 
@@ -30,9 +30,10 @@ One ingestion path, one dataset, one statistical test, no web frontend.
 |---|---|
 | **Perseus result-table adapter** | The collaborating group's workflow. A flat table of proteins, differences and significance values — no localisation or razor-pick complexity. **Written and tested against fixtures; not yet run on a real export.** Established 2026-08-09: the two published BJC tables are Perseus exports *of the annotation matrix* and carry no test statistic, so they cannot supply one. The adapter's group handling is no longer the blocker it was — ADR-0022 discharged that — and what it needs is a Perseus table that carries a `Difference` and a p-value |
 | **MaxQuant site-table adapter** | PXD018299, the validated regression fixture. Required to keep the published-target recovery verifiable — see the amended exit criterion: the figure is 9 of 14 through this route, and the criterion is that every miss is traced, not that the number is 12 |
+| **MaxQuant protein-groups adapter** | **This table had no row for it at all until 2026-08-10, while `maxquant.py` carried the plan in a docstring and `ONTOLOGY.md` §8 I14 quoted a measured protein-grain prevalence — the scope table was the one place the capability was invisible.** Written and tested 2026-08-10; run offline over `HAP1_USP18KO_proteinGroups.txt` it emits 4,797 `ProteinObservation`s over 23,807 `Protein`s with 67,158 cells and 0 refusals. **Not ingested**: the file's fourteen columns are the proteome run and the curation record's twelve `Sample`s are the diGly run, so there is no sample to key a cell to and I8 forbids inventing one |
 | UniProtKB resolution | Sequence-version pinning, isoform-aware, position validation, persistent cache |
 | Evidence graph in Kùzu | `Observation` and `EvidencedInference` contracts defined even though few subtypes ship |
-| Quantitative matrices in DuckDB | I11 — retained permanently, never only derived statistics |
+| Quantitative matrices in DuckDB | I11 — retained permanently, never only derived statistics. **Site grain only, as of 2026-08-10**: 48,696 cells in `site_values`, **0 in `protein_values`**. The protein adapter exists and writes cells; what is missing is a curation record for the proteome run, so the gap is now the deposit's sample mapping rather than the pipeline |
 | `welch_t` | **Implemented first**, and **its results are in the graph since 2026-08-09** — 1,362 `DifferentialResult`s under one `Analysis`. The 12-of-14 baseline was measured under Welch + BH; reproducing it exactly is how a pipeline bug is distinguished from a genuine difference between tests |
 | `perseus_s0` | Default and required per ADR-0015. Implemented second, and its own recovery number recorded as a separate baseline — it will not necessarily be 12 |
 | `ModifierAssignment` | Created as ambiguous on every site; manual assignment with basis |
@@ -2295,8 +2296,8 @@ not read off a run.** 4,988 physical lines → **4,982** rows after six spill li
 `Reverse` and `Potential contaminant`. `Protein IDs` is non-empty on **all 4,797**; 4,133 (86.2%)
 name more than one accession; the largest group holds 57. Distinct accessions **23,807**, and the
 sum of group sizes is **23,807** as well — MaxQuant's groups are disjoint, so those two coincide by
-construction rather than by luck. Fourteen quantitative columns per family (`Intensity `,
-`LFQ intensity `, `iBAQ `).
+construction rather than by luck. ~~Fourteen quantitative columns per family (`Intensity `,
+`LFQ intensity `, `iBAQ `).~~ **Wrong on the third — 14, 14 and 0; see the outcome below.**
 
 **Step 1's decisions.**
 
@@ -2349,7 +2350,8 @@ non-null one over an empty table is worse than the state it names.
 **Probed before predicting, and the protein grain differs from the site grain in a way that matters.**
 Against the validator: a `Dataset` + `ProteinObservation` + its `Protein`s with both edges validates;
 so does the same batch **without `quant_ref`**, **without `REPORTS_PROTEIN`** and **without
-`RESOLVES_TO_PROTEIN`**. **No invariant fires at protein grain.** I3 forces a `ModifierAssignment`
+`RESOLVES_TO_PROTEIN`**. ~~**No invariant fires at protein grain.**~~ **False, and withdrawn in the
+outcome below — one does.** I3 forces a `ModifierAssignment`
 onto every `SiteObservation` and there is no counterpart here, so correctness rests entirely on the
 adapter and its tests. Self-containment still bites: an accession absent from the batch is refused
 by name.
@@ -2357,6 +2359,86 @@ by name.
 **Out of scope and registered as such**: the comparison against `protein_groups.py`'s survey is made
 *available* by an adapter producing the same population by a different route, and is not made here —
 it is its own pre-registration. No protein-grain differential results, no `RESULT_FOR_PROTEIN`.
+
+
+#### Outcome: the MaxQuant protein adapter, 2026-08-10 — every prediction held, and three statements around them did not
+
+| Prediction | Result |
+|---|---|
+| **The graph does not change** — 15 labels, 14,134 ids, every per-label set and edge count identical | **held.** Nothing was written; the registered stop-short is the reason, not an accident of the run |
+| `ProteinObservation` stays **0**; `Dataset` stays **1**; `protein_values` stays **0 cells** | **held** |
+| Offline over the real file: **4,797** `ProteinObservation`, **23,807** `Protein`, **4,797** `REPORTS_PROTEIN`, **23,807** `RESOLVES_TO_PROTEIN`, **0** refusals, **67,158** cells | **held, all six exactly.** `parse` takes **0.726 s**, plus 1 `Analysis`, 1 `Dataset`, 14 `Sample`, 14 `PRODUCED`, 1 `USED`. 4,982 rows read, 6 spill lines dropped, 185 decoys and contaminants |
+| The five queries are unchanged | **held** — `(0, 1)` / `(0, 2029)` / `(0, 1362)` unprovenanced; 1,362 rows for `welch_t` and `NONE_FOUND` for the other two analyses; one analysis satisfying I15 (`downshifted_normal`, seed 0); `NOT_RETAINED` for refusals; 12 of 14 symbols |
+
+**The confirming pair, run after the adapter was written and before anything was committed.**
+`python -m bzk.rebuild` — 2,029 sites, 27 refusals, 12,782 node and 10,283 edge statements, 48,696
+cells, `EXIT=0` — then `python -m bzk.sources.pxd018299_differential` in **47.470 s**, writing 1,362
+`DifferentialResult`s over 4,090 node and 5,450 edge statements. Against an id set captured **before**
+the rebuild dropped it: **15 labels, 14,134 ids, identical id-for-id, every edge count identical.**
+`site_values` 48,696 cells, `protein_values` **0**.
+
+**The one thing the pre-registration got wrong is the sentence it was proudest of.** *No invariant
+fires at protein grain* was measured, not assumed — and measured with a probe that removed
+`quant_ref`, `REPORTS_PROTEIN` and `RESOLVES_TO_PROTEIN` **entirely**. **I14's second half fires
+here**, and only on a **strict non-empty subset**: an observation naming three candidates and
+reaching all three validates, reaching *none* validates (a node re-staged as a referent carries no
+edges, ADR-0019), and reaching *one or two* is refused by name. Removing all the edges is precisely
+the shape that hides it. This is the recurring class on this project — *a check reporting clean
+because it never ran* — arriving inside the instrument that was supposed to prevent it, and it is
+the third time a green probe has been consistent with the guard never firing.
+
+The correction is not only textual: the assertion in the tests that restates I14 was then re-checked
+against what it can actually catch. `assert reached == set(observation['candidate_proteins'])` is
+made to fail by emptying the edge loop (`protein_ids[:0]`) and **not** by narrowing it
+(`protein_ids[:1]`), which raises I14 inside `parse` before the line is reached. So the test covers
+exactly the gap the invariant leaves, and the mutation that looks like the obvious one establishes
+the invariant instead.
+
+**Two more statements the turn falsified, both by measurement rather than by reading.**
+
+**`iBAQ` has no columns in this file, and the pre-registration said fourteen.** Measured on the
+header: 14 `Intensity `, 14 `LFQ intensity `, **0 `iBAQ`** of any spelling — bare or per-sample.
+`ibaq` stays in the adapter's quantity→prefix map because it is a MaxQuant output *option*, and a
+declaration naming it against this file now raises by name rather than reading a family that is not
+there. The earlier figure came from a measurement that counted the family without checking the file
+carried it.
+
+**A reported `0` is 39.8% of this matrix, and the adapter's first draft folded it to null.**
+`maxquant_sites.py` had already decided the other way and recorded why: MaxQuant writes zero for an
+undetected intensity, and reading that convention as absence is an interpretation I19 leaves to the
+statistics layer. Measured here: **26,744 of 67,158 `LFQ intensity` cells are `0`** and 11,975 of
+the `Intensity` ones. Two MaxQuant adapters over one deposit meaning two things by a zero is not a
+difference of grain, so the function moved to `maxquant.cell_value` — one home — and the protein
+adapter defers to it. With the draft's reading the same run reports 26,744 nulls and 0 zeros; with
+the corrected one, 0 nulls and 26,744 zeros.
+
+**Three defects in the adapter that only the tests found**, each a thing the change-set format does
+not police: the ingestion `Analysis` was staged with no `__label__`; the `Sample` descriptors were
+passed through unnarrowed, carrying `mapping_key` — not a DDL column — into the change-set; and a
+`_deduplicate` post-pass over every node would have silently folded two rows naming one protein
+group into one observation. The first two are now caught by structural validation and by a test
+copied from the site adapter's, which is the shape of a fact with two homes — so `sample_nodes`
+moved to `adapters/base.py`. The third is refused outright: two rows keying to one
+`ProteinObservation` contradict ADR-0022's identity, neither row can be chosen, and folding them
+would overwrite one row's cells with the other's under `INSERT OR REPLACE`. Measured **0 instances**
+— 4,797 rows, 4,797 distinct sorted groups — because MaxQuant's groups are disjoint.
+
+**Six guards, each made to fail, each mutation read back off disk before the run.** Removing the
+`staged_proteins` filter → `STRUCTURE — duplicate node id 'uniprot:P09914'`; `protein_ids[:1]` →
+I14 by name; `mapping.samples` for `sample_nodes(mapping)` → the narrowing test; folding `0` in
+`cell_value` → the protein *and* the site test together, which is the one-home claim demonstrated;
+disabling the duplicate-group guard → its test; disabling the quantity-family check → its test. One
+assertion was **withdrawn rather than pinned**: `sorted(protein_ids) == sorted(set(protein_ids))`
+cannot fail, because `parse` validates before returning and structural validation refuses a
+duplicate `(label, id)`, so no `parsed` carrying one reaches an assert.
+
+**The registered stop-short stands and is the turn's result, not its shortfall.** The ingestion did
+not run, `protein_values` holds 0 cells, and I11's protein half is unmet — for the reason registered
+in advance and re-confirmed against the file: the fourteen quantitative columns are the proteome run
+and the curation record's twelve `Sample`s are the diGly run, sharing no member. The fourteen-sample
+mapping used for the offline measurement was constructed in memory from the column names, is not a
+curation record, and was never written. What changed is *which layer* the gap is in: the adapter was
+the blocker on 2026-08-09 and the deposit's sample mapping is the blocker now.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07
@@ -2564,7 +2646,7 @@ MaxQuant site-table adapter. DuckDB quantitative layer. **`welch_t` with BH firs
 
 A site moves from ambiguous to `basis = uba7_knockout, confidence = confirmed`, and the superseded assignment remains inspectable.
 
-Two things the old wording also assumed and that are **not yet true**, both blocking a literal reading of "through the real pipeline": gene symbols never enter the graph (`Gene` has no nodes, `Protein.name` is null on all **4,561** — corrected 2026-08-08 from 4,441, which the repository contradicts in five places), so target identification still reads the deposit's `Gene names`. **Decided 2026-08-08 and no longer open as a modelling question**: the symbol's home is `Gene.symbol`, not `Protein.name` — routing it onto `Protein` would make `Gene.symbol` redundant (ONTOLOGY.md §4). The blocker is now named and measured: `Gene.id` is an `hgnc:` CURIE, `Resolution.gene` is a *symbol*, and UniProt's payload does carry the id (`HGNC:7532` for `P20591`, measured) while the entry cache stores the parse rather than the payload — so nothing on disk has it. ONTOLOGY.md §11 Q12 holds the open part, which is what the cache should store — and as of 2026-08-09 Q12 is itself **blocked on a layer below it**: every answer re-writes `cache/uniprot/entry/{canonical}.json`, a tier whose key carries no version and which `ONTOLOGY.md` §8 and `OPERATIONS.md` §3 both wrongly called immutable until that date. **Both were settled on 2026-08-09**: the tier was split (`OPERATIONS.md` §3.1), Q12 was answered, and `Gene` was minted — **1,039 nodes, 1,054 `ENCODES` edges**, with `gene_absence` naming why the other 3,507 proteins have none (1,044 / 1,059 / 3,502 until the cold-clone rebuild the same day corrected them — ONTOLOGY.md §4). Target identification is answerable from stored content: 12 of 14 by exact symbol, 13 counting the `DDX58`→`RIGI` rename. The projected reach of ~3,231 was wrong by a factor of three because it counted cached entries rather than resolved accessions.; and I11 is met at **site grain only** since 2026-08-08: `quant_ref` is `site_values` on all 2,029 `SiteObservation`s and `quant.duckdb` holds 48,696 cells, so the site matrix is retained rather than re-read (ADR-0004, ADR-0013) — while `ProteinObservation` retains nothing, no adapter writing its cells. Gene symbols and the protein grain both remain on that reading.
+Two things the old wording also assumed and that are **not yet true**, both blocking a literal reading of "through the real pipeline": gene symbols never enter the graph (`Gene` has no nodes, `Protein.name` is null on all **4,561** — corrected 2026-08-08 from 4,441, which the repository contradicts in five places), so target identification still reads the deposit's `Gene names`. **Decided 2026-08-08 and no longer open as a modelling question**: the symbol's home is `Gene.symbol`, not `Protein.name` — routing it onto `Protein` would make `Gene.symbol` redundant (ONTOLOGY.md §4). The blocker is now named and measured: `Gene.id` is an `hgnc:` CURIE, `Resolution.gene` is a *symbol*, and UniProt's payload does carry the id (`HGNC:7532` for `P20591`, measured) while the entry cache stores the parse rather than the payload — so nothing on disk has it. ONTOLOGY.md §11 Q12 holds the open part, which is what the cache should store — and as of 2026-08-09 Q12 is itself **blocked on a layer below it**: every answer re-writes `cache/uniprot/entry/{canonical}.json`, a tier whose key carries no version and which `ONTOLOGY.md` §8 and `OPERATIONS.md` §3 both wrongly called immutable until that date. **Both were settled on 2026-08-09**: the tier was split (`OPERATIONS.md` §3.1), Q12 was answered, and `Gene` was minted — **1,039 nodes, 1,054 `ENCODES` edges**, with `gene_absence` naming why the other 3,507 proteins have none (1,044 / 1,059 / 3,502 until the cold-clone rebuild the same day corrected them — ONTOLOGY.md §4). Target identification is answerable from stored content: 12 of 14 by exact symbol, 13 counting the `DDX58`→`RIGI` rename. The projected reach of ~3,231 was wrong by a factor of three because it counted cached entries rather than resolved accessions.; and I11 is met at **site grain only** since 2026-08-08: `quant_ref` is `site_values` on all 2,029 `SiteObservation`s and `quant.duckdb` holds 48,696 cells, so the site matrix is retained rather than re-read (ADR-0004, ADR-0013) — while `ProteinObservation` retains nothing. **The trailing clause read *"no adapter writing its cells"* and is false as of 2026-08-10**: `bzk/adapters/maxquant_protein_groups.py` writes them, and measured offline over `HAP1_USP18KO_proteinGroups.txt` would write 67,158. The half stays unmet because the *deposit* cannot supply a `Sample` for those fourteen columns — see § *Outcome: the MaxQuant protein adapter* — which is a different blocker in a different layer, and worth distinguishing precisely because the old wording would have gone on reading true. Gene symbols and the protein grain both remain on that reading.
 
 ### Weeks 7–8 — output and consolidation
 Minimal Streamlit or notebook interface: query, volcano, provenance panel. Ambiguity and correction status visible everywhere a number appears. ADRs 0004–0014 written. Rebuild tested against the full dataset.

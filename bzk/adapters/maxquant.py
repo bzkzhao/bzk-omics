@@ -1,9 +1,15 @@
 """MaxQuant table reading — the guarded entry point every MaxQuant reader uses.
 
-**The adapter itself is weeks 5–6 and is not written.** What is here is the *reader*, because one
-of its guards was found before the adapter existed and a defect found early should not wait for the
-module that would inherit it. `bzk/sources/protein_groups.py` already reads a MaxQuant table and
-must go through this rather than keeping its own copy.
+~~**The adapter itself is weeks 5–6 and is not written.**~~ **Two adapters read through this now**
+— `maxquant_sites.py` since 2026-08-08 and `maxquant_protein_groups.py` since 2026-08-10 — and
+`bzk/sources/protein_groups.py` is the third caller, which is why this module was written before
+either: one of its guards was found before the adapter existed, and a defect found early should not
+wait for the module that would inherit it.
+
+**What is shared here is what two readers of one deposit must not disagree about.** The spill-line
+and CRLF defences below, and `cell_value`'s reading of a reported `0`. The last of those arrived by
+the failure mode this module exists to prevent: the protein adapter's first draft wrote its own
+value reader and folded `0` to `None`, which `maxquant_sites.py` had already refused to do (I19).
 
 Two hazards, both of the class `HANDOFF.md` §6 catalogues — code that runs, prints cleanly and is
 wrong.
@@ -31,7 +37,9 @@ implicit default a later `newline=''` could switch off with no test noticing.
 from __future__ import annotations
 
 import csv
+import math
 import sys
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -74,6 +82,41 @@ def read_table(path: Path) -> MaxQuantTable:
     id_index = header.index("id")
     rows = [r for r in reader[1:] if len(r) > id_index and r[id_index].isdigit()]
     return MaxQuantTable(header=header, rows=rows, spill_lines=len(reader) - 1 - len(rows))
+
+
+def cell_value(row: Sequence[str], column: Mapping[str, int], name: str) -> float | None:
+    """One measured value, or `None` where the search reported nothing.
+
+    Three spellings of "nothing reported" all become `None`, and one lookalike deliberately does
+    not. Blank, unparseable and **MaxQuant's literal `NaN`** are absences — measured on PXD018299,
+    the `Ratio mod/base` columns are `NaN` for 196 of the first 200 rows, and letting `float()`
+    accept that text would store a NaN *value* where the deposit means no value. **A reported `0`
+    stays `0`**: MaxQuant writes zero for an undetected intensity, and reading that convention as
+    absence is an interpretation the adapter has no licence to make (I19) — it is the statistics
+    layer's to make and record.
+
+    Stored rather than skipped, so "not measured" stays distinguishable from "not ingested"
+    (ADR-0013): an absent row cannot say which it was.
+
+    **Lives here, and not in `maxquant_sites.py` where it was written, since 2026-08-10.** The
+    protein adapter's first draft folded `0` to `None` on the reasoning that MaxQuant writes zero
+    for an unquantified protein — true, and a decision this module had already made the other way.
+    Two MaxQuant adapters reading one deposit's zero as two different things is not a difference of
+    grain, and the prevalence makes it consequential rather than academic: **26,744 of the 67,158
+    `LFQ intensity` cells in `HAP1_USP18KO_proteinGroups.txt` are `0` (39.8%), and 11,975 of the
+    `Intensity` ones (17.8%)**. One home is the fix; which way it points was settled first.
+    """
+    index = column.get(name)
+    if index is None:
+        return None
+    text = row[index].strip()
+    if not text:
+        return None
+    try:
+        value = float(text)
+    except ValueError:
+        return None
+    return None if math.isnan(value) else value
 
 
 def drop_decoys_and_contaminants(table: MaxQuantTable) -> list[list[str]]:
