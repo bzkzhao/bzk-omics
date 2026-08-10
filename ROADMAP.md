@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.54 |
+| Version | 1.55 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -3165,6 +3165,71 @@ by construction. The floor moved 28/967 → 29/986 by hand, and that a growing s
 matches is exactly what the floor exists to keep visible, since the multiset alone would have said
 nothing. **File counts in three checks moved**, as expected of a committed module: `ruff` and `mypy`
 now cover **75** source files against 73, and the suite is **460** tests against 449.
+
+
+### Pre-registration: ADR-0025's acyclicity gap, what it actually is, 2026-08-10
+
+**Written and committed before any code.** This turn writes no nodes.
+
+**The state at this session's open, performed here rather than inherited.** Baseline id set captured
+before the rebuild dropped it: **15 labels, 14,134 ids**, `DifferentialResult` 1,362, every edge
+count recorded. The five checks and the two commands are run in this session; if it compacts
+mid-turn the open is re-run and said so, because the last compaction cost exactly that.
+
+#### What is already established and is not re-derived
+
+`keys.evidence_id` takes `anchor_ids` as an argument and resolves nothing, so there is no recursion,
+no hang and no write. Driving a cyclic pair at it produces a real id —
+`bzk:9b76e0c5b4702a56c1351a4e05bad5a7`, with `@DifferentialResult=␀null` in the tuple — because
+`keys.py`:299–300 permits absent anchors outright: *not every anchor applies to every instance*.
+
+**So three documents are imprecise in the same way**, and none of them cites that clause.
+`decisions/0025`:57–62, `ROADMAP.md`:2853–2856 and `ONTOLOGY.md`:91 all say `evidence_id` **cannot
+produce** a cycle. It can produce an id for a member of one. What it cannot produce is the
+**cyclically-determined** id, because the caller cannot supply the anchor — so the impossibility is
+the **producer's**, which is exactly where `ONTOLOGY.md`:91 already puts the ordering obligation two
+sentences earlier. The correction is to make the three homes say what that sentence says.
+
+#### Step 0 — what the null-anchor path costs, predicted before it is run
+
+The live question is no longer the cycle. It is that **a caller who does not supply the self-anchor
+gets a silent id**, indistinguishable at the point of minting from a legitimately absent anchor — a
+result that measures a protein and so has no site, or the reverse.
+
+**Predicted, from reading the two checks and before constructing anything:**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| **No id moves** — 15 labels, 14,134 ids, every per-label set and edge count identical | per-label id-set diff against the capture taken before the rebuild | exact set equality |
+| The null-anchor case is **not distinguishable** by any existing check | constructed change-sets through `invariants.validate` | pass/fail per case |
+| I4 refuses `applied` with **no** `ADJUSTED_BY` edge | `validate(..., only="I4")` | the error names I4 |
+| I4 **accepts** `applied` whose id was minted with a null self-anchor, provided the edge is present — because I4 reads the edge and never the id | the same | validates |
+| I20 is silent on it: it counts `RESULT_FOR_*` and not `ADJUSTED_BY` | `validate(..., only="I20")` | validates |
+| **Two corrected results against different baselines, both minted with a null anchor, collide** — ADR-0025's own collision, reopened by the null path | two `evidence_id` calls | one digest, twice |
+| The 2-cycle validates end to end, both members `applied`, each carrying an edge | `invariants.validate` | validates |
+| Refusals **27**, sites **2,029**, `DifferentialResult` **1,362** | the two commands' reports | exact integers |
+
+**What a *not distinguishable* answer licenses, stated in advance.** It would mean the identity and
+the edges can disagree with nothing noticing: the id says *no baseline*, the edge says *baseline X*.
+Nothing in this repository recomputes an id from a stored change-set, so that disagreement is
+invisible by construction rather than by omission — and the collision ADR-0025 was written to close
+returns through the null door.
+
+#### Step 1 — the decision this turn owes, and it may be *nothing is minted*
+
+Three things bear on it and all three are already on record. No writer emits `applied` —
+`analysis/differential.py` fixes `protein_adjusted='not_applied'`, so the path is unreachable today.
+`schema.py`'s `MANY_ONE` already refuses two baselines on one result. And I4 may already refuse the
+sharpest sub-case. **If the honest answer is that no invariant is warranted, that is the answer and
+it is recorded** — but the three documents' wording is corrected either way, because it is a claim
+about the code that the code does not support.
+
+**If a guard is warranted, which layer it fires at is established before it is written.** ADR-0019's
+structural validation raises before `store`, and a guard was withdrawn here once for failing at the
+wrong layer. Any guard would be exercised only by constructed cases, as I20's and ADR-0025's are.
+
+**Out of scope and named:** `ADJUSTED_BY`'s multiplicity, protein-grain results, and a general cycle
+check over other edges — if the reasoning raises the last, it is reported and not built.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07
