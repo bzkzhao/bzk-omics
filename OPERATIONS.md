@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.18 |
-| Last reviewed | 2026-08-09 |
+| Version | 0.19 |
+| Last reviewed | 2026-08-10 |
 | Depends on | `ARCHITECTURE.md`, `ONTOLOGY.md` |
 | Authoritative for | Installation, backup, cache policy, dependency pinning, rebuild discipline |
 
@@ -45,6 +45,48 @@ classification that was asserted and wrong.
 **What losing it costs.** No id changes, because `ModificationSite` keys on the sequence *version* and not on its content, so nothing looks broken. What happens instead is that a rebuild re-resolves against today's UniProt, the residue check refuses every site whose sequence has since been amended, and the graph regenerates **smaller** — visible only as a changed refusal count that reads like data drift. And because the drift check works by comparing the stored copy against a fresh fetch, with no stored copy the fresh fetch becomes its own reference: **drift stops being detectable, including retrospectively.** The cache is the sole record of what the graph's positions were validated against. Losing it is silent in both directions, which is precisely why it cannot be low priority.
 
 At PXD018299's scale the archive is ~1,029 sequence files plus their entry metadata — **8.3 MB measured**, against 19 MB for the whole of `raw/` (of which the ingested site table is 2.7 MB) — so this is a correction of classification, not a meaningful new storage burden.
+
+### 1.1 Which copy of the tree — named 2026-08-10
+
+**The table above classifies content by kind and has no row for *which tree*, and by 2026-08-10
+three sat on disk with nothing distinguishing an input from a leftover.** They are named here
+because a backup priority answers *what to keep* and not *which of three copies to keep it from*,
+and because one of the three is neither an input nor a leftover — a third kind the document set had
+no word for.
+
+| Tree | Kind | What it is |
+|---|---|---|
+| `~/.bzk-omics` | **Input** | The live tree. Every documented command reads and writes it; §5's two commands act here. |
+| `~/.bzk-omics.cold1` | **Leftover** | The first cold rehearsal's tree (2026-08-09). **May be deleted.** |
+| `~/.bzk-omics.warm` | **Reproducibility instrument** | The pre-`aefd4e9` warm tree. **Not deleted, and not an input** — no documented command reads it. |
+
+**`.cold1` is a leftover because it holds nothing the live tree does not, measured rather than
+assumed.** Identical file sets across all three cache tiers, symmetric difference empty, and the
+same SHA-256 over the concatenated sequence files (`cacd8d24…`) and over the pins (`01b0e854…`). Its
+graph is the live tree's minus the differential results — the state `bzk rebuild` alone produces,
+which the live tree can return to in one command.
+
+**`.warm` is an instrument, and the distinction is between a record and the ability to re-derive
+one.** `ROADMAP.md` § *Measured findings* carries the histone finding's three measurements, so this
+tree is not the only evidence **of** it. What it uniquely preserves is the ability to **re-run** the
+comparison: its entry tier holds **0 of 2,261** snapshots carrying `AMBIGUOUS` against **7 of
+2,260** in both cold trees, and its graph carries the five histone `Gene`s (1,044 against 1,039).
+Those snapshots were written under the superseded first-cross-reference rule, `_load_entry` treats a
+stale-but-present value as a hit, and a re-fetch produces the cold tree — so they cannot be
+regenerated. Deleting it would leave the finding true and unfalsifiable.
+
+**Its immutable tier is not what makes it different, which is worth stating because it is the tier
+one would assume.** `.warm`'s sequence and pin sets exceed the cold trees' by exactly one accession
+— `P20591`, looked up by hand and never requested by the pipeline — and **minus that one file the
+sequence tier digests to `cacd8d24…`, the cold value exactly**. The difference is entirely in the
+parse, which is the tier §3.1 splits out as mutable and `ROADMAP.md` names as the one that stores a
+parse rather than bytes.
+
+**This names trees and does not give `raw/` a reachability notion.** `.warm` also carries **6**
+`raw/` objects against the cold trees' 4, and the two extras are cited by no curation record, no
+fetcher and no document. Identifying the tree does not identify the object: a content-addressed
+store still cannot tell an input from a leftover inside itself, which is `HANDOFF.md` §8's row and
+is unchanged by this section.
 
 ---
 

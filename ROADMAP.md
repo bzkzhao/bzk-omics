@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.47 |
+| Version | 1.48 |
 | Last reviewed | 2026-08-10 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -2600,6 +2600,129 @@ wrote is behavioural rather than reflective and was designed against the rejecti
 `graph.py`, not against that item. Noted here because *the correction was already discharged* and
 *the correction had no target* are different states, and a list that cannot tell them apart is how
 a want survives being satisfied.
+
+
+### Pre-registration: the three cache trees and a third cold rehearsal, 2026-08-10
+
+**Written and committed before the rehearsal runs.** Nothing is built. Part 1 is a decision over
+measurements already taken; Part 2 is the run.
+
+#### Part 1 — the three trees, measured before being named
+
+| | `~/.bzk-omics` | `.cold1` | `.warm` |
+|---|---|---|---|
+| entries / sequences / pins | 2,260 / 3,013 / 2,182 | 2,260 / 3,013 / 2,182 | 2,261 / 3,014 / 2,183 |
+| `AMBIGUOUS` snapshots | **7** | **7** | **0** |
+| `raw/` objects | 4 | 4 | **6** |
+| graph | 15 labels, 14,134 ids | 12 labels, 12,769 ids | 12 labels, 12,774 ids |
+| `Gene` | 1,039 | 1,039 | **1,044** |
+| `.drift` receipt | none | none | 2026-08-08, 2,845 sequences |
+| on disk | 124 MB | 105 MB | 106 MB |
+
+**`~/.bzk-omics` and `.cold1` are byte-identical where it counts.** Same file sets in all three
+cache tiers, symmetric difference **empty**, and the same SHA-256 over the concatenated sequence
+files (`cacd8d24…`) and over the pins (`01b0e854…`). `.cold1`'s graph is `~/.bzk-omics`'s minus the
+differential results — the state a rebuild alone produces. So `.cold1` holds **nothing the live tree
+does not**, and it is a **leftover**.
+
+**`.warm` differs by exactly one accession and two objects, and that is what makes it an
+instrument.** Its extra entry, sequence and pin are all `P20591` — MX1, looked up by hand and never
+requested by the pipeline — and its sequence tier **minus that one file digests to `cacd8d24…`, the
+cold trees' value exactly**. So the immutable tier is not what distinguishes it. What does is the
+**entry** tier: 0 of 2,261 snapshots carry `AMBIGUOUS` against 7 of 2,260 in both cold trees, and
+its graph carries the five histone `Gene`s (1,044 against 1,039). Those snapshots were written under
+the superseded first-cross-reference rule and cannot be regenerated — the fix cannot reach a cache
+hit, and a re-fetch produces the cold tree.
+
+**The distinction each tree is identified by is *input*, *leftover*, or *reproducibility
+instrument*, and the third is the one the document set had no word for.** `ROADMAP.md` §
+*Measured findings* already carries the histone finding's three measurements, so `.warm` is not the
+only evidence **of** it — what `.warm` uniquely preserves is the ability to **re-derive** them. A
+record can be read; an instrument can be re-run against. Deleting it would leave the finding true
+and unfalsifiable, which is the state this project treats as worse than an open question.
+
+**Decision.** `~/.bzk-omics` is the **live tree**, the input every documented command acts on.
+`.cold1` is a **leftover** and may be deleted. `.warm` is a **reproducibility instrument**, is
+**not deleted**, and is not an input — no documented command reads it, and its two orphan `raw/`
+objects and its `P20591` entry are exactly why it must not be mistaken for one. Recorded in
+`OPERATIONS.md` §1.
+
+**`HANDOFF.md`:610's trigger does not fire, and the reason is a level difference rather than a
+size one.** That row is about **objects inside** a content-addressed store having no reachability
+notion, and its trigger is *the first `raw/` large enough that someone wants to delete something*.
+Naming trees does not give `raw/` a reachability notion: `.warm`'s two orphan objects are still
+indistinguishable from inputs **by the store**, which is the row's actual subject. And nobody wants
+to delete anything for size — the largest tree is 124 MB. Identifying the tree does not identify the
+object, so the row stands unchanged with its trigger unfired.
+
+#### Part 2 — what the third cold rehearsal is predicted to show
+
+**Five things have landed since the second rehearsal**: the MaxQuant protein adapter, I20 and its
+checker, the empty-table coverage guard, the differential writer, and ADRs 0006–0012 and 0014.
+
+**The suite figure has no current home and is reported as a measurement.** `ROADMAP.md`'s cold-clone
+entry records **391**; collection today reports **435**. Measured here rather than predicted from
+the delta, because three modules and a scatter of cases landed across five turns and no running
+total was kept.
+
+**Predictions.**
+
+| Prediction | Instrument | Precision |
+|---|---|---|
+| Per-label diff against the **live tree** after the pair: **15 labels, 14,134 ids**, symmetric difference 0, every edge count identical | per-label id-set capture from the live tree, diffed against the clone's | exact set equality |
+| `Gene` **1,039**, `ENCODES` **1,054**, refusals **27**, sites **2,029**, `DifferentialResult` **1,362** | the two commands' own reports and Cypher | exact integers |
+| Cache reproduced: **2,260** entries, **3,013** sequences, **2,182** pins, **7** `AMBIGUOUS`; sequence and pin digests `cacd8d24…` / `01b0e854…` | file-set diff plus the concatenated digests | exact counts, exact bytes |
+| Fetch count **5,273** — 2,260 entry + 3,013 sequence round trips | count the files written into an empty cache | exact integer |
+| Suite in the clone: **435** tests, **0** skipped with the graph present; **11** skipped with no `~/.bzk-omics` | `pytest -q -rs` | exact integers |
+| The five queries after the pair: `(0,1)`/`(0,2029)`/`(0,1362)` unprovenanced; 1,362 rows for `welch_t` and `NONE_FOUND` twice; one analysis satisfying I15; `NOT_RETAINED`; 12 of 14 | the queries | exact |
+| §4.1 installs as written — `uv sync --frozen`, no edit to the procedure | running it | pass/fail |
+
+**No prediction is registered for the cold wall clock.** `OPERATIONS.md` §5 puts this instrument's
+resolution at *nothing finer than about two minutes*, the cold range is *n* = 2 at 37 m 14 s –
+39 m 34 s, and a third draw inside that band would establish nothing a reader could use. What the
+instrument **does** resolve is the fetch count, which reproduced exactly across both prior runs, so
+that is where the falsifiable claim sits. If any rate is estimated mid-run the **poll spacing is
+recorded with it**: `ROADMAP.md` § *Measured findings* carries a 12× error that came from three spot
+counts with no clock.
+
+**Registered outcomes, weakest first.**
+
+* **Identical is the weakest useful outcome and is named as such.** It says the four inputs plus the
+  code reproduce the graph on a machine whose caches were empty an hour earlier. It does not say
+  UniProt is stable — a run this close to the last one compares fetches against the same release,
+  the defect already recorded for both `bzk drift` runs.
+* **A changed refusal count with no id movement** is `OPERATIONS.md` §1's named case: content amended
+  under an unchanged version number, visible only as a delta that reads like drift. **The delta I
+  would accept as that is any refusal count above 27 whose extra rows are all `residue_mismatch`,
+  with `sequence_version` unchanged on every affected accession** — a mismatch is what an amended
+  sequence under a fixed version produces, and an unchanged version is what makes it invisible to
+  the pin. A change in `no_razor_pick` or `unresolved_protein` would be a different cause and is not
+  accepted as this one.
+* **A different `Gene` or `ENCODES` count** is accepted by `OPERATIONS.md` §1's decision where a
+  cross-reference genuinely changed at UniProt, and **not** accepted where the cause is internal —
+  which is what the histone finding turned out to be. The discriminator is the `AMBIGUOUS` count: 7
+  is the current rule's output, and a run returning 0 would be reading snapshots written under the
+  superseded one, which a cold tree cannot do.
+* **A moved id is the failure the pin cannot prevent in a cold tree**, because every pin is written
+  by the fetch under test. There is no prior copy to compare against inside the run; the only
+  reference is the live tree, and that is the whole reason the diff is taken.
+
+#### Part 3 — cut, and the reason recorded
+
+`bzk drift` is **not run**. `OPERATIONS.md` §5 already states that both prior runs reported zero
+drift, that neither number means anything about the archive, and that the first meaningful run is
+one over an archive aged weeks against UniProt's roughly monthly releases. Every archive on disk is
+hours to a day old. A third clean result would not move that sentence, so it would cost ~35 minutes
+to restate a paragraph.
+
+**One line was checked instead of run, and it distinguishes the two states correctly.**
+`drift.staleness_line` reads the receipt from the tree it is given, and its wording is a claim about
+the **archive**, not about the command: over the live tree and `.cold1` it says *sequence archive
+holds 3,013 sequence(s) and has NEVER been drift-checked*, which is true — neither tree has a
+receipt, and `bzk drift`'s two runs both happened in `.warm`. Over `.warm` it says *last
+drift-checked 2 day(s) ago over a DIFFERENT set (2,845 then, 3,014 now)*, which is the archive
+digest doing exactly what it was written for. So the line does not conflate *this archive was never
+checked* with *the command has never run*, and no fix is proposed.
 
 
 ### The platform made an invisible analytical choice, 2026-08-07
