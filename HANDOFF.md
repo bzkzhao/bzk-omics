@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.40 |
-| Last reviewed | 2026-08-11 |
+| Version | 1.41 |
+| Last reviewed | 2026-08-12 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
 
@@ -364,9 +364,13 @@ rows left v0.1 because they cannot be *completed* without something only the col
 forward** — `moderated_t_ebayes` needs nobody and was still left deferred, because he could say to
 match Perseus first and a row the meeting could change does not move into scope. **Two blocked rows
 stayed**: the protein-groups ingestion and I11's protein half wait on a curation record for the
-proteome run, and *blocked* is not *dependent* — §5.3 gives two authoritative bases and nobody has
-checked whether the deposit's own metadata resolves the mapping, so calling it his would be an
-assertion. `ROADMAP.md`'s *one dataset* clause is amended: it was already contradicted by two of that
+proteome run, and *blocked* is not *dependent*. **The reason given for that was wrong twice and is
+corrected in `ROADMAP.md`'s in-scope row, 2026-08-12** — the deposit had been checked (no SDRF,
+and the deposit silent on which file is the replicate), and the bases named were *authoritative*
+while the source pointed at carries `inferred`. The rows still stay, now on `publication_methods`:
+public, open and unwalked. **I8's second clause is what that ground costs and it is already
+live** — the shipped `curation_PXD018299.json` is itself `inferred`; the consequence is set out in
+that row and not repeated here. `ROADMAP.md`'s *one dataset* clause is amended: it was already contradicted by two of that
 document's own exit criteria, and the amendment does **not** claim the cross-query half, which
 §11 Q1 still holds. ADR-0015 stands unamended — it decides which registry entry is default, not when
 it ships — and the release markers in `ARCHITECTURE.md` §4's registry table became cross-references

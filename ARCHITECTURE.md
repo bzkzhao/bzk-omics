@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.25 |
-| Last reviewed | 2026-08-11 |
+| Version | 1.26 |
+| Last reviewed | 2026-08-12 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
 | Authoritative for | Language and library choices, storage layout, module boundaries |
@@ -274,16 +274,17 @@ Imputation never happens in the adapter. Adapters emit measured values and nulls
 
 With the platform positioned downstream, the statistics registry is no longer the point. Its purposes are now recomputation — running an alternative test over a retained matrix — and comparison, showing where a recomputed result diverges from an externally computed one. That divergence is a finding about analytical sensitivity, not a defect, and reporting it is something no existing tool does.
 
-`perseus_s0` remains default and required, because matching the collaborator's numbers is a precondition for being trusted with the comparison. **That is a claim about the registry and not about a release date** — stated here 2026-08-11, when `ROADMAP.md` deferred the entry to v0.2 without touching its registry status, and ADR-0015 stood unamended for the same reason.
+`perseus_s0` remains default and required, because matching the collaborator's numbers is a precondition for being trusted with the comparison. **That is a claim about the registry and not about a release date** — stated here 2026-08-11, when `ROADMAP.md` deferred the entry to a later release without touching its registry status, and ADR-0015 stood unamended for the same reason. Which release is that table's to say.
 
 ### Registry contents — a platform table, not a release table
 
 **Retitled 2026-08-11, because the old title made this a second home for a scope fact.** The
 `Status` column states what each entry *is to the platform*; when each ships is `ROADMAP.md`'s,
-as the `moderated_t_ebayes` row already said and the other two did not. `perseus_s0` is
-**deferred to v0.2 on `ROADMAP.md`'s dependency redraw** — its `s0` and FDR values are unknown
-until the collaborator supplies them — and it is still the registry's default and required
-entry, which is the distinction this table now makes rather than blurs.
+as the `moderated_t_ebayes` row already said and the other two did not. **The distinction the
+retitle buys is that an entry can be the registry's default and required while shipping in a
+later release than another entry** — which `perseus_s0` now does, on `ROADMAP.md`'s dependency
+redraw. Which release that is belongs to that table and is not repeated here; a second copy of
+it is what the 2026-08-11 edit left behind and 2026-08-12 removed, below.
 
 | Test | Status | Use |
 |---|---|---|
@@ -291,10 +292,20 @@ entry, which is the distinction this table now makes rather than blurs.
 | `moderated_t_ebayes` | Comparison | Empirical Bayes variance shrinkage (Smyth 2004). Better calibrated at *n* = 3 than a plain *t*-test; retained for comparison. **The release marker moved out of this cell on 2026-08-11**, into the single cross-reference under the table — it was the restatement that made this a second scope home, and putting one in every row would have been three copies of a fact this table does not own |
 | `welch_t` | Sanity check | Plain two-sample test; useful for detecting when the choice of test is load-bearing |
 
-**Release placement for all three entries is `ROADMAP.md` § v0.1, and is stated there once.**
-As of its 2026-08-11 dependency redraw: `welch_t` in v0.1, `perseus_s0` and
-`moderated_t_ebayes` in v0.2. This line is a pointer and not a copy — if it disagrees with that
-table, that table is right.
+**Release placement for all three entries is `ROADMAP.md` § v0.1, and this line does not
+repeat it.** Written on 2026-08-11 as *stated there once* followed by the three placements,
+which is a copy wearing a disclaimer: it carried three values where the cell it replaced
+carried one, and *if it disagrees, that table is right* is a precedence rule — it says what to
+do once the copies have diverged, not that there is one source. Removed 2026-08-12.
+
+**Guarding the copy was the alternative and was rejected on the rule rather than the cost.**
+This repository guards every mirror between two sources with a test, and a parser over that
+table would have been ordinary work. But that standard is the remedy for mirrors that must
+**exist** — `schema.py` has to encode the DDL, three documents legitimately enumerate ADR
+numbers — and a release date in this file is not one of those. `CLAUDE.md`'s single-source rule
+gives scope exactly one home, so a guard here would have made a forbidden duplication
+permanent and machine-checked instead of removing it. A test is not a licence to keep a second
+copy.
 
 `perseus_s0` is not the same test as `welch_t` with Benjamini–Hochberg. The `s0` parameter introduces a fold-change dependence into the significance threshold, producing the characteristic curved boundary on a Perseus volcano rather than straight cutoffs on both axes. A reproduction that ignores this will not match the group's numbers even when it recovers the same proteins.
 
