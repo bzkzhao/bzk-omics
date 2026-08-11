@@ -213,6 +213,23 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             1,
         ),
         ("test_curation_content_hash.py", "accession == PXD018299_SITES.accession", 1),
+        # ── tests/test_command_blocks.py, classified individually 2026-08-11 ──────────────────
+        # **One match, and it is not an instance — but it is the vacuity shape rather than the
+        # tautology shape, so the classification took a measurement rather than a reading.** The
+        # left side is parsed from the eleven documents; the right side is `[]`. Nothing re-derives
+        # the left at assert time, so it is not the call-equals-its-own-expression class. What it
+        # *is* exposed to is emptiness: if the block classifier stops recognising command blocks,
+        # `gaps` is `[]` and this line is green over nothing — the omission failure
+        # `tests/test_query_absence_coverage.py` was built against, one module along.
+        #
+        # **Measured rather than argued.** Mutation E on 2026-08-10's successor turn made
+        # `_is_command_block` return `False` unconditionally: this assertion **passed**, and
+        # `test_the_check_fires_on_the_defect_it_was_written_for` and
+        # `test_the_known_command_blocks_are_all_covered` both failed. So the non-vacuity is
+        # carried by those two, not by this line, and the three are a set of which none is
+        # redundant. Pinned rather than rewritten, because `== []` is the honest statement of the
+        # property; moving it to `not gaps` would hide the same exposure behind a truthiness test.
+        ("test_command_blocks.py", "gaps == []", 1),
         # ── tests/test_decision_index.py, classified individually 2026-08-10 ──────────────────
         # Thirteen matches, none an instance, each made to fail by a mutation of the surface it
         # names. Every one is either a computed value against a **pinned literal** or two sets
@@ -866,6 +883,10 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # turn that grows the surface and the match set by zero is exactly the case this floor exists
     # to keep visible, since the multiset alone would have said nothing.
     #
+    # 993 -> 1007 and 29 -> 30 on 2026-08-11 for `tests/test_command_blocks.py` (the thirtieth),
+    # which added **one** match — `gaps == []`, classified above with the mutation that establishes
+    # it is carried by two siblings rather than by itself. Read off `sweep()`.
+    #
     # 986 -> 993 on 2026-08-10 for I21's eight cases, module count unchanged at 29 — they live in
     # `tests/test_invariants.py`. The new equalities were classified one at a time rather than in
     # aggregate: two are `ei.value.invariant == "I21"` and one is `len(_RESULT_ANCHORS) == 5`, all
@@ -881,7 +902,7 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # expression, so the assertion compared a value to itself. It was removed rather than pinned.
     # That is this module catching a tautology in the same turn it was written, which is the first
     # time it has done so on new code rather than on the audit that created it.
-    assert modules >= 29 and asserts >= 993, (
+    assert modules >= 30 and asserts >= 1007, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

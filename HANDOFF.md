@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.38 |
-| Last reviewed | 2026-08-10 |
+| Version | 1.39 |
+| Last reviewed | 2026-08-11 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
 
@@ -69,9 +69,26 @@ uv sync --frozen                                        # build .venv (OPERATION
 #   ^ drops the computed results; the differential below must follow it (OPERATIONS.md 5)
 .venv/bin/python -m bzk.drift                           # validate the sequence archive, weekly
 .venv/bin/python -m bzk.sources.pxd018299_differential  # the differential run and its populations
-.venv/bin/python -m bzk.fetch_progress --watch-pid $!   # beside a cold rebuild; records the spacing
 streamlit run bzk/ui/app.py                             # three panels over bzk/query/
 ```
+
+**The poller is not a line in that list, because it runs *beside* the rebuild rather than after it.**
+It needs the rebuild's pid, so the rebuild has to be backgrounded and the pid held — which is three
+lines, not one, and the same three `bzk/fetch_progress.py`'s docstring carries:
+
+```
+.venv/bin/python -m bzk.rebuild & REBUILD=$!
+.venv/bin/python -m bzk.fetch_progress --watch-pid $REBUILD --interval 60
+wait $REBUILD
+```
+
+**Corrected 2026-08-11, and the missing character was load-bearing.** This block previously carried
+`--watch-pid $!` as its eighth line with **no `&` anywhere above it**, so `$!` had no producer: read
+as a stranger would, the pid comes from nothing. What a reader does then is improvise the
+backgrounding and the stopping, and improvising the stopping is where `pkill -f` gets written — the
+one failure `bzk/fetch_progress.py` exists to make unnecessary, and which recurred **twice more on
+2026-08-10**, after the module had landed and after this line already named `--watch-pid`. A fix
+that terminates the poller correctly is not reached by a reader who cannot obtain the pid.
 
 **Corrected 2026-08-09 by rehearsing it from a cold clone.** Three of these lines were missing —
 the install (nothing in the tree said `uv sync`), the `protein_groups` fetch, and the app — and the
@@ -280,6 +297,8 @@ graph, and I20 now runs at write time over all 1,362 results. Two figures widene
 to **37 m 14 s – 39 m 56 s** (*n* = 3) and the install to **6.0–9.1 s** (*n* = 3). Two failures are
 on the record: a truncated `protein_groups` download that succeeded on retry, and the `pkill`
 self-match that exits the wrapper 144 while the rebuild exits 0 — the same one as last time.
+**Those two — this run and the one it back-references — are occurrences 1 and 2 of four. The count,
+and the weaker provenance the other two carry, are in `ROADMAP.md` § *The missing `&`*.**
 `OPERATIONS.md` §1.1 now names `~/.bzk-omics` the **input**, `.cold1` a **leftover** that may be
 deleted, and `.warm` a **reproducibility instrument** that is not deleted and is not an input.
 
@@ -320,6 +339,23 @@ the fixture route survives exactly as ADR-0025 records and no fixture had to be 
 standing as the paragraph above — no writer emits `applied`, so it is exercised only by constructed
 cases. Three documents carried the imprecise sentence and **none of them cited the clause that makes
 it false**; that clause, `keys.identity_tuple`'s *absent anchors are permitted*, now names I21.
+
+**The command block above was missing one character and it sat between a fix and its reader —
+2026-08-11.** §3's block listed `python -m bzk.rebuild` with **no `&`** and then `--watch-pid $!`,
+so the pid expanded from nothing; the complete three-line form existed only in
+`bzk/fetch_progress.py`'s docstring, which is where a reader following the block is not looking.
+Corrected — the poller left the sequential list it never belonged in and now carries the module's
+form verbatim. **The `pkill` self-match has happened four times, not the three homes recorded**, and
+the two numbers were never the same quantity: rows 1 and 2 are the second and third cold rehearsals,
+with artefacts; rows 3 and 4 are the I21 turn and are **transcription from the session**, the same
+weaker provenance § *Instruments the documents named* already applies to the stale-monitor echoes.
+Row 4 did not use `pkill` at all — it derived pids from a `ps`/`grep` pipeline and still exited 144,
+which is the strongest support yet for *no pattern* rather than a better one. **Both late rows are
+after the module landed and after `--watch-pid` was documented**, so the class recurred beside its
+own fix; that is what makes the character load-bearing. `tests/test_command_blocks.py` now refuses a
+block that spends a shell variable nothing in it earns — 27 fenced blocks, 7 command blocks, and it
+was the only one. Two of the guard's own defects were found by making it fail, one of them firing
+on the **corrected** block.
 
 **The poller four figures rest on is in the repository — 2026-08-10, `bzk/fetch_progress.py`.**
 `OPERATIONS.md` §5 cited a 706-second window at 15-second spacing, `ROADMAP.md` three more pollers

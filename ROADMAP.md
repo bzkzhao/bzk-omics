@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.56 |
-| Last reviewed | 2026-08-10 |
+| Version | 1.57 |
+| Last reviewed | 2026-08-11 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
 
@@ -2776,7 +2776,9 @@ equal the live tree's.
 matched its own shell's command line, which contains that string, and killed the wrapper. The
 rebuild's own `EXIT=0` and its full report were already in the log. Same error as the second
 rehearsal; no measurement was affected, and it is named again because it is a property of the
-harness rather than of the tree.
+harness rather than of the tree. **This run and the one it names are occurrences 1 and 2 of four —
+the two with an artefact behind them. The other two, and why their provenance is weaker, are in
+§ *The missing `&`*.**
 
 **The registered outcomes, resolved.** The result is **identical**, the weakest of the four, and it
 is weaker still than the second rehearsal's for the reason that section already states — one day is
@@ -3135,6 +3137,18 @@ pattern. **`pkill -f` matches the full command line of every process, and the ki
 contains the pattern**, so any pattern sufficient to find the poller is present in the process
 searching for it. `--watch-pid` asks the kernel about one pid; there is no pattern to match.
 
+**Unfalsified and incomplete, 2026-08-11 — the paragraph is right about the pattern and silent
+about the pid.** `--watch-pid` takes a pid, and this turn's landing left **no document showing where
+that pid comes from**: `HANDOFF.md`'s command block carried `--watch-pid $!` with no `&` anywhere
+above it, so `$!` expanded from nothing. The complete three-line form existed only in
+`bzk/fetch_progress.py`'s own docstring, which is the one place a reader following the command block
+is not looking. *No pattern* is the right fix and it is not reachable by someone who cannot obtain
+the pid — so the two occurrences on 2026-08-10 were **after** this paragraph, **after** the module,
+and **after** `HANDOFF.md`:72 already named `--watch-pid`. That is what makes the missing `&`
+load-bearing rather than cosmetic: the class recurred beside its own fix. Corrected in
+`HANDOFF.md` §3, and `tests/test_command_blocks.py` now refuses a block that spends a variable it
+never earns.
+
 **Establishing what the three pollers measured was required before choosing, and it produced a
 finding.** All three counted the same quantity — files arriving in `cache/uniprot/entry/` and
 `cache/uniprot/seq/`. **What differs is the unit, and the conversion is stated nowhere beside the
@@ -3173,6 +3187,11 @@ rather than relocating it.** The `pkill` self-match is in `ROADMAP.md` twice and
 The stale-monitor echoes — a completed background run notifying twice through monitors still armed —
 appear in no document; they are from the session transcripts. Recorded here as transcription, which
 is a weaker provenance than everything around it.
+
+**That sentence counts *homes*, and the quantity amended below is *occurrences* — 2026-08-11.** Three
+homes was right and is still right: two passages in this file and one in `HANDOFF.md`. What no home
+carried is how many times the failure has happened, and the two numbers were never the same one.
+See § *The missing `&`*.
 
 **No sweep matches were added.** The surface grew to 29 modules and 986 asserts and the match set did
 not move: every equality in the new module compares against a literal display, which Pass C excludes
@@ -3426,6 +3445,106 @@ anchors are permitted* now names I21, so the clause and the invariant that depen
 longer one-way. **The ADR edit is an ordinary one, not a supersession**: `decisions/README.md` binds
 append-only to `Accepted` and ADR-0025 is `Proposed`. That it is Proposed is the only reason — had
 it been Accepted this would have been ADR-0026 to fix a sentence in an unratified record.
+
+
+### The missing `&` — a fix nobody could reach, and the occurrence count, 2026-08-11
+
+**No pre-registration and no nodes written.** Confirmed with the five checks; a rebuild is not
+needed, because nothing here touches the graph, the schema or any key.
+
+**The defect is one character, and it sat between a fix and its reader.** `HANDOFF.md`'s command
+block listed `.venv/bin/python -m bzk.rebuild` with no background operator and then, six lines
+later, `.venv/bin/python -m bzk.fetch_progress --watch-pid $!`. `$!` expands to the pid of the last
+backgrounded job; the block backgrounds nothing, so read as a stranger would, **the pid comes from
+nowhere**. The complete three-line form existed — in `bzk/fetch_progress.py`'s own docstring, which
+is exactly where a reader following the command block is not looking. Corrected: the poller now
+leaves the sequential list, which it never belonged in (it runs *beside* the rebuild, not after the
+differential), and appears as the same three lines the module carries.
+
+#### The occurrence count, and it is a different quantity from the one already recorded
+
+**§ *Instruments the documents named* counts homes — three, and that is still right.** What no home
+carried is how many times the failure has *happened*. **Four**, and they do not have equal
+provenance, so they are listed with it rather than summed:
+
+| # | When | Provenance |
+|---|---|---|
+| 1 | the second cold rehearsal, 2026-08-09 | on the record — `ROADMAP.md` § *Cold to cold* by back-reference, `HANDOFF.md` §3 |
+| 2 | the third cold rehearsal, 2026-08-10 | on the record — `ROADMAP.md`:2775–2779, with the exact `pkill -f "cold3/poll.sh"` |
+| 3 | the I21 turn, stopping a mutation run — `pkill -f "mutate21.py"` | **transcription from the session**, no artefact in the tree |
+| 4 | the I21 turn, stopping it again — a `ps \| grep \| kill` pipeline, not `pkill` | **transcription from the session**, no artefact in the tree |
+
+Rows 3 and 4 follow the provenance discipline § *Instruments the documents named* already applies to
+the stale-monitor echoes: they are from the session transcripts, recorded as transcription, which is
+weaker than everything around them. **Row 4 is the more useful of the two**, because it did not use
+`pkill` at all: it derived pids from a `ps`/`grep` pipeline and still took the wrapper down with the
+same exit 144. Pattern-derived process selection wearing a `kill`-by-pid costume is the same failure,
+which is the strongest available support for *the fix is not a better pattern but no pattern*.
+
+**The fact worth recording is not that the class recurred but that it recurred beside its fix.**
+Rows 3 and 4 are dated **after** `bzk/fetch_progress.py` landed, **after** § *Instruments the
+documents named* argued the pattern point, and **after** `HANDOFF.md`:72 already named
+`--watch-pid`. A termination fix that the reader cannot reach is not a fix in force, and the reason
+it could not be reached was the missing `&`. That is what makes the character load-bearing rather
+than cosmetic.
+
+#### Every command block, and whether it is complete as written
+
+The enumeration was **mechanical first and read by hand after**, because seven turns of short
+enumerations is the reason the instruction said *treat this as a minimum*. **27 fenced blocks across
+the eleven documents, 7 of them command blocks**; scanning for a shell variable spent and never
+earned returned **exactly one** — `HANDOFF.md`'s. Then each was read:
+
+| Block | Status |
+|---|---|
+| `HANDOFF.md`:64–73, the end-to-end list | **was the defect**; corrected, and the poller moved out of the sequence |
+| `HANDOFF.md`:79–83, the poller's three lines | **new here**, and complete — it is the module docstring's form verbatim |
+| `HANDOFF.md`:27–32, `git clone <your repo>` + `uv init` | **assumes something the reader supplies, and marks it.** `<your repo>` is an explicit placeholder, and the block is *history* — `uv init` created this repository rather than installing it, which `OPERATIONS.md` §4.1 already says |
+| `HANDOFF.md`:36–47, the dependency list | **not a command block.** It is package names; a classifier keying on the first word alone calls `pytest` and `streamlit` commands, which is a false positive the guard's argument-or-path rule exists to prevent |
+| `OPERATIONS.md`:184–186, `uv sync --frozen` | **complete** |
+| `OPERATIONS.md`:196–198, the two `streamlit` flags | **complete, with one condition stated beside it and not in it** — the relative path means it only works from the repository root, which §4.1's prose says explicitly |
+| `OPERATIONS.md`:220–223, the two `python -m` forms | **complete** |
+
+**Three cited sites are not command blocks at all, and that is the finding about them.**
+`OPERATIONS.md`:244 and `ROADMAP.md`:2689 both name `python -m bzk.fetch_progress` **in prose, with
+no invocation** — they cite the instrument for the figures it produced, which is a citation and not
+an instruction, but it means **`OPERATIONS.md` §4.1 does not share `HANDOFF.md`'s gap for the reason
+that it has no poller invocation at all**: the document that owns the install and the cold-rebuild
+figures never shows the command that produced them. `ARCHITECTURE.md`:94 is a line in the module
+map — it names `--watch-pid` accurately and does not purport to be runnable. None of the three is
+edited; a module map and a figure's citation are not procedures.
+
+#### The guard, and what defeats a stronger one
+
+**It is writable, so it is written** rather than noted: `tests/test_command_blocks.py`, with
+`tests/test_decision_index.py` as the precedent for a test that reads documents. *A block spends a
+shell variable nothing in the block earns* is decidable from the text — a use is `$NAME`/`${NAME}`/
+`$!`, a producer is an assignment, a `for`, a `read`, or, for `$!` alone, a background operator
+earlier in the block. **What defeats a stronger version is stated rather than asserted**: *is this
+command runnable* is not textual. A block can name a path that does not exist, a flag since renamed,
+or a working directory it never states — `OPERATIONS.md`:196–198 is exactly that case, and its
+condition lives in the prose beside it. So the guard asserts the one property that is textual.
+
+**Two of its own defects were found by making it fail rather than by review.** The first draft did
+not treat `&` as an assignment separator and reported the **corrected** block as broken — a guard
+firing at the wrong thing, caught because a failure was expected not to arrive. The second
+classified the dependency listing as commands, because the first word of `pytest` is `pytest`; the
+argument-or-path rule fixes it and both negative cases are asserted.
+
+**Five mutations, each read back off disk before its run.**
+
+| Mutation | Result |
+|---|---|
+| **A** — `HANDOFF.md`'s block reverted to the form committed at `6dcbd97` | **4 failed, 468 passed** over the whole suite: the main assertion, the mirror against the module docstring, the coverage case, and the sweep's evidence re-run |
+| **B** — `&&` counted as a background operator | **1 failed** — the non-vacuity case. This is the mutation that matters most, because treating `&&` as a fork would let the original defect pass anywhere a `&&` appeared above it |
+| **C** — `&` dropped from the assignment separators | **2 failed** — and this is the first draft's own bug, reproduced deliberately: the *corrected* block reports a gap |
+| **D** — the argument-or-path requirement dropped | **1 failed** — the coverage case, on its two negative assertions; `pytest` and `streamlit` in the dependency listing become commands |
+| **E** — the classifier recognises nothing | **2 failed** — and **not** the main assertion, which passes over an empty list. That is the measurement behind the sweep classification of `gaps == []`: its non-vacuity is carried by the other two cases and not by itself |
+
+**A's fourth failure is the sweep and it is not a fourth catch** — `test_every_classified_instance_
+re_runs_its_recorded_evidence` re-runs the suite, so it is red whenever the suite is red. Listed so
+the count reproduces. **Sweep: floor 993 → 1007 asserts and 29 → 30 modules; one new match,
+`gaps == []`, classified individually and pinned by hand with E as its evidence.**
 
 
 ### The platform made an invisible analytical choice, 2026-08-07
