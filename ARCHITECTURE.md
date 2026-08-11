@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.24 |
-| Last reviewed | 2026-08-10 |
+| Version | 1.25 |
+| Last reviewed | 2026-08-11 |
 | Depends on | `ONTOLOGY.md`, `VISION.md` |
 | See also | `OPERATIONS.md` — backup, cache policy, pinning, testing |
 | Authoritative for | Language and library choices, storage layout, module boundaries |
@@ -274,15 +274,27 @@ Imputation never happens in the adapter. Adapters emit measured values and nulls
 
 With the platform positioned downstream, the statistics registry is no longer the point. Its purposes are now recomputation — running an alternative test over a retained matrix — and comparison, showing where a recomputed result diverges from an externally computed one. That divergence is a finding about analytical sensitivity, not a defect, and reporting it is something no existing tool does.
 
-`perseus_s0` remains default and required, because matching the collaborator's numbers is a precondition for being trusted with the comparison.
+`perseus_s0` remains default and required, because matching the collaborator's numbers is a precondition for being trusted with the comparison. **That is a claim about the registry and not about a release date** — stated here 2026-08-11, when `ROADMAP.md` deferred the entry to v0.2 without touching its registry status, and ADR-0015 stood unamended for the same reason.
 
-### v0.1 registry contents
+### Registry contents — a platform table, not a release table
+
+**Retitled 2026-08-11, because the old title made this a second home for a scope fact.** The
+`Status` column states what each entry *is to the platform*; when each ships is `ROADMAP.md`'s,
+as the `moderated_t_ebayes` row already said and the other two did not. `perseus_s0` is
+**deferred to v0.2 on `ROADMAP.md`'s dependency redraw** — its `s0` and FDR values are unknown
+until the collaborator supplies them — and it is still the registry's default and required
+entry, which is the distinction this table now makes rather than blurs.
 
 | Test | Status | Use |
 |---|---|---|
 | `perseus_s0` | **Default and required** | SAM-style modified *t*-test with fold-change curvature parameter `s0` and permutation-based FDR. The collaborating group's workflow; required to reproduce their published and internal results |
-| `moderated_t_ebayes` | **v0.2, not v0.1** | Empirical Bayes variance shrinkage (Smyth 2004). Better calibrated at *n* = 3 than a plain *t*-test; retained for comparison. `ROADMAP.md` defers it — it serves the comparison capability, not the first pipeline, and ROADMAP is authoritative for scope |
+| `moderated_t_ebayes` | Comparison | Empirical Bayes variance shrinkage (Smyth 2004). Better calibrated at *n* = 3 than a plain *t*-test; retained for comparison. **The release marker moved out of this cell on 2026-08-11**, into the single cross-reference under the table — it was the restatement that made this a second scope home, and putting one in every row would have been three copies of a fact this table does not own |
 | `welch_t` | Sanity check | Plain two-sample test; useful for detecting when the choice of test is load-bearing |
+
+**Release placement for all three entries is `ROADMAP.md` § v0.1, and is stated there once.**
+As of its 2026-08-11 dependency redraw: `welch_t` in v0.1, `perseus_s0` and
+`moderated_t_ebayes` in v0.2. This line is a pointer and not a copy — if it disagrees with that
+table, that table is right.
 
 `perseus_s0` is not the same test as `welch_t` with Benjamini–Hochberg. The `s0` parameter introduces a fold-change dependence into the significance threshold, producing the characteristic curved boundary on a Perseus volcano rather than straight cutoffs on both axes. A reproduction that ignores this will not match the group's numbers even when it recovers the same proteins.
 

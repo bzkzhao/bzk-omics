@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.57 |
+| Version | 1.58 |
 | Last reviewed | 2026-08-11 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -16,7 +16,7 @@
 
 **A smaller v0.1 that enforces I1–I19 strictly is worth more than a larger one that violates them to meet a date.**
 
-Scope is therefore cut to a single path, and the remainder moved to v0.2.
+~~Scope is therefore cut to a single path, and the remainder moved to v0.2.~~ **Corrected 2026-08-11, by the same amendment that struck *one dataset* below.** *A single path* was already superseded when ADR-0017 decided **B, both ingestion paths**, and both are on disk. What this sentence still gets right is the *shape* of the original cut — a smaller v0.1, with the remainder at v0.2 — and that is unchanged; what moved is which axis decides the remainder, and the two axes are set out under § *In scope*.
 
 **The goal is a usable tool for one laboratory.** Not a product for a market, and not merely a proof that the ontology holds — a working end-to-end path that someone in the Pinto-Fernández group can run on their own data and get an answer from.
 
@@ -24,18 +24,53 @@ That is a higher bar than a schema demonstration and a much lower one than a rel
 
 ### In scope
 
-One ingestion path, one dataset, one statistical test, no web frontend.
+~~One ingestion path, one dataset, one statistical test, no web frontend.~~ **Amended 2026-08-11,
+and the contradiction it resolves is this document's own rather than the redraw's.** *One dataset*
+is contradicted twice below by the exits this same document sets: § *Weeks 3–4* requires a Perseus
+table *"cross-queried against a second dataset"* and calls that **the first genuinely useful
+milestone**, and § *Weeks 7–8* requires an answer *"across all my datasets"*, plural. A v0.1 that
+holds one dataset cannot reach either. The clause has been false since those exits were written and
+neither the plan nor this redraw introduced it.
+
+**Two ingestion paths, more than one dataset, one statistical test, no web frontend.** *Two paths*
+because ADR-0017 decided **B, both ingestion paths**, is `Accepted`, and both are built —
+`bzk/adapters/perseus.py` and `bzk/adapters/maxquant_sites.py` are on disk; *one path* described a
+scope that was already superseded when this table still asserted it.
+
+**What a second dataset actually reaches, stated because the two halves of that exit are not
+blocked by the same thing.** *Ingested, resolved, stored* is reached by any second deposit and needs
+nobody. *Cross-queried* is **not**, and its blocker is neither this table nor a person: § *Weeks
+3–4* records it as separately blocked on `ONTOLOGY.md` §11 Q1, the two-datasets-one-`Contrast`
+question, where `Contrast` identity is numerator plus denominator with no anchor and a HAP1 contrast
+and an HCT116 contrast receive one id. That is a modelling question inside this repository and it is
+**not settled here**. So the amendment removes a false constraint and does not claim the milestone.
+
+#### The dependency axis — what this table now sorts on, 2026-08-11
+
+**The original cut had a different axis and its sentence cannot be borrowed.** *A smaller v0.1 that
+enforces I1–I19 strictly is worth more than a larger one that violates them* justified cutting on
+**invariant enforcement**. This redraw sorts on **who supplies the input**: a row leaves v0.1 when it
+cannot be *completed* without something only Dr Pinto-Fernández can supply. The two axes are
+independent and a row may be in scope on one and out on the other, so each move below carries its
+own citation.
+
+**Three rules the sort obeys, because each of them changed an outcome.** A row that is merely
+**blocked** does not move — being stuck is not the same as being dependent, and the protein-groups
+rows below stay in scope for exactly that reason. A dependency that cannot be **cited** is a
+dependency that has been asserted, and it stays. And a row does not come forward if there is
+anything he could say that would change it; that test is what keeps `moderated_t_ebayes` deferred
+below, on its own reasoning rather than on the reasoning that deferred it originally.
 
 | Capability | Note |
 |---|---|
-| **Perseus result-table adapter** | The collaborating group's workflow. A flat table of proteins, differences and significance values — no localisation or razor-pick complexity. **Written and tested against fixtures; not yet run on a real export.** Established 2026-08-09: the two published BJC tables are Perseus exports *of the annotation matrix* and carry no test statistic, so they cannot supply one. The adapter's group handling is no longer the blocker it was — ADR-0022 discharged that — and what it needs is a Perseus table that carries a `Difference` and a p-value |
+| **Perseus result-table adapter — the code** | The collaborating group's workflow. A flat table of proteins, differences and significance values — no localisation or razor-pick complexity. **Written and tested against fixtures**, and ADR-0022 discharged the group-handling blocker. **Stays in v0.1 as code and moves to v0.2 as a milestone — 2026-08-11.** Running it on a real export left this table on the dependency redraw: what it needs is a Perseus table carrying a `Difference` and a p-value, the two published BJC exports were established on 2026-08-09 to carry no test statistic, and the dependency is citable in the exit criterion's own words: § *Weeks 3–4* asks for *"a real user's results, held and connected"*, and the intended first user is the collaborating group — so a stranger's public Perseus export would demonstrate the adapter and would not meet that exit. The module is on disk and does not un-ship |
 | **MaxQuant site-table adapter** | PXD018299, the validated regression fixture. Required to keep the published-target recovery verifiable — see the amended exit criterion: the figure is 9 of 14 through this route, and the criterion is that every miss is traced, not that the number is 12 |
-| **MaxQuant protein-groups adapter** | **This table had no row for it at all until 2026-08-10, while `maxquant.py` carried the plan in a docstring and `ONTOLOGY.md` §8 I14 quoted a measured protein-grain prevalence — the scope table was the one place the capability was invisible.** Written and tested 2026-08-10; run offline over `HAP1_USP18KO_proteinGroups.txt` it emits 4,797 `ProteinObservation`s over 23,807 `Protein`s with 67,158 cells and 0 refusals. **Not ingested**: the file's fourteen columns are the proteome run and the curation record's twelve `Sample`s are the diGly run, so there is no sample to key a cell to and I8 forbids inventing one |
+| **MaxQuant protein-groups adapter** | **This table had no row for it at all until 2026-08-10, while `maxquant.py` carried the plan in a docstring and `ONTOLOGY.md` §8 I14 quoted a measured protein-grain prevalence — the scope table was the one place the capability was invisible.** Written and tested 2026-08-10; run offline over `HAP1_USP18KO_proteinGroups.txt` it emits 4,797 `ProteinObservation`s over 23,807 `Protein`s with 67,158 cells and 0 refusals. **Not ingested**: the file's fourteen columns are the proteome run and the curation record's twelve `Sample`s are the diGly run, so there is no sample to key a cell to and I8 forbids inventing one. **Considered on the dependency redraw and kept in v0.1 — 2026-08-11.** It is *blocked*, and blocked is not dependent. What it needs is a curation record for the proteome run, whose authoritative bases in §5.3 are `sdrf` **or** `author_correspondence`; the recorded measurement is only that `filename_inference` cannot supply it. **Whether the deposit itself carries metadata that resolves the fourteen columns has not been checked by anyone**, so naming him as the only source would be asserting a dependency rather than citing one, and the rule above says it stays |
 | UniProtKB resolution | Sequence-version pinning, isoform-aware, position validation, persistent cache |
 | Evidence graph in Kùzu | `Observation` and `EvidencedInference` contracts defined even though few subtypes ship |
-| Quantitative matrices in DuckDB | I11 — retained permanently, never only derived statistics. **Site grain only, as of 2026-08-10**: 48,696 cells in `site_values`, **0 in `protein_values`**. The protein adapter exists and writes cells; what is missing is a curation record for the proteome run, so the gap is now the deposit's sample mapping rather than the pipeline |
+| Quantitative matrices in DuckDB | I11 — retained permanently, never only derived statistics. **Site grain only, as of 2026-08-10**: 48,696 cells in `site_values`, **0 in `protein_values`**. The protein adapter exists and writes cells; what is missing is a curation record for the proteome run, so the gap is now the deposit's sample mapping rather than the pipeline. **Kept in v0.1 on the 2026-08-11 redraw**, on the row above's reasoning and the same unchecked question — the site half is met and needs nobody, and the protein half is blocked by a record whose supplier has not been established |
 | `welch_t` | **Implemented first**, and **its results are in the graph since 2026-08-09** — 1,362 `DifferentialResult`s under one `Analysis`. The 12-of-14 baseline was measured under Welch + BH; reproducing it exactly is how a pipeline bug is distinguished from a genuine difference between tests |
-| `perseus_s0` | Default and required per ADR-0015. Implemented second, and its own recovery number recorded as a separate baseline — it will not necessarily be 12 |
+| ~~`perseus_s0`~~ | **Moved to v0.2 on the dependency axis, 2026-08-11.** ADR-0015's Consequences record that *"the `s0` and FDR parameter values are not yet known — to be obtained at the meeting"*, and § *Author correspondence* carries the same gap independently: *"Exact `s0` and FDR values still to obtain"*. A SAM-style modified *t* cannot be implemented against unknown parameters, and no value in this repository can stand in for them — picking one would assert a number the collaborator has not given, which is the failure ADR-0017 names as *being 95% right about `s0` and permutation FDR is worse than useless*. **ADR-0015 is unaffected and unamended**; see the note below the table |
 | `ModifierAssignment` | Created as ambiguous on every site; manual assignment with basis |
 | `ProteinAssignment` | As a node, per `ONTOLOGY.md` §6.3. Same shape and cardinality as `ModifierAssignment`, so no additional machinery |
 | `Imputation` | As a node, per `ONTOLOGY.md` §6.5. **Several per `Analysis`** — `IMPUTATION_FOR` is `MANY_ONE` (§6.5 DDL), so an analysis's imputation state is a *set*. This row read *"One per `Analysis`"* until 2026-08-09 and contradicted the normative DDL; corrected here under `CLAUDE.md` § Conventions rather than worked around in the code that reads it. §8 I15's *substantially imputed* is defined on a `DifferentialResult`, not on an `Analysis`, so the set does not collapse to a flag either |
@@ -49,8 +84,21 @@ One ingestion path, one dataset, one statistical test, no web frontend.
 | Accession | Content | Adapter |
 |---|---|---|
 | PXD018299 | USP18-dependent ISGylome — the validated fixture | MaxQuant |
-| Collaborator's Perseus tables | Real results from the intended first user | Perseus |
-| PXD064305 and the other 2025 deposits | Embargoed pending publication; not yet accessible | DIA-NN (v0.2) |
+| ~~Collaborator's Perseus tables~~ | Real results from the intended first user | Perseus — **moved to v0.2, 2026-08-11**: the supply side of the adapter row above, and the one build target in this table that no public archive can substitute for |
+| PXD064305 and the other 2025 deposits | Embargoed pending publication; not yet accessible | DIA-NN (v0.2) — **and the grounds were re-examined on 2026-08-11 rather than inherited.** The DIA-NN ground is an adapter fact and survives untouched, since the dependency axis says nothing about which search engine wrote a file. The embargo is a *second and independent* ground on the new axis: *pending publication* makes accessibility the depositing group's to grant. **Both would have to fall for this row to come forward**, so it is more firmly at v0.2 than before, not less |
+
+**ADR-0015 stands unamended, and that was decided rather than assumed — 2026-08-11.** Moving
+`perseus_s0` to v0.2 raised whether it contradicts an `Accepted` record that calls the entry
+**default and required**. It does not, and the argument is not that leaving 0015 alone is cheaper.
+**`CLAUDE.md`'s single-source table puts scope, milestones and deferrals in this document**, so a
+release claim inside an ADR would be a second home for a fact this table owns — the duplication that
+table exists to prevent. `ARCHITECTURE.md` §4's registry table already reads it that way: it states
+a status *per entry*, and the one entry carrying a release marker ends *"ROADMAP is authoritative for
+scope"*, which routes exactly this question here. And ADR-0017's own Consequences give the reason
+`perseus_s0` is required — *matching the collaborator's numbers is a precondition for being trusted*
+— which is a claim about what the platform must eventually do, not about which release does it.
+**So 0015 decides which registry entry is default; this table decides when it ships**, no
+superseding record is written, and no ADR number is taken.
 
 **Two deferrals withdrawn, 2026-08-06.** `ProteinAssignment` and `Imputation` were previously deferred to v0.2, to be represented as fields on `SiteObservation` and as JSON on `Analysis` respectively. Both deferrals are withdrawn.
 
@@ -62,6 +110,8 @@ The alternative cost was real: two representations of the same fact, one as fiel
 
 | Deferred | Target | Why |
 |---|---|---|
+| **`perseus_s0`** | v0.2 | **Moved here 2026-08-11 on the dependency axis.** ADR-0015 records the `s0` and FDR values as *"not yet known — to be obtained at the meeting"*, and no substitute exists: a chosen value would assert a parameter the collaborator has not supplied. **Nothing he could say leaves it in v0.1** — supplying the values unblocks it rather than altering it. ADR-0015 is unaffected; see the note under § *In scope* |
+| **Perseus adapter run on a real export** | v0.2 | **Moved here 2026-08-11.** The *module* stays in v0.1 and is written and fixture-tested; what moves is the milestone, because the only input that completes it is a Perseus table carrying a `Difference` and a p-value, and the published BJC exports were measured on 2026-08-09 to carry no test statistic. This is § *Weeks 3–4*'s exit, and it is **half** of it — the *cross-queried* half is separately blocked on `ONTOLOGY.md` §11 Q1 and by nobody outside this repository |
 | Natural-language querying | v0.3 | Requires a stable schema first; a query interface over a moving ontology is wasted work |
 | Reference graph beyond Reactome and GO (Open Targets, DepMap) | v0.2 | Ongoing maintenance liability |
 | `EnrichmentObservation` (IP-MS, ABPP) and cross-modality concordance | v0.2 | Needs a stable site layer first; the highest-value deferred item |
@@ -73,9 +123,23 @@ The alternative cost was real: two representations of the same fact, one as fiel
 | Tauri desktop packaging | v0.2 | `uv run` plus localhost is adequate |
 | **SvelteKit frontend** | v0.2 | Notebook or Streamlit output suffices to prove the pipeline. Faceted search, volcano and UpSet plots are polish, not proof |
 | **DIA-NN, FragPipe, Spectronaut adapters** | v0.2 | One search-engine adapter is enough to validate the contract |
-| **`moderated_t_ebayes`** | v0.2 | Needed for the comparison capability, not for the first pipeline |
+| **`moderated_t_ebayes`** | v0.2 | Needed for the comparison capability, not for the first pipeline. **Considered for the v0.1 side of the 2026-08-11 redraw and deliberately left here, on a reason that is not the one above.** It needs nobody — the retained matrix is on disk, the registry exists, and § *Measured findings* establishes that under I16 a second test is a second `Analysis` with its own recovery number, so no new machinery — and *needs nobody* was the whole of the case for bringing it forward. It fails the second test: **he could say to match Perseus before adding a test of our own, which is ADR-0015's own reasoning**, and that would make it wasted v0.1 work rather than merely early. A row the meeting could change does not come forward, so this one does not, and the axis therefore moved **nothing** into v0.1 |
 | RNA-seq modality | v0.3 | See `ONTOLOGY.md` §11 Q2 |
 | Local LLM serving | v0.3 | Follows natural-language querying |
+
+#### Rows examined on the dependency axis and left where they are — 2026-08-11
+
+Recorded because a row that was looked at and kept is not the same as a row nobody read, and only
+the first can be audited.
+
+| Row | Decision |
+|---|---|
+| **MaxQuant site-table adapter** (in scope) | **Stays.** PXD018299 is a public PRIDE deposit, already ingested — 2,029 sites, 27 refused. Nothing about it waits on a person. That it happens to be the collaborating group's own published deposit (Pinto-Fernández *et al.*, *Br J Cancer* 124:817–830) changes nothing on this axis: a published deposit is public to everyone |
+| **`welch_t`** (in scope) | **Stays.** Implemented, and its 1,362 results are in the graph. It is also now the **only** test in v0.1, which is a consequence of `perseus_s0` leaving and is stated here rather than left to be noticed: its own row calls it a way to tell a pipeline bug from a genuine difference between tests, and with one test in scope that comparison has nothing to compare against until v0.2 |
+| **`ModifierAssignment`** (in scope) | **Stays, and *manual* was established rather than assumed.** The question was whether *manual assignment with basis* means the collaborator asserting. It does not: §6.1's `basis` is a **closed enum of eleven values, none of which is a person's say-so** — every one names an experimental or literature evidence type — and four are marked as drawn from PXD018299's own disambiguation strategy and *directly automatable*. The default is created automatically on ingestion at `inferred_default` / `ambiguous`. What a human does is *select which evidence applies*, which needs evidence and not an opinion. One basis, `isg15_interactome_concordance`, does wait — on `EnrichmentObservation`, deferred to v0.2 on its own grounds, which is a modelling dependency and not a person |
+| **`embargo_holder`, `embargo_reference`, `embargo_released_at`** (§5 DDL; ADR-0016) | **Stay as declared, unpopulated.** Populating them needs whoever holds an embargo, but **no v0.1 row holds embargoed data** — the 2025 deposits are at v0.2 — and I18 is an *export-boundary* check whose trigger is the first export path, which is RO-Crate export, also v0.2. So the columns are in v0.1 and the dependency is not: nothing in v0.1 can reach a state where they must be filled |
+| **Reference graph beyond Reactome and GO**; **SvelteKit**; **API routes** | **Stay deferred, and not re-argued.** All three are independent of him, so the dependency axis has nothing to say about them either way; each was deferred on its own grounds and this redraw neither strengthens nor weakens those grounds |
+| **Volcano axis** (§ *Author correspondence*) | **Dependent, and blocks nothing in v0.1.** *To confirm at the meeting*, and it governs how a displayed number is read — but v0.1's output row is met with three panels and **no volcano**, so there is no v0.1 surface on which the ambiguity can be displayed. It is a live dependency against a v0.2 capability, not against this table |
 
 ---
 
@@ -3547,6 +3611,75 @@ the count reproduces. **Sweep: floor 993 → 1007 asserts and 29 → 30 modules;
 `gaps == []`, classified individually and pinned by hand with E as its evidence.**
 
 
+### The v0.1 boundary redrawn on dependency, and a stop that left no trace, 2026-08-11
+
+**No prediction is registered and none should be.** This turn produces no measured quantity — it
+sorts a table and writes prose — so § *Pre-registration* has nothing to bind, and manufacturing a
+prediction to satisfy the form would be the failure that section exists to prevent. Every figure
+quoted below is carried from an existing record and named at its source rather than re-measured.
+
+#### The stop that left no trace, and why that was the larger of two failures
+
+**A previous turn was refused a `refs/tags/*` push and wrote nothing to disk.** The 403 is real and
+is now recorded — `OPERATIONS.md` §1.2, chosen over three other candidate homes because §1 is
+authoritative for what survives and §1.1 is the exact precedent: a durability section discovering it
+had no row for *which name*. `HANDOFF.md` §2 and §8 were rejected despite §8's `Blocking?` column
+fitting the fact well, because that file's own header says it is authoritative for nothing and
+should be deleted once the adapters exist, and a durability fact outliving the file that holds it is
+the same defect one level out. §4.1 was rejected as an install procedure, which this is not.
+
+**The second failure was treating the tag as a precondition.** Nothing in this repository made it
+one: `grep -rn "demo-verified\|git tag\|annotated tag\|refs/tags" --include=*.md .` returns **zero
+hits**, run at `7b9559a`. What a tag adds over a commit hash is a *name*, not persistence — the
+commit is reachable from two refs on the remote and outlives any container regardless. A stop that
+lives only in a chat transcript is in precisely the position the tag was in: real, and gone with the
+container. **The repository's own standard for irreplaceable content is version control**, and a
+reason not to proceed is content.
+
+#### What moved, and the three rules that decided it
+
+Two rows left v0.1 — `perseus_s0`, and the Perseus adapter's *real-export* milestone as distinct
+from its module — and one build target followed the second. **Nothing came forward.**
+
+That last is the result worth stating. `moderated_t_ebayes` was the one genuine candidate: it needs
+nobody, its machinery exists, and I16 makes a second test a second `Analysis`. It stayed deferred
+because **he could say to match Perseus first**, which is ADR-0015's own reasoning, and a row the
+meeting could change does not come forward. **The axis is asymmetric on purpose** — a wrongly
+deferred independent row costs a release that is smaller than it needed to be, while a wrongly
+retained dependent row costs a release that cannot ship at all.
+
+**Two rows were blocked and stayed, which is the rule that did the most work.** The protein-groups
+ingestion and I11's protein half are stuck on a curation record for the proteome run. It would have
+been easy to call that his and move both. But §5.3 gives *two* authoritative bases, `sdrf` and
+`author_correspondence`, and the only recorded measurement is that `filename_inference` cannot
+supply the mapping. **Nobody has checked whether the deposit's own metadata resolves it**, so
+naming him is an assertion, and an uncitable dependency leaves the row where it is.
+
+#### The one-dataset clause, confronted rather than worked around
+
+`One ingestion path, one dataset, one statistical test` was contradicted by this document before any
+redraw touched it: § *Weeks 3–4* requires a second dataset and calls that the first genuinely useful
+milestone, and § *Weeks 7–8* requires an answer across *all my datasets*. It is amended. **The
+amendment claims less than the exit it unblocks** — *ingested, resolved, stored* is reached by any
+second deposit and needs nobody; *cross-queried* remains blocked on `ONTOLOGY.md` §11 Q1, which is a
+modelling question inside this repository and is **not settled here**.
+
+#### ADR-0015, and the handover question
+
+**0015 stands unamended, and not because that is cheaper.** `CLAUDE.md` puts scope in this document,
+so a release claim inside an ADR would be a second home for a fact this table owns.
+`ARCHITECTURE.md` §4's registry table already routes the question here in the one cell that carried a
+release marker — and **that cell was itself the duplication**, so the marker moved out of all three
+cells into a cross-reference rather than being copied into two more.
+
+**The handover question does not block the redraw, and the reading that said it did is wrong.** Both
+branches were run: under *Perseus results* and under *search-engine output* alike, the Perseus
+adapter needs a table only he has. A row dependent under both branches is not made more or less
+dependent by the answer. What the question actually bears on — whether the raw matrix is essential
+or merely prudent, whether B was over-engineered — is **retrospective**: ADR-0017 is `Accepted`, both
+paths are on disk, and an answer arriving now can evaluate that decision but cannot reverse it.
+
+
 ### The platform made an invisible analytical choice, 2026-08-07
 
 **The clearest finding of the project, because it is the project's own failure mode.** `VISION.md`
@@ -3739,6 +3872,8 @@ and no `Difference` or p-value, so they cannot meet this exit however they are i
 *cross-queried against a second dataset* half is untouched and separately blocked on §11 Q1, the
 two-datasets-one-`Contrast` question. See § *Step 0 stopped the BJC ingestion*.
 
+**This exit moved to v0.2 on 2026-08-11's dependency redraw, and only as a milestone.** The adapter stays in v0.1; what waits is *a real user's results*, which this exit asks for by name and which only the collaborating group can supply. The second, §11 Q1 half is unaffected by that move — it waits on a modelling decision inside this repository and on nobody outside it, and it is not settled here.
+
 ### Weeks 5–6 — raw path and statistics
 MaxQuant site-table adapter. DuckDB quantitative layer. **`welch_t` with BH first**, reproducing 12 of 14 exactly; then `perseus_s0` with permutation FDR, its recovery number recorded as a separate baseline. `ModifierAssignment`, `ProteinAssignment` and `Imputation` including supersession and retraction.
 
@@ -3816,4 +3951,8 @@ Rough ordering, not commitments: reference-graph import and RO-Crate export (v0.
 2. Licence — Apache 2.0 or AGPL? Bears on whether a commercial fork is acceptable.
 3. Does a paper come out of this, and if so is the target the tool or the ISGylation biology it enables?
 4. **At which point in his pipeline would the collaborator rather hand something over — search-engine output or Perseus results?** The answer determines whether retaining the raw matrix is essential or merely prudent. Ask at the meeting.
+
+   **Tested against the 2026-08-11 dependency redraw and found not to block it — and it had been read the other way first.** The reading that stopped a redraw was that *which adapter is the v0.1 path* depends on this answer, so the axis could not be drawn until he supplied one. **That is wrong, and the test is to run both branches.** If the answer is *Perseus results*, the Perseus adapter needs a real Perseus table carrying a `Difference` and a p-value — from him. If the answer is *search-engine output*, the MaxQuant path is primary, is already ingested from a public deposit, and the Perseus adapter **still** needs that same table before its exit is met. The row is dependent under **both** branches, so the answer moves nothing across the axis: it changes which path he would reach for first, not what he must supply. Every other row on the redraw is likewise unmoved by it — `perseus_s0` waits on parameter values under either answer, and the protein-groups mapping is untouched by it entirely.
+
+   **What it does bear on is retrospective, which is why it cannot gate a plan.** Its two recorded consequences are whether retaining the raw matrix is *essential or merely prudent* (this entry) and whether *A may prove sufficient and B over-engineered* (ADR-0017 § Open). ADR-0017 is `Accepted`, its Decision is **B, both ingestion paths**, and both are on disk — `bzk/adapters/perseus.py` and `bzk/adapters/maxquant_sites.py`. An answer arriving now cannot un-build them; it can only tell us whether building both was worth it. **Evaluating a decision already executed is not the same as blocking one not yet taken**, and conflating the two is what turned an open question into a stop.
 5. When do the recorded assumptions get revisited? Suggested trigger: first real dataset from the collaborating project, whenever that arrives.

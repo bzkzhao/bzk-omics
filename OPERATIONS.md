@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 0.21 |
-| Last reviewed | 2026-08-10 |
+| Version | 0.22 |
+| Last reviewed | 2026-08-11 |
 | Depends on | `ARCHITECTURE.md`, `ONTOLOGY.md` |
 | Authoritative for | Installation, backup, cache policy, dependency pinning, rebuild discipline |
 
@@ -87,6 +87,33 @@ parse rather than bytes.
 fetcher and no document. Identifying the tree does not identify the object: a content-addressed
 store still cannot tell an input from a leftover inside itself, which is `HANDOFF.md` §8's row and
 is unchanged by this section.
+
+### 1.2 How a state is named — `refs/tags/*` is refused, 2026-08-11
+
+**§1.1 asks which copy of a tree is the real one. This asks the same question of a *commit*, and it
+has a harder answer than expected.** A state worth returning to — the one three cold rehearsals
+verified — is worth naming. The obvious name is an annotated tag. **Pushing one is refused.**
+
+**Measured at `7b9559a`, in this environment, on `bzkzhao/bzk-omics`.** A push to `refs/tags/*`
+fails with `HTTP 403` on both spellings of the refspec, while pushes to `refs/heads/*` on the same
+credential in the same session succeed. The GitHub read path is unaffected — a tag listing returns
+an empty list rather than an error, so the repository genuinely holds no tags and it is specifically
+the write that is denied. This is an **authorisation** refusal and not a transport failure: it is
+not retried, on the same reasoning §4.2 applies to a failed pin, that routing around a refusal
+produces a tree nobody can reproduce.
+
+**So a state is named here by commit hash, and that is sufficient rather than a workaround.** What a
+tag would have added over a hash is a *name*, not persistence: `7b9559a` is reachable from
+`refs/heads/main` and from the working branch on the remote, so the commit outlives any container
+whether or not a tag exists. Nothing in this document set depends on a tag — no procedure, no
+rebuild input, no I9 input — so the refusal costs legibility and not durability, which is why it is
+recorded in this section rather than treated as a blocker.
+
+**Lifting it is an administrative grant on the repository's credential, outside the reach of any
+session.** No command in this document can obtain it and none should try; the grant is made by
+whoever administers the repository's access, and the specific console for that is deliberately not
+named here because it cannot be verified from inside a session and a wrong pointer is worse than
+none.
 
 ---
 

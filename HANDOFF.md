@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Active until week 2 is complete, then delete |
-| Version | 1.39 |
+| Version | 1.40 |
 | Last reviewed | 2026-08-11 |
 | Depends on | All repository documents |
 | Authoritative for | Nothing. This is scaffolding, not a source of truth |
@@ -357,6 +357,27 @@ block that spends a shell variable nothing in it earns — 27 fenced blocks, 7 c
 was the only one. Two of the guard's own defects were found by making it fail, one of them firing
 on the **corrected** block.
 
+**The v0.1 boundary is redrawn on dependency, and a refused push is on disk — 2026-08-11.** Two
+rows left v0.1 because they cannot be *completed* without something only the collaborator supplies:
+`perseus_s0`, whose `s0` and FDR values ADR-0015 records as not yet known, and the Perseus adapter's
+**real-export milestone** as distinct from its module, which stays and is written. **Nothing came
+forward** — `moderated_t_ebayes` needs nobody and was still left deferred, because he could say to
+match Perseus first and a row the meeting could change does not move into scope. **Two blocked rows
+stayed**: the protein-groups ingestion and I11's protein half wait on a curation record for the
+proteome run, and *blocked* is not *dependent* — §5.3 gives two authoritative bases and nobody has
+checked whether the deposit's own metadata resolves the mapping, so calling it his would be an
+assertion. `ROADMAP.md`'s *one dataset* clause is amended: it was already contradicted by two of that
+document's own exit criteria, and the amendment does **not** claim the cross-query half, which
+§11 Q1 still holds. ADR-0015 stands unamended — it decides which registry entry is default, not when
+it ships — and the release markers in `ARCHITECTURE.md` §4's registry table became cross-references
+rather than being copied. **The handover question was tested and does not block the redraw**: the
+Perseus adapter is dependent under both of its branches, and what the answer bears on is
+retrospective. §8's row for it already reads *No* and is now established rather than asserted.
+Separately, `OPERATIONS.md` §1.2 records that pushing `refs/tags/*` is refused for this
+environment's credential while `refs/heads/*` succeeds, so a state is named by commit hash; the
+previous turn stopped on that refusal and wrote nothing down, which put the reason in the same
+position as the tag.
+
 **The poller four figures rest on is in the repository — 2026-08-10, `bzk/fetch_progress.py`.**
 `OPERATIONS.md` §5 cited a 706-second window at 15-second spacing, `ROADMAP.md` three more pollers
 including the 12× correction, and **none of them existed**: each run rebuilt one from memory. It
@@ -433,7 +454,7 @@ of site ids for a selector, which the read layer did not expose, and the first d
 
 **Corrected 2026-08-09: this block implied that what remains waits on the meeting, and one item does
 not.** `perseus_s0` does. **Running the Perseus adapter on a real export does not**, and it was
-attempted the same day. It is blocked on the artefact rather than on a decision: the two published
+attempted the same day. **Refined 2026-08-11 rather than reversed:** it does not wait on a *decision*, which is what this sentence says and what remains true — but the artefact it waits on is a Perseus table carrying a statistic, and § *Weeks 3–4*'s exit asks for *a real user's results*, so the milestone waits on **him** even though no decision of his is pending. That distinction is why the module stays in v0.1 on the dependency redraw and the milestone does not. It is blocked on the artefact rather than on a decision: the two published
 BJC supplementary tables are Perseus exports *of the annotation matrix* and carry **no
 `Student's T-test Difference` and no p-value column**, so they cannot mint a `DifferentialResult`
 however they are ingested. Established by measurement, not by reading headers — which is what the
