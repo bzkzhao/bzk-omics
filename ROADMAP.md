@@ -3982,7 +3982,8 @@ This measures what the old one got wrong.
 derives its sixty at run time from `QUERIES` (`bzk/deposit_survey.py` l.53–67, thirteen terms) at
 `MAX_CANDIDATES` (l.70), round-robin, in the API's own per-query ordering (l.571). Nothing on disk
 names the accessions. Counted at `c167fc5`: the widened-draw section holds **12** distinct `PXD`
-accessions — exactly the twelve passing C0 at l.4223 — and the whole of `ROADMAP.md` holds **25**.
+accessions — exactly the twelve of § *Widened draw* → *Twelve pass C0 entirely* — and the whole of
+`ROADMAP.md` holds **25**.
 **Forty-eight of the sixty were classified and never recorded.** So the drawn list is written to this
 document as a first-class output of the run, and the comparison below is bounded: a survey-path run
 yields *a* sixty, not *the* sixty, and rows present in only one draw are not evidence of change in
@@ -4011,7 +4012,8 @@ exactly the read `classify` makes. That read issues no query and so cannot widen
 
 #### (a) Rows **shared with the widened draw** changing in any cell — predicted **0**, band 0–1
 
-**Comparable cells are only those the widened draw recorded.** For its twelve, l.4223–4225 states
+**Comparable cells are only those the widened draw recorded.** For its twelve, § *Widened draw* →
+*Twelve pass C0 entirely* states
 CC0, MaxQuant, `site=present`, and a resolvable organism. Per-row *Files* counts were never recorded
 for those twelve, so *Files* is **not** a comparable cell here and a differing count is not a change.
 
@@ -4076,11 +4078,12 @@ no end-of-central-directory in the last 64 KiB, which a zip carrying a trailing 
 
 #### (d) Drawn rows shared with the widened draw — predicted **12 of 12**, band 10–12
 
-The widened draw's recorded members are the twelve at l.4223. Both runs use thirteen registered
+The widened draw's recorded members are the twelve of § *Widened draw* → *Twelve pass C0
+entirely*. Both runs use thirteen registered
 terms, `size=100`, page 0, cap 60, round-robin, on the same calendar date, so they address the same
 index hours apart. **What would falsify it:** PRIDE's relevance ordering is not contractually stable,
 and a deposit indexed today can shift ranks across the cap boundary. Instrument: set intersection
-between the drawn list and the twelve parsed from l.4223–4224. Precision: exact integer.
+between the drawn list and the twelve parsed from that paragraph. Precision: exact integer.
 
 #### Where no instrument in this container resolves the quantity, no prediction is made
 
@@ -4407,6 +4410,15 @@ to prevent the same shape. **Any of the 14 rows could have been reported on an e
 that reason**, and nothing in the record distinguishes them. The other three defects truncate rather
 than empty, so they could have shortened a listing without emptying it.
 
+**The measurement was made, and the reason above expired with it — 2026-08-12, § *Re-draw of the
+sixty through the guarded parser*.** Read that section for the result; what belongs here is only that
+*nothing here re-ran anything* no longer holds. **There is no single successor to 14**, because the
+denominator's definition changed underneath it: 14 counted reads that **returned entries**, and the
+guarded parser distinguishes a read that succeeded from one that was attempted and failed, which the
+old one could not. The successor is a **pair** — over the re-drawn sixty, **14** rows carried a
+successful archive read and **0** had a read attempted and fail; of the twelve rows shared with this
+draw, **7** carried a successful read. The three counts above are not edited and are not restated.
+
 **One transient failure is on the record**: the `diGly` search read-timed-out at 60 s on its first
 attempt and succeeded on the second. It is retryable and was retried; a run without per-term retry
 would have lost 100 rows from the pool and reported a smaller field with no indication.
@@ -4480,6 +4492,256 @@ the live host and by nothing in `tests/`. Their site state therefore carries **w
 than the other nine — the distinction this repository already draws between artefact-sourced and
 transcription-sourced figures. Rows 5 and 9 reached `candidate` from top-level filenames and do not
 depend on it.
+
+### Re-draw of the sixty through the guarded parser: no guard raised, no verdict moved, 2026-08-12
+
+**Instrument** `python -m bzk.deposit_survey --json`, thirteen registered terms, `size=100`, page 0
+per term, cap **60**, run 2026-08-12. **Parser commit `c167fc5`** — the guarded parser. The widened
+draw ran at **`c8bd02d`**, its immediate parent, on the unguarded one. Predictions were committed
+first, at `037e2a7`, before the run; § *Pre-registration: re-drawing the sixty through the guarded
+parser* is that commit. **The baseline, re-run and widened-draw tables all stand unedited**, and
+**no candidate is scored, ranked or admitted.**
+
+**Relationship to the widened draw, and why the two samples are not the same object.** `survey`
+derives its sixty at run time; nothing on disk named the widened draw's. Counted at `c167fc5`, its
+section held **12** distinct accessions — the twelve passing C0 — against **25** in the whole
+document, so **48 of that sixty were classified and never recorded** and cannot be recovered. This
+run therefore yields *a* sixty, not *the* sixty. The three sets, kept apart:
+
+| Set | Count | Comparable? |
+|---|---|---|
+| in **both** draws | **12** | yes — every recorded member of the widened draw was drawn again |
+| in the **new draw only** | **48** | no — no recorded counterpart to differ from |
+| in the **widened draw only** | **0** | knowable only for the twelve that were recorded |
+
+The zero in the third row is **not** a claim that the two draws are identical. It says every
+*recorded* member was re-drawn; the 48 unrecorded members of the widened sixty are unknowable in
+that direction, and some of this draw's 48 are certainly among them.
+
+#### The drawn sixty, pinned
+
+**Written here because a sample that exists only inside a run is the same defect as a figure whose
+instrument was never written.** In draw order — first-seen across the registered terms, round-robin,
+in the API's own ordering within each term:
+
+`PXD071724`, `PXD068808`, `PXD078284`, `PXD079072`, `PXD077594`, `PXD076163`, `PXD075792`
+`PXD030644`, `PXD071548`, `PXD065158`, `PXD075538`, `PXD075275`, `PXD070339`, `PXD074990`
+`PXD061232`, `PXD027328`, `PXD055843`, `PXD074949`, `PXD074673`, `PXD070994`, `PXD069668`
+`PXD067153`, `PXD074126`, `PXD060627`, `PXD027330`, `PXD044834`, `PXD074538`, `PXD073869`
+`PXD066132`, `PXD069603`, `PXD067220`, `PXD073844`, `PXD060403`, `PXD027163`, `PXD058618`
+`PXD032078`, `PXD073775`, `PXD066134`, `PXD068989`, `PXD067225`, `PXD070295`, `PXD059137`
+`PXD020389`, `PXD057003`, `PXD025753`, `PXD073734`, `PXD073484`, `PXD073798`, `PXD065838`
+`PXD063016`, `PXD065615`, `PXD069676`, `PXD058858`, `PXD019152`, `PXD018299`, `PXD070789`
+`PXD073754`, `PXD061601`, `PXD060435`, `PXD069387`
+
+#### The row table for the draw
+
+`Engine` is the **filename route** (`engine_state`) alone; the declared signal is not merged into it.
+`C0 gates met` lists which of (a)–(e) pass, so a failure is legible as which gate. `Archive read` is
+`yes` where at least one archive was opened and returned entries.
+
+| # | Accession | Files | Engine (filename route) | Site | SDRF | Licence | Skipped | C0 gates met | Archive read | In widened 12 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | `PXD071724` | 51 | `diann` | `candidate` | N | CC0 | 0 | abe | yes | — |
+| 2 | `PXD068808` | 35 | `unclassified` | `absent` | N | CC0 | 16 | abe | — | — |
+| 3 | `PXD078284` | 9 | `unclassified` | `absent` | N | CC0 | 0 | abe | — | — |
+| 4 | `PXD079072` | 24 | `unclassified` | `present` | N | CC0 | 0 | abce | — | **yes** |
+| 5 | `PXD077594` | 19 | `diann` | `absent` | N | CC0 | 0 | abe | — | — |
+| 6 | `PXD076163` | 35 | `maxquant` | `candidate` | N | CC0 | 0 | abde | — | — |
+| 7 | `PXD075792` | 23 | `unclassified` | `candidate` | N | CC0 | 18 | abe | — | — |
+| 8 | `PXD030644` | 22 | `unclassified` | `absent` | N | CC0 | 0 | abe | — | — |
+| 9 | `PXD071548` | 12 | `proteomediscoverer` | `absent` | N | CC0 | 0 | abe | — | — |
+| 10 | `PXD065158` | 607 | `fragpipe` | `candidate` | Y | CC0 | 0 | abe | yes | — |
+| 11 | `PXD075538` | 130 | `maxquant` | `present` | N | CC0 | 0 | **abcde** | yes | **yes** |
+| 12 | `PXD075275` | 53 | `diann` | `absent` | N | CC0 | 0 | abe | — | — |
+| 13 | `PXD070339` | 2281 | `maxquant` | `present` | N | CC0 | 8 | **abcde** | yes | **yes** |
+| 14 | `PXD074990` | 485 | `maxquant` | `present` | N | CC0 | 0 | **abcde** | yes | **yes** |
+| 15 | `PXD061232` | 38 | `diann` | `absent` | N | CC0 | 0 | abe | — | — |
+| 16 | `PXD027328` | 100 | `unclassified` | `present` | N | CC0 | 0 | abce | — | **yes** |
+| 17 | `PXD055843` | 56 | `unclassified` | `absent` | N | CC0 | 52 | abe | — | — |
+| 18 | `PXD074949` | 123 | `maxquant` | `present` | N | CC0 | 0 | **abcde** | yes | **yes** |
+| 19 | `PXD074673` | 12 | `diann` | `absent` | N | CC0 | 0 | abe | — | — |
+| 20 | `PXD070994` | 75 | `maxquant` | `absent` | N | CC0 | 0 | abde | — | — |
+| 21 | `PXD069668` | 179 | `diann` | `candidate` | N | CC0 | 5 | abe | yes | — |
+| 22 | `PXD067153` | 21 | `proteomediscoverer` | `absent` | Y | CC0 | 0 | abe | — | — |
+| 23 | `PXD074126` | 3 | `unclassified` | `absent` | N | CC0 | 0 | abe | — | — |
+| 24 | `PXD060627` | 22 | `unclassified` | `absent` | N | CC0 | 0 | abe | — | — |
+| 25 | `PXD027330` | 100 | `maxquant` | `absent` | N | CC0 | 0 | abde | — | — |
+| 26 | `PXD044834` | 60 | `no_processed_output` | `absent` | N | CC0 | 0 | abe | — | — |
+| 27 | `PXD074538` | 11 | `proteomediscoverer` | `absent` | N | CC0 | 0 | abe | — | — |
+| 28 | `PXD073869` | 62 | `diann` | `absent` | N | CC0 | 0 | abe | — | — |
+| 29 | `PXD066132` | 21 | `proteomediscoverer` | `absent` | N | CC0 | 0 | abe | — | — |
+| 30 | `PXD069603` | 68 | `unclassified` | `absent` | N | CC0 | 0 | abe | — | — |
+| 31 | `PXD067220` | 21 | `proteomediscoverer` | `absent` | Y | CC0 | 0 | abe | — | — |
+| 32 | `PXD073844` | 5 | `unclassified` | `candidate` | N | CC0 | 0 | abe | — | — |
+| 33 | `PXD060403` | 35 | `unclassified` | `absent` | N | CC0 | 0 | abe | — | — |
+| 34 | `PXD027163` | 100 | `maxquant` | `present` | N | CC0 | 0 | **abcde** | — | **yes** |
+| 35 | `PXD058618` | 8 | `proteomediscoverer` | `absent` | N | CC0 | 0 | abe | — | — |
+| 36 | `PXD032078` | 112 | `maxquant` | `present` | N | CC0 | 0 | **abcde** | yes | **yes** |
+| 37 | `PXD073775` | 32 | `diann` | `absent` | N | CC0 | 0 | abe | — | — |
+| 38 | `PXD066134` | 9 | `proteomediscoverer` | `absent` | N | CC0 | 0 | abe | — | — |
+| 39 | `PXD068989` | 394 | `unclassified` | `candidate` | Y | CC0 | 27 | abe | yes | — |
+| 40 | `PXD067225` | 62 | `proteomediscoverer` | `absent` | Y | CC0 | 0 | abe | — | — |
+| 41 | `PXD070295` | 5 | `unclassified` | `absent` | N | CC0 | 0 | abe | — | — |
+| 42 | `PXD059137` | 3684 | `unclassified` | `absent` | N | CC0 | 2 | abe | yes | — |
+| 43 | `PXD020389` | 100 | `no_processed_output` | `absent` | N | CC0 | 0 | abe | — | — |
+| 44 | `PXD057003` | 15 | `no_processed_output` | `absent` | N | CC0 | 0 | abe | — | — |
+| 45 | `PXD025753` | 51 | `unclassified` | `candidate` | N | CC0 | 0 | abe | — | — |
+| 46 | `PXD073734` | 67 | `unclassified` | `absent` | N | CC0 | 0 | abe | — | — |
+| 47 | `PXD073484` | 5 | `unclassified` | `absent` | N | CC0 | 0 | abe | — | — |
+| 48 | `PXD073798` | 63 | `diann` | `absent` | N | CC0 | 0 | abe | — | — |
+| 49 | `PXD065838` | 22 | `proteomediscoverer` | `absent` | N | CC0 | 0 | abe | — | — |
+| 50 | `PXD063016` | 8 | `unclassified` | `absent` | N | CC0 | 0 | abe | — | — |
+| 51 | `PXD065615` | 18 | `unclassified` | `absent` | N | CC0 | 6 | abe | yes | — |
+| 52 | `PXD069676` | 15 | `unclassified` | `candidate` | Y | CC0 | 0 | abe | — | — |
+| 53 | `PXD058858` | 35 | `unclassified` | `absent` | N | CC0 | 0 | abe | yes | — |
+| 54 | `PXD019152` | 10531 | `maxquant` | `present` | N | CC0 | 0 | **abcde** | yes | **yes** |
+| 55 | `PXD018299` | 39 | `maxquant` | `present` | N | CC0 | 0 | **abcde** | — | **yes** |
+| 56 | `PXD070789` | 10 | `maxquant` | `present` | N | CC0 | 0 | **abcde** | — | **yes** |
+| 57 | `PXD073754` | 32 | `diann` | `absent` | N | CC0 | 0 | abe | — | — |
+| 58 | `PXD061601` | 100 | `unclassified` | `candidate` | N | CC0 | 0 | abe | — | — |
+| 59 | `PXD060435` | 75 | `maxquant` | `present` | N | CC0 | 6 | **abcde** | yes | **yes** |
+| 60 | `PXD069387` | 3 | `unclassified` | `absent` | N | CC0 | 0 | abe | — | — |
+
+**Every one of the sixty is CC0 with a resolvable organism, so C0(a), (b) and (e) never bind in this
+draw** and the gate is decided entirely by (c) and (d).
+
+#### Guards: none raised, and the bound on what that licenses
+
+**Zero raises, across all four guards and both further raise routes, over 60 rows and 30 archives
+opened.** No read failed; no listing failed. The `skipped` column is 140 entries and every one of
+them is a *decision not to look*, never a failed look: **104** `instrument format, not listed` and
+**36** `beyond the limit of 3`, with **0** `unreadable`.
+
+**What that licenses is bounded by archive size, and the bound is measured rather than assumed.** All
+**30** archives opened are **above 64 KiB** — none at or below it. Guard 2 is unreachable on the
+first read (l.406) when `size <= 65536`, so a draw containing small archives would have had a blind
+spot on that call; this draw contains none, and all **14** rows carrying an archive sit inside the
+bound. The zero is therefore informative for every archive this run touched.
+
+**The stated bound is narrower than the function, and this was verified rather than reasoned.** Guard
+2 also sits on the directory read at l.426, where `start` is `cd_off`. Offline, against zips built by
+`zipfile` and a stub that answers 200 to every ranged request: a **>64 KiB** archive raises on call
+**#1**, and a **<64 KiB** archive passes call #1 with `start=0` and raises on call **#2**. The
+uncovered case is therefore not *small archives* but an **empty** zip under 64 KiB, where `cd_off` is
+0 and `declared` is 0 and there is nothing to get wrong. `tests/test_deposit_survey.py` l.495 already
+pins the second call — it uses a two-entry zip, which is under the tail — so the repository's guard-2
+test and this run's archives exercise **different call sites**, and neither alone covers both.
+
+#### Two counts, kept apart
+
+**Neither is *the fourteen recomputed*.** The old parser could not distinguish a read that returned
+nothing from a read that failed, so the widened draw's 14 counted only reads that **returned
+entries**; the guarded parser separates the two and there is no single successor figure.
+
+| | Count | Of the 12 shared rows |
+|---|---|---|
+| (i) rows whose state came from a **successful** archive read | **14** of 60 | **7** |
+| (ii) rows where a read was **attempted and failed** | **0** of 60 | **0** |
+
+A third figure is reported because (i) is the weaker reading of *depends on*: of the 14, **11** would
+classify differently with the archive-derived entries removed — for the other three the archive
+confirmed a state the file listing already gave. Among the 12 shared rows the two readings coincide
+at **7**.
+
+**Those two figures land on the widened draw's 14 of 60 and 7 of the 12 exactly.** That is
+corroboration, not confirmation: the widened draw never recorded *which* 14, so the sets cannot be
+compared and the agreement could be coincidence over a different fourteen.
+
+**The per-archive comparison Step 3 asked for is not computable, and that is a property of the record
+rather than of this run.** *Which archives previously contributed nothing and now yield entries, and
+the reverse* requires the widened draw's per-archive outcomes, and it recorded no archive names at
+all — not for the 48, and not for the 12. Only the aggregate survives the comparison.
+
+#### C0: no verdict moved, and the pair of counts is a reading difference
+
+**Among the twelve rows shared with the widened draw, the count passing C0 is 12 under the reading
+the widened draw used, and 10 under the filename route alone.** Two rows carry the difference:
+`PXD079072` and `PXD027328` both read `engine_state` = `unclassified` and so fail C0(d) on the
+filename route, while both declare **MaxQuant** on the project record and so pass it under the
+either-signal disjunction that § *Widened draw* → *The classified 60* applied to its own engine
+tally (*counting a deposit MaxQuant if either signal says so*).
+
+**Neither is a change, and three measurements establish that rather than one argument:**
+
+| # | Measurement | Result |
+|---|---|---|
+| 1 | `ENGINE_MARKERS` and `SITE_TABLE_MARKER` diffed across `c8bd02d`→`c167fc5` | **byte-identical**; the classification rule did not move |
+| 2 | `updatedDate` for both deposits | **2026-05-30** and **2021-07-15** — neither was touched between the two runs |
+| 3 | archive dependence of both rows | **zero** archive-derived entries, **zero** skipped reads — defect 2 could not have reached either |
+
+So both rows read `unclassified` on the filename route at the widened draw too, and that section's
+*Every one is … MaxQuant* was already resting on the declared signal for these two when it was
+written. **The disjunction is not settled here and the signals are not merged** — it is pre-registered
+work for the head of the C1-scoring turn (§ *C3 amended a third time* → *They disagree twice and one
+of those matters*). What is recorded is that two of the twelve
+turn on which signal C0(d) reads, which is why the count is reported as a pair and not as a number.
+
+**No candidate's C0 verdict changed in either direction.** No C1 scoring, ranking, shortlist or
+admission was performed.
+
+#### An instrument finding the run surfaced: the declared signal is weaker on the survey path
+
+**The two paths read `softwares` from different endpoints and they do not agree.** `search`
+(l.269–278) reads the **search** endpoint; `classify` (l.559) reads the **project record**. Measured
+over all sixty: **27 of 60** rows carry no declared software on the survey path, and **17 of those 27
+declare one on the project record** — always in that direction, never the reverse. `PXD079072` is one
+of the seventeen.
+
+**This is recorded and not acted on.** It bears directly on the deferred disjunction, since the
+declared half of it is under-populated by 17 rows on the path that draws the sample, and settling
+that is not this turn's work. Two further consequences are named without being measured: the
+declared-software census at § *The declared-software census over the whole pool* was taken *from
+search alone* and may under-count for the same
+reason, and this draw's 45% empty rate against that census's 15.6% *declaring nothing* is a gap too
+large to be sampling alone — but the draw is a rank-biased round-robin and not a uniform sample of
+the 450, so the two rates are not directly comparable and **no re-measurement was made.**
+
+**C0(b) is not evaluable from the survey path at all**, established the same way: the search
+endpoint has **no `license` field**, so no change to `search` could supply it. The licences in the
+table above come from one project-record read per drawn accession — the same read `classify` makes,
+issuing no query and so unable to widen the draw.
+
+#### The pre-registered predictions, against the measurement
+
+| | Predicted | Measured | |
+|---|---|---|---|
+| (a) shared rows changing in any cell | **0**, band 0–1 | **0** | hit |
+| (b) guard 2 raises | **0** | **0** | hit |
+| (c) guard 4 raises | **0** | **0** | hit |
+| (c) guard 3 raises | **0**, band 0–1 | **0** | hit |
+| guard 1, and the unnumbered l.409 | **0**, and 0 band 0–1 | **0**, **0** | hit |
+| (d) rows shared with the widened draw | **12**, band 10–12 | **12** | hit, exactly |
+| rows inside guard 2's first-read bound | **15**, band 10–25, low confidence | **14** | inside band, off by one |
+
+**Six of seven were predicted from the host and all six hit.** The two 206s with exact
+`Content-Range` measured before the run carried (b), (c) and guard 1; the shared identity of the
+index across hours carried (d). **The one prediction reasoned from a recorded aggregate rather than
+from the host — rows inside the bound, inferred from *14 of 60 depend on `archive_entries`* — is the
+one that missed**, by one, in the direction the inference's own weakness predicted: 14 counted reads
+that returned entries and was a lower bound on reads attempted, and the attempted count turned out to
+equal it because nothing failed.
+
+**One prediction cannot be scored and is not.** *(a)* was predicted over cells the widened draw
+recorded, and the two rows that turned out to matter are exactly the ones whose recorded cell —
+*MaxQuant* — is ambiguous between the two signals. Under the filename route the pair reads as two
+changed cells; under the disjunction as none. Measurements 1–3 above show neither is a movement, so
+**0** is entered, but it is entered on the strength of those three and not on the cell comparison.
+
+#### What this run did not cover
+
+**Coverage is unchanged at page 0 per term** — no term added, no cap raised, no `size` changed, and
+the tails of `diGly`, `GlyGly` and `ubiquitin remnant` are as unseen as before. **The 48 rows in this
+draw only are recorded but not compared**, having no counterpart. **The 48 unrecorded members of the
+widened sixty stay unrecoverable** — this run does not reconstruct them and no attempt was made to.
+**The guards were exercised offline and by absence, not in anger**: no archive in this draw raised
+one, so the run tests that the guarded parser does not raise spuriously and says nothing about how it
+behaves against a server that does ignore `Range`. And **`skipped` records the exception type, not
+which guard fired** — `expand_archives` l.521 writes `unreadable ({type})` and all four guards raise
+`RuntimeError`, so had a guard raised, *which one* would have needed a targeted re-read to recover.
+The analysis carried that re-read path and it ran zero times. That gap is left open rather than
+closed, because closing it is a change to `bzk/` this run did not require.
+
 
 ### Deposit and supplementary survey, 2026-08-07
 
