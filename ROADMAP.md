@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.62 |
-| Last reviewed | 2026-08-12 |
+| Version | 1.63 |
+| Last reviewed | 2026-08-13 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
 
@@ -3986,8 +3986,21 @@ twelve after three — with the remaining nine looking like a field that had bee
 listing is now recorded against that candidate and the run continues.
 
 **`tests/test_deposit_survey.py` now guards the module**, which had none while both its siblings
-did. Every test injects a stub session, so none needs the network — a guard against silent zeroes
-that skipped in a sandboxed clone would be absent exactly where it is needed.
+did. ~~Every test injects a stub session, so none needs the network — a guard against silent zeroes
+that skipped in a sandboxed clone would be absent exactly where it is needed.~~
+
+**That sentence was false when written and is corrected 2026-08-13.** Three of the archive tests did
+not inject a session, because `expand_archives` took none and fetched a deposit's URL map as its
+first statement — before deciding whether any archive would be opened. In a clone that cannot reach
+`www.ebi.ac.uk` they **failed** rather than skipped, so a clean checkout reported a red suite, and
+the missing coverage was of the archive-visibility fixes those tests exist for. **They passed in the
+container that wrote them only because it has network access**, which is how the claim survived
+being checked: a passing count is a property of the container it was measured in, not of the
+repository. Both halves are repaired — the seam is threaded and the fetch deferred — and the
+absence of a request is now asserted directly, since no networked container can tell a deferred
+fetch from an eager one by outcome. One path is still unexercised and says so at the function:
+`archive_entries` cannot take a session without a Protocol admitting `head` and a `headers=`
+keyword, which is a change to a contract three other modules satisfy.
 
 ### Deposit and supplementary survey, 2026-08-07
 

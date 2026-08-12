@@ -333,6 +333,15 @@ def archive_entries(url: str, *, tail: int = 65536) -> tuple[str, ...]:
     last 64 KiB, finds the end-of-central-directory, and range-reads the directory itself. Two
     range requests against 405 MB.
     """
+    # **This is the one function here with no injectable seam, and it is recorded rather than
+    # closed.** Every sibling takes a `session`; this one constructs its own, so the ranged-read
+    # path cannot be exercised offline and has no test. Threading it is not a matter of adding a
+    # parameter: it needs `head(...)` and a `headers=` keyword on `get(...)`, and **neither**
+    # `BytesSession` nor `RestSession` in `bzk/http.py` declares either — both are
+    # `get(url, *, timeout)` and nothing more. Closing it therefore means widening a Protocol that
+    # three other modules satisfy, which is a change to a shared contract and was out of scope on
+    # 2026-08-13 when the rest of this module's seams were fixed. Until then: the archive-listing
+    # path is exercised by hand against the live host and by nothing in `tests/`.
     session = requests.Session()
     size = int(session.head(url, timeout=60).headers["Content-Length"])
 
@@ -363,7 +372,11 @@ def archive_entries(url: str, *, tail: int = 65536) -> tuple[str, ...]:
 
 
 def expand_archives(
-    accession: str, names: tuple[str, ...], *, limit: int = 3
+    accession: str,
+    names: tuple[str, ...],
+    *,
+    limit: int = 3,
+    session: RestSession | None = None,
 ) -> tuple[tuple[str, ...], list[str], tuple[str, ...]]:
     """`names` plus the entries of up to `limit` inspectable zips.
 
@@ -374,11 +387,26 @@ def expand_archives(
     what had not been looked at. Both kinds are now recorded, and both reach the caller as data
     rather than as prose, so a table can carry *read to a cap* in a column instead of leaving a
     reader to infer it from a `Files` count.
+
+    **Two things about how it reaches the network were wrong and are fixed together, 2026-08-13.**
+
+    *The fetch was unconditional.* `file_urls(accession)` was this function's first statement, ahead
+    of the filtering that decides whether any archive will be opened at all — so a call with
+    `limit=0`, or one whose names are all instrument formats, fetched a deposit's whole URL map and
+    used none of it. It is now deferred to the first archive that actually needs a URL. That alone
+    would have turned three red tests green while leaving the loop below as unreachable offline as
+    it was, which is why it is not the whole repair.
+
+    *There was no seam.* Every sibling here — `search`, `file_names`, `file_urls`, `self_check` —
+    takes an injectable `session`, and this one did not, so its first statement called an
+    injectable function without a session to thread. `bzk/rebuild.py` is the established pattern.
+    Passing it fixes the seam whether or not the fetch is deferred, and deferring the fetch fixes a
+    request no caller needed whether or not there is a seam; neither substitutes for the other.
     """
-    urls = file_urls(accession)
     notes: list[str] = []
     skipped: list[str] = []
     grown = list(names)
+    urls: dict[str, str] | None = None
 
     zips = [n for n in names if n.lower().endswith(".zip")]
     by_format = [n for n in zips if any(n.lower().endswith(h) for h in _RAW_ARCHIVE_HINTS)]
@@ -387,6 +415,8 @@ def expand_archives(
         skipped.append(f"{name}: instrument format, not listed")
 
     for name in archives[:limit]:
+        if urls is None:
+            urls = file_urls(accession, session=session)
         url = urls.get(name)
         if not url:
             skipped.append(f"{name}: no public URL")

@@ -4,10 +4,18 @@
 `bzk/deposit_survey.py`'s docstring names as its siblings — both have test files. This one did not,
 which left the class guarded and one member outside it.
 
-**Nothing here touches the network.** `bzk/http.py` declares `RestSession` as a `Protocol` so a
-stub can be injected, and that is what every test below does. Eleven tests in this suite already
-skip in a sandboxed clone for want of a network; a guard against silent zeroes that skips exactly
-where the network is unavailable would be absent in the case it exists for.
+**Nothing here touches the network — true as of 2026-08-13 and false when this sentence was first
+written.** Three of the archive tests reached `www.ebi.ac.uk` and **failed** in a clone that cannot,
+which is worse than the skipping this paragraph was warning about: a clean checkout reported a red
+suite, and the guard that went missing covered the archive-visibility fixes those tests were written
+for. They passed here only because this container can reach the API. `expand_archives` now takes a
+`session` like every sibling and defers its URL fetch until an archive is actually opened, and
+`test_expand_archives_makes_no_request_when_no_archive_will_be_opened` asserts the absence directly
+— because a container with a network cannot tell a deferred fetch from an eager one by outcome.
+
+**One path is still unexercised and is not hidden.** `archive_entries` constructs its own session
+and cannot take one: it needs `head` and a `headers=` keyword, and neither Protocol in
+`bzk/http.py` declares them. The reason sits at that function.
 
 **The load-bearing one is `self_check`.** `files/byProject` answers `200 application/json` with an
 empty body, so a broken call and a fileless deposit are indistinguishable, and `self_check` is the
@@ -209,24 +217,70 @@ def test_a_site_table_alone_no_longer_marks_a_deposit_maxquant() -> None:
 # ── expand_archives: every skip is accounted for ──────────────────────────────────────────────
 
 
+class _Forbidden:
+    """A session that fails the test if anything calls it. `RestSession`-shaped."""
+
+    def get(self, url: str, *, timeout: int = 0) -> _Response:
+        raise AssertionError(f"a request was made when none should have been: {url}")
+
+
+def test_expand_archives_makes_no_request_when_no_archive_will_be_opened() -> None:
+    """The property the three tests below *relied on* and did not assert, 2026-08-13.
+
+    `file_urls(accession)` was `expand_archives`' first statement, ahead of the filtering that
+    decides whether any archive is opened — so these three reached `www.ebi.ac.uk` and **failed**,
+    not skipped, in a clone that cannot. They passed here only because this container can reach the
+    API, which is the worst way for a guard to be green.
+
+    Asserting *no request was made* is what stops that returning: a container with a network cannot
+    tell a deferred fetch from an eager one by outcome, so the absence has to be asserted directly.
+    The property is carried by `_Forbidden` raising, not by the shapes below — which is why they are
+    membership checks rather than equalities, and why this file adds no new entry to
+    `tests/test_tautology_sweep.py`'s pinned multiset.
+    """
+    names = ("a.d.zip", "b.raw.zip")
+    grown, notes, skipped = expand_archives("PXD000000", names, limit=3, session=_Forbidden())
+    assert not notes
+    assert all(n in grown for n in names)
+    assert all("instrument format" in entry for entry in skipped)
+
+    # …and with a real archive present but the cap at zero, still nothing is fetched.
+    _, _, capped = expand_archives("PXD000000", ("Search.zip",), limit=0, session=_Forbidden())
+    assert any("beyond the limit of 0" in entry for entry in capped)
+
+
+def test_expand_archives_threads_the_session_it_is_given() -> None:
+    """The seam, asserted rather than assumed. `expand_archives` took no `session` while every
+    sibling did, so its first statement called an injectable function with nothing to inject."""
+    session = _Session({"/files": [{"fileName": "Search.zip"}]})  # listed, but no public location
+    _, _, skipped = expand_archives("PXD000000", ("Search.zip",), limit=3, session=session)
+    assert session.seen, "expand_archives did not use the session it was given"
+    assert "/projects/PXD000000/files" in session.seen[0]
+    assert any("no public URL" in entry for entry in skipped)
+
+
 def test_archives_skipped_by_format_are_recorded_not_silent() -> None:
     """The quieter of the two skips: hint-filtered archives left no trace at all, because the
     unlisted count only ever counted archives beyond the cap."""
-    _, _, skipped = expand_archives("PXD000000", ("S1_1.d.zip", "S1_2.d.zip"), limit=3)
+    _, _, skipped = expand_archives(
+        "PXD000000", ("S1_1.d.zip", "S1_2.d.zip"), limit=3, session=_Forbidden()
+    )
     assert len(skipped) == 2
     assert all("instrument format" in s for s in skipped)
 
 
 def test_archives_beyond_the_cap_are_recorded_individually() -> None:
     names = tuple(f"Search_{i}.zip" for i in range(5))
-    _, _, skipped = expand_archives("PXD000000", names, limit=0)
+    _, _, skipped = expand_archives("PXD000000", names, limit=0, session=_Forbidden())
     assert len(skipped) == 5
     assert all("beyond the limit of 0" in s for s in skipped)
 
 
 def test_a_name_habit_no_longer_skips_an_archive() -> None:
     """`raw_` and `_raw` were guesses about naming and are gone; only container formats remain."""
-    _, _, skipped = expand_archives("PXD000000", ("raw_search_output.zip",), limit=0)
+    _, _, skipped = expand_archives(
+        "PXD000000", ("raw_search_output.zip",), limit=0, session=_Forbidden()
+    )
     assert skipped == ("raw_search_output.zip: beyond the limit of 0",)
 
 
