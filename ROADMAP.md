@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.74 |
+| Version | 1.75 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -5204,6 +5204,28 @@ it, not because it was judged generic.
 writes that those pages omit is not in the table and this turn does not know it is missing.
 
 
+
+
+### C1 scored on what the record supports, 2026-08-12
+
+**A partial score, and deliberately not a ranking.** C1's eleven criteria are scored only where the
+record and the listings the survey already holds can settle them. **No deposit's data file is
+downloaded or parsed.** No candidate is ranked, shortlisted or preferred, and **C2 is not applied** —
+applying a contrast rule to a partial score would express a preference the evidence does not support.
+C1's criteria and bands are unchanged.
+
+#### Predicted, before the criteria were investigated
+
+Registered from C1's *Tested against* column alone, before any of the platform's own code was read:
+
+| Quantity | Predicted | Reasoning from the column |
+|---|---|---|
+| scorable **from the record alone** | **2**, band 1–3 | criterion 10, *SDRF present*, which the survey already carries as `has_sdrf` and the re-draw table already prints; and criterion 8, *sample-name convention*, on the guess that raw filenames in the listing carry the convention |
+| unscorable **even with the file** | **3**, band 2–4 | criterion 4, since `AMBIGUOUS` is a state the platform's resolver produces rather than anything a table contains; criterion 3, which needs UniProt's reviewed/unreviewed status; criterion 2, on the guess that deciding *isoform* needs UniProt rather than the accession's own spelling |
+| the remainder | scorable only **with the file** | — |
+
+**No prediction is made about how any candidate would score on an unscorable criterion, and none
+about a ranking.**
 
 
 ### Deposit and supplementary survey, 2026-08-07
