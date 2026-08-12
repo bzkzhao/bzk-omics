@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.59 |
+| Version | 1.60 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -3805,6 +3805,105 @@ co-isolated by anti-K-GG enrichment. §6.1's DDL example always said three and i
 the prose was corrected. The set is now `schema.GG_REMNANT_MODIFIERS`, one home, guarded against
 §6.1, and a closed enum rather than a query over `Modifier` nodes — which would have made an
 identifying field depend on graph state (ADR-0021).
+
+### Pre-registration: criteria for a second deposit, 2026-08-12
+
+**Written and committed before any candidate was inspected.** The section below this one is the
+2026-08-07 survey of *one* deposit; this registers how a *second* is chosen, and the shortlist that
+results lands beneath it as a sibling section, so the two surveys sit together and the criteria are
+readable against the findings they were written to test.
+
+**Three indices were measured reachable from this container first, because none of this is possible
+otherwise.** `https://ftp.pride.ebi.ac.uk/pride/data/archive/2022/02/PXD018299/` → 200;
+`https://www.ebi.ac.uk/pride/ws/archive/v3/search/projects` → 200 with a JSON body;
+`https://proteomecentral.proteomexchange.org/api/proxi/v0.1/datasets` → 200. `bzk/sources/pride.py`
+itself cannot find a deposit — checked structurally rather than by grepping for *search*: an AST walk
+shows exactly **two** `DepositFile` constants, one URL template built wholly from their fields, and
+`fetch(deposit)` taking a `DepositFile`. There is no function that accepts a query or returns a list,
+so a deposit the module has not been told about has no URL to build.
+
+**One candidate was seen before these criteria were written and it is disclosed rather than
+quietly used.** Verifying that the search API's 200 carried a usable body returned the first record
+of an `ISG15` query — `PXD071724`, DIA-NN. No criterion below was shaped by it, and it is admitted
+to the survey on the same terms as every other candidate; a reader who suspects otherwise can check
+that C0(d) excludes DIA-NN and was not written to spare it.
+
+#### The point of the axis: contrast, not resemblance
+
+**A deposit resembling PXD018299 in these respects is the weaker choice, not the stronger one.**
+Every figure below was induced from a single deposit inspected on 2026-08-06. A second deposit that
+reproduces them adds a second observation of the same thing; one that *differs* tells us which of
+them were properties of the model and which were properties of that file. The survey therefore ranks
+on **how many of these a candidate could falsify**, and a candidate that would confirm all of them
+ranks last.
+
+#### C0 — admissibility, hard gates; any failure excludes and is recorded
+
+| # | Gate | Why |
+|---|---|---|
+| a | **Public, not embargoed** | ADR-0016's embargo fields exist and no v0.1 row populates them; an embargoed deposit is out and this turn does not change that |
+| b | **Reuse terms establishable from the deposit's own metadata** | If they cannot be established, the candidate is excluded *and the exclusion is recorded as unestablished* rather than assumed permissive |
+| c | **Carries a site-grain processed table** | The v0.1 path is the MaxQuant site adapter; a protein-only deposit tests nothing at the grain the anchor domain lives at |
+| d | **MaxQuant** | The two written adapters are MaxQuant; DIA-NN, FragPipe and Spectronaut are v0.2 by § *Explicitly deferred*. A non-MaxQuant deposit is excluded **for this survey only** and recorded with its engine |
+| e | **A proteome UniProt can resolve** | Position validation and I2's sequence pinning both run through UniProt; a species it cannot resolve makes every rate unmeasurable |
+
+#### C1 — contrast criteria, each naming the figure it is tested against
+
+A candidate scores one point per criterion on which it is **predicted to differ**. Bands are stated
+so *differs* is decided by a rule and not by taste.
+
+| # | Criterion | Tested against | Informative if |
+|---|---|---|---|
+| 1 | Multi-mapping rate (I14) | **1,896 / 2,298 = 82.5%** | outside **60–95%** |
+| 2 | Razor picks that are isoforms (I2) | **6/20 = 30%** | outside **15–45%**, sample ≥ 20 |
+| 3 | Razor pick on TrEMBL despite a reviewed entry (I17) | **4 of 8 = 50%** | outside **25–75%**, sample ≥ 8 |
+| 4 | `AMBIGUOUS` fold | the state **measured 0 of 198 times**; 7 of 2,260 cold snapshots carry it | any non-zero rate over a comparable accession sample |
+| 5 | Declared-quantity enum (I16) | `intensity_multiplicity_summed` | a different multiplicity treatment or intensity family |
+| 6 | Localisation distribution | median **1.00**, min **0.35** | a different median, a different column name, or a different scale |
+| 7 | Native stoichiometry (I4) | `Ratio mod/base` **present** per sample | **absent** — which would test whether `native` is reachable outside this deposit at all |
+| 8 | Sample-name convention | one replicate carrying a run ID (`KO_1_181212063719`) | a different convention in kind, not just in spelling |
+| 9 | Unrecorded threshold (I16's unfired case) | **242 of 2,298 = 10.5%** dropped at `Localization prob >= 0.75` | the deposit applying its own filtering before deposit |
+| 10 | SDRF present | **No** | **Yes** — `sdrf` is §5.3's authoritative basis and has never once been exercised |
+| 11 | Design recoverable from column names | *unambiguous* | **not** recoverable — which tests whether `filename_inference` generalises at all |
+
+**How this list was assembled, since a short enumeration is the recurring failure here.** All 24
+data rows of § *Measured findings*' table were walked, not the five named at the outset: rows 6, 7,
+10 and 23 supplied criteria 6, 7, 8 and 9, and row 8 supplied criterion 10. §8 was then walked
+programmatically for invariants citing a PXD018299 measurement inside their own text, which returns
+**I2, I14 and I17** — `I21` also matched and is a **false positive**, the digits `198` occurring
+inside the digest `bzk:3473130e9cb7f1198196ee40b0e30727`. Rows describing the *published paper*
+rather than the deposit, and rows that are resolver-bug findings, were not made criteria.
+
+#### C2 — ranking, C3 — survey size, C4 — method
+
+**Rank** by C1 points. Ties break on: SDRF present, then site count ≥ 1,000 so the rates are
+measurable at all, then smaller download.
+
+**At most 12 candidates enter**, drawn from the PRIDE v3 search API over a query set fixed here
+before running — `ISG15`, `ubiquitin GlyGly`, `diGly`, `ubiquitinome` — taking the API's own
+ordering and not reordering by eye.
+
+**Classification uses the established method and not a new one.** Perseus versus raw search-engine
+output is decided by the type-prefix stamp (`C:`/`N:`/`T:`/`M:`), **never** by the presence of a
+statistics column, which § *Deposit and supplementary survey* records as having produced a false
+positive on a `Q-value` column that raw MaxQuant also carries. Search engine and grain are read from
+the deposit's file listing where the filenames settle it.
+
+**No bytes are retained**, so `raw_store` is not exercised this turn and nothing enters
+`data/curation/`. Any figure that reaches a document comes from an instrument on disk, in the shape
+`drift.py` and `fetch_progress.py` already set — not imported by the platform, run as `python -m`.
+
+#### Predictions, and where none is made
+
+**No prediction is registered about any rate in C1 (1)–(4), (6) or (9), and the reason is that no
+instrument in this container can resolve them this turn.** Each needs the candidate's site table
+parsed, and this survey deliberately downloads none — so a predicted multi-mapping rate would be a
+number with no instrument behind it, which is the shape this section exists to forbid. What the
+survey *can* resolve is metadata: engine, grain, file inventory, SDRF presence, public status. Those
+are read, not predicted.
+
+**If the survey finds no admissible candidate, that is the result** and it is recorded with the
+criteria that excluded them. No criterion is relaxed to produce a shortlist.
 
 ### Deposit and supplementary survey, 2026-08-07
 
