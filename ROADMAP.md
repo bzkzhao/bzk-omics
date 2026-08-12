@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.75 |
+| Version | 1.76 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -5226,6 +5226,134 @@ Registered from C1's *Tested against* column alone, before any of the platform's
 
 **No prediction is made about how any candidate would score on an unscorable criterion, and none
 about a ranking.**
+
+#### Scorability, criterion by criterion from the *Tested against* column
+
+Three questions per criterion, kept apart: does the **record or a listing** settle it; does it need
+the deposit's **file**; or is it **unscorable even with the file**, because what it tests is something
+the platform *derives* rather than something a deposit *contains*.
+
+| # | Criterion | From the record? | Needs the file | Unscorable even with the file |
+|---|---|---|---|---|
+| 1 | Multi-mapping rate (I14) | no | site table, protein-group column | no |
+| 2 | Razor picks that are isoforms (I2) | no | site table, razor column | **no** — `bzk/resolve/uniprot.py` decides isoform as `"-" in requested`, from the accession's own spelling |
+| 3 | Razor pick on TrEMBL despite a reviewed entry (I17) | no | site table | **yes** — `reviewed` comes from the UniProt pin, not from the deposit |
+| 4 | `AMBIGUOUS` fold | no | site table | **yes** — set when UniProt returns several HGNC ids; a resolver state, in no deposit |
+| 5 | Declared-quantity enum (I16) | no | headers only | **splits — see below** |
+| 6 | Localisation distribution | no | site table; column name from headers, median and scale from the values | no |
+| 7 | Native stoichiometry (I4) | no | headers only — `Ratio mod/base ` present or absent | no |
+| 8 | Sample-name convention | no | headers | no |
+| 9 | Unrecorded threshold (I16's unfired case) | no | site table values | no |
+| 10 | SDRF present | **yes** | — | no |
+| 11 | Design recoverable from column names | **no — decided, see below** | headers | no |
+
+**Criterion 4 is not alone, which is why the other ten were checked rather than assumed.** Two whole
+criteria and one half have its shape — testing a state the platform produces rather than one a
+deposit carries. **3** joins it: `reviewed` is read from the UniProt pin. **2 does not**, against the
+prediction: isoform status is decided from the accession string, so the file alone settles it.
+
+**Criterion 5 splits, and the halves fall on opposite sides.** `QUANTITY_COLUMNS` maps
+`intensity_multiplicity_summed` to the column prefix `Intensity `, so *which intensity family a
+deposit offers* is readable from the headers. But the **declaration itself is a curation act**: a
+deposit's table offers columns, and an `Analysis` declares which were used. No deposit states its own
+declared quantity, so that half is unscorable even with the file — it does not exist until someone
+curates the deposit.
+
+**Criterion 11 is decided *not* scorable from a listing, and the reason is a deposit already in the
+record.** The criterion asks whether the design is recoverable from the **columns of the quantified
+table**; a listing enumerates **raw files**. Those two sets can share no member, and `PXD018299` is
+the demonstration: `HANDOFF.md` records that its fourteen quantitative columns are the *proteome* run
+while the curation's twelve samples are the *diGly* run, **sharing no member**, and that the mapping
+"is not deducible even with §5.3's `filename_inference` basis". Scoring 11 off the listing would
+answer a different question about a different set — which is the failure mode this whole exercise is
+built to avoid.
+
+**A wording discrepancy found while deciding it, recorded and not fixed.** `ONTOLOGY.md` §5.3 defines
+`filename_inference` as *"Deduced from raw file naming conventions"*, while C1's criterion 11 is worded
+*"Design recoverable from column names"*. In a MaxQuant table these usually coincide, because MaxQuant
+names its quantitative columns after the raw runs — but they are not the same set, and `PXD018299` is
+a deposit where they diverge. **C1 is not amended**: the criteria and their bands are out of scope.
+
+#### Criterion 10 scored over the twelve — the only one the record settles
+
+Tested against the anchor's **No**; informative if **Yes**.
+
+| Candidate | SDRF | Point |
+|---|---|---|
+| `PXD079072`, `PXD075538`, `PXD070339`, `PXD074990`, `PXD027328`, `PXD074949`, `PXD027163`, `PXD032078`, `PXD019152`, `PXD018299`, `PXD070789`, `PXD060435` | **N**, all twelve | **0** |
+
+**Zero of twelve are informative on criterion 10.** Every candidate matches the anchor, so the one
+criterion the record can settle separates nothing. The criterion's own note says `sdrf` "has never
+once been exercised"; after twelve candidates it still has not been, and that is now measured rather
+than assumed. **Recomputed from the listings and cross-checked cell-by-cell against the re-draw
+table's SDRF column — all sixty agree**, so this is the record's own figure and not a second one.
+
+**Ten criteria are left unscored and are not estimated.** No band is inferred from a title, an
+abstract or a declared-software field.
+
+**This is not a ranking.** One criterion scoring zero across twelve candidates orders nothing, and
+even a full score would not be applied here: **C2 is not applied, no candidate is shortlisted, and
+none is preferred.**
+
+#### What full scoring would cost — registered, not paid
+
+From listings only; no file was downloaded. The criteria that need data concern the **K-GG** site
+table, so that subset is registered separately from every site table of any modification.
+
+| | K-GG site tables | All site tables |
+|---|---|---|
+| tables | 16 | 39 |
+| candidates covered | **11 of 12** | 12 |
+| distinct objects to retrieve | 16 — **4 direct files, 12 archives** | 22 — 6 direct, 16 archives |
+| total bytes | **24.70 GB** | 33.58 GB |
+| of which direct files | 84.7 MB | 91.7 MB |
+| of which archives | **24.61 GB** | 33.49 GB |
+
+**`PXD070789` has no K-GG site table in its listing.** It passes C0(c) on `Phospho-STY-Sites.txt`,
+which is a site-grain table and satisfies the gate as written — but there is no diGly table to
+measure criteria 1, 2, 6 or 9 against. That is a scorability finding about the candidate, recorded
+here and not acted on.
+
+**Three quarters of the twelve are behind an archive, and one archive is 17 GB.** `PXD019152`'s
+`MaxQUANT_HpH.zip` is 16,993,871,159 bytes and holds one of its K-GG tables; `PXD032078`'s
+`txt_GlyGlyKsites.zip` is 1.33 GB, `PXD060435`'s two are 0.9 GB together, and `PXD074949` spreads
+three searches over 0.67 GB.
+
+**What existing code covers, and what is new work:**
+
+| Step | Existing? |
+|---|---|
+| resolve a filename to a URL | **yes** — `file_urls` |
+| retrieve a **direct** file | **yes** — `bzk/sources/pride.py` `fetch_bytes`, and `fetch` to put it in the content-addressed store |
+| parse a MaxQuant site table | **yes** — `bzk/adapters/maxquant.py` `read_table`, `bzk/adapters/maxquant_sites.py` |
+| retrieve a table **inside an archive** | **no — new work** |
+| map samples to columns | **no** — a curation record, which is a separate decision |
+
+**The archive half is the real cost and it has two shapes.** Either **24.61 GB of whole-archive
+downloads** using code that exists, or **new range-extraction code**: `archive_entries` already parses
+each entry's central-directory header but **returns only the names and discards the offsets**, so
+fetching one member of a 17 GB archive is reachable in principle and unwritten in fact.
+
+**Registering this is the turn; deciding to pay it is not.** Downloading and parsing twelve site
+tables is most of an ingestion, and ingestion carries its own invariants, a curation record per
+deposit, and I18's export obligations. **No file was fetched, nothing entered `data/curation/`, and
+no candidate was admitted.**
+
+#### Predicted beside measured
+
+| Quantity | Predicted | Measured | |
+|---|---|---|---|
+| scorable from the record alone | **2**, band 1–3 | **1** — criterion 10 | inside the band |
+| unscorable even with the file | **3**, band 2–4 | **2 whole (3, 4) + one half (5)** | at the band's floor |
+
+**Both misses came from guessing at a mechanism instead of reading it.** Criterion 8 was predicted
+scorable from raw filenames; sample names are **column** names, and the listing's raw-file set can
+share no member with the quantified columns. Criterion 2 was predicted to need UniProt; the accession
+string settles it. **The one prediction that held did so for a reason I had actually checked** — the
+survey already carries `has_sdrf` — and the two that failed were both about code I had not yet read.
+The half-criterion in 5 was not predicted at all, because the prediction treated each criterion as
+falling whole to one side.
+
 
 
 ### Deposit and supplementary survey, 2026-08-07
