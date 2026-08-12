@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.70 |
+| Version | 1.71 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -4703,6 +4703,9 @@ written. **The disjunction is not settled here and the signals are not merged** 
 work for the head of the C1-scoring turn (§ *C3 amended a third time* → *They disagree twice and one
 of those matters*). What is recorded is that two of the twelve
 turn on which signal C0(d) reads, which is why the count is reported as a pair and not as a number.
+**Settled 2026-08-12 in favour of the filename route — § *Settling C0(d)'s reading rule* carries the
+decision and the recount; the pair above is superseded by the single count there, and this paragraph
+is left standing unedited as the state before it.**
 
 **No candidate's C0 verdict changed in either direction.** No C1 scoring, ranking, shortlist or
 admission was performed.
@@ -4914,6 +4917,36 @@ section was written to undo — and `sites.txt` was removed from `ENGINE_MARKERS
 re-admitting it would reopen a closed defect. The gap is recorded here as a finding and **no constant
 is changed this turn**. What (e) guarantees is that the declared list stays visible on both rows, so
 the gap reads as a gap rather than as an absence of evidence.
+
+
+
+#### The recount under (e), predicted beside measured
+
+| Reading | Predicted | Measured |
+|---|---|---|
+| (a) filename alone | 10 | **10** |
+| (b) declared alone | *none made — the record does not carry the signal* | *not computable* |
+| (c) either | 12 | **12** |
+| (d) both | *none made — the record does not carry the signal* | *not computable* |
+| **(e) chosen** | **10** | **10** |
+
+**Under the settled rule, 10 of the sixty pass C0**: `PXD075538`, `PXD070339`, `PXD074990`,
+`PXD074949`, `PXD027163`, `PXD032078`, `PXD019152`, `PXD018299`, `PXD070789`, `PXD060435`. `PXD018299`
+is the anchor deposit and a consistency check rather than a candidate, so **nine are new**.
+
+`PXD079072` and `PXD027328` are excluded, each **on C0(d) alone** — every other gate passes on both —
+and each is recorded with its declared list and with the matcher gap that produced the exclusion, per
+clause 2 of the settled rule.
+
+**This is a recount, not a scoring.** The count moves off twelve, so the turn ends here: **no C1
+scoring, no ranking, no shortlist, no admission, no curation record.**
+
+**No standing table required an edit, and that is a consequence of the reading rather than a
+convenience.** The re-draw's sixty-row table computed its `C0 gates met` column on the filename
+route, so it already encodes (e) exactly — all ten `abcde` rows are the ten above. Had (c) been
+chosen, two cells would have had to change in a table this turn is not permitted to edit, which is
+itself a small argument that the record was already written against the reading the gate's text
+supports. The baseline, re-run, widened-draw and re-draw tables all stand unedited.
 
 
 ### Deposit and supplementary survey, 2026-08-07
