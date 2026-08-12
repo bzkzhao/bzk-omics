@@ -3879,9 +3879,26 @@ rather than the deposit, and rows that are resolver-bug findings, were not made 
 **Rank** by C1 points. Ties break on: SDRF present, then site count ≥ 1,000 so the rates are
 measurable at all, then smaller download.
 
-**At most 12 candidates enter**, drawn from the PRIDE v3 search API over a query set fixed here
+~~**At most 12 candidates enter**, drawn from the PRIDE v3 search API over a query set fixed here
 before running — `ISG15`, `ubiquitin GlyGly`, `diGly`, `ubiquitinome` — taking the API's own
-ordering and not reordering by eye.
+ordering and not reordering by eye.~~
+
+**C3 was unusable as written and is amended here, with the original left standing — 2026-08-12,
+after the first run and before any candidate was judged.** *Taking the API's own ordering* over a
+list of queries, read literally, walks query one to exhaustion first — and `ISG15` alone returns 25,
+so it took all twelve slots and `diGly` (25 results) and `ubiquitinome` (25) were never queried at
+all. The registered query set was not surveyed; one quarter of it was. **Amended to allocate the cap
+round-robin across the queries**, which is what *a query set* was for. `ubiquitin GlyGly` returns
+**0** and contributes nothing, which is itself recorded rather than quietly dropped.
+
+**C3 also said nothing about archives, and that produced a false zero.** Filename-only reading
+records `PXD065158` — *Proteome-wide identification of ISG15 sites in HeLa cells* — as carrying no
+processed files and no identifiable engine, because it deposits its entire search as one 405 MB
+`Search_GlyGly.zip`. **Amended: a candidate's non-raw archives are listed by reading the zip's
+central directory over a byte range**, two requests against 405 MB, retaining nothing. Up to three
+archives per candidate; any beyond that, and any that fails to read, is recorded as such — a skipped
+archive and an empty one otherwise produce the same blank column, which is the failure this
+amendment exists to prevent.
 
 **Classification uses the established method and not a new one.** Perseus versus raw search-engine
 output is decided by the type-prefix stamp (`C:`/`N:`/`T:`/`M:`), **never** by the presence of a
