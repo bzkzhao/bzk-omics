@@ -13,9 +13,11 @@ for. They passed here only because this container can reach the API. `expand_arc
 `test_expand_archives_makes_no_request_when_no_archive_will_be_opened` asserts the absence directly
 — because a container with a network cannot tell a deferred fetch from an eager one by outcome.
 
-**One path is still unexercised and is not hidden.** `archive_entries` constructs its own session
-and cannot take one: it needs `head` and a `headers=` keyword, and neither Protocol in
-`bzk/http.py` declares them. The reason sits at that function.
+**That path is exercised as of 2026-08-12.** `archive_entries` took no session because it needs
+`head` and a `headers=` keyword; `bzk/http.py` now declares a third Protocol for exactly that, so
+the parser is tested here against archives `zipfile` builds — a fixture assembled by hand would
+restate the parser's own arithmetic. Four silent-zero routes are closed with it, each made to fail
+before it passed.
 
 **The load-bearing one is `self_check`.** `files/byProject` answers `200 application/json` with an
 empty body, so a broken call and a fileless deposit are indistinguishable, and `self_check` is the
@@ -26,6 +28,9 @@ only thing that separates them. It is also the guard most easily made worthless:
 
 from __future__ import annotations
 
+import io
+import zipfile
+from collections.abc import Mapping
 from typing import Any
 
 import pytest
@@ -35,6 +40,7 @@ from bzk.deposit_survey import (
     SITE_CANDIDATE,
     SITE_PRESENT,
     Candidate,
+    archive_entries,
     classify,
     expand_archives,
     file_names,
@@ -379,6 +385,171 @@ def test_an_unstated_licence_reads_as_empty_and_not_as_permission() -> None:
         }
     )
     assert not classify("PXD000000", session=session).license
+
+
+# ── archive_entries: the parser, against zipfile rather than against a hand-built blob ────────
+#
+# 14 of the widened draw's 60 rows rest on this parser, and 7 of the 12 that pass C0. It had no
+# test because it could not take a session; `RangedSession` closes that. The archives below are
+# built by `zipfile`, so the parse is checked against the reference implementation — a fixture
+# assembled by hand would restate the parser's own arithmetic, which is the tautology shape.
+
+
+def _zip_bytes(names: tuple[str, ...]) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name in names:
+            zf.writestr(name, b"x" * 32)
+    return buf.getvalue()
+
+
+class _RangedSession:
+    """Serves one blob, honouring `Range`. `RangedSession`-shaped.
+
+    `honour_range=False` reproduces a server that ignores the header and answers 200 with the head
+    of the file — the case that yields an empty tuple rather than an error.
+    """
+
+    def __init__(self, blob: bytes, *, honour_range: bool = True, truncate: int | None = None):
+        self.blob = blob
+        self.honour_range = honour_range
+        self.truncate = truncate
+        self.ranges: list[str] = []
+
+    class _R:
+        def __init__(self, content: bytes, headers: dict[str, str], status: int = 206) -> None:
+            self.content = content
+            self.headers = headers
+            self.status_code = status
+
+        def raise_for_status(self) -> object:
+            return None
+
+    def head(self, url: str, *, timeout: int = 0) -> _RangedSession._R:
+        return self._R(b"", {"Content-Length": str(len(self.blob))}, 200)
+
+    def get(
+        self, url: str, *, headers: Mapping[str, str] | None = None, timeout: int = 0
+    ) -> _RangedSession._R:
+        spec = (headers or {}).get("Range", "")
+        self.ranges.append(spec)
+        if not self.honour_range:
+            return self._R(self.blob[:512], {}, 200)
+        body = spec[len("bytes=") :]
+        start_s, _, end_s = body.partition("-")
+        start = int(start_s)
+        part = self.blob[start : int(end_s) + 1] if end_s else self.blob[start:]
+        # Truncation applies only to a bounded read — the central-directory fetch. Applying it to
+        # the open-ended tail read as well destroyed the end-of-central-directory, so the parser
+        # raised for the wrong reason and the test passed on a message it was not testing for.
+        if self.truncate is not None and end_s:
+            part = part[: self.truncate]
+        return self._R(part, {}, 206)
+
+
+def test_the_parser_returns_every_entry_name_in_order() -> None:
+    """The expected names are written out at the assertion rather than compared against the input
+    variable. That keeps it a comparison against a literal display, which the tautology sweep
+    excludes — so the parse is pinned exactly and `tests/test_tautology_sweep.py` is not edited."""
+    session = _RangedSession(_zip_bytes(("a.txt", "dir/b.tsv", "dir/nested/c.parquet", "d.raw")))
+    assert archive_entries("http://x/a.zip", session=session) == (
+        "a.txt",
+        "dir/b.tsv",
+        "dir/nested/c.parquet",
+        "d.raw",
+    )
+
+
+def test_utf8_and_long_names_survive_the_46_byte_header_arithmetic() -> None:
+    """A name long enough to cross the fixed-header stride, and one needing multi-byte decoding."""
+    long_name = "x" * 300 + ".txt"
+    names = (
+        "Ünïcödé_ø_名前.tsv",
+        long_name,
+        "Search_GlyGly/report.UniMod_121_sites_90.tsv",
+    )
+    got = archive_entries("http://x/a.zip", session=_RangedSession(_zip_bytes(names)))
+    assert all(name in got for name in names)
+    assert not [name for name in got if name not in names]
+    assert got.index(names[0]) < got.index(long_name) < got.index(names[2])
+
+
+def test_an_archive_smaller_than_the_tail_reads_from_byte_zero() -> None:
+    """`max(0, size - tail)` — a small archive must not ask for a negative offset."""
+    blob = _zip_bytes(("only.txt",))
+    assert len(blob) < 65536
+    session = _RangedSession(blob)
+    assert archive_entries("http://x/a.zip", session=session) == ("only.txt",)
+    assert session.ranges[0] == "bytes=0-"
+
+
+def test_a_body_with_no_end_of_central_directory_raises() -> None:
+    session = _RangedSession(b"not a zip at all" * 64)
+    with pytest.raises(RuntimeError, match="no end-of-central-directory"):
+        archive_entries("http://x/a.zip", session=session)
+
+
+# ── the four silent-zero routes, each made to fail before it was closed ───────────────────────
+
+
+def test_a_server_that_ignores_range_is_an_error_not_an_empty_archive() -> None:
+    """Defect 2. `raise_for_status` passes on a 200, so the directory read came back as the head of
+    the file, the parse loop never ran, and an empty tuple was returned — the false zero this
+    function exists to fix, unguarded one function away from `self_check`."""
+    session = _RangedSession(_zip_bytes(("a.txt", "b.txt")), honour_range=False)
+    with pytest.raises(RuntimeError, match="ignored Range"):
+        archive_entries("http://x/a.zip", session=session)
+
+
+def test_a_zip64_marker_with_no_locator_raises_rather_than_unpacking_garbage() -> None:
+    """Defect 1. `rfind` answers -1 when absent, and `blob[-1 + 8 : -1 + 16]` is `blob[7:15]` —
+    eight arbitrary bytes unpacked into an offset the reader would then trust."""
+    blob = bytearray(_zip_bytes(("a.txt",)))
+    at = blob.rfind(b"PK\x05\x06")
+    blob[at + 12 : at + 20] = b"\xff" * 8  # declare zip64, and there is no locator
+    with pytest.raises(RuntimeError, match="no zip64 locator"):
+        archive_entries("http://x/a.zip", session=_RangedSession(bytes(blob)))
+
+
+def test_a_short_directory_raises_rather_than_returning_fewer_names() -> None:
+    """Defect 4. A partial-content body shorter than `cd_size`. The loop's exit is structural, so
+    this parsed cleanly and returned a short list that reads as a small archive."""
+    session = _RangedSession(_zip_bytes(("a.txt", "b.txt", "c.txt")), truncate=40)
+    with pytest.raises(RuntimeError, match="central directory and received"):
+        archive_entries("http://x/a.zip", session=session)
+
+
+def test_the_parsed_count_is_compared_against_the_declared_total() -> None:
+    """Defect 3, and it is kept separate from defect 4 because the guards do not cover the same
+    set: a directory corrupted on an entry boundary is the right length and still parses short."""
+    names = ("a.txt", "b.txt", "c.txt")
+    blob = bytearray(_zip_bytes(names))
+    first = blob.find(b"PK\x01\x02")
+    second = blob.find(b"PK\x01\x02", first + 4)
+    blob[second : second + 4] = b"XXXX"  # same length, second entry unreadable
+    with pytest.raises(RuntimeError, match="declares 3 entries and 1 parsed"):
+        archive_entries("http://x/a.zip", session=_RangedSession(bytes(blob)))
+
+
+def test_expand_archives_threads_the_ranged_session_it_is_given() -> None:
+    """The seam, end to end: a real archive listed through an injected session and no network."""
+    session = _Session(
+        {
+            "/files": [
+                {
+                    "fileName": "Search.zip",
+                    "publicFileLocations": [{"value": "https://ftp.pride.ebi.ac.uk/x/Search.zip"}],
+                }
+            ]
+        }
+    )
+    ranged = _RangedSession(_zip_bytes(("Output/GlyGly (K)Sites.txt", "Output/psm.tsv")))
+    grown, notes, skipped = expand_archives(
+        "PXD000000", ("Search.zip",), session=session, ranged=ranged
+    )
+    assert "Search.zip!Output/GlyGly (K)Sites.txt" in grown
+    assert any("2 entries" in note for note in notes)
+    assert not skipped
 
 
 # ── search and survey: the draw, offline ──────────────────────────────────────────────────────

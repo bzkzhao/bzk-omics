@@ -42,7 +42,7 @@ from typing import Any
 
 import requests
 
-from bzk.http import RestSession
+from bzk.http import RangedSession, RestSession
 from bzk.sources.pride import PXD018299_SITES
 
 API = "https://www.ebi.ac.uk/pride/ws/archive/v3"
@@ -362,7 +362,9 @@ def file_urls(accession: str, *, session: RestSession | None = None) -> dict[str
     return out
 
 
-def archive_entries(url: str, *, tail: int = 65536) -> tuple[str, ...]:
+def archive_entries(
+    url: str, *, tail: int = 65536, session: RangedSession | None = None
+) -> tuple[str, ...]:
     """Entry names inside a remote zip, read from its central directory. Nothing is retained.
 
     **Written because the filename-only survey produced a false zero.** `PXD065158` deposits its
@@ -371,42 +373,76 @@ def archive_entries(url: str, *, tail: int = 65536) -> tuple[str, ...]:
     The archive is not downloaded: PRIDE's host answers `Accept-Ranges: bytes`, so this reads the
     last 64 KiB, finds the end-of-central-directory, and range-reads the directory itself. Two
     range requests against 405 MB.
+
+    **The seam was recorded as unclosed three times before it was closed, 2026-08-12.** It needs
+    `head(...)` and a `headers=` keyword, which neither `BytesSession` nor `RestSession` declares;
+    `RangedSession` was added beside them rather than either being widened, for the reason
+    `bzk/http.py` gives. It matters more than a footnote: 14 of the widened draw's 60 rows, and 7 of
+    the 12 that pass C0, rest on this parser.
+
+    **Four silent-zero routes are guarded, each because the loop below exits *structurally* and a
+    truncated directory therefore returns fewer names with no signal.** A server that ignores
+    `Range` answers 200 with the file's head, so `directory` starts `PK\x03\x04`, the loop never
+    runs, and an empty tuple comes back — the exact false zero this function was written to fix,
+    one function away from the `self_check` that exists to prevent it.
     """
-    # **This is the one function here with no injectable seam, and it is recorded rather than
-    # closed.** Every sibling takes a `session`; this one constructs its own, so the ranged-read
-    # path cannot be exercised offline and has no test. Threading it is not a matter of adding a
-    # parameter: it needs `head(...)` and a `headers=` keyword on `get(...)`, and **neither**
-    # `BytesSession` nor `RestSession` in `bzk/http.py` declares either — both are
-    # `get(url, *, timeout)` and nothing more. Closing it therefore means widening a Protocol that
-    # three other modules satisfy, which is a change to a shared contract and was out of scope on
-    # 2026-08-12 when the rest of this module's seams were fixed. Until then: the archive-listing
-    # path is exercised by hand against the live host and by nothing in `tests/`.
-    session = requests.Session()
-    size = int(session.head(url, timeout=60).headers["Content-Length"])
+    http = session or requests.Session()
+    size = int(http.head(url, timeout=60).headers["Content-Length"])
 
     def chunk(start: int, end: int | None = None) -> bytes:
         rng = f"bytes={start}-" + ("" if end is None else str(end))
-        response = session.get(url, headers={"Range": rng}, timeout=120)
+        response = http.get(url, headers={"Range": rng}, timeout=120)
         response.raise_for_status()
+        # Guard 2: `raise_for_status` passes on a 200, and a 200 to a ranged request means the
+        # server sent the whole file from byte zero. Nothing downstream can tell that from a
+        # correctly served range, so it is caught here rather than surfacing as no entries.
+        if start > 0 and response.status_code == 200:
+            raise RuntimeError(
+                f"{url}: ranged request answered 200, not 206 — the server ignored Range, so the "
+                "bytes are the head of the file and not the part asked for"
+            )
         return bytes(response.content)
 
     blob = chunk(max(0, size - tail))
     at = blob.rfind(b"PK\x05\x06")
     if at < 0:
         raise RuntimeError(f"{url}: no end-of-central-directory in the last {tail} bytes")
+    declared = struct.unpack("<H", blob[at + 10 : at + 12])[0]
     cd_size = struct.unpack("<I", blob[at + 12 : at + 16])[0]
     cd_off = struct.unpack("<I", blob[at + 16 : at + 20])[0]
     if cd_off == 0xFFFFFFFF or cd_size == 0xFFFFFFFF:  # zip64
         loc = blob.rfind(b"PK\x06\x07")
+        # Guard 1: `rfind` answers -1 when absent, and `blob[-1 + 8 : -1 + 16]` is `blob[7:15]` —
+        # eight arbitrary bytes unpacked into an offset the reader would then trust.
+        if loc < 0:
+            raise RuntimeError(
+                f"{url}: the end-of-central-directory declares zip64 but no zip64 locator is in "
+                f"the last {tail} bytes"
+            )
         head = chunk(struct.unpack("<Q", blob[loc + 8 : loc + 16])[0], None)[:56]
+        declared = struct.unpack("<Q", head[32:40])[0]
         cd_size = struct.unpack("<Q", head[40:48])[0]
         cd_off = struct.unpack("<Q", head[48:56])[0]
     directory = chunk(cd_off, cd_off + cd_size - 1)
+    # Guard 4: a short partial-content body truncates the directory by a route the count check
+    # below does not always see — a body cut on an entry boundary parses cleanly and short.
+    if len(directory) != cd_size:
+        raise RuntimeError(
+            f"{url}: asked for {cd_size} bytes of central directory and received "
+            f"{len(directory)}; a truncated directory parses cleanly and returns fewer names"
+        )
     names, p = [], 0
     while p + 46 <= len(directory) and directory[p : p + 4] == b"PK\x01\x02":
         nlen, elen, clen = struct.unpack("<HHH", directory[p + 28 : p + 34])
         names.append(directory[p + 46 : p + 46 + nlen].decode("utf-8", "replace"))
         p += 46 + nlen + elen + clen
+    # Guard 3: the loop's exit is structural, so anything that stops it early — a corrupt header, a
+    # directory cut mid-entry — returns a short list that reads as a small archive.
+    if len(names) != declared:
+        raise RuntimeError(
+            f"{url}: the end-of-central-directory declares {declared} entries and {len(names)} "
+            "parsed; a short parse reads as a small archive rather than as a failure"
+        )
     return tuple(names)
 
 
@@ -416,6 +452,7 @@ def expand_archives(
     *,
     limit: int = 3,
     session: RestSession | None = None,
+    ranged: RangedSession | None = None,
 ) -> tuple[tuple[str, ...], list[str], tuple[str, ...]]:
     """`names` plus the entries of up to `limit` inspectable zips.
 
@@ -441,6 +478,15 @@ def expand_archives(
     injectable function without a session to thread. `bzk/rebuild.py` is the established pattern.
     Passing it fixes the seam whether or not the fetch is deferred, and deferring the fetch fixes a
     request no caller needed whether or not there is a seam; neither substitutes for the other.
+
+    **Two session parameters, not one, and the single one was tried first.** `file_urls` needs a
+    `RestSession` and `archive_entries` a `RangedSession`, and no Protocol can express *both*:
+    composing them is rejected outright — *Definition of "get" in base class "RestSession" is
+    incompatible with definition in base class "RangedSession"* — because one returns a JSON
+    response and the other a ranged one. The alternatives were a `type: ignore` at the call, which
+    is the silenced-checker failure `bzk/http.py` was written against, or changing `RestSession`,
+    which is the widening this module's third Protocol exists to avoid. So the contracts are
+    declared separately; one `requests.Session` satisfies both and can be passed to each.
     """
     notes: list[str] = []
     skipped: list[str] = []
@@ -461,7 +507,7 @@ def expand_archives(
             skipped.append(f"{name}: no public URL")
             continue
         try:
-            inner = archive_entries(url)
+            inner = archive_entries(url, session=ranged)
         except (
             OSError,
             ValueError,
@@ -482,7 +528,9 @@ def expand_archives(
     return tuple(grown), notes, tuple(skipped)
 
 
-def classify(accession: str, *, session: RestSession | None = None) -> Candidate:
+def classify(
+    accession: str, *, session: RestSession | None = None, ranged: RangedSession | None = None
+) -> Candidate:
     """One named deposit, classified — without going through the query path.
 
     **Added 2026-08-12 to re-measure the recorded twelve after six under-reporting modes closed.**
@@ -498,7 +546,7 @@ def classify(accession: str, *, session: RestSession | None = None) -> Candidate
     s = session or requests.Session()
     row = _get(s, f"{API}/projects/{accession}") or {}
     names = file_names(accession, session=session)
-    names, _notes, skipped = expand_archives(accession, names, session=session)
+    names, _notes, skipped = expand_archives(accession, names, session=session, ranged=ranged)
     return Candidate(
         accession=accession,
         title=str(row.get("title", "")),

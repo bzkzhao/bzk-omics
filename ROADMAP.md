@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.67 |
+| Version | 1.68 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -4265,10 +4265,28 @@ and Spectronaut 6.0%, against MaxQuant's 49.3%.
 
 #### What this rests on, and what it cost
 
-**14 of 60 rows (23.3%) depend on `archive_entries`, which still has no injectable seam and no
+~~**14 of 60 rows (23.3%) depend on `archive_entries`, which still has no injectable seam and no
 test** — and **7 of the 12 that pass C0** do, along with 11 of the 22 site-grain rows. Nearly a
 quarter of this result therefore carries **weaker provenance** than the rest, and at this cap that
-is no longer a footnote about three rows.
+is no longer a footnote about three rows.~~
+
+**The counts stand; the reason for the discount does not — 2026-08-12.** 14 of 60, 7 of the 12 and
+11 of the 22 are unchanged, because nothing here re-ran anything. What changed is that
+`archive_entries` now takes a session and is tested: `bzk/http.py` declares a third Protocol, and
+the parse is checked against archives built by `zipfile` rather than against a hand-made blob.
+**Whether those rows would classify identically under the tested parser is a measurement and is not
+made here** — the counts above are therefore still the honest description of what that result rests
+on, and only the *untested* half of the ground for discounting them is withdrawn.
+
+**One of the four defects closed could have changed what those rows reported, and it is left as an
+open question rather than answered.** A server answering a ranged request with **200** — the whole
+file's head instead of the part asked for — used to yield an **empty tuple**, because
+`raise_for_status` passes on a 200, the body then starts `PK\x03\x04`, and the parse loop never
+runs. That is indistinguishable from *this archive holds nothing*, which is precisely the false zero
+`archive_entries` was written to fix, and it sat one function away from the `self_check` that exists
+to prevent the same shape. **Any of the 14 rows could have been reported on an empty listing for
+that reason**, and nothing in the record distinguishes them. The other three defects truncate rather
+than empty, so they could have shortened a listing without emptying it.
 
 **One transient failure is on the record**: the `diGly` search read-timed-out at 60 s on its first
 attempt and succeeded on the second. It is retryable and was retried; a run without per-term retry
