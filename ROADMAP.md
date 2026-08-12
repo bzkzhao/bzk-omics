@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.66 |
+| Version | 1.67 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -4181,6 +4181,102 @@ to be argued into one branch afterwards.
 **No prediction is made** about the declared-software census over the 450: it covers a pool whose
 composition no instrument here has previously sampled, and a number invented for it would have
 nothing behind it.
+
+### Widened draw: the MaxQuant field is large, and C0(d) does not bind, 2026-08-12
+
+**Instrument** `python -m bzk.deposit_survey`, thirteen registered terms, `size=100`, one page per
+term, cap **60**, run 2026-08-12. **The two records below stand unedited**; this is a third beside
+them. **No candidate is scored, ranked or admitted** — twelve pass C0 and the turn stops at saying
+so.
+
+#### The declared-software census over the whole pool — 450 accessions, thirteen requests
+
+Measurable from search alone, which is what made it affordable; no file was listed for it.
+
+| Declared tool | Deposits | Share of 450 |
+|---|---|---|
+| **MaxQuant** | **222** | **49.3%** |
+| Proteome Discoverer | 75 | 16.7% |
+| Mascot | 54 | 12.0% |
+| Sequest | 34 | 7.6% |
+| DIA-NN | 33 | 7.3% |
+| Spectronaut | 27 | 6.0% |
+| Andromeda | 27 | 6.0% |
+| FragPipe | 9 | 2.0% |
+| *declaring nothing* | 70 | 15.6% |
+
+Submission type across the pool: **417 `PARTIAL`, 33 `COMPLETE`** — and `PXD018299` is itself
+`PARTIAL`, so that split still predicts nothing about whether processed files are present.
+
+#### The classified 60
+
+| Site state | Count |
+|---|---|
+| `present` | **12** |
+| `candidate` | 10 |
+| `absent` | 38 |
+
+**Site-grain deposits (present or candidate): 22 of 60.** By engine, counting a deposit MaxQuant if
+*either* signal says so: **MaxQuant 14, non-MaxQuant 8** — a MaxQuant share of **63.6%** and a
+non-MaxQuant-to-MaxQuant ratio of **0.57**.
+
+**Twelve pass C0 entirely** — `PXD079072`, `PXD075538`, `PXD070339`, `PXD074990`, `PXD027328`,
+`PXD074949`, `PXD027163`, `PXD032078`, `PXD019152`, `PXD018299`, `PXD070789`, `PXD060435`. Every one
+is CC0, MaxQuant, `site=present`, with a resolvable organism. **One of them is `PXD018299` itself**,
+which is the instrument finding the anchor deposit and classifying it exactly as this repository
+already knows it — a consistency check rather than a candidate, leaving **eleven** that are new.
+
+**C0(b) could not be evaluated when it was predicted, and the instrument was repaired rather than
+the gate waived.** `license` is on the project record and nothing read it, so *passes C0 entirely*
+was unanswerable at prediction time. It is carried now; all twelve state **CC0**, and an unstated
+licence reads as empty, which C0(b) treats as exclusion rather than permission.
+
+#### The decision rule, applied to the numbers it was written for
+
+Both registered *not-binding* conditions fire, and neither *binding* condition does:
+
+- MaxQuant is **63.6%** of site-grain deposits, against a threshold of **≥ 50%**.
+- **12** pass C0 entirely, against a threshold of **≥ 5**.
+- The binding condition required non-MaxQuant **≥ 2×** MaxQuant; measured, it is **0.57×**.
+
+> **C0(d) is not the binding constraint on the second-deposit test.** The MaxQuant gate is not what
+> left the first shortlist empty. A MaxQuant, site-grain, CC0 field exists at a size the earlier
+> draw could not see — and what limited that draw was its **query set**, not its gate: the four
+> original terms never named the remnant chemistry, and `GlyGly`, `K-GG` and `diglycine` are where
+> this field lives.
+
+**This decides nothing about C0(d) and nothing is adjusted.** It measures the field the gate sees.
+
+#### Both predictions missed, and in opposite directions to the last one
+
+**(a) predicted 3, measured 12.** The reasoning was that MaxQuant would be roughly a third of the
+pool and that only a quarter of those would deposit a processed site table. The first half was
+**too low** — 49.3% — and the second **much too low**. The diagnosis the previous turn recorded was
+that predicting from the diff misses what the diff reveals; **this miss is the same error moved one
+step out**: I predicted from a field I had only ever seen through four queries that do not name the
+remnant, so the sample I was extrapolating from was selected by the very defect this turn fixed.
+
+**(b) predicted MaxQuant 30%, DIA-NN 25%, FragPipe 15%, Proteome Discoverer 10%, unclassified 20%
+among site-grain deposits, ±10 points. Measured, by the filename route: MaxQuant 50%, DIA-NN 9%,
+FragPipe 4.5%, Proteome Discoverer 0%, unclassified 36%.** Every category missed, four of five
+outside the registered band. The shape of the error is one belief: I expected the 2020s DIA
+transition to have moved ubiquitomics further than it has. It has not — DIA-NN is 7.3% of the pool
+and Spectronaut 6.0%, against MaxQuant's 49.3%.
+
+#### What this rests on, and what it cost
+
+**14 of 60 rows (23.3%) depend on `archive_entries`, which still has no injectable seam and no
+test** — and **7 of the 12 that pass C0** do, along with 11 of the 22 site-grain rows. Nearly a
+quarter of this result therefore carries **weaker provenance** than the rest, and at this cap that
+is no longer a footnote about three rows.
+
+**One transient failure is on the record**: the `diGly` search read-timed-out at 60 s on its first
+attempt and succeeded on the second. It is retryable and was retried; a run without per-term retry
+would have lost 100 rows from the pool and reported a smaller field with no indication.
+
+**Coverage.** 60 of 450 = **13.3%** fully classified; 450 of 450 for the declared census. The pool
+itself is page 0 of each term, so the tails of `diGly` (178), `GlyGly` (248) and `ubiquitin remnant`
+(113) are unseen — roughly 240 further deposit-hits behind the ceiling.
 
 ### Re-run of the same twelve through the fixed instrument, 2026-08-12
 

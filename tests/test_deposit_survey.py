@@ -358,6 +358,29 @@ def test_a_plain_string_software_value_still_reads() -> None:
     assert classify("PXD000000", session=session).software == ("MaxQuant",)
 
 
+def test_reuse_terms_are_carried_because_c0b_cannot_be_evaluated_without_them() -> None:
+    """C0(b) asks whether reuse terms are establishable from the deposit's own metadata, and treats
+    *not stated* as an exclusion rather than as permission. The field is on the project record; the
+    first widened draw could not answer C0 because nothing read it."""
+    session = _Session(
+        {
+            "/projects/PXD000000/files": _listing("run.raw"),
+            "/projects/PXD000000": {"title": "t", "submissionType": "P", "license": "CC0"},
+        }
+    )
+    assert classify("PXD000000", session=session).license == "CC0"
+
+
+def test_an_unstated_licence_reads_as_empty_and_not_as_permission() -> None:
+    session = _Session(
+        {
+            "/projects/PXD000000/files": _listing("run.raw"),
+            "/projects/PXD000000": {"title": "t", "submissionType": "P"},
+        }
+    )
+    assert not classify("PXD000000", session=session).license
+
+
 # ── search and survey: the draw, offline ──────────────────────────────────────────────────────
 
 

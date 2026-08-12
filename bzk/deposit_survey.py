@@ -161,6 +161,12 @@ class Candidate:
     software: tuple[str, ...] = ()
     files: tuple[str, ...] = field(default=())
 
+    #: PRIDE's declared reuse terms. **C0(b) cannot be evaluated without it**, and the first
+    #: widened draw could not answer *does this pass C0 entirely* for that reason — the field is on
+    #: the project record and was simply not read. Empty means *not stated by the deposit*, which
+    #: C0(b) treats as an exclusion rather than as permission.
+    license: str = ""
+
     #: Archives skipped and why, filled in by `expand_archives`. A survey that cannot say what it
     #: did not look at is reporting a smaller field than it searched.
     skipped: tuple[str, ...] = field(default=())
@@ -502,6 +508,7 @@ def classify(accession: str, *, session: RestSession | None = None) -> Candidate
         software=_cv_names(row.get("softwares")),
         files=names,
         skipped=skipped,
+        license=str(row.get("license", "") or ""),
     )
 
 
