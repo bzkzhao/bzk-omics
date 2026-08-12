@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.69 |
+| Version | 1.70 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -4741,6 +4741,104 @@ which guard fired** — `expand_archives` l.521 writes `unreadable ({type})` and
 `RuntimeError`, so had a guard raised, *which one* would have needed a targeted re-read to recover.
 The analysis carried that re-read path and it ran zero times. That gap is left open rather than
 closed, because closing it is a change to `bzk/` this run did not require.
+
+
+### Settling C0(d)'s reading rule, 2026-08-12
+
+**The consequences are written down and committed before the decision, in their own commit.** C0(d)
+reads two engine signals — the filename route in `engines`, and PRIDE's project-level `softwares`
+list. The widened draw counted a deposit MaxQuant if **either** says so, and it adopted that
+disjunction **after** the two signals were seen to disagree on `PXD074126`. That is choosing a rule
+from its result, which is the shape this project refuses, so the rule is settled here on its merits.
+**This section scores nothing.**
+
+#### C0(d) as pre-registered, quoted before anything is amended
+
+From § *Pre-registration: criteria for a second deposit, 2026-08-12* → *C0 — admissibility, hard
+gates; any failure excludes and is recorded*, row **d** (l.3847 at `188d618`):
+
+> | d | **MaxQuant** | The two written adapters are MaxQuant; DIA-NN, FragPipe and Spectronaut are v0.2 by § *Explicitly deferred*. A non-MaxQuant deposit is excluded **for this survey only** and recorded with its engine |
+
+**The gate names no signal.** The reading rule is therefore *underdetermined* by the text rather than
+contradicted by it, which is why this is a settlement and not a correction.
+
+#### What the record can and cannot settle, verified rather than assumed
+
+**The record carries one signal per row, not two.** The sixty-row table's header (l.4543) is
+`| # | Accession | Files | Engine (filename route) | Site | SDRF | Licence | Skipped | C0 gates met | Archive read | In widened 12 |`
+— eleven columns, none of them declared software. The declared signal appears only in prose, and
+names exactly two accessions: `PXD079072` and `PXD027328`.
+
+**Two facts computed from the record, not carried forward:** all sixty rows pass C0(a), (b) and (e),
+and exactly **12** rows are `site=present` — the same twelve marked *In widened 12*. So C0 over the
+sixty is decided entirely by (c) ∧ (d), (c) restricts it to those twelve, and **the recount over the
+sixty is the count over these twelve**. Nothing outside them can be admitted by any reading.
+
+#### The permitted re-read, and what it found
+
+`classify()` over the two accessions the record names as disagreeing — no query issued, no candidate
+outside the pinned sixty touched. The `--classify` CLI branch invokes exactly this function but
+prints neither `software` nor `license` (l.612–622), and the declared list is what the question
+needs, so the function was called directly.
+
+| | `PXD079072` | `PXD027328` |
+|---|---|---|
+| declared (`softwares`, project record) | `MaxQuant` | `Andromeda`, `MaxQuant` |
+| `engines` (filename route) | `()` | `()` |
+| `ENGINE_MARKERS['maxquant']` suffix hits | **none** | **none** |
+| marker *stem* present, suffix rule misses it | none | **`modificationSpecificPeptides_ntermUb.txt`** |
+| MaxQuant parameter file | `mqpar.xml` | `mqpar.xml`, `mqpar_DP.xml` |
+| MaxQuant-convention site table | `GlyGlySites.txt` | `GlyGly__K_Sites.txt`, `Phospho__STY_Sites.txt` |
+
+**The hypothesised failure mode is not demonstrated on either disputed row.** The case against a
+project-level signal is that a deposit can declare MaxQuant for one part of its pipeline while the
+site table came from another tool. On these two rows the file-level evidence *corroborates* the
+declaration rather than conflicting with it: both carry MaxQuant's own parameter file, both carry
+site tables in MaxQuant's `…Sites.txt` convention, and `PXD027328` carries a genuine MaxQuant table
+name that the suffix rule misses only because the submitter appended `_ntermUb` before the
+extension. **So the disagreement on these two rows is a matcher gap, not a signal conflict.** That is
+established by the re-read; it is not established that no row anywhere has a genuine conflict.
+
+#### The consequence table — every reading, by accession, before the choice
+
+The twelve, in the record's draw order. **Admits** means the reading passes C0(d) for that row and
+so admits it through C0 entirely.
+
+| Reading | Admits | Count | Drops |
+|---|---|---|---|
+| **(a)** filename route alone | all but the two below | **10** | `PXD079072`, `PXD027328` |
+| **(b)** declared software alone | *not computable* | **—** | *not computable* |
+| **(c)** either — union, the current rule | all twelve | **12** | none |
+| **(d)** both — intersection | *not computable* | **—** | *not computable* |
+| **(e)** filename decides, declared corroborates | all but the two below | **10** | `PXD079072`, `PXD027328` |
+
+The ten that every computable reading admits: `PXD075538`, `PXD070339`, `PXD074990`, `PXD074949`,
+`PXD027163`, `PXD032078`, `PXD019152`, `PXD018299`, `PXD070789`, `PXD060435`.
+
+**(b) and (d) are not computable, and the reason is a property of the record.** Both need the
+declared signal for all twelve; the record carries it for two. Re-reading the other ten is outside
+this turn's bound, which permits `--classify` only over accessions the record names as disagreeing.
+What the record *does* support is a bound: **(b) admits between 2 and 12** — at least the two
+disputed rows, which declare MaxQuant — and **(d) admits at most 10**, since it is a subset of (a).
+Neither bound separates the readings, so **no count backs the decision on (b) or (d)**; they are
+decided on argument below and that is stated rather than disguised.
+
+**One thing is known and is not usable, and is recorded as such rather than quietly relied on.** The
+turn that produced the re-draw measured the declared signal for all sixty and did not write it into
+this document; that measurement is why (b) and (d) are known to *differ* from (c) and (a) rather than
+merely possibly differing. A figure that exists only inside a run is exactly what § *Re-draw* was
+written to stop being relied on, so it is named here and **entered nowhere**. The decision below does
+not rest on it.
+
+#### Predicted, before the recount
+
+The record holds the material for three readings, so these are a check on arithmetic and not a
+forecast: **(a) 10**, **(c) 12**, **(e) 10**, each over the sixty and each equal to its count over the
+twelve. **No prediction is made for (b) or (d)** — the record does not carry the signal, and a
+predicted count with no instrument behind it is the shape § *Predictions, and where none is made*
+forbids. No prediction is made about what any C1 scoring would rank; none is performed.
+
+**The consequences above were known, in writing and in a prior commit, when the reading was chosen.**
 
 
 ### Deposit and supplementary survey, 2026-08-07
