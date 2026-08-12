@@ -3847,6 +3847,33 @@ ranks last.
 | d | **MaxQuant** | The two written adapters are MaxQuant; DIA-NN, FragPipe and Spectronaut are v0.2 by § *Explicitly deferred*. A non-MaxQuant deposit is excluded **for this survey only** and recorded with its engine |
 | e | **A proteome UniProt can resolve** | Position validation and I2's sequence pinning both run through UniProt; a species it cannot resolve makes every rate unmeasurable |
 
+**C0(d)'s reading rule, settled — 2026-08-12, committed before any count was recomputed under it.**
+The gate above is **unedited and nothing in it is struck**: it names no signal, so it was
+underdetermined rather than wrong, and there is nothing in its text to withdraw. What is amended is
+the *reading rule*, which was never written down and was adopted in practice by § *Widened draw*
+**after** the two signals were seen to disagree on `PXD074126`. The pre-amendment rule, left standing
+and struck:
+
+~~**Either signal admits.** A deposit is MaxQuant for C0(d) if the filename route says so **or** the
+declared `softwares` list does.~~
+
+**Amended — the filename route decides; the declared list corroborates, and can neither admit nor
+veto.** Three clauses, because each answers a different failure:
+
+1. **`engines` decides.** C0(d) asks whether a written adapter can read the deposit's site-grain
+   table, and an adapter consumes a file. A project-level `softwares` list does not say which tool
+   produced which file, so it cannot answer that question and must not admit on its own.
+2. **The declared list is recorded and reported for every row it exists on**, never discarded. It is
+   evidence about the deposit and it is the signal that exposed the matcher gap below.
+3. **An unstated `softwares` list is *not stated*, not *not MaxQuant*, and never vetoes.** This
+   repository already models that distinction — `SITE_PRESENT`/`SITE_CANDIDATE`/`SITE_ABSENT`, and
+   C0(b)'s separation of *unstated* from *refused* — and an absence given veto power asserts what the
+   data cannot support, facing the other way.
+
+**Reasoning, consequences and the arguments against the four rejected readings are in § *Settling
+C0(d)'s reading rule, 2026-08-12*** and are not restated here. **C0(a), (b), (c) and (e) are
+unchanged; C1, C2, C3 and C4 are unchanged.**
+
 #### C1 — contrast criteria, each naming the figure it is tested against
 
 A candidate scores one point per criterion on which it is **predicted to differ**. Bands are stated
@@ -4839,6 +4866,54 @@ predicted count with no instrument behind it is the shape § *Predictions, and w
 forbids. No prediction is made about what any C1 scoring would rank; none is performed.
 
 **The consequences above were known, in writing and in a prior commit, when the reading was chosen.**
+
+#### The decision — (e), filename decides and declared corroborates
+
+**Chosen: (e).** The rule as amended is at § *Pre-registration: criteria for a second deposit* →
+*C0(d)'s reading rule, settled* and is not restated here. Each of the other four is refused on a
+stated ground, and the grounds are the repository's own commitments rather than preferences.
+
+**The gate's own text is textual support for a file-level route, and it is suggestive rather than
+decisive.** C0(d)'s justification is *"The two written adapters are MaxQuant"* — a claim about what
+the platform can **read**, and an adapter consumes a file, not a project record. But the row names no
+signal, and *recorded with its engine* is agnostic about how the engine is determined. **Calling this
+suggestive rather than decisive is itself part of the decision**: if the text were decisive, the
+union would be a *contradiction* of C0 and this would be a correction rather than a settlement, and
+reading suggestive evidence as decisive is the same over-reach that produced the post-hoc disjunction
+in the first place.
+
+| Reading | Refused because |
+|---|---|
+| **(b)** declared alone | A project-level list cannot support *this deposit's site table is MaxQuant output*. Choosing it would make C0(d) a test of submitter metadata discipline rather than of what an adapter can read — the opposite of the gate's stated justification. **No count backs this; it is refused on argument.** |
+| **(c)** either (the rule in force) | Same defect, weakened but not removed: the union lets a declaration admit a deposit **by itself**, so a multi-tool pipeline declaring MaxQuant anywhere passes C0(d) with no MaxQuant-shaped file at all. The union has no defence against that case. It is also the rule chosen from its own result. |
+| **(d)** both | Lets an **absence** veto. A deposit declaring nothing is *not stated*, not *not MaxQuant*, and this repository models that distinction deliberately. A veto on absence asserts what the data cannot support, facing the other way. **No count backs this; it is refused on argument.** |
+| **(a)** filename alone | Right about which signal decides, wrong about what to do with the other. It **discards** the declared list — including on the two rows where the re-read shows the declaration is correct and the matcher is not. Discarding the signal that exposed the gap is *hide* where this project says *flag*. |
+
+**(a) and (e) admit the same rows.** The whole difference is that (e) keeps the declared list recorded
+and reported. That is the difference between a gate that is silently under-inclusive and one that is
+under-inclusive **in the open**, and it is the reason (e) is chosen over the reading that would have
+produced an identical count for less work.
+
+**The choice was not made by which reading admits more, and not by which is fewer lines.** (e) admits
+**10**, fewer than the **12** the rule in force admits — the chosen reading is the more restrictive of
+the two computable ones. And (e) is strictly more work than (a) for the same count, since it requires
+the declared list to be carried and displayed. **The consequences were in writing and in commit
+`fd9782c` when the choice was made**, which is the condition this section exists to satisfy.
+
+#### What (e) costs, named rather than discovered later
+
+**(e) drops two deposits a MaxQuant adapter would very likely read.** `PXD079072` and `PXD027328`
+both carry `mqpar.xml`, both carry site tables in MaxQuant's own `…Sites.txt` convention, and
+`PXD027328` carries `modificationSpecificPeptides_ntermUb.txt` — a MaxQuant table name the suffix
+rule misses only because a suffix was appended before the extension. **These are false negatives
+produced by `ENGINE_MARKERS`, not by the reading rule.**
+
+**The rule is not bent to cover them.** Widening the matcher to admit them would be choosing the
+matcher from the rows it needs to admit, which is the same move as the post-hoc disjunction this
+section was written to undo — and `sites.txt` was removed from `ENGINE_MARKERS` deliberately, so
+re-admitting it would reopen a closed defect. The gap is recorded here as a finding and **no constant
+is changed this turn**. What (e) guarantees is that the declared list stays visible on both rows, so
+the gap reads as a gap rather than as an absence of evidence.
 
 
 ### Deposit and supplementary survey, 2026-08-07
