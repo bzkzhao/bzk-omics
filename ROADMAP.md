@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.73 |
+| Version | 1.74 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -5039,10 +5039,34 @@ bounded here rather than left to be discovered:**
 | **newly admits** | a token appended before the extension, or a marker delimited on both sides | `modificationSpecificPeptides_ntermUb.txt`; `proteinGroups_filtered.txt`; `run1_evidence_final.txt` |
 | **stops admitting** | a marker run into a preceding alphanumeric with no separator | `endswith` admits `foobarproteingroups.txt`; the token form does not |
 
-**What it would falsely admit** is the same class `endswith` already exposes, differently shaped: any
-file whose stem carries a marker as a delimited token and whose extension matches — `my_evidence_table.txt`
-from a non-MaxQuant pipeline would read `maxquant`. `evidence` is the weakest marker on that test and
-is kept only because it is already in force and its removal is not this turn's question.
+~~**What it would falsely admit** is the same class `endswith` already exposes, differently shaped:
+any file whose stem carries a marker as a delimited token and whose extension matches —
+`my_evidence_table.txt` from a non-MaxQuant pipeline would read `maxquant`. `evidence` is the weakest
+marker on that test and is kept only because it is already in force and its removal is not this
+turn's question.~~
+
+**Corrected 2026-08-12 — the struck text describes the *registered* form, which was tightened before
+it shipped, and its example is false against the code.** The rule as implemented **anchors**: the
+marker's stem must *begin or end* the basename's stem, not merely sit between two separators. This
+block sat next to the tightening that superseded it and still stated the looser rule, which matters
+because *what it would falsely admit* is the row a later reader consults to check the rule's reach.
+Measured against the shipped matcher:
+
+| Shape, `evidence` stem | Classifies? |
+|---|---|
+| `evidence.txt` — exact | **yes** |
+| `supporting_evidence.txt`, `HAP1_USP18KO_evidence.txt` — ends the stem, separator before | **yes** |
+| `evidence_final.txt`, `evidence_ntermUb.txt` — begins the stem, separator after | **yes** |
+| `my_evidence_table.txt`, `a_evidence_b.txt` — **in the middle** | **no** |
+| `myevidence.txt`, `evidencetable.txt` — run into an alphanumeric | **no** |
+| `evidence.tsv` — wrong extension | **no** |
+| `evidence.txt.gz` — one compression wrapper stripped | **yes** |
+
+**So the exposure is end-anchored, not *anywhere between separators*.** A non-MaxQuant
+`supporting_evidence.txt` would read `maxquant`; `my_evidence_table.txt` — the example the struck text
+gave — would not, because excluding the middle is exactly what the tightening was for. `evidence` is
+still the weakest marker on that narrower test, and is kept in force: **whether it should be a marker
+at all is not reopened here.**
 
 **What it must not stop admitting is the anchor.** `PXD018299` — already ingested — deposits
 `HAP1_USP18KO_proteinGroups.txt`. The marker is preceded by `_`, a non-alphanumeric, so it still
@@ -5167,8 +5191,11 @@ and Spectronaut's markers **overlap on every `*_report.tsv`**, so such a file re
 once. That overlap was found by a test assertion of mine that was wrong about the current behaviour,
 and it is pinned in `tests/test_deposit_survey.py` rather than repaired.
 
-**`evidence.txt` remains the weakest MaxQuant marker** — `my_evidence_table.txt` from any pipeline
-would now read `maxquant` — and it is left in force because removing it is not this turn's question.
+**`evidence.txt` remains the weakest MaxQuant marker** — a non-MaxQuant `supporting_evidence.txt` or
+`evidence_final.txt` would read `maxquant` — and it is left in force because removing it is not this
+turn's question. *Corrected 2026-08-12: this sentence gave `my_evidence_table.txt`, which the shipped
+matcher does **not** classify. The exposure is end-anchored and is bounded by measurement in* § *The
+MaxQuant matcher* *→* What it would falsely admit.
 
 **`experimentalDesignTemplate.txt` is not a marker** because the documentation pages read do not name
 it, not because it was judged generic.
