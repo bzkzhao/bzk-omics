@@ -340,7 +340,7 @@ def archive_entries(url: str, *, tail: int = 65536) -> tuple[str, ...]:
     # `BytesSession` nor `RestSession` in `bzk/http.py` declares either — both are
     # `get(url, *, timeout)` and nothing more. Closing it therefore means widening a Protocol that
     # three other modules satisfy, which is a change to a shared contract and was out of scope on
-    # 2026-08-13 when the rest of this module's seams were fixed. Until then: the archive-listing
+    # 2026-08-12 when the rest of this module's seams were fixed. Until then: the archive-listing
     # path is exercised by hand against the live host and by nothing in `tests/`.
     session = requests.Session()
     size = int(session.head(url, timeout=60).headers["Content-Length"])
@@ -388,7 +388,7 @@ def expand_archives(
     rather than as prose, so a table can carry *read to a cap* in a column instead of leaving a
     reader to infer it from a `Files` count.
 
-    **Two things about how it reaches the network were wrong and are fixed together, 2026-08-13.**
+    **Two things about how it reaches the network were wrong and are fixed together, 2026-08-12.**
 
     *The fetch was unconditional.* `file_urls(accession)` was this function's first statement, ahead
     of the filtering that decides whether any archive will be opened at all — so a call with

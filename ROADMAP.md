@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.63 |
-| Last reviewed | 2026-08-13 |
+| Version | 1.64 |
+| Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
 
@@ -3922,6 +3922,55 @@ are read, not predicted.
 **If the survey finds no admissible candidate, that is the result** and it is recorded with the
 criteria that excluded them. No criterion is relaxed to produce a shortlist.
 
+### Pre-registration: re-running the same twelve through the fixed instrument, 2026-08-12
+
+**Committed before the instrument is changed and before anything is run.** Six under-reporting
+modes were closed after the survey below, and **nothing has measured what closing them did**. The
+same twelve accessions go back through the current instrument — no new candidate, no widened draw,
+C3 untouched — so that any later difference is attributable to the field rather than to the fixes.
+
+**Both endpoints were confirmed answering first**, since the whole exercise depends on them:
+`https://ftp.pride.ebi.ac.uk/pride/data/archive/2022/02/PXD018299/` → 200, and
+`https://www.ebi.ac.uk/pride/ws/archive/v3/projects/PXD018299/files` → 200 with a JSON body.
+
+#### (a) How many of the twelve rows change in any cell — predicted **7**
+
+| Row | Predicted change | Why |
+|---|---|---|
+| 2, 6, 10, 12 | **Engine** cell | `none identifiable` splits, and each of these has spectra and no table, so each becomes `no_processed_output` |
+| 9 | **Engine** *and* **Site table** | `Peptides_UbPTMs.txt` makes it `unclassified` rather than *none identifiable*; `UbPTMs_PTMs_Summary.txt` matches a site hint, so the site cell moves `—` → `candidate` |
+| 5 | **Site table** | `abundance_single-site_MS2quant_Norm.tsv` matches a site hint → `candidate`. Engine stays `maxquant`: it is matched by `proteinGroups.txt`, not by the `sites.txt` marker that was removed |
+| 7 | **Files** count | `raw_`/`_raw` no longer filter archives out *before* the cap, so a different set of three may be expanded — the count can move in either direction |
+
+**Predicted unchanged: rows 1, 3, 4, 8, 11.** The DIA-NN and Proteome Discoverer markers still match
+under the suffix rule, and none of these five has a name that a site hint reaches.
+
+**Instrument** — `python -m bzk.deposit_survey` over the twelve accessions, compared cell by cell
+against the table below. **Precision** — exact, per cell; a row counts as changed if any of *Files*,
+*Engine*, *Site table*, *SDRF* or the recorded reason differs.
+
+**The number that would be most informative is not 7.** A **0** would say the six modes are inert on
+the very sample they were derived from, which would be a finding against the fixes. Row 8's count is
+the one I am least able to predict: it has 607 files and its archives are the ones the narrowed hint
+set most affects.
+
+#### (b) How many change admissibility — predicted **0**
+
+**Not one, and the reason is structural rather than optimistic.** `SITE_TABLE_HINTS` reports
+`candidate` and **never** `present`; the comment at that constant says so, and says the two
+filenames the split was built from are the reason `SITE_TABLE_MARKER` was *not* widened. So for rows
+5 and 9 the fix changes what is *reported*, not whether C0(c) passes. Row 5 is the only C0(d) pass
+in the twelve and it needs C0(c); `candidate` is by construction not that.
+
+**The one way this could be non-zero**, named in advance so a surprise is not retro-fitted: the
+narrowed archive-hint set now lists zips it previously skipped, and if one of those holds a file
+matching MaxQuant's `…Sites.txt` convention, that row would reach `present` on a genuine basis. I
+do not expect it, and I am naming it because it is the only path.
+
+**If any candidate does become admissible, the turn stops at saying so** — no C1 scoring, no
+ranking, no admission.
+
+
 ### Second-deposit survey: no admissible candidate in twelve, 2026-08-12
 
 **The result is that the shortlist is empty**, recorded with the criteria that excluded each
@@ -3989,7 +4038,7 @@ listing is now recorded against that candidate and the run continues.
 did. ~~Every test injects a stub session, so none needs the network — a guard against silent zeroes
 that skipped in a sandboxed clone would be absent exactly where it is needed.~~
 
-**That sentence was false when written and is corrected 2026-08-13.** Three of the archive tests did
+**That sentence was false when written and is corrected 2026-08-12.** Three of the archive tests did
 not inject a session, because `expand_archives` took none and fetched a deposit's URL map as its
 first statement — before deciding whether any archive would be opened. In a clone that cannot reach
 `www.ebi.ac.uk` they **failed** rather than skipped, so a clean checkout reported a red suite, and

@@ -4,7 +4,7 @@
 `bzk/deposit_survey.py`'s docstring names as its siblings — both have test files. This one did not,
 which left the class guarded and one member outside it.
 
-**Nothing here touches the network — true as of 2026-08-13 and false when this sentence was first
+**Nothing here touches the network — true as of 2026-08-12 and false when this sentence was first
 written.** Three of the archive tests reached `www.ebi.ac.uk` and **failed** in a clone that cannot,
 which is worse than the skipping this paragraph was warning about: a clean checkout reported a red
 suite, and the guard that went missing covered the archive-visibility fixes those tests were written
@@ -225,7 +225,7 @@ class _Forbidden:
 
 
 def test_expand_archives_makes_no_request_when_no_archive_will_be_opened() -> None:
-    """The property the three tests below *relied on* and did not assert, 2026-08-13.
+    """The property the three tests below *relied on* and did not assert, 2026-08-12.
 
     `file_urls(accession)` was `expand_archives`' first statement, ahead of the filtering that
     decides whether any archive is opened — so these three reached `www.ebi.ac.uk` and **failed**,
