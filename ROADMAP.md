@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.68 |
+| Version | 1.69 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -3969,6 +3969,125 @@ do not expect it, and I am naming it because it is the only path.
 
 **If any candidate does become admissible, the turn stops at saying so** — no C1 scoring, no
 ranking, no admission.
+
+
+### Pre-registration: re-drawing the sixty through the guarded parser, 2026-08-12
+
+**Committed before the run, in its own commit, so the ordering rests on git rather than on the
+account below.** Defect 2 — a server answering a ranged request with **200** — made the old parser
+return an empty tuple, indistinguishable from an archive holding nothing. The parser is now guarded.
+This measures what the old one got wrong.
+
+**The sample cannot be re-drawn from the repository, and that is the first finding.** `survey`
+derives its sixty at run time from `QUERIES` (`bzk/deposit_survey.py` l.53–67, thirteen terms) at
+`MAX_CANDIDATES` (l.70), round-robin, in the API's own per-query ordering (l.571). Nothing on disk
+names the accessions. Counted at `c167fc5`: the widened-draw section holds **12** distinct `PXD`
+accessions — exactly the twelve passing C0 at l.4223 — and the whole of `ROADMAP.md` holds **25**.
+**Forty-eight of the sixty were classified and never recorded.** So the drawn list is written to this
+document as a first-class output of the run, and the comparison below is bounded: a survey-path run
+yields *a* sixty, not *the* sixty, and rows present in only one draw are not evidence of change in
+either direction.
+
+**Both endpoints confirmed answering first, in this container, before anything was predicted:**
+`https://www.ebi.ac.uk/pride/ws/archive/v3/search/projects?keyword=ISG15&pageSize=3` → **200**,
+`application/json`, 3 rows, first accession `PXD071724`; and
+`https://www.ebi.ac.uk/pride/ws/archive/v3/projects/PXD018299/files?pageSize=500` → **200**,
+`application/json`, 39 rows. `self_check` passes: `PXD018299` lists 39 files including
+`HAP1_USP18KO_GlyGlyKSites.txt`.
+
+**A third surface was probed, because the guards live on it and not on the two JSON endpoints.**
+`ftp.pride.ebi.ac.uk` advertises `Accept-Ranges: bytes` and answered **206** with an exact
+`Content-Range` for both of `PXD065158`'s archives — `Search_GlyGly.zip` (405,865,159 B) and
+`Search_shotgun.zip` (1,397,829,455 B) — 65,536 bytes asked for and 65,536 returned in each case.
+Every prediction about a guard below rests on that measurement of the **host**, not on a reading of
+the parser.
+
+**C0(b) is not evaluable from the survey path, established by reading the endpoint rather than the
+module.** `search` (l.269–278) never sets `license`, and the search endpoint **has no such field** —
+its row keys carry `submissionType`, `organisms`, `softwares` and no licence of any kind. Only
+`projects/{accession}` carries `license`, which is why `classify` (l.559) is the only reader of it.
+No change to `search` could supply C0(b); the gate needs one project-record read per drawn accession,
+exactly the read `classify` makes. That read issues no query and so cannot widen the draw.
+
+#### (a) Rows **shared with the widened draw** changing in any cell — predicted **0**, band 0–1
+
+**Comparable cells are only those the widened draw recorded.** For its twelve, l.4223–4225 states
+CC0, MaxQuant, `site=present`, and a resolvable organism. Per-row *Files* counts were never recorded
+for those twelve, so *Files* is **not** a comparable cell here and a differing count is not a change.
+
+Three reasons, each naming what it rests on:
+
+| # | Reason | Rests on |
+|---|---|---|
+| 1 | All twelve reach `site=present` through `SITE_TABLE_MARKER` matched against the **file-listing** endpoint. Defect 2 can only empty an *archive* read, so the cell carrying C0(c) for these rows never passes through the parser | reading l.212 against l.293–305 at `c167fc5` |
+| 2 | Defect 2's precondition — a server ignoring `Range` — is not present today | the two 206s measured above, on the one host every archive URL resolves to |
+| 3 | Licence and organism come from the project record, which no guard touches | l.547–559 |
+
+**What would falsify it:** a deposit updated between the widened draw and this run — new files, or a
+changed licence. That is the only path I can name, and it is why the band is 0–1 rather than 0.
+
+**Predicted C0 passes among shared rows: 12**, contingent on (d). **If any candidate's C0 verdict
+changes in either direction the turn stops at saying so** — no C1 scoring, no ranking, no admission.
+
+#### (b) Guard 2 (ranged request answered 200) — predicted **0 raises**
+
+**Bounded first, because a zero-raise result licenses only what the bound allows.** Guard 2 (l.399)
+is `if start > 0 and response.status_code == 200`. `chunk` is called from three places and the bound
+differs at each:
+
+| Call | Site | `start` | Guard 2 reachable? |
+|---|---|---|---|
+| first read | l.406 `chunk(max(0, size - tail))` | `max(0, size - 65536)` | only when `size > 65,536` |
+| zip64 header | l.422 | the zip64 locator's offset | yes, for any real archive |
+| directory | l.426 `chunk(cd_off, cd_off + cd_size - 1)` | `cd_off` | yes whenever `cd_off > 0` |
+
+So the stated bound — *archives above 64 KiB only* — **holds for the first read and not for the
+function.** A sub-64-KiB archive whose server ignores `Range` gets the whole file on the first read,
+where `blob` is then the complete archive and the end-of-central-directory parse is correct rather
+than wrong; the ignore is caught one call later at l.426, where `cd_off > 0`. The genuinely uncovered
+case is therefore narrower than *small archives*: it is an **empty** zip under 64 KiB, where
+`cd_off` is 0 and `declared` is 0 and there is nothing to get wrong. This refinement is a claim about
+the code and is verified offline before the run, not asserted.
+
+**Predicted: exactly 0 raises**, on the host measurement above. **Drawn candidates sitting inside the
+bound** — at least one inspected archive above 64 KiB — predicted **15, band 10–25, low confidence**:
+it is inferred from the widened draw's recorded *14 of 60 depend on `archive_entries`*, which counts
+reads that **returned entries** and is therefore a lower bound on reads *attempted*. No instrument in
+this container resolves it before the draw is made.
+
+#### (c) Guard 4 (length vs `cd_size`) — predicted **0**. Guard 3 (count vs declared) — predicted **0**, band 0–1
+
+**These two are not equally supported and are not predicted with equal confidence.**
+
+Guard 4 (l.429) fires on a short partial-content body. It turns on the **host's** range behaviour,
+which is measured: exact `Content-Range`, exact byte counts, twice. Predicted **0**.
+
+Guard 3 (l.441) fires when the parsed entry count disagrees with the declared count. It turns on the
+**internal structure of archives I have not sampled**, not on anything measured above. A single
+archive with more than 65,535 entries, a spanned directory, or a zip64 end-of-central-directory whose
+16-bit `declared` is saturated would flip it to ≥1. Predicted **0** at materially lower confidence,
+band 0–1.
+
+**Two further raise routes are reported separately rather than folded into the four**, because both
+land in `skipped` as `unreadable (RuntimeError)` and would otherwise be miscounted as guard 3 or 4:
+guard 1, the absent zip64 locator (l.418) — predicted **0**; and the **unnumbered** guard at l.409,
+no end-of-central-directory in the last 64 KiB, which a zip carrying a trailing comment longer than
+64 KiB would trip — predicted **0**, band 0–1.
+
+#### (d) Drawn rows shared with the widened draw — predicted **12 of 12**, band 10–12
+
+The widened draw's recorded members are the twelve at l.4223. Both runs use thirteen registered
+terms, `size=100`, page 0, cap 60, round-robin, on the same calendar date, so they address the same
+index hours apart. **What would falsify it:** PRIDE's relevance ordering is not contractually stable,
+and a deposit indexed today can shift ranks across the cap boundary. Instrument: set intersection
+between the drawn list and the twelve parsed from l.4223–4224. Precision: exact integer.
+
+#### Where no instrument in this container resolves the quantity, no prediction is made
+
+Two, named so their absence is not read as an oversight: **how many of the drawn sixty are accessions
+appearing nowhere in `ROADMAP.md`** — unknowable in that direction, since forty-eight of the widened
+sixty were never recorded — and **per-row cell values for any row not shared with the widened draw**,
+which have no recorded counterpart to differ from.
 
 
 ### Second-deposit survey: no admissible candidate in twelve, 2026-08-12
