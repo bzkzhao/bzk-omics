@@ -50,10 +50,24 @@ API = "https://www.ebi.ac.uk/pride/ws/archive/v3"
 #: The query set fixed in `ROADMAP.md` § *Pre-registration: criteria for a second deposit* before
 #: the survey ran. Listed here so the run is reproducible from the module rather than from a shell
 #: history, and ordered as registered — the API's own ordering is taken within each query.
-QUERIES: tuple[str, ...] = ("ISG15", "ubiquitin GlyGly", "diGly", "ubiquitinome")
+QUERIES: tuple[str, ...] = (
+    "ISG15",
+    "ISGylome",
+    "diGly",
+    "GlyGly",
+    "K-GG",
+    "diglycine",
+    "ubiquitinome",
+    "ubiquitylome",
+    "ubiquitin remnant",
+    "ubiquitination site",
+    "ubiquitylation site",
+    "UbiSite",
+    "ubiquitin GlyGly",
+)
 
 #: C3's cap. A survey that quietly grows past its registered size is choosing its own sample.
-MAX_CANDIDATES = 12
+MAX_CANDIDATES = 60
 
 #: Filename markers that settle the search engine without fetching the file, matched as a **suffix
 #: of the basename** rather than as a substring anywhere in the path.
@@ -214,6 +228,25 @@ class Candidate:
         return any(f.lower().endswith(".sdrf.tsv") or "sdrf" in f.lower() for f in self.files)
 
 
+def _cv_names(values: Any) -> tuple[str, ...]:
+    """The `name` of each CvParam, or the bare string where a plain one is given.
+
+    PRIDE returns `softwares`, `organisms` and `instruments` as CvParam objects. `str(x)` on one
+    yields `"{'@type': 'CvParam', 'cvLabel': 'MS', 'accession': 'MS:1001583', 'name': 'MaxQuant'}"`
+    — carried, stored, and unreadable, which is how a field can be populated for two turns and
+    consulted by nothing. This is a parsing repair, not a widening: the same values, legible.
+    """
+    out = []
+    for value in values or []:
+        if isinstance(value, dict):
+            name = str(value.get("name", "") or "")
+        else:
+            name = str(value)
+        if name:
+            out.append(name)
+    return tuple(sorted(set(out)))
+
+
 def _get(session: RestSession, url: str) -> Any:
     response = session.get(url, timeout=60)
     if response.status_code != 200:
@@ -221,7 +254,7 @@ def _get(session: RestSession, url: str) -> Any:
     return response.json()
 
 
-def search(keyword: str, *, size: int = 25, session: RestSession | None = None) -> list[Candidate]:
+def search(keyword: str, *, size: int = 100, session: RestSession | None = None) -> list[Candidate]:
     """Projects matching one keyword, in the API's own order. No reordering here."""
     s = session or requests.Session()
     url = f"{API}/search/projects?keyword={urllib.parse.quote(keyword)}&pageSize={size}"
@@ -232,9 +265,9 @@ def search(keyword: str, *, size: int = 25, session: RestSession | None = None) 
                 accession=str(row.get("accession", "")),
                 title=str(row.get("title", "")),
                 submission_type=str(row.get("submissionType", "")),
-                species=tuple(sorted({str(x) for x in row.get("organisms", []) or []})),
-                instruments=tuple(sorted({str(x) for x in row.get("instruments", []) or []})),
-                software=tuple(sorted({str(x) for x in row.get("softwares", []) or []})),
+                species=_cv_names(row.get("organisms")),
+                instruments=_cv_names(row.get("instruments")),
+                software=_cv_names(row.get("softwares")),
             )
         )
     return out
@@ -464,9 +497,9 @@ def classify(accession: str, *, session: RestSession | None = None) -> Candidate
         accession=accession,
         title=str(row.get("title", "")),
         submission_type=str(row.get("submissionType", "")),
-        species=tuple(sorted({str(x) for x in row.get("organisms", []) or []})),
-        instruments=tuple(sorted({str(x) for x in row.get("instruments", []) or []})),
-        software=tuple(sorted({str(x) for x in row.get("softwares", []) or []})),
+        species=_cv_names(row.get("organisms")),
+        instruments=_cv_names(row.get("instruments")),
+        software=_cv_names(row.get("softwares")),
         files=names,
         skipped=skipped,
     )

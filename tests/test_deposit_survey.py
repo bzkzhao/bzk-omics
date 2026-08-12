@@ -328,6 +328,36 @@ def test_classify_makes_no_request_at_all_when_the_session_forbids_it() -> None:
         classify("PXD000000", session=_Forbidden())
 
 
+def test_declared_software_is_read_as_a_name_not_a_dict_repr() -> None:
+    """PRIDE returns CvParam objects; `str(x)` on one yields an unreadable blob. The field was
+    populated for two turns and consulted by nothing, which is how that survived."""
+    session = _Session(
+        {
+            "/projects/PXD000000/files": _listing("run.raw"),
+            "/projects/PXD000000": {
+                "title": "t",
+                "submissionType": "PARTIAL",
+                "softwares": [{"@type": "CvParam", "accession": "MS:1001583", "name": "MaxQuant"}],
+                "organisms": [{"name": "Homo sapiens"}],
+            },
+        }
+    )
+    got = classify("PXD000000", session=session)
+    assert got.software == ("MaxQuant",)
+    assert got.species == ("Homo sapiens",)
+
+
+def test_a_plain_string_software_value_still_reads() -> None:
+    """Not every field comes back as a CvParam, so the bare form must survive the repair."""
+    session = _Session(
+        {
+            "/projects/PXD000000/files": _listing("run.raw"),
+            "/projects/PXD000000": {"title": "t", "submissionType": "P", "softwares": ["MaxQuant"]},
+        }
+    )
+    assert classify("PXD000000", session=session).software == ("MaxQuant",)
+
+
 # ── search and survey: the draw, offline ──────────────────────────────────────────────────────
 
 

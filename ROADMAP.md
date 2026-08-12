@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.65 |
+| Version | 1.66 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -4050,6 +4050,137 @@ absence of a request is now asserted directly, since no networked container can 
 fetch from an eager one by outcome. One path is still unexercised and says so at the function:
 `archive_entries` cannot take a session without a Protocol admitting `head` and a `headers=`
 keyword, which is a change to a contract three other modules satisfy.
+
+### C3 amended a third time, and the coverage denominator, 2026-08-12
+
+**Written and committed before the widened run.** The two earlier C3 amendments stand above; so
+does this one's pre-amendment text. **C0 is untouched — C0(d), the MaxQuant gate, exactly as
+written.** This measures the field the gate sees; it does not adjust the gate.
+
+#### The denominator, which no survey has ever stated
+
+**The v3 search returns a `total_records` HTTP header and caps a page at 100 rows**, and neither
+was known when the earlier draws were made. That settles an arithmetic this document could not
+explain: § *…no admissible candidate in twelve* records **201 `PARTIAL` to 8 `COMPLETE`** — 209 —
+against four queries that at `pageSize=25` return at most 100. **It was a run at `size=100`**, which
+`search`'s signature has always allowed since `size` is a default and not a constant, and
+`submission_type` is populated only inside `search`, so search results alone could produce it. **And
+it was truncated**: `diGly` returned exactly 100 because 100 is the ceiling. Its true total is
+**178**, so the 209 was 45 + 0 + 100 + 64 where the honest figure over those four queries is 287.
+
+| Term | `total_records` | Page 0 |
+|---|---|---|
+| `ISG15` | 45 | 45 |
+| `ISGylome` | 8 | 8 |
+| `diGly` | **178** | 100 *(ceiling)* |
+| `GlyGly` | **248** | 100 *(ceiling)* |
+| `K-GG` | 46 | 46 |
+| `diglycine` | 69 | 69 |
+| `ubiquitinome` | 64 | 64 |
+| `ubiquitylome` | 44 | 44 |
+| `ubiquitin remnant` | **113** | 100 *(ceiling)* |
+| `ubiquitination site` | 96 | 96 |
+| `ubiquitylation site` | 28 | 28 |
+| `UbiSite` | 9 | 9 |
+| `ubiquitin GlyGly` | **0** | 0 |
+
+**Union over page 0 of all thirteen: 450 distinct accessions.** That is the denominator every
+coverage claim below rests on. Pagination works (`page=0,1,…`), so the three truncated terms are
+reachable at a cost of one further request each; they are **not** paginated in this draw, and that
+is a stated limit rather than an oversight.
+
+#### C3, amended
+
+~~**At most 12 candidates enter**, over `ISG15`, `ubiquitin GlyGly`, `diGly`, `ubiquitinome`.~~
+
+**Query set — thirteen terms, and how they were chosen rather than only what they are.** The
+starting point was that `ubiquitin GlyGly` returns **0**, recorded above: a two-word query that
+matches nothing is evidence the field is not indexed by the phrase a reader would write. So terms
+were drawn from what a diGly deposit is actually *titled* — the remnant by its chemistry (`GlyGly`,
+`K-GG`, `diglycine`), the sub-proteome by its two spellings (`ubiquitinome`, `ubiquitylome`), the
+enrichment by its method (`ubiquitin remnant`, `UbiSite`), the measurement by its object
+(`ubiquitination site`, `ubiquitylation site`), and the anchor domain (`ISG15`, `ISGylome`). Each
+was **measured before inclusion** and each is kept with its total, including the zero: a term that
+matches nothing is a fact about the index and is retained so the next draw does not re-try it.
+
+**Cap — 60**, raised from 12. **Cost, since it is the reason it is not higher**: classification is
+2 requests per candidate (project record, file listing), plus 3 per archive opened (one `HEAD`, two
+ranged `GET`s) to a limit of three archives — so 2 to 11 requests per candidate, and the ranged
+reads are against files of hundreds of megabytes. Measured on the twelve, classification runs at
+roughly ten seconds each. 60 is what fits without the draw becoming the turn.
+
+**`size` — 100**, the page ceiling, one page per term, no pagination.
+
+**The twelve already surveyed are re-included.** Excluding them would make the widened result
+incomparable with the two records above, and they are 12 of 450 — small enough that their presence
+does not distort a distribution and useful enough as a consistency check on the instrument.
+
+**Coverage, stated in two numbers because they are different.** The draw pool is **450 of 450**
+distinct accessions the thirteen terms reach on page 0 — but that pool itself misses the tails of
+three truncated terms. Full classification covers **60 of 450 = 13.3%**.
+
+**And one measurement covers the whole pool at almost no cost.** `search` populates
+`Candidate.software` from PRIDE's declared `softwares`, so an engine census over all **450** needs
+**thirteen requests** — the ones already made — and no file listing at all. It is run, because Step
+2's question of whether engine distribution is measurable from search alone answers *yes* and the
+cost is already paid. It is reported separately from the classified 60 and never merged with it.
+
+#### Step 2's measurement: the two engine signals on the twelve
+
+`Candidate.software` has been populated since the module was written and **read by nothing** —
+`grep -rn "\.software" --include=*.py .` finds no consumer in `bzk/` or `tests/`. Measured now:
+
+| Filename route | Declared | Rows |
+|---|---|---|
+| **agree** | | `PXD071724`, `PXD077594`, `PXD069668` (DIA-NN); `PXD071548`, `PXD058618` (Proteome Discoverer); `PXD065158` (FragPipe) — **6** |
+| filename only, nothing declared | — | `PXD076163` (MaxQuant, from `proteinGroups.txt`) — **1** |
+| **declared only, filename `unclassified`** | | `PXD075792` → **FragPipe**; `PXD074126` → **MaxQuant** — **2** |
+| neither | — | `PXD078284`, `PXD068808`, `PXD069603` — **3** |
+
+**They disagree twice and one of those matters.** `PXD074126` **declares MaxQuant** while the
+filename route reads `unclassified` — so the twelve contained **two** MaxQuant deposits and the
+survey saw one, and the row excluded on C0(d) may pass the gate it was excluded on. The two signals
+are **not merged**; `engine_state` stays a three-state property with its recorded reason. What is
+recorded is the comparison.
+
+**A parsing repair was needed to read the field at all.** PRIDE returns CvParams and the module
+kept `str(x)`, yielding `"{'@type': 'CvParam', …, 'name': 'MaxQuant'}"`. Same values, legible; not
+a widening, and not one of the six modes.
+
+#### Step 4: predicted before the run, with what each outcome licenses
+
+**(a) Candidates in the 60 passing C0 entirely — predicted 3.** *Instrument*: `--classify` over the
+draw, C0 evaluated per candidate. *Precision*: exact integer. *Reasoning, from the field rather than
+from the diff* — the last prediction missed because it reasoned about changed code paths, and this
+one reasons about deposits: MaxQuant should be the largest declared tool across a pool spanning the
+2010s and 2020s, but C0(c) needs a deposited `…Sites.txt`, and most PRIDE submissions are `PARTIAL`
+and deposit raw files only. Roughly a third MaxQuant, of which perhaps a quarter deposit the
+processed site table, over 60 → about 5, discounted to **3** for the naming convention.
+
+**(b) Engine distribution among deposits with site-grain output** — predicted, of those in the 60
+showing `present` or `candidate`: **MaxQuant 30%, DIA-NN 25%, FragPipe 15%, Proteome Discoverer
+10%, unclassified 20%**. *Instrument*: the filename route and the declared field, reported
+separately. *Precision*: ±10 percentage points, which is as fine as 60 candidates can resolve.
+
+**What each outcome licenses, both branches written before either is seen.**
+
+> **C0(d) is the binding constraint** if deposits carrying site-grain output are substantially
+> non-MaxQuant — concretely, if **non-MaxQuant site-grain deposits ≥ 2× MaxQuant site-grain
+> deposits**. That would say the gate, not the field, is what leaves the shortlist empty, and the
+> second-deposit test is limited by which adapter exists rather than by what has been deposited.
+
+> **C0(d) is not the binding constraint** if **MaxQuant site-grain deposits are ≥ half of all
+> site-grain deposits**, **or** if **≥ 5 candidates pass C0 entirely**. Either says a MaxQuant field
+> exists at a size that makes the gate incidental, and an empty shortlist would then be about the
+> draw or the other gates.
+
+**Between those two — non-MaxQuant strictly under 2× and MaxQuant strictly under half, with fewer
+than 5 passing — nothing is licensed**, and that is registered as a real outcome rather than a gap
+to be argued into one branch afterwards.
+
+**No prediction is made** about the declared-software census over the 450: it covers a pool whose
+composition no instrument here has previously sampled, and a number invented for it would have
+nothing behind it.
 
 ### Re-run of the same twelve through the fixed instrument, 2026-08-12
 
