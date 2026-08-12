@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.61 |
+| Version | 1.62 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -3964,10 +3964,30 @@ falsified rather than carried as a plausible cause.
 
 **What this result is and is not.** It is a statement about **twelve deposits drawn by four
 registered queries**, not about PRIDE. The cap was registered before the run and is not raised here
-to produce a shortlist. Two limits are visible in the run itself: archives beyond three per
-candidate are unlisted, and five went unlisted for `PXD069668`; and a deposit whose site table has a
-name outside MaxQuant's `…Sites.txt` convention is invisible to C0(c), which `PXD076163`'s
-`abundance_single-site_MS2quant_Norm.tsv` shows is a real shape.
+to produce a shortlist.
+
+**The instrument that produced it under-reported in six ways, closed 2026-08-12; this paragraph
+named two of them and was therefore incomplete when it was written.** The twelve-row table above and
+the empty shortlist stand as recorded — nothing here re-runs anything, and **no claim is made about
+what a re-run would return**, which would be a prediction with no instrument behind it.
+
+| Mode | What it did | Closed by |
+|---|---|---|
+| **1. Site tables outside MaxQuant's convention read as absent** — named in this paragraph | `PXD076163`'s `abundance_single-site_MS2quant_Norm.tsv` is site grain and scored `—` | C0(c)'s test is now **three-state**: `present` for MaxQuant's own convention, `candidate` for a name that suggests site grain without following it, `absent` for neither. Widening the marker was rejected: every name added is a guess, and it would have turned an under-inclusive gate over-inclusive |
+| **2. Archives beyond the cap** — named in this paragraph | five unlisted for `PXD069668`, in prose only | every skip now returns as data, per archive, with its reason |
+| **3. Archives skipped by name hint** — **not** named, and it left no trace at all | `_RAW_ARCHIVE_HINTS` filtered before the cap and appended nothing, so the unlisted count under-stated what had not been looked at | `raw_` and `_raw` are removed as guesses about naming — `Search_GlyGly.zip` is the standing proof a name can say nothing — and the two container formats that remain record every skip |
+| **4. *None identifiable* collapsed two findings** — **not** named, 5 of 12 or 42% of the sample | `PXD078284` has no processed output; `PXD075792` has `Peptides_UbPTMs.txt` this instrument could not classify. One is a fact about the deposit, the other an instrument gap, and the column rendered them identically | `no_processed_output` and `unclassified` are now distinct states |
+| **5. One constant answered two questions** — found while closing 1 | `sites.txt` was C0(c)'s marker *and* a MaxQuant engine marker, so a non-MaxQuant site table would have marked a deposit MaxQuant | the engine table no longer carries it |
+| **6. Engine markers matched as substrings** — found by the new test on its first run | `summary.txt` classified `PXD075792`'s `UbPTMs_PTMs_Summary.txt` as MaxQuant | markers match as a **suffix of the basename**, which admits a submitter's prefix (`HAP1_USP18KO_proteinGroups.txt`) without admitting the coincidence; one compression wrapper is stripped first so a gzipped table is not a new under-report |
+
+**A seventh was closed that is not an under-report but an over-run.** `_get` raised on any non-200
+and the exception reached `main`, so one accession that would not answer could end a survey of
+twelve after three — with the remaining nine looking like a field that had been searched. A failed
+listing is now recorded against that candidate and the run continues.
+
+**`tests/test_deposit_survey.py` now guards the module**, which had none while both its siblings
+did. Every test injects a stub session, so none needs the network — a guard against silent zeroes
+that skipped in a sandboxed clone would be absent exactly where it is needed.
 
 ### Deposit and supplementary survey, 2026-08-07
 

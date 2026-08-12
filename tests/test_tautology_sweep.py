@@ -230,6 +230,61 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         # redundant. Pinned rather than rewritten, because `== []` is the honest statement of the
         # property; moving it to `not gaps` would hide the same exposure behind a truthiness test.
         ("test_command_blocks.py", "gaps == []", 1),
+        # ── tests/test_deposit_survey.py, classified individually 2026-08-12 ──────────────────
+        # **Nine matches, none an instance, and the classification turns on a distinction worth
+        # stating.** Eight compare a computed `site_state` against `SITE_PRESENT` /
+        # `SITE_CANDIDATE` / `SITE_ABSENT` — module constants, not literals, which is why Pass C
+        # does not exclude them. That is *close* to the class: `site_state` returns those very
+        # names, so if a constant's value drifted, both sides would drift together and the
+        # assertion would hold. What it would not survive is a change to which **branch** runs,
+        # which is the property each one is written for — and mutations C (candidate reported as
+        # absent) and D (candidate promoted to present) fail exactly these, measured.
+        #
+        # The residual exposure — the vocabulary itself — is closed by
+        # `test_the_three_state_values_are_what_they_say`, which pins the three strings against
+        # literals in one place. So the pair is: eight assertions pinning branches, one pinning
+        # values, and neither is redundant. **That vocabulary pin is not in this set**: its right
+        # side is a tuple of string literals, which Pass C excludes by construction — so it
+        # raises the surface by one assert and the match count by zero. Pinning it here was tried
+        # and failed as a `gone` entry, which is this module refusing a pin for something it does
+        # not match.
+        #
+        # The ninth is `skipped == ('raw_search_output.zip: beyond the limit of 0',)`: the left
+        # side is `expand_archives`' return, the right a literal tuple written by hand. It is the
+        # assertion that a name habit no longer skips an archive, and mutation H fails it.
+        (
+            "test_deposit_survey.py",
+            "Candidate('x', '', '', files=tuple((f['fileName'] for f in plausible))).site_state == SITE_PRESENT",
+            1,
+        ),
+        ("test_deposit_survey.py", "_c('20190520_phospho_run1.raw').site_state == SITE_ABSENT", 1),
+        (
+            "test_deposit_survey.py",
+            "_c('HAP1_USP18KO_GlyGlyKSites.txt').site_state == SITE_PRESENT",
+            1,
+        ),
+        ("test_deposit_survey.py", "_c('S1_1_site-enriched.mzML').site_state == SITE_ABSENT", 1),
+        (
+            "test_deposit_survey.py",
+            "_c('Search.zip!Output/GlyGly (K)Sites.txt').site_state == SITE_PRESENT",
+            1,
+        ),
+        (
+            "test_deposit_survey.py",
+            "_c('Search/GlyGly (K)Sites.txt.gz').site_state == SITE_PRESENT",
+            1,
+        ),
+        ("test_deposit_survey.py", "_c('UbPTMs_PTMs_Summary.txt').site_state == SITE_CANDIDATE", 1),
+        (
+            "test_deposit_survey.py",
+            "_c('proteinGroups.txt', 'run.raw').site_state == SITE_ABSENT",
+            1,
+        ),
+        (
+            "test_deposit_survey.py",
+            "skipped == ('raw_search_output.zip: beyond the limit of 0',)",
+            1,
+        ),
         # ── tests/test_decision_index.py, classified individually 2026-08-10 ──────────────────
         # Thirteen matches, none an instance, each made to fail by a mutation of the surface it
         # names. Every one is either a computed value against a **pinned literal** or two sets
@@ -883,6 +938,12 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # turn that grows the surface and the match set by zero is exactly the case this floor exists
     # to keep visible, since the multiset alone would have said nothing.
     #
+    # 1007 -> 1039 and 30 -> 31 on 2026-08-12 for `tests/test_deposit_survey.py` (the
+    # thirty-first), which added **nine** matches — the site/skip assertions; the
+    # vocabulary pin written to close their one residual exposure adds an assert and no match,
+    # because its right side is a literal display. Classified above, one at
+    # a time, with the mutation that fails each named. Read off `sweep()`.
+    #
     # 993 -> 1007 and 29 -> 30 on 2026-08-11 for `tests/test_command_blocks.py` (the thirtieth),
     # which added **one** match — `gaps == []`, classified above with the mutation that establishes
     # it is carried by two siblings rather than by itself. Read off `sweep()`.
@@ -902,7 +963,7 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # expression, so the assertion compared a value to itself. It was removed rather than pinned.
     # That is this module catching a tautology in the same turn it was written, which is the first
     # time it has done so on new code rather than on the audit that created it.
-    assert modules >= 30 and asserts >= 1007, (
+    assert modules >= 31 and asserts >= 1039, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
