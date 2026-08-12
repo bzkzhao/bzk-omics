@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.64 |
+| Version | 1.65 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -4050,6 +4050,72 @@ absence of a request is now asserted directly, since no networked container can 
 fetch from an eager one by outcome. One path is still unexercised and says so at the function:
 `archive_entries` cannot take a session without a Protocol admitting `head` and a `headers=`
 keyword, which is a change to a contract three other modules satisfy.
+
+### Re-run of the same twelve through the fixed instrument, 2026-08-12
+
+**The table above is not edited and must not be.** It records what an instrument measured on
+2026-08-12 before six under-reporting modes were closed; overwriting it would erase the evidence
+that closing them changed anything, which is the thing this section measures. What follows is the
+**same twelve accessions** through the current instrument — `python -m bzk.deposit_survey
+--classify`, added for this and issuing no query, so the draw is not widened — read cell by cell
+against that table.
+
+| # | Accession | Files | Engine | Site table | SDRF | Changed |
+|---|---|---|---|---|---|---|
+| 1 | `PXD071724` | 51 | `diann` | **`candidate`** | N | **yes** — site |
+| 2 | `PXD078284` | 9 | **`unclassified`** | `absent` | N | **yes** — engine |
+| 3 | `PXD077594` | 19 | `diann` | `absent` | N | no |
+| 4 | `PXD071548` | 12 | `proteomediscoverer` | `absent` | N | no |
+| 5 | `PXD076163` | 35 | `maxquant` | **`candidate`** | N | **yes** — site |
+| 6 | `PXD068808` | 35 | **`unclassified`** | `absent` | N | **yes** — engine; 16 archives skipped by format, now recorded |
+| 7 | `PXD069668` | 179 | `diann` | **`candidate`** | N | **yes** — site; 5 skipped at the cap |
+| 8 | `PXD065158` | 607 | `fragpipe` | **`candidate`** | **Y** | **yes** — site |
+| 9 | `PXD075792` | 23 | **`unclassified`** | **`candidate`** | N | **yes** — engine *and* site; 18 skipped |
+| 10 | `PXD069603` | 68 | **`unclassified`** | `absent` | N | **yes** — engine |
+| 11 | `PXD058618` | 8 | `proteomediscoverer` | `absent` | N | no |
+| 12 | `PXD074126` | 3 | **`unclassified`** | `absent` | N | **yes** — engine |
+
+#### The two predictions
+
+**(a) rows changed — predicted 7, measured 9. Missed by two, and the miss is the informative half.**
+Not one file count moved: the mechanism I predicted for row 7 — narrowed archive hints changing
+which three archives the cap admits — **did not occur at all**, and row 7 changed for an entirely
+different reason. And I predicted rows 1 and 8 unchanged; both moved to `candidate`. **What the miss
+is evidence of** is that I predicted from the *fixes* rather than from the *deposits*: I reasoned
+about which code paths had changed and matched them to rows, and the actual changes came from what
+was inside archives nobody had looked in. A prediction derived from a diff will systematically miss
+whatever the diff made newly visible.
+
+**Four rows changed to a value I named wrongly.** I predicted rows 2, 6, 10 and 12 would read
+`no_processed_output`. **Every one reads `unclassified`, and so does row 9 — not one of the twelve
+is `no_processed_output`.** The row-level prediction held and the value was wrong in every instance,
+which is worth more than the count: it means the baseline's own prose — *no processed output* for
+row 2, *`.d`/mzML only* for row 6, *mzXML and a submission spreadsheet* for row 10 — described **an
+instrument gap as a property of the deposit**. All five have table-shaped files this instrument
+cannot classify. That is mode 4 earning its place, and it is the clearest single result here.
+
+**(b) admissibility — predicted 0, measured 0. Held, and for the structural reason registered.**
+`SITE_TABLE_HINTS` reports `candidate` and never `present`; no row reached `present`; C0(d) is
+untouched. **No candidate became admissible, so nothing is scored, ranked or admitted**, and the
+named path by which (b) could have been non-zero — a `…Sites.txt` inside a previously hint-skipped
+archive — did not materialise.
+
+#### What the re-run found that neither prediction anticipated
+
+**DIA-NN and FragPipe both write site-grain GlyGly tables, and three rows fail on engine rather than
+on grain.** Row 1 and row 7 carry `report.UniMod_121_sites_90.tsv` and `report.UniMod_121_sites_99.tsv`
+— **UniMod:121 is the GlyGly remnant**, the same modification PXD018299's site table holds — and row
+8 carries `combined_site_K_114.0429.tsv`, 114.0429 being that remnant's mass. So for rows 1, 7 and 8
+the baseline's recorded reason *C0(d), C0(c)* is now **half wrong**: they have site-grain output and
+fail the **MaxQuant** gate alone. The table above is left unedited, so a reader comparing the two
+must take the exclusion reasons in the earlier one as superseded on that point.
+
+**Three rows rest on a path with no test, and are marked accordingly.** Rows **1, 7 and 8** reached
+`candidate` only through `archive_entries`, which has no injectable seam and is exercised against
+the live host and by nothing in `tests/`. Their site state therefore carries **weaker provenance**
+than the other nine — the distinction this repository already draws between artefact-sourced and
+transcription-sourced figures. Rows 5 and 9 reached `candidate` from top-level filenames and do not
+depend on it.
 
 ### Deposit and supplementary survey, 2026-08-07
 

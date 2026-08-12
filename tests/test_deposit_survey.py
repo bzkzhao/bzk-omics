@@ -35,6 +35,7 @@ from bzk.deposit_survey import (
     SITE_CANDIDATE,
     SITE_PRESENT,
     Candidate,
+    classify,
     expand_archives,
     file_names,
     search,
@@ -282,6 +283,49 @@ def test_a_name_habit_no_longer_skips_an_archive() -> None:
         "PXD000000", ("raw_search_output.zip",), limit=0, session=_Forbidden()
     )
     assert skipped == ("raw_search_output.zip: beyond the limit of 0",)
+
+
+# ── classify: one named accession, offline, and no query issued ───────────────────────────────
+
+
+def test_classify_builds_a_candidate_without_issuing_a_query() -> None:
+    """The property the re-run turns on: naming an accession must not widen the draw.
+
+    `survey` takes queries and `--files` returned before classifying, so there was no way to ask
+    what the instrument says about one accession without searching. `classify` closes that, and
+    this asserts it reaches only the project record and the file listing — never `/search/`.
+    """
+    session = _Session(
+        {
+            "/projects/PXD000000/files": _listing("HAP1_GlyGlyKSites.txt", "proteinGroups.txt"),
+            "/projects/PXD000000": {"title": "A title", "submissionType": "PARTIAL"},
+        }
+    )
+    got = classify("PXD000000", session=session)
+    assert got.accession == "PXD000000"
+    assert got.site_state == SITE_PRESENT
+    assert got.engine_state == "maxquant"
+    assert not any("/search/" in url for url in session.seen), session.seen
+
+
+def test_classify_threads_its_session_into_the_archive_expansion() -> None:
+    """`classify` calls `expand_archives`, whose seam was the last turn's repair. If it built its
+    own session instead of passing this one on, the archive path would reach the network again."""
+    session = _Session(
+        {
+            "/projects/PXD000000/files": _listing("Search.zip"),
+            "/projects/PXD000000": {"title": "t", "submissionType": "PARTIAL"},
+        }
+    )
+    got = classify("PXD000000", session=session)
+    assert any("no public URL" in entry for entry in got.skipped)
+    assert not any("/search/" in url for url in session.seen)
+
+
+def test_classify_makes_no_request_at_all_when_the_session_forbids_it() -> None:
+    """A blunt check that nothing in `classify` constructs its own session behind the seam."""
+    with pytest.raises(AssertionError, match="a request was made"):
+        classify("PXD000000", session=_Forbidden())
 
 
 # ── search and survey: the draw, offline ──────────────────────────────────────────────────────

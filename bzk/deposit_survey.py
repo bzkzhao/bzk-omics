@@ -443,6 +443,35 @@ def expand_archives(
     return tuple(grown), notes, tuple(skipped)
 
 
+def classify(accession: str, *, session: RestSession | None = None) -> Candidate:
+    """One named deposit, classified — without going through the query path.
+
+    **Added 2026-08-12 to re-measure the recorded twelve after six under-reporting modes closed.**
+    `survey` takes *queries*; `--files` listed names and returned before any classification ran; so
+    there was no way to ask *what does the current instrument say about this accession* without
+    issuing a search. That matters beyond convenience: the re-run must not widen the draw, and a
+    search is how a draw widens by accident.
+
+    It reaches the project record for the title and submission type, then the file listing and the
+    archives, and builds the same `Candidate` the survey builds — the same properties, so the
+    comparison is against the instrument rather than against a second implementation of it.
+    """
+    s = session or requests.Session()
+    row = _get(s, f"{API}/projects/{accession}") or {}
+    names = file_names(accession, session=session)
+    names, _notes, skipped = expand_archives(accession, names, session=session)
+    return Candidate(
+        accession=accession,
+        title=str(row.get("title", "")),
+        submission_type=str(row.get("submissionType", "")),
+        species=tuple(sorted({str(x) for x in row.get("organisms", []) or []})),
+        instruments=tuple(sorted({str(x) for x in row.get("instruments", []) or []})),
+        software=tuple(sorted({str(x) for x in row.get("softwares", []) or []})),
+        files=names,
+        skipped=skipped,
+    )
+
+
 def survey(
     queries: tuple[str, ...] = QUERIES,
     *,
@@ -478,9 +507,32 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m bzk.deposit_survey", description=__doc__)
     parser.add_argument("--keyword", help="one query instead of the registered set")
     parser.add_argument("--files", metavar="ACCESSION", help="list one deposit's files and exit")
+    parser.add_argument(
+        "--classify",
+        metavar="ACCESSION",
+        nargs="+",
+        help="classify named deposits and exit; no query is issued",
+    )
     parser.add_argument("--cap", type=int, default=MAX_CANDIDATES)
     parser.add_argument("--json", action="store_true", help="machine-readable output")
     args = parser.parse_args(argv)
+
+    if args.classify:
+        self_check()
+        for accession in args.classify:
+            c = classify(accession)
+            print(
+                f"  {c.accession}  {c.submission_type:10s} files={len(c.files):4d} "
+                f"engine={c.engine_state:20s} site={c.site_state:9s} "
+                f"skipped={len(c.skipped)} sdrf={'Y' if c.has_sdrf else 'N'}  {c.title[:52]}"
+            )
+            for entry in c.site_tables:
+                print(f"      site table: {entry}")
+            for entry in c.site_candidates:
+                print(f"      site candidate: {entry}")
+            for entry in c.skipped:
+                print(f"      ✕ {entry}")
+        return 0
 
     if args.files:
         names = file_names(args.files)
