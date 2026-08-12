@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.72 |
+| Version | 1.73 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -4705,7 +4705,8 @@ of those matters*). What is recorded is that two of the twelve
 turn on which signal C0(d) reads, which is why the count is reported as a pair and not as a number.
 **Settled 2026-08-12 in favour of the filename route — § *Settling C0(d)'s reading rule* carries the
 decision and the recount; the pair above is superseded by the single count there, and this paragraph
-is left standing unedited as the state before it.**
+is left standing unedited as the state before it.** **And that count is itself superseded by
+§ *The MaxQuant matcher*, 2026-08-12, which corrected the matcher the filename route runs on.**
 
 **No candidate's C0 verdict changed in either direction.** No C1 scoring, ranking, shortlist or
 admission was performed.
@@ -4934,6 +4935,11 @@ the gap reads as a gap rather than as an absence of evidence.
 `PXD074949`, `PXD027163`, `PXD032078`, `PXD019152`, `PXD018299`, `PXD070789`, `PXD060435`. `PXD018299`
 is the anchor deposit and a consistency check rather than a candidate, so **nine are new**.
 
+**Superseded 2026-08-12 — the matcher this count was computed with was
+wrong, and § *The MaxQuant matcher* carries the corrected count.** The reading rule settled
+here is unchanged; what changed underneath it is what counts as a MaxQuant filename. This
+paragraph stands as the state before that correction.
+
 `PXD079072` and `PXD027328` are excluded, each **on C0(d) alone** — every other gate passes on both —
 and each is recorded with its declared list and with the matcher gap that produced the exclusion, per
 clause 2 of the settled rule.
@@ -5070,6 +5076,107 @@ is not fixing it, and fixing it is not this turn's brief.
 | rows moving `no_processed_output` → `maxquant` | **0–1** | three rows are `no_processed_output`; a deposit with no tables but a deposited `mqpar.xml` is uncommon |
 
 **No prediction is made about what any C1 scoring would rank; none is performed.**
+
+#### The registered form was tightened before it was applied, and an existing test is why
+
+**Registered above as *token-boundary containment*; implemented as *anchored* containment.** The
+registered form allowed a marker's stem anywhere between two non-alphanumerics, which classifies
+`prefix_proteinGroups.txt_suffix.txt` — the exact shape
+`test_an_engine_marker_in_the_middle_of_a_name_does_not_classify` was written to forbid. **The rule
+was tightened to fit the guard rather than the guard weakened to fit the rule**: the marker's stem
+must now *begin or end* the basename's stem, not merely sit inside it. That existing test passes
+unedited, which is the strongest available evidence that this matcher was not shaped by the rows it
+had to admit.
+
+**One consequence of the tightening, correcting the registration above:** `run1_evidence_final.txt`
+was given there as an example of a name the new form would newly admit. Under the anchored form it is
+**not** admitted — the marker neither begins nor ends the stem. The registered claim was wrong in the
+permissive direction and is corrected here rather than quietly dropped.
+
+#### What changed over the pinned sixty
+
+File listings are the pinned run's own persisted output, so the only thing varying is the matcher and
+a change cannot be deposit drift. **All three changed rows were then re-verified live with
+`classify`** — no query, no candidate outside the sixty — and all three agree.
+
+| Accession | Engine state | Admitted by | C0 |
+|---|---|---|---|
+| `PXD079072` | `unclassified` → **`maxquant`** | `mqpar.xml` | `abce` → **`abcde`** — admitted |
+| `PXD027328` | `unclassified` → **`maxquant`** | `modificationSpecificPeptides_ntermUb.txt` **and** `mqpar.xml`, `mqpar_DP.xml` | `abce` → **`abcde`** — admitted |
+| `PXD058858` | `unclassified` → **`maxquant`** | `DDA_ArgC_mqpar.xml`, `DDA_LysCArgC_mqpar.xml` | `abe` → `abde` — **still excluded** |
+
+**Nothing else moved.** No `site_state` changed, the three `no_processed_output` rows all stayed
+`no_processed_output`, and **the left-tightening removed nothing** — every change is a gain.
+
+**`PXD058858` is the admission nobody predicted, and it is recorded because it is evidence.** It
+deposits two MaxQuant parameter files under prefixed names and reads `maxquant` for the first time.
+It does **not** enter C0: it has no site-grain table, so it fails C0(c) and stays out. A rule reverse-
+engineered from the two disputed rows would not have reached a third deposit that helps nobody's
+case, and would not have reached one that gains C0(d) and is excluded anyway.
+
+**The two changes are separable and only one of them is load-bearing here:**
+
+| Change | Rows it moves on its own |
+|---|---|
+| the anchored match form | **1** — `PXD027328`, which `mqpar.xml` independently rescues |
+| the marker additions | **3** — all three, and **all three via `mqpar.xml`** |
+| the four documented scan tables | **0** |
+
+**So the match-form change alters no C0 verdict on its own within this sixty, and the four scan
+tables alter nothing at all.** Both are kept because MaxQuant writes those names and `endswith` is
+defeated by an appended token — justified by the tool, not by an effect here. Saying so is the
+point: a matcher that only ever earns its keep on the rows that prompted it is the one to distrust.
+
+#### Predicted beside measured
+
+| Quantity | Predicted | Measured | |
+|---|---|---|---|
+| rows changing engine state | **6**, band 3–12 | **3** | inside the band, at its floor |
+| rows changing C0 verdict | **+2, 0 removals** | **+2, 0 removals** | hit |
+| C0 count | 10 → **12** | 10 → **12** | hit |
+| direction | admission | admission | hit |
+| `no_processed_output` → `maxquant` | 0–1 | **0** | hit |
+
+**The engine-state miss is evidence about what `unclassified` means in this pool.** The prediction of
+six assumed that a fair share of the `unclassified` rows were mis-matched MaxQuant deposits. Three
+were. The rest are `unclassified` because they carry **no recognisable processed output at all** —
+a genuine absence of engine evidence rather than a matcher gap — which is the same distinction
+`engine_state` was split three ways to preserve, now measured rather than asserted. The prediction
+mistook a reporting state for a defect rate.
+
+#### The recount — 12 of the sixty pass C0
+
+`PXD079072`, `PXD075538`, `PXD070339`, `PXD074990`, `PXD027328`, `PXD074949`, `PXD027163`,
+`PXD032078`, `PXD019152`, `PXD018299`, `PXD070789`, `PXD060435`. **`PXD018299` is the anchor deposit
+and a consistency check rather than a candidate, so eleven are new.**
+
+**This is a recount, not a scoring.** No C1 scoring, no ranking, no shortlist, no admission, no
+curation record. The count moved, and the turn ends at saying so.
+
+**The count returns to twelve and that is a coincidence of arithmetic, not a restoration.** The
+twelve here are not the widened draw's twelve reinstated: they are the ten the settled reading
+admitted plus the two the corrected matcher recovered, and the reason they are in is now a
+**file-level** marker on each rather than a project-level declaration. `PXD058858` gained C0(d) in the
+same pass and is still out.
+
+#### What this did not cover
+
+**The four deferred engines are unchanged and their exposure stands recorded, not fixed** — under
+`endswith`, `report.tsv` matches any `*_report.tsv`, `peptide.tsv` any `*peptide.tsv`, and DIA-NN's
+and Spectronaut's markers **overlap on every `*_report.tsv`**, so such a file reads as two engines at
+once. That overlap was found by a test assertion of mine that was wrong about the current behaviour,
+and it is pinned in `tests/test_deposit_survey.py` rather than repaired.
+
+**`evidence.txt` remains the weakest MaxQuant marker** — `my_evidence_table.txt` from any pipeline
+would now read `maxquant` — and it is left in force because removing it is not this turn's question.
+
+**`experimentalDesignTemplate.txt` is not a marker** because the documentation pages read do not name
+it, not because it was judged generic.
+
+**The rule was derived from three documentation pages, not from MaxQuant's source.** A name MaxQuant
+writes that those pages omit is not in the table and this turn does not know it is missing.
+
+
 
 
 ### Deposit and supplementary survey, 2026-08-07

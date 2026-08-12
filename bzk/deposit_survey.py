@@ -69,8 +69,9 @@ QUERIES: tuple[str, ...] = (
 #: C3's cap. A survey that quietly grows past its registered size is choosing its own sample.
 MAX_CANDIDATES = 60
 
-#: Filename markers that settle the search engine without fetching the file, matched as a **suffix
-#: of the basename** rather than as a substring anywhere in the path.
+#: Filename markers that settle the search engine without fetching the file, matched against the
+#: **basename** rather than as a substring anywhere in the path. MaxQuant's are matched by
+#: `_marker_matches` below; the other four keep plain `endswith` — see `_TOKEN_MATCHED_ENGINES`.
 #:
 #: **Two constants were doing damage here and both are fixed.** `sites.txt` was a MaxQuant marker
 #: *and* C0(c)'s marker, so one constant answered two questions and a non-MaxQuant site table
@@ -81,8 +82,23 @@ MAX_CANDIDATES = 60
 #: equality is too strict and substring is too loose; a suffix of the basename is the rule that
 #: admits the prefix without admitting the coincidence.
 #:
+#: **`endswith` was defeated from the other side, 2026-08-12.** A submitter may also *append* a
+#: token before the extension: `PXD027328` deposits `modificationSpecificPeptides_ntermUb.txt`, which
+#: is MaxQuant's own table name and does not end with it, so the deposit read `unclassified` on a
+#: table it plainly wrote. MaxQuant's markers now anchor to either end of the basename's stem — see
+#: `_marker_matches`. The names below are MaxQuant's documented `combined/txt` output (Cox Labs,
+#: *Output Tables*) plus its parameter file, and are settled in `ROADMAP.md` § *The MaxQuant matcher*.
+#:
 #: `summary.txt` and `parameters.txt` are dropped outright: they are MaxQuant filenames and they
-#: are also names anybody might use, so even as suffixes they carry no evidence.
+#: are also names anybody might use, so even as suffixes they carry no evidence. **`peptides.txt` is
+#: refused for the same reason** although MaxQuant writes it — and independently, admitting it would
+#: classify `PXD075792`'s `Peptides_UbPTMs.txt` as MaxQuant.
+#:
+#: **`mqpar.xml` is here and is not a result table.** It is MaxQuant's parameter file (Cox Labs,
+#: *Download & Installation*: created in the GUI or by `MaxQuantCmd --create`, consumed by
+#: `MaxQuantCmd`) and no other tool writes that name, so it settles C0(d) at **file level** — which
+#: is what the project-level `softwares` field could not do. It cannot touch C0(c): `.xml` is not in
+#: `_TABLE_EXTENSIONS`, so it is never a processed file, a site table or a site candidate.
 ENGINE_MARKERS: dict[str, tuple[str, ...]] = {
     "maxquant": (
         "proteingroups.txt",
@@ -90,12 +106,57 @@ ENGINE_MARKERS: dict[str, tuple[str, ...]] = {
         "modificationspecificpeptides.txt",
         "msms.txt",
         "allpeptides.txt",
+        "msmsscans.txt",
+        "msscans.txt",
+        "mzrange.txt",
+        "aifmsms.txt",
+        "mqpar.xml",
     ),
     "diann": ("report.tsv", "report.parquet", "report.pr_matrix.tsv", "report.pg_matrix.tsv"),
     "spectronaut": ("_report.xls", "_report.tsv"),
     "fragpipe": ("psm.tsv", "combined_protein.tsv", "combined_peptide.tsv", "peptide.tsv"),
     "proteomediscoverer": (".pdresult", ".msf"),
 }
+
+#: Engines whose markers anchor to a stem boundary rather than matching by plain `endswith`. Only
+#: MaxQuant's do, and the reason is scope rather than taste: **C0(d) is the MaxQuant gate**, and the
+#: other four are v0.2 deferrals that gate nothing, so re-matching them would move recorded
+#: `engine_state` cells with no criterion consequence. They are also structurally unsuited to it —
+#: `.pdresult` and `.msf` are bare extensions with no stem, and `_report.xls` carries a leading
+#: separator written for `endswith`. Their standing exposure is recorded rather than fixed: under
+#: `endswith`, `report.tsv` matches any `*_report.tsv` and `peptide.tsv` any `*peptide.tsv`, and
+#: DIA-NN's and Spectronaut's markers overlap on every `*_report.tsv`.
+_TOKEN_MATCHED_ENGINES: frozenset[str] = frozenset({"maxquant"})
+
+
+def _marker_matches(base: str, marker: str, *, token: bool) -> bool:
+    """Does `base` carry `marker`? `token=False` is plain `endswith`, unchanged.
+
+    **`token=True` anchors the marker's stem to one end of the basename's stem**, requiring the
+    extensions to be equal and the inner side to be a non-alphanumeric. That admits both shapes a
+    submitter actually produces — a prefix (`HAP1_USP18KO_proteinGroups.txt`) and an appended token
+    (`modificationSpecificPeptides_ntermUb.txt`) — while staying **stricter than `endswith` on the
+    left**, which admitted any string ending in a marker.
+
+    **It is anchored rather than merely token-delimited, and an existing test is why.** The first
+    form allowed the marker's stem anywhere between two separators, which classifies
+    `prefix_proteinGroups.txt_suffix.txt` — the exact shape
+    `test_an_engine_marker_in_the_middle_of_a_name_does_not_classify` was written to forbid. Rather
+    than weaken that guard to fit a new rule, the rule was tightened to fit the guard, so the marker
+    must begin or end the stem and not merely sit inside it.
+    """
+    if not token:
+        return base.endswith(marker)
+    bstem, _, bext = base.rpartition(".")
+    mstem, _, mext = marker.rpartition(".")
+    if not bstem or not mstem or bext != mext:
+        return base.endswith(marker)
+    if bstem == mstem:
+        return True
+    if bstem.endswith(mstem) and not bstem[-len(mstem) - 1].isalnum():
+        return True
+    return bstem.startswith(mstem) and not bstem[len(mstem)].isalnum()
+
 
 #: A **MaxQuant** site table, by its own naming convention: `<Mod> (<residue>)Sites.txt`, of which
 #: PXD018299's `HAP1_USP18KO_GlyGlyKSites.txt` is one. A name matching this is reported `present`.
@@ -177,7 +238,11 @@ class Candidate:
         hit = [
             engine
             for engine, marks in ENGINE_MARKERS.items()
-            if any(b.endswith(m) for b in bases for m in marks)
+            if any(
+                _marker_matches(b, m, token=engine in _TOKEN_MATCHED_ENGINES)
+                for b in bases
+                for m in marks
+            )
         ]
         return tuple(sorted(hit))
 

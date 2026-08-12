@@ -221,6 +221,89 @@ def test_a_site_table_alone_no_longer_marks_a_deposit_maxquant() -> None:
     assert got.engine_state == "unclassified"
 
 
+# ── the MaxQuant matcher: anchored token matching, derived from the tool's documentation ──────
+
+
+def test_a_token_appended_before_the_extension_still_classifies() -> None:
+    """`endswith` was defeated by a suffix inserted before the extension. `PXD027328` deposits
+    `modificationSpecificPeptides_ntermUb.txt`, which is MaxQuant's own table name with `_ntermUb`
+    appended, and the deposit read `unclassified` on a table it plainly wrote."""
+    assert _c("modificationSpecificPeptides_ntermUb.txt").engines == ("maxquant",)
+    assert _c("proteinGroups_filtered.txt").engines == ("maxquant",)
+
+
+def test_the_anchor_deposits_prefixed_filename_still_matches() -> None:
+    """The constraint a stricter form would silently break. `PXD018299` is already ingested and
+    deposits `HAP1_USP18KO_proteinGroups.txt`; dropping it would be a worse failure than any false
+    positive, so exact equality and prefix-only anchoring are both ruled out here."""
+    assert _c("HAP1_USP18KO_proteinGroups.txt").engines == ("maxquant",)
+    assert _c("HAP1_USP18KO_proteinGroups.txt").engine_state == "maxquant"
+
+
+def test_a_marker_run_into_a_preceding_word_no_longer_classifies() -> None:
+    """The other direction of the same change: the token form is *stricter* on the left than
+    `endswith`, which admitted any string ending in a marker."""
+    assert "maxquant" not in _c("foobarproteingroups.txt").engines
+    assert _c("foobarproteingroups.txt").engine_state == "unclassified"
+
+
+def test_the_parameter_file_evidences_the_engine_without_being_a_table() -> None:
+    """`mqpar.xml` is MaxQuant's parameter file and no other tool writes that name, so it settles
+    C0(d) at file level. It must not touch C0(c): `.xml` is not a table extension, so it can never
+    become a processed file, a site table or a site candidate."""
+    got = _c("run1.raw", "mqpar.xml")
+    assert got.engines == ("maxquant",)
+    assert got.site_state == SITE_ABSENT
+    assert got.processed_files == ()
+    assert _c("mqpar_DP.xml").engines == ("maxquant",)
+
+
+def test_the_documented_scan_tables_classify() -> None:
+    """Added from Cox Labs' *Output Tables* because MaxQuant writes them, not because any deposit
+    needed them — excluding a documented distinctive marker for having no effect would be choosing
+    the matcher by its consequences."""
+    assert _c("msmsScans.txt").engines == ("maxquant",)
+    assert _c("msScans.txt").engines == ("maxquant",)
+    assert _c("mzRange.txt").engines == ("maxquant",)
+    assert _c("aifMsms.txt").engines == ("maxquant",)
+
+
+def test_a_generic_peptides_table_is_still_not_a_marker() -> None:
+    """`peptides.txt` is documented MaxQuant output and is refused for the reason `summary.txt` and
+    `parameters.txt` are: anybody may write it. The refusal was decided from the documentation, and
+    the existing `Peptides_UbPTMs.txt` case agrees with it independently."""
+    assert "maxquant" not in _c("peptides.txt").engines
+    assert "maxquant" not in _c("Peptides_UbPTMs.txt").engines
+
+
+def test_the_four_deferred_engines_still_match_by_suffix() -> None:
+    """Only MaxQuant's markers are token-matched. The other four gate nothing, and their markers
+    are structurally different — two are bare extensions and one carries a leading separator.
+
+    **`SAMPLE_report.tsv` reads as two engines and that is pre-existing, not introduced here.**
+    DIA-NN's `report.tsv` and Spectronaut's `_report.tsv` both match it under `endswith`, so the
+    marker table has an overlap on any `*_report.tsv`. It is pinned rather than fixed: these four
+    gate nothing, and re-matching them is out of this turn's scope.
+    """
+    assert _c("SAMPLE_report.tsv").engines == ("diann", "spectronaut")
+    assert _c("results.pdresult").engines == ("proteomediscoverer",)
+    assert _c("x_report.xls").engines == ("spectronaut",)
+    assert _c("a_final_report_v2.tsv").engines == ()
+
+
+def test_the_new_matcher_reaches_its_verdict_without_any_request() -> None:
+    """`_Forbidden` shape: the token form and `mqpar.xml` are filename rules, so a classification
+    that used them must still cost nothing on the network."""
+    names, notes, skipped = expand_archives(
+        "PXD000000",
+        ("mqpar.xml", "modificationSpecificPeptides_ntermUb.txt"),
+        limit=0,
+        session=_Forbidden(),
+    )
+    assert (notes, skipped) == ([], ())
+    assert Candidate("PXD000000", "t", "PARTIAL", files=names).engines == ("maxquant",)
+
+
 # ── expand_archives: every skip is accounted for ──────────────────────────────────────────────
 
 
