@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.60 |
+| Version | 1.61 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -3921,6 +3921,53 @@ are read, not predicted.
 
 **If the survey finds no admissible candidate, that is the result** and it is recorded with the
 criteria that excluded them. No criterion is relaxed to produce a shortlist.
+
+### Second-deposit survey: no admissible candidate in twelve, 2026-08-12
+
+**The result is that the shortlist is empty**, recorded with the criteria that excluded each
+candidate rather than produced by relaxing one. Run with `python -m bzk.deposit_survey` over the
+query set registered above, cap 12, round-robin after C3's amendment.
+
+| # | Accession | Files | Engine | Site table | SDRF | Excluded by |
+|---|---|---|---|---|---|---|
+| 1 | `PXD071724` | 51 | DIA-NN | — | N | C0(d), C0(c) — *Mapping ISG15 sites on GAPDH and PGK1 by AP-MS* |
+| 2 | `PXD078284` | 9 | none identifiable | — | N | C0(c), C0(d) — Arabidopsis XL-MS; no processed output |
+| 3 | `PXD077594` | 19 | DIA-NN | — | N | C0(d), C0(c) — *Ubiquitinome Profiling… Data-Independent…* |
+| 4 | `PXD071548` | 12 | Proteome Discoverer | — | N | C0(d), C0(c) — *ISGylation of H2AX…* |
+| 5 | `PXD076163` | 35 | **MaxQuant** | — | N | **C0(c) only.** The one engine pass in twelve, and it carries `proteinGroups.txt` plus a custom `abundance_single-site_MS2quant_Norm.tsv` — protein grain and a non-MaxQuant single-site table, no `…Sites.txt` |
+| 6 | `PXD068808` | 35 | none identifiable | — | N | C0(c), C0(d) — *Global ISGylome… SARS-CoV-2*; `.d`/mzML only |
+| 7 | `PXD069668` | 179 | DIA-NN | — | N | C0(d), C0(c); 5 further archives unlisted at the limit |
+| 8 | `PXD065158` | 607 | **FragPipe** | — | **Y** | C0(d), C0(c) — *Proteome-wide identification of ISG15 sites in HeLa cells*. **The near miss**, and see below |
+| 9 | `PXD075792` | 23 | none identifiable | — | N | C0(c), C0(d) — `Peptides_UbPTMs.txt` / `UbPTMs_PTMs_Summary.txt`, not MaxQuant's form |
+| 10 | `PXD069603` | 68 | none identifiable | — | N | C0(c), C0(d) — mzXML and a submission spreadsheet |
+| 11 | `PXD058618` | 8 | Proteome Discoverer | — | N | C0(d), C0(c) — *USP18 interactor and PTM mass spectrometry* |
+| 12 | `PXD074126` | 3 | none identifiable | — | N | C0(c), C0(d) — Arabidopsis |
+
+**Every one fails C0(c): not one of the twelve deposits a MaxQuant site-grain table.** Eleven also
+fail C0(d). No candidate reached C1, so **no contrast criterion was scored and no rate was measured**
+— which is why no prediction was registered for any of them.
+
+**`PXD065158` is the near miss and the most informative row.** It is *Proteome-wide identification
+of ISG15 sites in HeLa cells* — the anchor domain almost exactly — it carries **607** files after
+its archives are listed, and it is the **only deposit in the sample carrying an SDRF**, which is
+criterion 10, §5.3's authoritative basis that has never once been exercised here. It fails on
+engine: the 405 MB `Search_GlyGly.zip` holds `psm.tsv`, `peptide.tsv`, `protein.tsv`, `pepXML` and
+`MSBooster` output — FragPipe, whose adapter is v0.2. **Recorded as excluded and not as absent**,
+because it would pass every gate the moment a FragPipe adapter exists.
+
+**An explanation was proposed, measured, and rejected.** PRIDE marks 11 of 12 `PARTIAL`, and across
+the registered queries the split is **201 `PARTIAL` to 8 `COMPLETE`** — a `PARTIAL` submission is
+not obliged to deposit processed search output, which would neatly explain the zero. **It does not,
+because `PXD018299` is itself `PARTIAL`** and deposits all three of its processed tables anyway. The
+submission type does not predict whether a site table is present, so the hypothesis is recorded as
+falsified rather than carried as a plausible cause.
+
+**What this result is and is not.** It is a statement about **twelve deposits drawn by four
+registered queries**, not about PRIDE. The cap was registered before the run and is not raised here
+to produce a shortlist. Two limits are visible in the run itself: archives beyond three per
+candidate are unlisted, and five went unlisted for `PXD069668`; and a deposit whose site table has a
+name outside MaxQuant's `…Sites.txt` convention is invisible to C0(c), which `PXD076163`'s
+`abundance_single-site_MS2quant_Norm.tsv` shows is a real shape.
 
 ### Deposit and supplementary survey, 2026-08-07
 
