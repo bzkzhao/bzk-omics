@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.71 |
+| Version | 1.72 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -4947,6 +4947,129 @@ route, so it already encodes (e) exactly — all ten `abcde` rows are the ten ab
 chosen, two cells would have had to change in a table this turn is not permitted to edit, which is
 itself a small argument that the record was already written against the reading the gate's text
 supports. The baseline, re-run, widened-draw and re-draw tables all stand unedited.
+
+
+### The MaxQuant matcher, derived from the tool and registered before it was applied, 2026-08-12
+
+**This is instrument implementation, not criteria.** C0(d)'s text is MaxQuant and its settled reading
+makes the filename route decide; *what counts as a MaxQuant filename* is the matcher, the same
+distinction C0(c) and `SITE_TABLE_MARKER` already carry. **No criterion is amended.** C0(a)–(e)
+including (d) and its reading, and C1–C4, are unchanged.
+
+**The danger is the point, so the rule is derived before any deposit is consulted.** Two deposits are
+known to be dropped and known to be MaxQuant. A matcher tuned until they pass would be a matcher
+chosen by the rows it must admit — the move § *Settling C0(d)'s reading rule* undid. So the marker
+list and the match form below come from MaxQuant's documentation, and the consequences are measured
+afterwards and accepted whatever they are.
+
+#### Source
+
+| Claim | Source |
+|---|---|
+| The result tables MaxQuant writes | Cox Labs, *Output Tables* — `https://cox-labs.github.io/coxdocs/output_tables.html` |
+| They are written to `combined/txt` | Cox Labs, *First steps with MaxQuant* — *"All result files will appear in the folder `…\combined\txt` as tab-delimited text files."* |
+| `mqpar.xml` is MaxQuant's parameter file | Cox Labs, *Download & Installation* — *"pre-configure the `mqpar.xml` file in MaxQuant GUI"*; created by `MaxQuantCmd.dll --create new_mqpar.xml` and consumed by `MaxQuantCmd.dll mqpar.xml` |
+
+**`experimentalDesignTemplate.txt` is named nowhere in the pages read and is therefore not
+included**, though it is a name this instrument's author has seen in deposits. That is the rule Step
+1 sets and it is applied against interest.
+
+#### Which documented names are markers, and which are refused
+
+| Documented name | Marker? | Why |
+|---|---|---|
+| `proteinGroups.txt` | **yes** | already; distinctive |
+| `evidence.txt` | **yes** | already; kept unchanged |
+| `modificationSpecificPeptides.txt` | **yes** | already; distinctive |
+| `msms.txt` | **yes** | already |
+| `allPeptides.txt` | **yes** | already |
+| `msmsScans.txt`, `msScans.txt`, `mzRange.txt`, `aifMsms.txt` | **yes — added** | documented `combined/txt` tables, and distinctive: no other tool writes these names |
+| `mqpar.xml` | **yes — added** | see below |
+| `peptides.txt` | **no** | generic — the l.84–85 rule that dropped `summary.txt` and `parameters.txt`. Anybody may write `peptides.txt`, so it carries no evidence |
+| `summary.txt`, `parameters.txt` | **no** | already refused at l.84–85, unchanged |
+| `tables.pdf` | **no** | generic, and not a table |
+| `[modification]Sites.txt` | **out of scope** | `sites.txt` was removed from `ENGINE_MARKERS` deliberately and is not re-admitted here under any spelling |
+
+**The four scan tables are added even though they are unlikely to change anything.** Excluding a
+documented, distinctive marker *because* it would not move a row would be choosing the matcher by its
+consequences, which is the failure this section is written against. They are in because MaxQuant
+writes them.
+
+**`mqpar.xml` is a marker — decided explicitly.** It is MaxQuant's parameter file, no other tool
+writes that name, and it is **file-level**, so it satisfies the settled reading with no project-level
+inference — which is precisely what the declared `softwares` field could not offer. Three things
+follow and are stated rather than discovered later:
+
+1. **It evidences C0(d) without touching C0(c).** A parameter file is not a site-grain table. `.xml`
+   is not in `_TABLE_EXTENSIONS`, so `mqpar.xml` can never become a `processed_file`, a
+   `site_table` or a `site_candidate`. C0(c) is decided by `site_state` alone and is untouched.
+2. **It changes what the marker table means**, from *result tables that evidence the engine* to
+   *filenames that evidence the engine*. The constant's own docstring already says *filename
+   markers*, so the widening is of practice rather than of the stated contract — but it is a real
+   change and is named.
+3. **A deposit carrying only raw files plus `mqpar.xml` will report `maxquant` rather than
+   `no_processed_output`**, because `engine_state` prefers a matched engine over the no-output state.
+   That is a reporting consequence with **no C0 consequence**, since C0(c) is decided separately. How
+   many of the sixty it touches is measured below, not guessed.
+
+#### The match form, bounded in both directions
+
+**Refused: keep `endswith`.** It is defeated by a token appended before the extension —
+`modificationSpecificPeptides_ntermUb.txt` does not end with `modificationSpecificPeptides.txt`.
+
+**Refused: substring.** l.79–82 already records why: `UbPTMs_PTMs_Summary.txt` matched `summary.txt`
+as a substring on this instrument's first run.
+
+**Adopted: token-boundary containment on the stem, with the extension required to match.** For a
+lowercased basename (compression suffix already stripped by `_basename`) and a marker, both split at
+their last `.`: the extensions must be equal, and the marker's stem must occur in the basename's stem
+with a **non-alphanumeric character or a string boundary on each side**.
+
+**This is looser on the right and stricter on the left than `endswith`, and both directions are
+bounded here rather than left to be discovered:**
+
+| Direction | Effect | Examples |
+|---|---|---|
+| **newly admits** | a token appended before the extension, or a marker delimited on both sides | `modificationSpecificPeptides_ntermUb.txt`; `proteinGroups_filtered.txt`; `run1_evidence_final.txt` |
+| **stops admitting** | a marker run into a preceding alphanumeric with no separator | `endswith` admits `foobarproteingroups.txt`; the token form does not |
+
+**What it would falsely admit** is the same class `endswith` already exposes, differently shaped: any
+file whose stem carries a marker as a delimited token and whose extension matches — `my_evidence_table.txt`
+from a non-MaxQuant pipeline would read `maxquant`. `evidence` is the weakest marker on that test and
+is kept only because it is already in force and its removal is not this turn's question.
+
+**What it must not stop admitting is the anchor.** `PXD018299` — already ingested — deposits
+`HAP1_USP18KO_proteinGroups.txt`. The marker is preceded by `_`, a non-alphanumeric, so it still
+matches. **A form that dropped it would be a worse failure than any false positive**, and it is
+pinned by a test that fails if the boundary rule is tightened to exact equality or to prefix-only.
+
+#### The other four engines are out of scope, and the reason is not convenience
+
+`ENGINE_MARKERS`' four non-MaxQuant entries keep `endswith`, unchanged. Three reasons:
+
+1. **C0(d) is the MaxQuant gate.** DIA-NN, FragPipe, Spectronaut and Proteome Discoverer gate
+   nothing — they are v0.2 by C0(d)'s own text. Re-matching them would move recorded `engine_state`
+   cells with no criterion consequence.
+2. **Their markers are structurally different and a token form has no single meaning across them.**
+   `.pdresult` and `.msf` are bare extensions with no stem; `_report.xls` is an extension marker
+   carrying a leading separator, written for `endswith`; `report.pr_matrix.tsv` carries dots inside
+   its stem. One rule across those four shapes would be four rules in a trench coat.
+3. **The defect is demonstrated only for MaxQuant.**
+
+**The exposure named against them is real, pre-existing, and left standing rather than fixed:** under
+`endswith`, `report.tsv` matches any `*_report.tsv` and `peptide.tsv` any `*peptide.tsv`. Recording it
+is not fixing it, and fixing it is not this turn's brief.
+
+#### Predicted, before the rule was applied
+
+| Quantity | Predicted | Reasoning |
+|---|---|---|
+| rows of the sixty changing **engine state** | **6**, band 3–12 | `mqpar.xml` is the only addition likely to move anything. The two disputed rows carry it; how many of the other 48 non-MaxQuant rows do is not knowable from the record. The four scan tables should move **0**, since a deposit carrying `msmsScans.txt` almost certainly carries `msms.txt` already |
+| rows changing **C0 verdict** | **+2, and 0 removals** — 10 → **12** | Only `site=present` rows can pass C0 and there are exactly twelve; ten already pass, so the only possible admissions are `PXD079072` and `PXD027328` |
+| direction | **admission** | but a **removal is mechanically possible** and is named in advance: the left-boundary tightening drops any row whose only MaxQuant marker is run into a preceding alphanumeric. `PXD018299`'s is separator-preceded and safe; the other nine are not checked before the run |
+| rows moving `no_processed_output` → `maxquant` | **0–1** | three rows are `no_processed_output`; a deposit with no tables but a deposited `mqpar.xml` is uncommon |
+
+**No prediction is made about what any C1 scoring would rank; none is performed.**
 
 
 ### Deposit and supplementary survey, 2026-08-07
