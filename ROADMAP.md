@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.76 |
+| Version | 1.77 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -5354,6 +5354,166 @@ survey already carries `has_sdrf` — and the two that failed were both about co
 The half-criterion in 5 was not predicted at all, because the prediction treated each criterion as
 falling whole to one side.
 
+
+
+### How the site tables get retrieved — decided, and nothing fetched, 2026-08-12
+
+**This turn decides the mechanism and retrieves nothing.** No file, direct or archived; no range
+request against any deposit; no extraction, parse or scoring. No code is written for the chosen
+option. The decision and its reasoning are the whole output.
+
+#### The register framed a binary, and it is not one — three corrections before choosing
+
+**(i) A quarter of the objects cost 0.34% of the bytes, and one of the four is the anchor.** The
+register carries the count and the byte total but not the per-candidate breakdown. Over the survey's
+held listings:
+
+| Candidate | Direct K-GG file | Bytes |
+|---|---|---|
+| `PXD079072` | `GlyGlySites.txt` | 102,731 |
+| `PXD018299` | `HAP1_USP18KO_GlyGlyKSites.txt` | 2,759,052 |
+| `PXD027163` | `UbiSite_GlyGly__K_Sites.txt` | 15,802,963 |
+| `PXD027328` | `GlyGly__K_Sites.txt` | 65,992,977 |
+
+**`PXD018299` is the anchor and is already ingested**, so *direct files only* reaches **three new
+candidates**, not four. The remaining seven — `PXD019152`, `PXD032078`, `PXD060435`, `PXD070339`,
+`PXD074949`, `PXD074990`, `PXD075538` — are reachable only through an archive, and `PXD070789` has no
+K-GG table under any option.
+
+**(ii) Five criteria need only the file's first line, which no option in the register accounts for.**
+Criteria **7** (`Ratio mod/base ` present), **8** (sample-name convention) and **11** (design from
+column names) are settled by the **header row** alone, as are **5**'s intensity-family half and
+**6**'s column-name half. Only criteria **1**, **2**, **9** and **6**'s distribution half need the
+values. A header is kilobytes.
+
+**(iii) The range-extraction increment is larger than the register implied and smaller than "new
+code" suggests — read off the parser rather than estimated.** `archive_entries`' loop unpacks
+`nlen, elen, clen` from bytes 28–34 and steps past every other field. Confirmed against archives
+built by `zipfile`: `compressed_size` sits at bytes **20–24** and the local-header offset at bytes
+**42–46**, both already traversed and discarded. **The offset alone does not locate the data**, and
+that is measured rather than argued: forcing a Zip64 entry gives a central extra length of **0**
+against a local extra length of **20**, so computing the data start from the central directory lands
+**20 bytes short**. The local header must be read for its own name and extra lengths. End to end —
+retain the two fields, range-read the local header, compute the data start, range-read
+`compressed_size` bytes, `zlib.decompress(..., -15)` — **reproduces the member exactly**, verified
+offline.
+
+**It is tens of lines, not a component.** The core is fifteen to twenty-five lines over machinery that
+exists: `RangedSession`, the `chunk()` pattern in `archive_entries`, and `zlib` from the standard
+library. **The honest caveat is where it grows**: Zip64 64-bit sizes in the extra field, stored
+(method 0) against deflate (method 8), and refusing encrypted or data-descriptor entries rather than
+mis-reading them. `archive_entries` itself grew four guards for exactly that class, so forty to sixty
+lines plus tests is the realistic figure — still well short of a component.
+
+#### The options, as six
+
+| | Option | Bytes | Code | K-GG coverage |
+|---|---|---|---|---|
+| **(a)** | whole-archive download | **24.61 GB** | exists | 11 of 12 |
+| **(b)** | range extraction of the member | ~ the table | **new, tens of lines** | 11 of 12 |
+| **(c)** | direct files only | **84.7 MB** | exists | 4 of 12 — **3 new** |
+| **(d)** | (c) first, then (a) or (b) | staged | exists, then new | staged |
+| **(e)** | **header-only reads** — added here | **kilobytes** | exists for direct; (b)'s machinery for archived | criteria 7, 8, 11 and two halves |
+| **(f)** | **retrieve nothing** — added here | 0 | none | none |
+
+#### What each option buys, criterion by criterion
+
+**The denominator is 11, not 12, for criteria 1, 2, 6 and 9** — `PXD070789` passes C0(c) on
+`Phospho-STY-Sites.txt` and has no diGly table, so those four are unscorable for it under **every**
+option including a full download. Criteria **3** and **4** are unscorable even with the file under
+every option, so no option moves them. Criterion **10** is already scored at 12 of 12 and 0
+informative.
+
+| Option | criteria 7, 8, 11 + halves of 5, 6 | criteria 1, 2, 9 + 6's distribution |
+|---|---|---|
+| (a) | 11 of 12 | 11 of 12 |
+| (b) | 11 of 12 | 11 of 12 |
+| (c) | 4 of 12, **3 new** | 4 of 12, **3 new** |
+| (e) | 11 of 12 *(4 of 12 if direct-only)* | none |
+| (f) | none | none |
+
+#### C2 cannot operate on a partial score, so (c) is weaker than its byte count suggests
+
+C2 ranks **by C1 points**, breaking ties on *SDRF present*, then *site count ≥ 1,000*, then *smaller
+download*. Three things follow, and they are not about C2's merits — C2 is unchanged:
+
+1. **A partial score is a lower bound per candidate, and lower bounds do not order totals.** A
+   candidate two points behind on the scored criteria can lead by four once the unscored ones are
+   read.
+2. **Under (c), seven candidates would score zero on every table-derived criterion because nothing
+   was read**, not because they do not differ. Rendering an unread criterion as a zero is the shape
+   I15 and I16 forbid everywhere else in this project.
+3. **The tie-breaks make it worse rather than rescuing it.** *SDRF present* is **N for all twelve** —
+   measured, inert. *Site count ≥ 1,000* needs the table. *Smaller download* is the only tie-break
+   the record can settle, and it would rank by which deposit was cheapest to fetch. **Ranking a
+   partial score would select on retrieval convenience**, which is the failure this chain has already
+   undone twice.
+
+**So no ranking happens until the score is complete across the eleven.** (c) and (d) remain usable as
+*retrieval plans*; they are not usable as *selection*.
+
+#### What (a) costs beyond bytes, measured in this container
+
+`df` reports **29 GB available** on the filesystem carrying both the working tree and `~/.bzk-omics`.
+**24.61 GB is 85% of that**, before a single table is extracted, and the writable allowance is fixed
+per session — so the cost is not paid once but on every fresh container. **`PXD019152`'s
+`MaxQUANT_HpH.zip` is 16,993,871,159 bytes, 69% of the archive total on its own**, and holds one K-GG
+table. The ratio is the argument: (a) moves 24.61 GB to read sixteen tables whose own sizes are tens
+of megabytes.
+
+#### What (b) costs beyond the code
+
+**`RangedSession` exists, and nothing in `tests/` exercises the live ranged path** — the parser is
+tested through a fake session, and the guards were verified against constructed archives rather than
+against PRIDE. **A member extractor inherits exactly that gap**: it would be green offline and
+unexercised against the real server until it first runs. That is the same shape as defect 2, where a
+parser returned an empty tuple because a server behaviour no test reproduced. It is a real cost and
+it is not a reason to prefer (a), which carries no equivalent guarantee either — but it means the
+extractor's first live run is a measurement, not a formality.
+
+#### Decided: (b), staged by what each criterion needs, with (e) first. Never (a)
+
+**Chosen: build the range-extraction increment on `archive_entries`, and sequence retrieval by
+criterion need rather than by where the file happens to sit.** Header reads first — settling criteria
+7, 8 and 11 and the two halves across all eleven at kilobytes — then the same machinery for the full
+tables the value criteria need.
+
+**(a) is rejected on capacity, not on weight.** 24.61 GB against 29 GB of a per-session allowance,
+re-paid every container, to read sixteen tables. **(c) alone is rejected because it cannot select** —
+three new candidates chosen by which were cheapest to reach. **(f) is rejected** because criterion 10
+scoring 0 of 12 leaves C1 with nothing measured, and the survey's whole purpose is the contrast the
+unscored criteria carry. **(d) is superseded by the chosen staging**, which stages on the same axis
+the criteria already split along instead of on the accident of archive membership.
+
+**Not chosen by bytes alone, and what the bytes buy is stated:** (e)'s kilobytes buy three whole
+criteria and two halves across eleven candidates; (b)'s further reads buy the four value criteria
+across the same eleven; (a)'s extra 24.5 GB buy **nothing** that (b) does not.
+
+#### This is recorded here rather than as an ADR, on the project's own convention
+
+`decisions/README.md` says an ADR is a numbered, immutable record of a settled choice with what was
+rejected. That much fits. **What does not fit is the subject.** Every record in `decisions/`
+constrains the **platform** — storage, keys, contracts, invariants, statistics, identity. This
+constrains an **operational instrument**: `bzk/deposit_survey.py`, whose own docstring states it is
+not part of the platform and which nothing in `bzk/` imports. An ADR here would be the first about
+something outside the platform.
+
+Second, the whole second-deposit chain — C3's amendments, C0(d)'s reading rule, the matcher, the
+scores and the cost register — is recorded in `ROADMAP.md`, and CLAUDE.md gives each fact one home.
+Splitting this decision into `decisions/` would put half a chain of reasoning in each document.
+
+**If the extractor is later promoted into the platform** — used by ingestion, or living in
+`bzk/http.py` beside the Protocols — **that** is an architectural decision and **that** is when an ADR
+is warranted, on the contract rather than on the survey's retrieval convenience.
+
+**A hard constraint found while considering it, which is not the reason for the choice.** An ADR
+could not have landed green this turn regardless. `tests/test_decision_index.py` pins the directory
+against `decisions/README.md`, and a probe file at `decisions/0026-*.md` — written, tested, removed,
+tree verified clean — failed **three** assertions: the Written-table/directory agreement in both
+directions, `EXPECTED_WRITTEN_ROWS = 24`, and a **pinned status census** that the README does not
+mention. Landing an ADR therefore requires editing `decisions/README.md` and
+`tests/test_decision_index.py`, both out of scope this turn. **The merits decided the placement; the
+probe only confirms nothing was lost by it.** `0026` remains the next free number.
 
 
 ### Deposit and supplementary survey, 2026-08-07
