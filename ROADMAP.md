@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.85 |
+| Version | 1.86 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -6116,6 +6116,95 @@ the held names sits on the one deposit that also carries a discovery marker, so 
 verdict. **The trap the last miss opened was not walked into** — size and entry count decided nothing,
 and the two discovery verdicts rest on a prior ingestion and on a structural multi-modification fact,
 neither of which is a size.
+
+### Pre-registration: the title rule and the duplicate branches, 2026-08-12
+
+**Committed before the twelve project records are read, in its own commit.** Two open questions share
+one input: the design classification left ten of twelve **undetermined** for want of titles, and the
+`PXD060435`/`PXD070339` duplicate cannot be resolved from held bytes, which settle identity and say
+nothing about provenance.
+
+**One title has already been seen and it is disclosed rather than pretended away.** Confirming the
+endpoint answered required reading a record, and `PXD018299`'s was used because its design is already
+established from this repository's own ingestion — so it leaks nothing about the ten that are open.
+Its title begins *"Deep analysis of the USP18-dependent ISGylome and proteome…"*.
+
+#### Rule (a) — design from a title, stated from the designs and not from these deposits
+
+The two designs differ on **whether the analyte set is an input or an output**. A targeted assay
+monitors a pre-specified list of precursors: the analytes are chosen before acquisition. A discovery
+run acquires across the sample without such a list: the analytes are a result. So the rule turns on
+whether a title names something that **entails an inclusion list**, or names a scope or depth strategy
+that **entails there is none**.
+
+**Targeted** — the title names at least one of:
+
+| Class | Terms |
+|---|---|
+| targeted acquisition mode | `PRM`, `SRM`, `MRM`, *parallel reaction monitoring*, *selected reaction monitoring*, *multiple reaction monitoring* |
+| an enumerated analyte set | *a panel of…*, *monitoring of X and Y*, *targeted analysis of <named proteins>* |
+| absolute quantification against spiked standards | `AQUA`, *SIL peptide*, *isotope-labelled standard* |
+
+**Discovery** — the title names at least one of:
+
+| Class | Terms |
+|---|---|
+| acquisition or scope entailing no inclusion list | *shotgun*, *global*, *comprehensive*, *proteome-wide*, *system-wide*, *unbiased*, *deep* |
+| the measured layer named as a whole | *proteome*, *phosphoproteome*, *acetylome*, *transcriptome* |
+| a depth-increasing fractionation strategy | *high-pH*, `HpH`, `SCX`, *off-gel*, *fractionation*, *fractionated* |
+
+**Undetermined** — neither class appears; **or both appear**; or the only design-bearing word's sense
+here is ambiguous.
+
+#### How the rule avoids confirming itself on a selected sample
+
+**Every one of the twelve matched at least one of the thirteen registered query terms**, so their
+titles are a selected sample and any rule built on that vocabulary would confirm itself. The rule
+therefore carries an explicit exclusion:
+
+> **No word or phrase that is, or contains, one of the thirteen registered query terms may serve as a
+> design signal.** That removes `ISG15`, `ISGylome`, `diGly`, `GlyGly`, `K-GG`, `diglycine`,
+> `ubiquitinome`, `ubiquitylome`, *ubiquitin remnant*, *ubiquitination site*, *ubiquitylation site*,
+> `UbiSite` and *ubiquitin GlyGly* from both lists above.
+
+**The clause is symmetric in statement and asymmetric in effect, and that asymmetry is the useful
+part.** It bites the discovery side, because three query terms — `ISGylome`, `ubiquitinome`,
+`ubiquitylome` — are exactly the *-ome* scope words the discovery list would otherwise credit, and a
+fourth, `UbiSite`, is the method name the last turn already rejected on this ground. It bites the
+targeted side not at all, because **no registered query term is a targeted-acquisition word**. So:
+
+- a **targeted** verdict under this rule cannot be an artefact of how the sample was selected;
+- a **discovery** verdict is trustworthy only where it rests on vocabulary the query set does not
+  contain — *proteome*, *deep*, *global*, *shotgun*, fractionation terms — which is why those are
+  listed and the *-ome* words of the anchor domain are not.
+
+`PXD018299`'s title illustrates it: *ISGylome* is excluded, and what would carry the verdict is *Deep*
+and *proteome*.
+
+#### Rule (b) — what each duplicate outcome licenses, written before the evidence
+
+| If the two records… | What follows | What does **not** follow |
+|---|---|---|
+| **share a submitter, publication, or lab** | the leading reading is supported: one derived artefact, one group. They are **not independent** for contrast — scoring both would score one dataset twice | that either should be **excluded** (out of scope), or that one is *the original*; shared provenance is equally consistent with a deliberate paired deposit, two conditions submitted separately off one search |
+| **share none of the three** | the identity needs another explanation — a public re-analysis, a pipeline output attached to the wrong accession, or PRIDE serving one file under two accessions. It becomes a finding about **the archive or the repository**, not about the candidates | that the deposits are the same experiment; unrelated groups can deposit an identical derived file only by one taking the other's |
+
+**What would make them independent candidates despite an identical member — written now, because the
+case against the leading reading should not be composed after the evidence arrives.** The member is
+one file of 17 in the archive, and the archive is one object among each deposit's **75**
+(`PXD060435`) and **2,281** (`PXD070339`) files. **Identical derived output does not entail an
+identical experiment.** If the rest of each deposit differs — different raw files, different counts,
+different organisms — then these are two experiments sharing one derived artefact, and the held file
+counts **already disagree by a factor of thirty**, which is *prima facie* evidence against them being
+one deposit twice.
+
+#### Predicted
+
+| Quantity | Predicted | Reasoning |
+|---|---|---|
+| of the **10 undetermined**, moved off *undetermined* by rule (a) | **5**, band 3–8 | titles in this field commonly carry non-query depth vocabulary — *deep*, *global*, *quantitative*, *proteome* — but roughly as often are plain descriptive phrases naming a biology rather than a method |
+| of those, moved to **targeted** | **0** | K-GG remnant profiling is a discovery technique; the exclusion clause guarantees a targeted verdict would have to come from a genuine acquisition word |
+| `PXD019152`, the conflict case | stays **undetermined** or resolves **discovery** — not targeted | a title describes a study, and `MaxQUANT_PRM` was an *archive* name; a deposit that ran both is unlikely to name only the targeted half in its title |
+| the duplicate branch | **shares a submitter and/or lab** | identical bytes with identical CRC and identical local-header offset is overwhelmingly a same-group artefact; cross-group byte identity requires one group depositing another's exact archive |
 
 ### Deposit and supplementary survey, 2026-08-07
 
