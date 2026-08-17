@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.83 |
+| Version | 1.84 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -5963,6 +5963,38 @@ anywhere*, including on the 17 GB archive, until it was rewritten as `resolved >
 `head -60` on the extraction script's output, which broke its pipe before it wrote its record, so the
 **same** member was extracted a second time for that mechanical reason. One member, twice; no second
 member.
+
+### Experimental design across the twelve, from held evidence only, 2026-08-12
+
+**No network call was made this turn.** Every figure below is parsed out of this document.
+
+**Why it is being asked at all.** The last prediction missed by two orders because it extrapolated a
+member size from the four *direct* K-GG tables, all global diGly experiments, onto an archived member
+from a parallel-reaction-monitoring run. The recorded diagnosis was that the archived set differs in
+experimental **design**, not only in size — and that bears on more than a prediction. C1's rates are
+measured against `PXD018299`, and a targeted assay over a handful of peptides can differ from it on
+every one of them for reasons that say nothing about whether the ontology generalises. **No registered
+criterion asks what produced a deposit's site table**: C0(c) asks only that one exists. **This turn
+measures; it changes no criterion.**
+
+#### Predicted, before classifying
+
+**0 of the twelve classifiable as targeted**, band 0–1, with most **undetermined** and a small number
+**discovery**. What that rests on, stated so the basis can be checked rather than the number:
+
+1. **The held names contain exactly one targeted marker** — `MaxQUANT_PRM` — and it sits on
+   `PXD019152`, which also carries `MaxQUANT_HpH`. A deposit that ran both makes that marker evidence
+   about an **archive**, not about the deposit.
+2. **Nothing else in the held names says targeted.** `search_*`, `txt*`, `PTMH1299_search_results`,
+   `GlyGlySites.txt`, `UbiSite_*`, `HAP1_USP18KO_*` carry no design marker either way.
+3. **Domain**: K-GG remnant profiling is a discovery technique — enrich the remnant, then acquire over
+   the proteome. Targeted PRM on ubiquitination sites exists but is unusual, and would not normally
+   reach a deposit as a `GlyGly (K)Sites.txt` from a global search.
+
+**The prediction deliberately does not use size or entry count**, and naming that is the point: those
+are the tempting deciders, and letting them decide would repeat the exact error being diagnosed. Size
+is a **consequence** of design, not evidence of it — a small global experiment and a large targeted
+one both exist.
 
 ### Deposit and supplementary survey, 2026-08-07
 
