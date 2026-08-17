@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.87 |
+| Version | 1.88 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -6363,6 +6363,98 @@ of them carry are `Ubiquitylome`, `ISGylome`, `ISG15` and *ubiquitination sites*
 the exclusion clause removes. **So the selection effect the clause was written against was real and
 larger than expected**: strip the query vocabulary and almost no method vocabulary remains. The clause
 did its job, and the cost of it doing its job is eight undetermined.
+
+### The shared-artefact rule: consequences registered before the choice, 2026-08-12
+
+**No network call was made this turn.** The duplicate blocks: extracting both spends bytes for
+identical numbers, and scoring both gives one study two entries in any ranking. **This turn decides
+the rule; it extracts nothing and scores nothing.**
+
+#### Is it the only one, and what is the check worth
+
+**Verified over both sets, from the record alone.** Among the twelve archived K-GG members, **11 of 12
+sizes are distinct** and the single repeated value is **2,672,464** — `PXD060435` and `PXD070339`. The
+four direct K-GG tables are **4 distinct of 4** (102,731 / 2,759,052 / 15,802,963 / 65,992,977) and
+**none equals any archived member size**. Over all sixteen objects: **15 distinct of 16, one repeat.**
+
+**What the check is worth: little on its own.** Equal uncompressed size is a weak fingerprint beside
+the CRC-32 and local-header offset that settled this pair, and the directory rows carry **no CRC
+column** — so size equality can only *flag* a pair for a byte-identity check, never establish one. Two
+different tables of the same length are entirely possible.
+
+**Its reach is structural, not measurable.** The sixty-row table's columns are `#`, `Accession`,
+`Files`, `Engine (filename route)`, `Site`, `SDRF`, `Licence`, `Skipped`, `C0 gates met`,
+`Archive read`, `In widened 12` — **no member size**. Member sizes exist only for the sixteen objects
+of the C0 passers, so **the check cannot run over the 48 non-passers at all**: the instrument never
+recorded the fingerprint for them. That is the answer to *is this the only one* — not *no others
+exist*, but *no others are findable from what was recorded*, and no directory is read this turn to
+change it.
+
+#### What each disposition keeps and drops
+
+The consequences are known, so they are on the table rather than deferred. Twelve pass C0, of which
+`PXD018299` is the anchor and a consistency check rather than a candidate.
+
+| | Disposition | Keeps | Drops | Enters C1 measurement |
+|---|---|---|---|---|
+| **(a)** | keep both, flagged | 12 | 0 | 12 — needs something downstream to prevent double-counting |
+| **(b)** | collapse to one entry | 11 entries over 12 accessions | 0 accessions, 1 entry | 11 |
+| **(c)** | drop one, on a tie-break | 11 | 1 — `PXD060435` or `PXD070339` | 11 |
+| **(d)** | drop both | 10 | 2 — both | 10 |
+
+#### (b) and (d) against what the record already says
+
+l.6312–6314: *"The case against the leading reading survives as a fact and is now explained rather than
+refuted. The file counts still differ by a factor of thirty — 75 against 2,281 — so these are two
+deposits of different extent from one study sharing one derived artefact, not one deposit twice."*
+
+**(b) does not survive as written, and is struck rather than repaired in place.** It says *the two
+accessions recorded as one candidate*, which asserts they **are** one candidate. The sentence above
+says they are two deposits — and the larger holds **2,206 files the smaller does not**. Collapsing to
+one entry would have to choose which extent the entry has or blur it, and either way loses what the
+larger deposit holds beyond the shared artefact. Its coherent successor collapses the **artefact**, not
+the candidates, and that is a different proposition, so it is listed below as its own option rather
+than folded back into (b).
+
+**(d) is struck: its stated ground is false here.** The ground offered was *a deposit whose diGly
+output is not its own*. The output **is** the study's own — one submitter, one lab, one study, deposited
+twice. There is no borrowed data to object to. And what (d) would cost if it were re-grounded on
+something else is worth recording: it removes two candidates that may be perfectly good ubiquitomics
+**on a property of the deposit record rather than of the data**.
+
+#### Enumerated beyond the four
+
+| | Disposition | Keeps | Enters C1 measurement |
+|---|---|---|---|
+| **(e)** | measure the artefact once; **both** candidates carry the same C1 result, sharing recorded | 12 | 1 measurement, 2 carriers |
+| **(f)** | **one of the sharing set enters C1 measurement**; the others are recorded as sharing that artefact and are not re-measured | 12, none removed | 11 |
+| **(g)** | do nothing — extract both, let the identical numbers stand | 12 | 12 |
+
+**(g) is the status quo and is named so it is weighed rather than defaulted into**: its cost is exactly
+the two harms that made this block — bytes spent for identical numbers, and one study occupying two
+slots in any ranking.
+
+#### Predicted, before deciding — about my own reasoning
+
+**I expect to choose (f)**, and to reach it by three eliminations rather than by preference:
+
+1. **(a) and (e) require C2 to know that two candidates share a score.** C2 ranks by C1 points with
+   tie-breaks on SDRF, site count and download size; it has no notion of a shared artefact. Both
+   would need a C2 amendment, and C2 is out of scope — so I expect to find them **unavailable rather
+   than merely less good**.
+2. **(b) and (d) are struck above**, on the record's own characterisation.
+3. **(c) and (f) differ in what they say happens to the second accession** — dropped, against recorded
+   as sharing. I expect **(f)** because nothing is removed from the candidate set, which is both what
+   the scope requires and the more honest description: the deposit still passes C0 and is still a real
+   deposit; what it does not get is a second measurement of the same bytes.
+
+**And I expect the tie-break to be extent, selecting the larger deposit.** The reasoning I expect to
+use is that **C1 cannot distinguish them by construction** — every criterion is measured on the
+identical artefact — so the choice cannot be made on C1 grounds at all, and must be made on what the
+deposit offers beyond C1. That is extent.
+
+**If I end elsewhere I will say what moved me.** No prediction is made about what either deposit would
+score.
 
 ### Deposit and supplementary survey, 2026-08-07
 
