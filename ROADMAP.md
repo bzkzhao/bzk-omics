@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.79 |
+| Version | 1.80 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -5675,6 +5675,74 @@ appearing twice (`… == content` and `… session=_RangedSession(blob)) == expe
 once each. **Thirteen, not fourteen, and two doubled rather than three**: the count was measured from
 `sweep()` and cross-checked against `grep` over the file, because `PINNED` is a multiset and a count
 entered wrongly is a hole in the guard rather than a cosmetic slip.
+
+#### Classified: eleven to `PINNED`, none to `INSTANCES`
+
+**The dispositions are not interchangeable.** `PINNED` (l.203) is *reviewed, and not a tautology* —
+a multiset of `(module, normalized source, occurrences)`, keyed that way because *a set cannot see a
+pinned expression duplicated and a count cannot see one swapped for another* (l.198–200). `INSTANCES`
+(l.798) claims the assertion **is** one: it *stays green* under a stated mutation, and the mutation
+plus its `green_scope` are re-run by `test_every_classified_instance_re_runs_its_recorded_evidence`.
+Pass C (l.113) is what admitted most of these — *one side of an `==` contains a call and another side
+is not a literal display*.
+
+**All eleven went red under a mutation, so none is an instance** — and the check applied was stricter
+than the test reddening: for every one, the failure message names **that assertion** rather than
+merely its test, because a test can redden at an earlier line. Three mutations carry them, each aimed
+at what the assertion actually compares: `extract_member` returning `raw[:-1] + b"X"` (length
+preserved, content changed, applied after every guard so nothing refuses); `raw[:-1]` (length
+changed); and field-level mutations of the directory parse — the zip64 write-back removed, the CRC
+read from bytes 12–16, the uncompressed size from 20–24. Each expression's own reason and its
+mutation are recorded beside it in `tests/test_tautology_sweep.py`, one per expression rather than in
+bulk.
+
+**Two separations were measured rather than asserted.** `got == content` and `len(got) == len(content)`
+sit in the same test, and the length-preserving mutation reddens the first and **not** the second —
+which is what shows they are two assertions rather than one and a weaker copy. And the two chained
+comparisons are **one expression each, not several**: a chain is a single `ast.Compare`, so `sides` is
+all three terms and `ast.unparse` records the whole chain. In both chains one conjunct compares the
+parse against `zipfile`'s and the other recomputes independently; **neither conjunct is trivial, but
+only the first exercises our code** — the second checks the reference implementation, which is why it
+is kept rather than dropped.
+
+**Classified by hand first, regenerated second.** The eleven rows were written out with reasons and
+counts, and only then was l.201–202's command run — as a **check**, not a source: the regenerated set
+equals `PINNED` exactly, with nothing unclassified and nothing stale. Regenerating first would have
+pinned all eleven wholesale and produced a green suite with nothing reviewed.
+
+**No `INSTANCES` row was added, so no `green_scope` was written**, and the whole-suite scopes at
+l.786 and l.794 were not added to. `INSTANCES` is unchanged at four rows and re-runs green.
+
+#### Predicted beside measured
+
+| | Predicted | Measured |
+|---|---|---|
+| `PINNED` | **11** | **11** (13 occurrences) |
+| `INSTANCES` | **0** | **0** |
+
+**Hit exactly, and the prediction rested on the instance property rather than on inspection.** No
+expression among the eleven is a tautology, so there is no defect in the tests the extractor turn was
+asked for.
+
+#### The floor
+
+`assert modules >= 31 and asserts >= 1039` → **`asserts >= 1123`**; **modules unchanged at 31**,
+since the extractor's tests went into a module the sweep already counted. Read off `sweep()` rather
+than incremented, and moved for those tests alone.
+
+#### A finding about the sweep, recorded and not fixed
+
+**Pass D's second conjunct cannot be false, so Pass D matches a shape Pass C is written to exclude.**
+Pass C requires a call on one side *and a non-literal on another*. Pass D fires when no side contains
+a call, on `any(side is a Name bound from a call) and bool(non_literal)` — but `_is_literalish`
+returns `False` for **any** `ast.Name`, so whenever the first conjunct holds, the bare name is itself
+in `non_literal` and the second conjunct is satisfied by construction. It can never fail.
+
+The visible consequence is `got == b'body of GlyGly (K)Sites.txt'`: a computed value against a
+**literal display**, which Pass C would have excluded and Pass D admits. That is an over-match
+relative to Pass C's stated principle, not a wrong verdict — the expression is correctly `PINNED`
+either way. **Left alone**: the passes and the matching logic are out of scope here, and a guard that
+over-matches costs a classification while one that under-matches costs a defect.
 
 ### Deposit and supplementary survey, 2026-08-07
 

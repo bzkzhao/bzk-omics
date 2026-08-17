@@ -285,6 +285,98 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "skipped == ('raw_search_output.zip: beyond the limit of 0',)",
             1,
         ),
+        # ── tests/test_deposit_survey.py, the extractor's eleven, classified 2026-08-12 ────────
+        # **Eleven expressions over thirteen occurrences, all `PINNED`, none an instance.** An
+        # instance claim requires the assertion to stay **green** under a mutation of the code it
+        # tests. Every one of these goes red, and the failure message names *that assertion* rather
+        # than merely its test — which is a stricter check than the test reddening, because a test
+        # can redden at an earlier line.
+        #
+        # Three mutations carry them, each aimed at what the assertion actually compares:
+        #   (X) `extract_member` returns `raw[:-1] + b"X"` — length preserved, last byte changed,
+        #       applied after every guard so nothing refuses. Reddens the six content comparisons
+        #       and **not** `len(got) == len(content)`, which is how those two are separated.
+        #   (Y) `extract_member` returns `raw[:-1]` — length changed. Reddens the length check.
+        #   (Z) field mutations of `archive_members`: the zip64 write-back removed, the CRC read
+        #       from bytes 12-16, the uncompressed size read from 20-24.
+        #
+        # 1. `_zip64_values(extra, 2) == [999, real]` (1) — the parser's read of a hand-built extra
+        #    field against the two values packed into it; `999` and `real` are literals bound above
+        #    and the call is on one side only. Made to fail by shortening the comprehension's range.
+        # 2. `extract_member(...) == content` (2) — extracted bytes against the payload written into
+        #    the archive. Twice, and the two are not redundant: one is a stored (method 0) member,
+        #    the other the zip64-sentinel member, so one expression covers two paths. (X).
+        # 3. `extract_member(...) == expected` (2) — `expected` is **`zipfile`'s own read** of the
+        #    same archive, so this compares two implementations rather than two views of one. Twice:
+        #    the zip64 local-extra member and the non-UTF-8 name member. (X).
+        # 4. `extract_member(...bytes(blob)) == expected` (1) — the same shape against the patched
+        #    copy, where the data-descriptor flag is set. Distinct expression because the session is
+        #    built from `bytes(blob)`, not `blob`. (X).
+        # 5. `got == b'body of GlyGly (K)Sites.txt'` (1) — the multi-member test: the right member's
+        #    body against a literal. **Matched by Pass D, not Pass C** — the other side *is* a
+        #    literal display, and Pass D does not exclude that. Kept as a match rather than argued
+        #    away; the asymmetry with Pass C is recorded in `ROADMAP.md` § *Classifying the
+        #    extractor's eleven sweep matches* and deliberately not fixed here. (X).
+        # 6. `got == content` (1) — the large-member test's content check, after its length check.
+        #    (X), which is chosen precisely because it leaves the length assertion green.
+        # 7. `got == zf.read('combined/txt/GlyGly (K)Sites.txt')` (1) — the reference comparison the
+        #    extractor turn declined to rewrite: both sides are calls, one ours and one `zipfile`'s,
+        #    and replacing it with a literal would discard the second implementation. (X).
+        # 8. `len(got) == len(content)` (1) — the same test's length check, and **not** a weaker copy
+        #    of 6: (Y) reddens this and (X) does not, which is the measurement that separates them.
+        # 9. `member.compressed_size == real` (1) — the parser's zip64-resolved size against
+        #    `zipfile`'s `compress_size` for the same entry. Made to fail by removing the write-back.
+        # 10. `member.crc32 == info.CRC == zlib.crc32(content) & 4294967295` (1) — **one expression,
+        #    not two.** A chained comparison is a single `ast.Compare`, so `sides` is all three terms
+        #    and `ast.unparse` records the whole chain. Conjunct one compares our parse against
+        #    `zipfile`'s stored CRC; conjunct two recomputes it from the payload with `zlib`. Neither
+        #    is independently trivial, but **only the first exercises `archive_members`** — the second
+        #    checks the reference implementation, which is why it is kept rather than dropped. (Z).
+        # 11. `member.uncompressed_size == info.file_size == len(content)` (1) — the same chain
+        #    shape, and the same asymmetry: conjunct one is our parse against `zipfile`'s, conjunct
+        #    two is `zipfile`'s record against the input length and tests the reference, not us. (Z).
+        (
+            "test_deposit_survey.py",
+            "_zip64_values(extra, 2) == [999, real]",
+            1,
+        ),
+        (
+            "test_deposit_survey.py",
+            "extract_member('http://x/a.zip', member, session=_RangedSession(blob)) == content",
+            2,
+        ),
+        (
+            "test_deposit_survey.py",
+            "extract_member('http://x/a.zip', member, session=_RangedSession(blob)) == expected",
+            2,
+        ),
+        (
+            "test_deposit_survey.py",
+            (
+                "extract_member('http://x/a.zip', member, "
+                "session=_RangedSession(bytes(blob))) == expected"
+            ),
+            1,
+        ),
+        ("test_deposit_survey.py", "got == b'body of GlyGly (K)Sites.txt'", 1),
+        ("test_deposit_survey.py", "got == content", 1),
+        (
+            "test_deposit_survey.py",
+            "got == zf.read('combined/txt/GlyGly (K)Sites.txt')",
+            1,
+        ),
+        ("test_deposit_survey.py", "len(got) == len(content)", 1),
+        ("test_deposit_survey.py", "member.compressed_size == real", 1),
+        (
+            "test_deposit_survey.py",
+            "member.crc32 == info.CRC == zlib.crc32(content) & 4294967295",
+            1,
+        ),
+        (
+            "test_deposit_survey.py",
+            "member.uncompressed_size == info.file_size == len(content)",
+            1,
+        ),
         # ── tests/test_decision_index.py, classified individually 2026-08-10 ──────────────────
         # Thirteen matches, none an instance, each made to fail by a mutation of the surface it
         # names. Every one is either a computed value against a **pinned literal** or two sets
@@ -963,7 +1055,11 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # expression, so the assertion compared a value to itself. It was removed rather than pinned.
     # That is this module catching a tautology in the same turn it was written, which is the first
     # time it has done so on new code rather than on the audit that created it.
-    assert modules >= 31 and asserts >= 1039, (
+    # 1039 -> 1123 on 2026-08-12, no new module: the extractor's tests in
+    # `tests/test_deposit_survey.py` (the thirty-first module already counted). Read off
+    # `sweep()` rather than incremented, and moved for those tests alone — the `>=` did not
+    # fail on the additions, which is the standing reason this line moves by hand.
+    assert modules >= 31 and asserts >= 1123, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
