@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.84 |
+| Version | 1.85 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -5995,6 +5995,127 @@ measures; it changes no criterion.**
 are the tempting deciders, and letting them decide would repeat the exact error being diagnosed. Size
 is a **consequence** of design, not evidence of it — a small global experiment and a large targeted
 one both exist.
+
+#### The evidentiary limit: no title is held for any of the twelve
+
+**Verified rather than assumed.** The sixty-row table has **no title column** — its header is
+`| # | Accession | Files | Engine (filename route) | Site | SDRF | Licence | Skipped | C0 gates met | Archive read | In widened 12 |`
+— and every occurrence of these accessions elsewhere in this document is a token in a list, a table
+row, or prose about the accession. None carries a deposit title.
+
+**The record does hold titles, and that sharpens the limit rather than softening it.** Six of the
+*baseline* twelve are recorded with theirs — *Proteome-wide identification of ISG15 sites in HeLa
+cells*, *Global ISGylome… SARS-CoV-2*, *Ubiquitinome Profiling… Data-Independent…*, and three more.
+Those six are **disjoint from the twelve here**. So the field was carried when the baseline was
+written and dropped when the sixty were classified.
+
+**`Candidate.title` exists in the module and the CLI prints it**, so this is a field the record
+declined rather than one the instrument lacks. **Recorded as a finding; not fixed, and no title is
+fetched.** The classification below therefore proceeds on circumstantial signals only, and is weaker
+evidence than a title would have been — which is stated here rather than left to be inferred from how
+confidently the table reads.
+
+#### The reconciliation, checked
+
+**4 direct + 7 archived = 11 covered, with no overlap, and `PXD070789` uncovered — twelve in total.**
+Verified by parsing both tables: the four with a direct K-GG table are `PXD018299`, `PXD027163`,
+`PXD027328`, `PXD079072`; the seven with an archived one are `PXD019152`, `PXD032078`, `PXD060435`,
+`PXD070339`, `PXD074949`, `PXD074990`, `PXD075538`. The intersection is empty. So *16 objects*,
+*11 of 12 candidates* and *7 candidates with archives* are three different counts of three different
+things, and they agree.
+
+#### The signals the record actually holds
+
+Beyond the three named — archive and member names, uncompressed size, entry count — the record holds
+three more, and they are enumerated because leaving them out would overstate the scarcity:
+
+| Signal | Where | Use |
+|---|---|---|
+| **`Files` count** per candidate | the sixty-row table | 10 to 10,531; a held quantity, and subject to the same warning as size |
+| **number of archives** per candidate | the twelve-archive table | 1 to 3; `PXD074949` and `PXD075538` carry three each |
+| **run-range markers inside archive names** | `R01R18`, `R19R34`, `R47R64`, `1023_1032` | reads as run or fraction ranges — **a guess about a naming convention**, the class of error that got `raw_`/`_raw` removed from the archive hints |
+| **site tables for more than one modification** | the matcher re-read table | structural, and **not** a size signal |
+
+**Size and entry count decide nothing on their own here.** That is the discipline the last miss
+bought: size is a consequence of design, not evidence of it.
+
+#### Classified: 2 discovery, 0 targeted, 10 undetermined
+
+| Candidate | Verdict | Deciding signal |
+|---|---|---|
+| `PXD018299` | **discovery** | **prior ingestion by this repository** — 2,341 sites → 2,298 after decoys and contaminants → 2,056 after localisation → 1,375 tested. A 2,298-site K-GG dataset is a discovery experiment. The only verdict here resting on a measurement rather than a filename |
+| `PXD027328` | **discovery** | **site tables for two distinct modifications** from one search — `GlyGly__K_Sites.txt` and `Phospho__STY_Sites.txt`, with `modificationSpecificPeptides_ntermUb.txt` — which is a global multi-PTM search. Structural, not size |
+| `PXD019152` | **undetermined — the conflict case** | carries `MaxQUANT_HpH.zip` (high-pH reversed-phase fractionation, a discovery marker) **and** `MaxQUANT_PRM.zip` (parallel reaction monitoring, a targeted marker). **Not resolved by the stronger name.** A deposit that ran both makes each marker evidence about an *archive*, so reading PRM as this deposit's character is as wrong as reading HpH as it |
+| `PXD027163` | **undetermined** | `UbiSite_GlyGly__K_Sites.txt` is suggestive of a proteome-wide enrichment method, but the meaning is supplied from outside the record **and** `UbiSite` is one of the thirteen registered query terms, so the name may reflect the query rather than the method. Two independent weaknesses; it does not settle |
+| `PXD074949` | **undetermined** | three archives named `search_1066_R01R18`, `search_1066_R47R64`, `search_1233_R01R18`. The run-range reading is suggestive of discovery-scale batching and is explicitly **not** decisive |
+| `PXD075538` | **undetermined** | same shape — `search_0995_R01R18`, `search_0995_R19R34`, `search_1023_1032`; same objection |
+| `PXD070339` | **undetermined** | `txt.zip` names the content, not the design. **See the identity finding below** |
+| `PXD060435` | **undetermined** | `txt.zip`, likewise. **See the identity finding below** |
+| `PXD074990` | **undetermined** | `PTMH1299_search_results.zip` — an internal identifier and *PTM*, which C0(c) already establishes |
+| `PXD032078` | **undetermined** | `txt_GlyGlyKsites.zip` names the modification, not the design |
+| `PXD079072` | **undetermined** | one site table and `mqpar.xml`; five `.raw` files with `-40`/`-60`/`-80` variants. Nothing structural either way |
+| `PXD070789` | **undetermined** | 10 files, and separately **no K-GG table at all** — its only site table is phospho. For this candidate the binding limit is the **modification**, not the design |
+
+#### `PXD070339` and `PXD060435` deposit the same archive
+
+**Identical on every held field**: archive size 275,252,853 B, 17 entries, member `txt/GlyGly (K)Sites.txt`,
+compressed 535,252 B, uncompressed 2,672,464 B, **CRC-32 `0xb6226139`**, and **local-header offset
+127,107,162**. A matching CRC on the member together with a matching offset inside the archive is
+decisive for the member and near-decisive for the archive: these are the same bytes under two
+accessions.
+
+**So two of the twelve are not independent candidates**, and that matters beyond design: a contrast
+scored on both would be scored twice against one dataset. Recorded; nothing is admitted, ranked or
+excluded on it.
+
+#### What this means for C1 — recorded, not acted on
+
+**The anchor's figures were measured on a discovery run, and the record says so**: C1's *Tested
+against* column for criterion 1 is **1,896 / 2,298 = 82.5%** and for criterion 9 is **242 / 2,298 =
+10.5%**, both from `PXD018299`'s 2,298 filtered K-GG sites. A denominator of 2,298 is a global
+experiment by construction.
+
+All eleven checked, not only the four value criteria:
+
+| # | Criterion | On a targeted run |
+|---|---|---|
+| 1 | Multi-mapping rate (I14) | **misleading** — over a handful of peptides the rate is dominated by which were chosen, and the 60–95% band is met or missed by accident |
+| 2 | Razor picks that are isoforms (I2) | **self-protected** — its `sample ≥ 20` floor is not met, so it becomes *unscorable* rather than wrong |
+| 3 | Razor pick on TrEMBL despite reviewed (I17) | **self-protected** — same, on `sample ≥ 8` |
+| 4 | `AMBIGUOUS` fold | **self-protected in wording** — it asks for *any non-zero rate over a **comparable** accession sample*, and a targeted accession set is not comparable. The only criterion whose text already carries the guard |
+| 5 | Declared-quantity enum (I16) | **misleading** — a targeted acquisition reports differently by design, so it differs for acquisition reasons rather than ontology ones |
+| 6 | Localisation distribution | **misleading** — in a targeted assay the sites are chosen, so probabilities cluster and the median differs by design |
+| 7 | Native stoichiometry (I4) | **survives** — presence or absence of a `Ratio mod/base` column is a MaxQuant configuration fact, independent of design |
+| 8 | Sample-name convention | **survives** — a convention in kind is independent of design |
+| 9 | Unrecorded threshold | **misleading for the rate**, survives as a yes/no: *did the deposit pre-filter* is answerable; *what fraction it dropped* depends on a score distribution that depends on design |
+| 10 | SDRF present | **survives** — a metadata fact, already measured N for all twelve |
+| 11 | Design recoverable from column names | **survives**, and asks a different question: whether design is *recoverable*, not which design it is |
+
+**Five misleading (1, 5, 6, 9), three self-protected (2, 3, 4), four surviving (7, 8, 10, 11)** — and
+criterion 9 sits in both columns, misleading as a rate and sound as a yes/no.
+
+**The gap is real but narrower than it first looks**, and that is the finding rather than a call for a
+gate. Two of C1's four value criteria refuse themselves on a small sample through floors already
+written into their bands, and a third refuses itself through the word *comparable*. What is exposed is
+criteria **1, 5, 6** and the rate half of **9** — four measurements out of eleven — and only on a
+deposit that is actually targeted, of which **this turn found none**.
+
+**No criterion is amended.** Whether design should be a gate is a criteria decision with its own
+consequences to write down first, and settling it inside the turn that found the gap is the shape this
+project has undone twice.
+
+#### Predicted beside measured
+
+| Quantity | Predicted | Measured | |
+|---|---|---|---|
+| classifiable as **targeted** | **0**, band 0–1 | **0** | hit |
+| shape | most undetermined, a small number discovery | **10 undetermined, 2 discovery** | hit |
+
+**The prediction held, and it held for the reason it was registered on**: the one targeted marker in
+the held names sits on the one deposit that also carries a discovery marker, so it never became a
+verdict. **The trap the last miss opened was not walked into** — size and entry count decided nothing,
+and the two discovery verdicts rest on a prior ingestion and on a structural multi-modification fact,
+neither of which is a size.
 
 ### Deposit and supplementary survey, 2026-08-07
 
