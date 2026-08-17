@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.81 |
+| Version | 1.82 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -5767,6 +5767,77 @@ The visible consequence is `got == b'body of GlyGly (K)Sites.txt'`: a computed v
 relative to Pass C's stated principle, not a wrong verdict — the expression is correctly `PINNED`
 either way. **Left alone**: the passes and the matching logic are out of scope here, and a guard that
 over-matches costs a classification while one that under-matches costs a defect.
+
+### Pre-registration: the extractor's first live use, 2026-08-12
+
+**Committed before any live call, in its own commit.** The extractor is offline-tested and has never
+read a PRIDE archive. This turn is deliberately minimal — **read central directories, then extract
+exactly one member** — because every first live contact on this project has produced a finding, and
+doing twelve at once would mix first-contact failures with data.
+
+**A precision about what is and is not first contact.** `archive_members` is the parse that
+`archive_entries` now projects, and *that* parse has already read PRIDE archives live: 18,124 entry
+names came off them during the survey runs. What has never been read live is the set of fields this
+record added — method, flags, CRC-32, both sizes, the local-header offset — and `extract_member`
+entirely. So Step 3 is first contact for the **new fields**, not for the walk.
+
+**The archive host was confirmed answering first**:
+`https://ftp.pride.ebi.ac.uk/pride/data/archive/2022/02/PXD018299/` → `HEAD 200`,
+`Accept-Ranges: bytes`, and a ranged `GET` → **206** with an exact `Content-Range` over a
+2,085,098,293-byte file.
+
+#### The size threshold
+
+**100,000,000 bytes uncompressed** is the largest member this turn will extract. Set from the direct
+K-GG tables already priced: the largest is 66 MB, so 100 MB covers a typical site table with margin,
+and it bounds the turn without being generous enough to matter against ~29 GB of free disk. **If the
+smallest available K-GG member exceeds it, nothing is extracted** — the threshold is recorded, the
+size is recorded, and the turn stops rather than raising the number to fit what it found.
+
+#### What counts as success for the single extraction
+
+Four things, all of them checks the code already makes or that this turn adds around it:
+
+1. **The CRC-32 verifies.** `extract_member` raises otherwise, so a returned value *is* a verified one.
+2. **The inflated length equals the declared uncompressed size** — a separate guard from the CRC.
+3. **The first line parses as a tab-separated header with more than one column**, which is what makes
+   the bytes a readable table rather than merely correct.
+4. **Nothing persists.** No file under `raw/`, none under `data/curation/`, nothing in the
+   content-addressed store: the member is held in memory and dropped.
+
+#### What counts as a finding rather than a failure
+
+**A guard raising is evidence about the format or the server, not necessarily a defect.** Each of the
+guards points somewhere different, and the distinction is registered now so it is not decided after
+seeing which fired:
+
+| Raise | Evidence about |
+|---|---|
+| ranged request answered 200 | the **server** — it ignored `Range` |
+| no end-of-central-directory in the tail | the **archive** — a trailing comment longer than 64 KiB |
+| zip64 declared with no locator | the **archive** — a malformed end record |
+| parsed count ≠ declared, or short directory | **truncation**, server or transfer |
+| local header not at the offset, or naming another member | the **archive** — a central directory that does not agree with itself |
+| unsupported method, encrypted, directory entry | the **member** — outside what the extractor supports, by design |
+| CRC-32 mismatch | **bytes that are wrong**, which is the only one that would indicate the extractor itself is broken |
+
+**Only the last is a defect in this code on its face.** The rest are findings about what PRIDE
+actually serves, and each is recorded with the accession, the archive, the guard and the bytes.
+
+#### Predictions, from the host and the format rather than from the test suite
+
+The offline suite establishes the code is right about `zipfile`; that is not the same as being right
+about PRIDE, so none of these rests on it.
+
+| Quantity | Predicted | Rests on |
+|---|---|---|
+| of the **12 archives**, directories reading with **no guard raising** | **12** | the same walk has already read PRIDE archives live at scale during the survey; the host answers 206 with exact ranges, measured minutes ago |
+| archives showing **Zip64 sentinels** | **exactly 1** | only `MaxQUANT_HpH.zip` at 16,993,871,159 bytes exceeds the 32-bit ceiling; the other eleven are ≤ 2.28 GB, and none is likely to carry >65,535 entries |
+| the **smallest** K-GG member, uncompressed | **~10^7 bytes**, band 10^6–10^8 | the direct K-GG tables measure 0.10, 2.76, 15.8 and 66 MB, so a few megabytes is the shape of the small end |
+| compression method of the K-GG members | **8 (deflate)** throughout | text tables, and deflate is what every archiver defaults to |
+
+**No prediction is made about what any column header will contain**, and no C1 criterion is scored
+this turn.
 
 ### Deposit and supplementary survey, 2026-08-07
 
