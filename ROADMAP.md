@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.88 |
+| Version | 1.89 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -6455,6 +6455,102 @@ deposit offers beyond C1. That is extent.
 
 **If I end elsewhere I will say what moved me.** No prediction is made about what either deposit would
 score.
+
+#### Decided: (f) — one measurement per artefact, nothing removed
+
+**The rule, stated without naming any accession.** If it needed them it would not be a rule.
+
+> **Shared-artefact deduplication.** Where two or more candidates in the drawn set carry a
+> **byte-identical derived artefact** — identical member name, compressed size, uncompressed size and
+> **CRC-32** — exactly **one** enters C1 measurement. It is the candidate of **greatest extent by file
+> count**; ties break on the earlier submission date, and then on the lexically first accession, so the
+> choice is total. The others are **recorded as sharing that artefact** and are not re-measured.
+> **Identity is established on the artefact — never on the submitter, the lab, the title or the
+> publication.**
+>
+> **Size equality is a screen, not the trigger.** Equal uncompressed size flags a pair for the
+> byte-identity check; the check itself needs the CRC-32, which the directory read already yields. A
+> pair that survives the screen and fails the CRC comparison is **not** a shared artefact.
+
+#### Why (a) and (e) are unavailable rather than merely worse
+
+Both keep two candidates carrying one measurement, so both need the **ranking** to know that two
+entries are one study. C2 is *Rank by C1 points*, with tie-breaks on SDRF present, then site count
+≥ 1,000, then smaller download. It has no notion of a shared artefact, and on this pair its tie-breaks
+would not even separate them usefully: **SDRF is N for both**, and **site count comes from the identical
+table**, so the first two are inert and the third — smaller download — would order one study's two
+accessions adjacently at whatever rank the score earned. **Expressing (a) or (e) therefore requires
+amending C2, which is out of scope.** They are ruled out by availability, not by taste.
+
+#### Why (f) over (c)
+
+They differ only in what happens to the second accession — *dropped*, against *recorded as sharing*.
+**(f) is substantively better, not gentler.** Under (c) the accession leaves the candidate set and a
+later reader sees eleven with no trace of the twelfth or of why; under (f) twelve remain and the
+sharing is recoverable from the record. That is this project's standing discipline — **flag rather than
+hide** — applied to a candidate set rather than to a result. It also keeps the deposit's own C0 verdict
+intact, which is true of it: it passes C0, and what it does not get is a second measurement of the same
+bytes.
+
+#### The tie-break, and why it cannot be a C1 ground
+
+**C1 cannot distinguish the two by construction.** Every criterion that needs data is measured on the
+artefact, and the artefact is identical, so **any C1-based tie-break is a coin toss dressed as a
+reason**. The choice therefore has to be made on what the deposit offers *beyond* C1 — and that is
+**extent**: the larger holds 2,206 files the smaller does not, and if the shared part is measured once
+either way, preferring extent maximises what remains testable when the deposit is eventually ingested.
+
+**On this pair the rule selects the 2,281-file deposit — and three other plausible tie-breaks all
+select the other one.** Submission date favours the 75-file deposit (2025-02-03 against 2025-11-05);
+publication attachment favours it; and **C2's own third tie-break, smaller download, favours it too.**
+The rule going against all three is the strongest available evidence that it was not chosen for whom it
+favours. It also avoids two grounds the record has already declined: *therefore one is the original*,
+which the earlier record withheld, and the publication attachment, which is unreliable here because the
+reference line on one deposit uses **the other's** title wording.
+
+#### The generalisation test, run explicitly
+
+| Pair | Shared submitter? | Common member size | Rule fires? | Correct? |
+|---|---|---|---|---|
+| the data duplicate | yes, `3563926` | **2,672,464** | **yes** | yes — one artefact, one measurement |
+| the control pair | yes, `111980178` | **none** — `105,317`/`124,642`/`533,887` against `70,631`/`328,913`/`354,273` | **no** | yes — different studies, different archives, both measured |
+
+**A submitter-keyed rule would fire on both pairs and be wrong about the second.** That is why the rule
+keys on the artefact and names the submitter only as something it must *not* use. The control pair is
+what makes that testable rather than asserted.
+
+#### Where the rule lives: the survey's method, not a criterion
+
+**It is not a criterion, and the reason is what criteria do here.** C0 decides **admissibility** — both
+deposits still pass every gate, and neither verdict changes. C1 is the **contrast criteria and their
+bands** — untouched; what changes is how many times they are evaluated, not what they measure or where
+their bands sit. C2 **ranks what it is given** — unamended, and it receives one entry per artefact
+rather than being taught about duplicates. C3 is **survey size** — the draw, the cap and the twelve
+passers all stand.
+
+**C4 is labelled *method*, and this is still not a C4 amendment.** Read at `3974cc0`, C4's content is
+narrow: classification is decided by the type-prefix stamp and **never** by the presence of a
+statistics column; engine and grain are read from the file listing; and **no bytes are retained**. A
+deduplication step is neither a classification method nor a retention policy, so it sits beside C4
+rather than inside it.
+
+**So it is recorded here as a step in the survey's method**: a rule about what the survey *does* with
+its own output between passing C0 and measuring C1. **Nothing is removed from any earlier table** — the
+candidate set as recorded stands, and what changes is only what a later turn measures.
+
+#### Predicted beside chosen
+
+| | Predicted | Chosen |
+|---|---|---|
+| disposition | **(f)** | **(f)** |
+| route | by elimination: (a)/(e) unavailable on C2, (b)/(d) struck | **as predicted** |
+| tie-break | **extent**, on the ground that C1 cannot distinguish them | **as predicted** |
+
+**Nothing moved me, and that is worth one sentence of scepticism rather than satisfaction**: the
+prediction and the decision were written by the same reasoning in the same turn, so their agreement
+tests only that the reasoning was stable, not that it was right. What carries weight instead is that
+the rule fires on the duplicate and not on the control, and that its tie-break selects against the
+three readings that had priority, publication and C2's own tie-break behind them.
 
 ### Deposit and supplementary survey, 2026-08-07
 
