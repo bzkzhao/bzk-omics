@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.86 |
+| Version | 1.87 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -6205,6 +6205,164 @@ one deposit twice.
 | of those, moved to **targeted** | **0** | K-GG remnant profiling is a discovery technique; the exclusion clause guarantees a targeted verdict would have to come from a genuine acquisition word |
 | `PXD019152`, the conflict case | stays **undetermined** or resolves **discovery** — not targeted | a title describes a study, and `MaxQUANT_PRM` was an *archive* name; a deposit that ran both is unlikely to name only the targeted half in its title |
 | the duplicate branch | **shares a submitter and/or lab** | identical bytes with identical CRC and identical local-header offset is overwhelmingly a same-group artefact; cross-group byte identity requires one group depositing another's exact archive |
+
+#### What PRIDE supplies, and what it does not
+
+Read directly from `{API}/projects/{accession}`, twelve records, **not** through `classify` — that
+calls `file_names` and `expand_archives`, so a `classify` per candidate would have meant twelve
+accessions of archive work for a metadata read, and would have broken this turn's own
+no-archive-read line.
+
+| Field | Key present | Non-empty |
+|---|---|---|
+| `title` | 12/12 | **12/12** |
+| `submitters` | 12/12 | **12/12** |
+| `labPIs` | 12/12 | **12/12** |
+| `submissionDate` | 12/12 | **12/12** |
+| `publicationDate` | 12/12 | **12/12** |
+| `references` | 12/12 | **6/12** |
+| `doi` | 12/12 | **0/12** |
+
+**So PRIDE supplies four of the five fields wanted and `doi` for none of the twelve.** Publication is
+carried by `references` where it is carried at all — a free-text `referenceLine` plus a `pubmedID` —
+and for half the sample it is absent. `Candidate` carries none of `submitters`, `labPIs`, `doi`,
+`references`, `submissionDate` or `publicationDate`, and `classify` reads six fields off the project
+record without them; verified at `b531a32`.
+
+**This was a throwaway read and the module was not extended, deliberately.** The turn scores nothing,
+and three of the four fields it needed exist for rule (b) alone — adding them to `Candidate` would put
+a contract change in a turn whose only consumer is a record. **The values live in the three tables
+below**, which is said explicitly so they are not dropped a third time.
+
+#### The twelve titles
+
+| Accession | Title, as PRIDE returns it |
+|---|---|
+| `PXD079072` | A dual-anchoring mechanism for the hemimethylated CG-guided  histone ubiquitylation |
+| `PXD075538` | Deciphering NAC53, NAC78 interactome in response to Pst infection; NAC53, NAC78, MDP25 subcellular interactomes and identifying ubiquitination sites of NAC53 and NAC78 upon HRD1 E3 ligase mediated ubiquitination. |
+| `PXD070339` | Enhanced STEAP4 Ubiquitination in Obesity: Insights from Combined Proteome and Ubiquitylome Analysis of Visceral Adipose Tissue |
+| `PXD074990` | Ubiquitin substrates were identified in SILAC-labeled H1299 wild-type and MPND KO cells using LC-MS/MS. |
+| `PXD027328` | Deubiquitinating enzymes and the proteasome regulate unique sets of ubiquitin substrates. |
+| `PXD074949` | Identification of P-body components by proximity labeling and IP-MSMS |
+| `PXD027163` | The inflammation repressor TNIP1 is degraded by selective autophagy in a LIR-dependent manner upon TLR3 activation |
+| `PXD032078` | Proteomics-based identification of ISG15 modification sites in vivo upon Coxsackie virus infection |
+| `PXD019152` | DDI2 is a ubiquitin-directed endoprotease, responsible for cleavage of transcription factor NRF1 |
+| `PXD018299` | Deep analysis of the USP18-dependent ISGylome and proteome unveils important roles for USP18 in tumour cell antigenicity and radiosensitivity |
+| `PXD070789` | DUSP26 protects against acute kidney injury by dephosphorylating p53 at serine 312 |
+| `PXD060435` | Enhanced STEAP4 ubiquitination in Obesity: Insights from Integrated Proteome and Ubiquitylome Analysis of Visceral Adipose Tissue |
+
+#### Re-classified under rule (a)
+
+| Accession | Previous | Under rule (a) | Deciding words | Why |
+|---|---|---|---|---|
+| `PXD079072` | undetermined | undetermined | — | no term from either list |
+| `PXD075538` | undetermined | undetermined | — | *interactome* is the measured layer as a whole but is **not a listed term**, and *identifying … of NAC53 and NAC78* is not *monitoring of* / *targeted analysis of* |
+| `PXD070339` | undetermined | **discovery** | **Proteome** | the one listed discovery term present |
+| `PXD074990` | undetermined | undetermined | — | *SILAC* is **not** the targeted list's *SIL peptide* — see the rule defect below |
+| `PXD027328` | discovery | discovery | — | the title adds nothing; the verdict stands on the **structural** signal, two site tables for distinct modifications |
+| `PXD074949` | undetermined | undetermined | — | *proximity labeling*, *IP-MSMS* are enrichment, not depth |
+| `PXD027163` | undetermined | undetermined | — | names a biology, no method term |
+| `PXD032078` | undetermined | undetermined | — | *Proteomics-based* names a discipline, not a scope; `ISG15` excluded as a query term |
+| `PXD019152` | undetermined | undetermined | — | **the conflict case stays open** — the title names no acquisition at all, so `PRM` remains an *archive* name and never becomes a deposit verdict |
+| `PXD018299` | discovery | discovery | **Deep**, **proteome** | already discovery from ingestion; the title now **independently corroborates** it |
+| `PXD070789` | undetermined | undetermined | — | *dephosphorylating p53 at serine 312* is the finding, not an inclusion list |
+| `PXD060435` | undetermined | **discovery** | **Proteome** | the one listed discovery term present |
+
+**Two verdicts changed, both to discovery, both on the same word — and both belong to the one study.**
+`PXD070339` and `PXD060435` are the duplicate pair, so rule (a) resolved **one study**, not two
+candidates. **Eight of twelve remain undetermined**; discovery stands at four, targeted at **zero**.
+
+#### Two defects in the pre-registered rule, found by applying it
+
+1. **`SILAC` near-collides with the targeted list's `SIL peptide`.** SILAC is whole-proteome metabolic
+   labelling — a discovery technique — while a spiked SIL peptide is a targeted one. A careless
+   application of the rule as written would have classified `PXD074990` **targeted** on a string
+   match. The rule should have said *spiked synthetic standard*; it said *SIL peptide*.
+2. **The term lists are not exhaustive of the classes they illustrate**, and applying the rule forced
+   a choice the rule did not state: does the **list** govern, or the **class**? *interactome* is a
+   measured layer named as a whole and is not listed; *Proteomics-based* names a discipline, not a
+   scope. **Resolved as list-governs**, to keep the rule reproducible by another reader, at the cost
+   of leaving `PXD075538` and `PXD032078` undetermined. *Proteomics* against *proteome* is the closest
+   near-miss, and a substring rule would have caught it — which is exactly the rule the matcher turn
+   rejected, so the strictness here is consistent rather than arbitrary.
+
+#### The duplicate, resolved: branch one
+
+**Same submitter, same lab, same study.** `PXD060435` and `PXD070339` both carry submitter **Yuhao
+Li**, identifier `3563926`, one email and one institution — Army Medical University (Third Military
+Medical University), Chongqing. The `labPIs` entry names the same person under **two different
+identifiers**, `3101129` and `3315110`, with differing affiliation strings, so PRIDE holds two PI
+records for one person.
+
+**The titles differ in one word.** *Enhanced STEAP4 ubiquitination in Obesity: Insights from
+**Integrated** Proteome and Ubiquitylome Analysis of Visceral Adipose Tissue* against *…from
+**Combined** Proteome and Ubiquitylome Analysis…*.
+
+**So branch one holds: they are not independent for contrast purposes** — the identical `txt.zip` is
+the diGly search output that criteria 1, 2, 6 and 9 would be measured on, and scoring both would score
+one dataset twice.
+
+**What the pre-registered rule said would not follow, and does not.** Neither is excluded — that is
+out of scope and criteria-adjacent. And **neither is named the original**, though the asymmetries are
+recorded as facts: `PXD060435` was submitted earlier (2025-02-03 against 2025-11-05) and carries the
+publication, while `PXD070339` carries none — and the publication attached to `PXD060435` uses
+`PXD070339`'s wording, *Combined*, in its own reference line. Those are facts; *therefore one is the
+original* is the inference rule (b) pre-registered as not licensed.
+
+**The case against the leading reading survives as a fact and is now explained rather than refuted.**
+The file counts still differ by a factor of thirty — 75 against 2,281 — so these are two deposits of
+different extent from one study sharing one derived artefact, not one deposit twice.
+
+#### A second shared submitter, which was not being looked for
+
+**`PXD075538` and `PXD074949` share submitter identifier `111980178`** — found by checking the twelve
+records already read, at no further cost. Their titles are **different studies** (*Deciphering NAC53,
+NAC78 interactome…* against *Identification of P-body components by proximity labeling and IP-MSMS*)
+and their archives differ.
+
+**That pair is the control the first one needed**: shared submitter **alone** does not imply shared
+data. Two of the twelve share an archive and a study; two more share only a person. **Four of twelve
+sit in a same-submitter pair**, and only one pair is a data duplicate. Recorded; nothing excluded.
+
+#### Dates, and C0(a) left open on purpose
+
+| Accession | Submitted | Published | References |
+|---|---|---|---|
+| `PXD079072` | 2026-05-30 | 2026-05-30 | 0 |
+| `PXD075538` | 2026-03-12 | 2026-03-23 | 0 |
+| `PXD070339` | 2025-11-05 | 2025-11-26 | 0 |
+| `PXD074990` | 2026-02-27 | 2026-05-15 | 0 |
+| `PXD027328` | 2021-07-15 | 2022-05-23 | 1 |
+| `PXD074949` | 2026-02-26 | 2026-03-17 | 0 |
+| `PXD027163` | 2021-07-07 | 2022-08-07 | 0 |
+| `PXD032078` | 2022-03-05 | 2024-05-23 | 1 |
+| `PXD019152` | 2020-05-13 | 2020-06-24 | 1 |
+| `PXD018299` | 2020-03-31 | 2022-02-15 | 1 |
+| `PXD070789` | 2025-11-16 | 2026-02-15 | 1 |
+| `PXD060435` | 2025-02-03 | 2026-01-23 | 1 |
+
+**All twelve carry a submission and a publication date, all in the past.** So the records **do** make
+C0(a) answerable — and it is **not** answered here. The deferral asks that it not be settled as a side
+effect of reading dates for another purpose, and evaluating *public, not embargoed* against ADR-0016's
+embargo fields is a different check from observing that PRIDE reports a publication date. The dates
+are recorded; the gate stays open.
+
+#### Predicted beside measured
+
+| Quantity | Predicted | Measured | |
+|---|---|---|---|
+| of the 10 undetermined, moved off *undetermined* | **5**, band 3–8 | **2** | **missed, below the band** |
+| of those, moved to **targeted** | **0** | **0** | hit |
+| `PXD019152`, the conflict case | not targeted | **undetermined** | hit |
+| duplicate branch | shares submitter and/or lab | **shares both** | hit |
+
+**The miss is evidence about what a PRIDE title in this domain is for.** The prediction assumed method
+vocabulary would be present independently of the query terms. It largely is not: these titles name
+**biology** — a mechanism, a protein, a disease, a tissue — and the only design-suggestive words most
+of them carry are `Ubiquitylome`, `ISGylome`, `ISG15` and *ubiquitination sites*, every one of which
+the exclusion clause removes. **So the selection effect the clause was written against was real and
+larger than expected**: strip the query vocabulary and almost no method vocabulary remains. The clause
+did its job, and the cost of it doing its job is eight undetermined.
 
 ### Deposit and supplementary survey, 2026-08-07
 
