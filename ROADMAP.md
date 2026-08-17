@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.78 |
+| Version | 1.79 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -5651,6 +5651,30 @@ tests are on the working branch, `ruff check`, `ruff format --check` and `mypy` 
 suite is green but for that one test. **It is not fast-forwarded onto `main`**, because a red suite
 on `main` is exactly what the sweep exists to prevent.
 
+
+### Classifying the extractor's eleven sweep matches, 2026-08-12
+
+**The extractor turn stopped rather than weakening the assertions the sweep flagged. This turn
+classifies them.** No assertion in `tests/test_deposit_survey.py` is rewritten: comparing the
+extractor's output against `zipfile`'s own read **is** the reference check those tests exist for, and
+replacing it with a literal display would discard the second implementation that makes it evidence.
+
+#### Predicted, before any expression was classified
+
+**11 to `PINNED`, 0 to `INSTANCES`.** The reasoning is the instance property itself: an `INSTANCES`
+row claims the assertion *stays green* under a mutation of the code it purports to test. Every one of
+the eleven compares the extractor's or the parser's output against either `zipfile`'s independent
+read of the same archive or a value computed without touching the code under test, so mutating that
+code should break them rather than leave them green. **If any one of the eleven is genuinely an
+instance, that is a defect in a test the previous turn was asked for, and it will be said plainly.**
+
+#### The surface, measured rather than taken
+
+`sweep()` reports **31 modules, 1123 asserts**, and **11 new expressions over 13 occurrences** — two
+appearing twice (`… == content` and `… session=_RangedSession(blob)) == expected`), the other nine
+once each. **Thirteen, not fourteen, and two doubled rather than three**: the count was measured from
+`sweep()` and cross-checked against `grep` over the file, because `PINNED` is a multiset and a count
+entered wrongly is a hole in the guard rather than a cosmetic slip.
 
 ### Deposit and supplementary survey, 2026-08-07
 
