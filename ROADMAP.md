@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.77 |
+| Version | 1.78 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -5514,6 +5514,142 @@ directions, `EXPECTED_WRITTEN_ROWS = 24`, and a **pinned status census** that th
 mention. Landing an ADR therefore requires editing `decisions/README.md` and
 `tests/test_decision_index.py`, both out of scope this turn. **The merits decided the placement; the
 probe only confirms nothing was lost by it.** `0026` remains the next free number.
+
+
+### The member extractor, built and stopped at the tautology sweep, 2026-08-12
+
+**Nothing real was extracted.** No deposit file was fetched, no network call was made to any host,
+and every test serves archives built here by `zipfile`. **Nothing was pre-registered**, and the
+reason is that this turn produces no number comparable against a recorded one: every new test fails
+before the code exists, which is trivial rather than informative, and mutation-firing is an
+obligation this project already imposes rather than a quantity to forecast.
+
+#### Where the offsets come from
+
+Verified against archives built by `zipfile`, reading each field and comparing it to what `zipfile`
+itself reports for the same entry — not taken from a summary. The central-directory file header:
+
+| Field | Bytes | Read before? |
+|---|---|---|
+| general-purpose flags — bit 0 encrypted, bit 3 data descriptor, bit 11 UTF-8 name | 8–10 | no |
+| compression method — 0 stored, 8 deflate | 10–12 | no |
+| CRC-32 | 16–20 | no |
+| compressed size | 20–24 | no |
+| uncompressed size | 24–28 | no |
+| name / extra / comment lengths | 28–34 | **yes — the only fields the parser read** |
+| local-header offset | 42–46 | no |
+
+**The local header must be read even so, and that is measured rather than argued.** It carries its
+**own** name and extra lengths, and they need not match the central record's: a zip64 entry gives a
+central extra length of `0` against a local `20`, so a data start computed from the central directory
+lands twenty bytes inside the member. Mutating the extractor to use the central figure fails
+`test_the_local_headers_own_extra_length_locates_the_data`.
+
+#### How a member is identified, and why that decided the shape
+
+**`archive_entries` decodes names `"utf-8", "replace"`.** A member whose name is not valid UTF-8 —
+the format permits it; bit 11 clear means the bytes are in the writer's own code page — comes back
+carrying replacement characters. An extractor selecting by *that string* could fail to match its own
+central record, or match the wrong entry where two raw names mangle alike. **That is an
+identification failure between the two functions, and worse than a refusal.**
+
+**Measured against real data before deciding**: of **18,124** archive-derived entry names in the
+survey's held listings, **0** carry U+FFFD and **0** carry any non-ASCII character at all. So the gap
+is **real in the format and unobserved in this sample** — which is evidence about the sample, not a
+proof it cannot fire.
+
+**Three shapes were available and a record type was chosen.** `archive_entries` has **one**
+production call site — `expand_archives`, which consumes names only — and eight in tests.
+
+| Shape | Rejected because |
+|---|---|
+| extend `archive_entries`' return type | makes the survey path carry records it has no use for, and changes a contract nine call sites are written against |
+| a parallel function returning records | **two parses of the same central directory**, each needing its own copy of the four guards, and two copies drift — the duplication CLAUDE.md's one-home rule exists to stop |
+| **a record type, chosen** | one parse; `archive_entries` becomes `tuple(m.name for m in archive_members(...))`; and the extractor takes the **record**, so it never parses a name |
+
+**The choice was not made on call-site count** — the record type happens to touch fewest, but the
+reason is one parse and exact identification. **It dissolves the identification guard rather than
+adding one**: `ArchiveMember` carries `name_bytes` beside `name`, so nothing selects by the decoded
+string, and the local header's name bytes are compared against the central record's to prove the
+extractor is at the right member.
+
+#### What refuses and what handles
+
+| | Behaviour |
+|---|---|
+| **stored (method 0)** | **handled** — a legitimate method; refusing it would fail on a real archive for no reason |
+| **deflate (method 8)** | **handled** — `zlib.decompress(..., -15)` |
+| any other method | **refused**, naming the method number |
+| **encrypted** (flag bit 0) | **refused** |
+| **data descriptor** (flag bit 3) | **handled** — it makes the *local* header's sizes and CRC placeholders, and nothing here reads those; they come from the central record, which is authoritative under bit 3. Only the local name and extra *lengths* are read, and bit 3 does not touch them |
+| **zip64 sizes** | **handled** — where a 32-bit field reads `0xFFFFFFFF` the value comes from the extra field. `MaxQUANT_HpH.zip` at 16,993,871,159 bytes is past the 32-bit ceiling, so this is certain for it rather than contingent |
+| a name that does not round-trip | **not a case** — selection is by record, so the decode never participates |
+
+**Five guards beyond the list, each found by construction rather than by design:**
+
+| Guard | Detects |
+|---|---|
+| local header signature is not `PK\x03\x04` | the central directory points somewhere that is not a member |
+| local name length or bytes differ from the central record's | would return **a different member's bytes under this member's name** — which no CRC check catches, because the CRC would be that member's too |
+| **short local header** | found *while writing the body test*: it reached `struct.unpack` and surfaced as `struct.error`, which `expand_archives` records as `unreadable` with no sign the read was truncated |
+| short body | a truncated body inflates to a shorter table that reads as a small one |
+| declared uncompressed size disagrees with the inflated length | a corrupt central record, distinct from corrupt bytes |
+
+**The CRC check is the one that differs in kind.** The four guards on the directory parse all detect
+**absence or truncation**. This one detects a **wrong answer**: bytes that arrived, inflated, and are
+not what the archive declares. Guard 2 — the ignored-`Range` check — now has **one home** in
+`_ranged`, so the extractor inherits it rather than re-deriving it, and its bound is the same one it
+has in the parser: a member whose local header sits at offset **0** cannot trip it, because the first
+read starts at zero. That case is not left uncovered — the length check catches it — and both are
+asserted rather than only the one that reads better.
+
+#### Twelve guards, twelve tests, each made to fail
+
+Every guard was mutated out in turn, **the mutation read back off disk before the run**, the suite
+run, and the file reverted. All twelve fail exactly one test each and nothing else. **Two were not
+covered on the first pass and both were real gaps**, not bookkeeping:
+
+- **the declared uncompressed size** — subsumed by the CRC check in every case then constructed, so
+  removing it left the suite green. Closed by an archive whose declared size is wrong while its CRC
+  is left correct, which isolates the two.
+- **the zip64 sentinel resolution** — the unit test covered `_zip64_values` but not the assignment
+  back into the record, so removing that line changed nothing observable. Closed by building a real
+  zip64 central entry: the sentinel written into the fixed record, the true value into the extra
+  field, and the directory size patched to match.
+
+#### What this does not establish
+
+**The extractor has never read a PRIDE archive, and nothing here exercises it against a live host.**
+Every test serves bytes from a `zipfile`-built archive through an injected session; `_ForbiddenRanged`
+asserts that no read escapes that seam. **This is the same provenance gap `archive_entries` carried,
+and that one took three turns to surface** — a parser green offline while a server behaviour no test
+reproduced returned an empty tuple in the field.
+
+**So: the first live use will be the first evidence this works against a real server, and it is not
+verified against PRIDE.** Recorded here rather than assumed away, because the gap is acceptable for a
+build turn only when it is written down.
+
+#### Stopped: the tautology sweep reports eleven unclassified expressions
+
+**`tests/test_tautology_sweep.py::test_the_pinned_multiset_has_not_changed_unreviewed` fails**, and
+it is the only failing test — 531 pass, 11 skip. It names **11** matching expressions or occurrence
+counts introduced by the new tests, among them
+`extract_member(...) == zf.read('combined/txt/GlyGly (K)Sites.txt')`,
+`member.crc32 == info.CRC == zlib.crc32(content) & 4294967295` and `got == content`.
+
+**The sweep is doing its job and the resolution it names is out of scope.** Its failure message
+directs each entry to be classified into `INSTANCES` or `PINNED` **inside
+`tests/test_tautology_sweep.py`**, which this turn may not edit. The alternative — rewriting the
+assertions to compare against literal displays, the convention this file already follows for the
+parser test — would preserve some of them and lose others: comparing the extractor's output against
+`zipfile`'s own read of the same archive **is** the reference check the tests exist for, and turning
+it into a literal would discard the second implementation that makes it evidence.
+
+**So the turn stops here rather than choosing between editing a guard it was told not to touch and
+weakening the tests to get past it.** Nothing was reverted: the extractor, its twelve guards and its
+tests are on the working branch, `ruff check`, `ruff format --check` and `mypy` are clean, and the
+suite is green but for that one test. **It is not fast-forwarded onto `main`**, because a red suite
+on `main` is exactly what the sweep exists to prevent.
 
 
 ### Deposit and supplementary survey, 2026-08-07

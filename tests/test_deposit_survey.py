@@ -29,7 +29,9 @@ only thing that separates them. It is also the guard most easily made worthless:
 from __future__ import annotations
 
 import io
+import struct
 import zipfile
+import zlib
 from collections.abc import Mapping
 from typing import Any
 
@@ -39,10 +41,13 @@ from bzk.deposit_survey import (
     SITE_ABSENT,
     SITE_CANDIDATE,
     SITE_PRESENT,
+    ArchiveMember,
     Candidate,
     archive_entries,
+    archive_members,
     classify,
     expand_archives,
+    extract_member,
     file_names,
     search,
     self_check,
@@ -612,6 +617,385 @@ def test_the_parsed_count_is_compared_against_the_declared_total() -> None:
     blob[second : second + 4] = b"XXXX"  # same length, second entry unreadable
     with pytest.raises(RuntimeError, match="declares 3 entries and 1 parsed"):
         archive_entries("http://x/a.zip", session=_RangedSession(bytes(blob)))
+
+
+# ── extract_member: one member's bytes, range-read and verified against its CRC ────────────────
+
+
+def _payload(n: int = 40) -> bytes:
+    """Compressible content, so deflate actually deflates and a stored member differs in size."""
+    return b"Proteins\tIntensity\n" + b"".join(b"P%05d\t%d\n" % (i, i * 7) for i in range(n))
+
+
+def _archive(entries: tuple[tuple[str, bytes, int], ...]) -> bytes:
+    """`(name, content, method)` per member, built by `zipfile` so the parser is checked against a
+    reference implementation rather than against arithmetic restated from the parser itself."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name, content, method in entries:
+            zf.writestr(zipfile.ZipInfo(name), content, method)
+    return buf.getvalue()
+
+
+def _member(blob: bytes, name: str) -> ArchiveMember:
+    session = _RangedSession(blob)
+    return next(m for m in archive_members("http://x/a.zip", session=session) if m.name == name)
+
+
+def _central_entries(blob: bytearray) -> list[int]:
+    """Offsets of each central-directory file header within `blob`."""
+    at = blob.rfind(b"PK\x05\x06")
+    cd_off = struct.unpack("<I", blob[at + 16 : at + 20])[0]
+    cd_size = struct.unpack("<I", blob[at + 12 : at + 16])[0]
+    out, p = [], cd_off
+    while p < cd_off + cd_size and blob[p : p + 4] == b"PK\x01\x02":
+        nlen, elen, clen = struct.unpack("<HHH", blob[p + 28 : p + 34])
+        out.append(p)
+        p += 46 + nlen + elen + clen
+    return out
+
+
+class _ForbiddenRanged:
+    """`_Forbidden`'s ranged sibling. That one is `RestSession`-shaped and declares no `headers`, so
+    passing it here raised `TypeError` and would have proved nothing about reaching the network."""
+
+    def head(self, url: str, *, timeout: int = 0) -> Any:
+        raise AssertionError(f"a request was made when none should have been: {url}")
+
+    def get(self, url: str, *, headers: Mapping[str, str] | None = None, timeout: int = 0) -> Any:
+        raise AssertionError(f"a request was made when none should have been: {url}")
+
+
+def test_a_deflated_member_extracts_byte_identically() -> None:
+    """Checked against `zipfile`'s own read of the same archive, not against the input variable."""
+    content = _payload()
+    blob = _archive((("combined/txt/GlyGly (K)Sites.txt", content, zipfile.ZIP_DEFLATED),))
+    member = _member(blob, "combined/txt/GlyGly (K)Sites.txt")
+    assert member.method == 8
+    got = extract_member("http://x/a.zip", member, session=_RangedSession(blob))
+    with zipfile.ZipFile(io.BytesIO(blob)) as zf:
+        assert got == zf.read("combined/txt/GlyGly (K)Sites.txt")
+
+
+def test_a_stored_member_extracts_without_inflating() -> None:
+    """Method 0 is supported rather than refused: it is a legitimate zip method and refusing it
+    would fail on a real archive for no reason."""
+    content = _payload()
+    blob = _archive((("stored.txt", content, zipfile.ZIP_STORED),))
+    member = _member(blob, "stored.txt")
+    assert member.method == 0
+    assert extract_member("http://x/a.zip", member, session=_RangedSession(blob)) == content
+
+
+def test_the_right_member_comes_back_from_a_multi_member_archive() -> None:
+    blob = _archive(
+        tuple(
+            (n, b"body of " + n.encode(), zipfile.ZIP_DEFLATED)
+            for n in ("a.txt", "b.txt", "GlyGly (K)Sites.txt", "d.txt")
+        )
+    )
+    member = _member(blob, "GlyGly (K)Sites.txt")
+    got = extract_member("http://x/a.zip", member, session=_RangedSession(blob))
+    assert got == b"body of GlyGly (K)Sites.txt"
+
+
+def test_a_member_far_larger_than_the_tail_read_extracts_whole() -> None:
+    """The archives this is written for are gigabytes; the member must not be silently clipped to
+    whatever window the directory read used."""
+    content = _payload(20_000)
+    assert len(content) > 65536
+    blob = _archive((("big.txt", content, zipfile.ZIP_DEFLATED),))
+    member = _member(blob, "big.txt")
+    got = extract_member("http://x/a.zip", member, session=_RangedSession(blob))
+    assert len(got) == len(content)
+    assert got == content
+
+
+def test_the_local_headers_own_extra_length_locates_the_data() -> None:
+    """The measurement the retrieval decision rests on: a zip64 entry carries a 20-byte extra field
+    in its **local** header that its central record does not, so a data start computed from the
+    central directory lands inside the member's first bytes."""
+    buf = io.BytesIO()
+    with (
+        zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf,
+        zf.open("streamed.txt", "w", force_zip64=True) as fh,
+    ):
+        fh.write(_payload())
+    blob = buf.getvalue()
+    member = _member(blob, "streamed.txt")
+
+    at = member.local_header_offset
+    local_elen = struct.unpack("<H", blob[at + 28 : at + 30])[0]
+    central_elen = struct.unpack("<H", blob[_central_entries(bytearray(blob))[0] + 30 :][:2])[0]
+    assert (central_elen, local_elen) == (0, 20)
+
+    with zipfile.ZipFile(io.BytesIO(blob)) as zf:
+        expected = zf.read("streamed.txt")
+    assert extract_member("http://x/a.zip", member, session=_RangedSession(blob)) == expected
+
+
+def test_a_crc_mismatch_raises_rather_than_returning_the_bytes() -> None:
+    """The guard the other four do not cover. Theirs detect absence or truncation; this detects a
+    **wrong answer** — bytes that arrived, inflated, and are not what the archive declares."""
+    blob = bytearray(_archive((("t.txt", _payload(), zipfile.ZIP_DEFLATED),)))
+    struct.pack_into("<I", blob, _central_entries(blob)[0] + 16, 0xDEADBEEF)
+    member = _member(bytes(blob), "t.txt")
+    with pytest.raises(RuntimeError, match="failed its CRC-32"):
+        extract_member("http://x/a.zip", member, session=_RangedSession(bytes(blob)))
+
+
+def test_an_unsupported_compression_method_is_refused_by_number() -> None:
+    blob = bytearray(_archive((("t.txt", _payload(), zipfile.ZIP_DEFLATED),)))
+    struct.pack_into("<H", blob, _central_entries(blob)[0] + 10, 12)  # bzip2
+    member = _member(bytes(blob), "t.txt")
+    with pytest.raises(RuntimeError, match="compression method 12"):
+        extract_member("http://x/a.zip", member, session=_RangedSession(bytes(blob)))
+
+
+def test_an_encrypted_entry_is_refused() -> None:
+    blob = bytearray(_archive((("t.txt", _payload(), zipfile.ZIP_DEFLATED),)))
+    entry = _central_entries(blob)[0]
+    flags = struct.unpack("<H", blob[entry + 8 : entry + 10])[0]
+    struct.pack_into("<H", blob, entry + 8, flags | 0x0001)
+    member = _member(bytes(blob), "t.txt")
+    assert member.is_encrypted
+    with pytest.raises(RuntimeError, match="encrypted"):
+        extract_member("http://x/a.zip", member, session=_RangedSession(bytes(blob)))
+
+
+def test_a_data_descriptor_entry_still_extracts() -> None:
+    """Bit 3 makes the **local** header's sizes and CRC placeholders. Nothing here reads those —
+    they come from the central record, which is authoritative — so it is handled, not refused."""
+    blob = bytearray(_archive((("t.txt", _payload(), zipfile.ZIP_DEFLATED),)))
+    entry = _central_entries(blob)[0]
+    flags = struct.unpack("<H", blob[entry + 8 : entry + 10])[0]
+    struct.pack_into("<H", blob, entry + 8, flags | 0x0008)
+    member = _member(bytes(blob), "t.txt")
+    assert member.has_data_descriptor
+    with zipfile.ZipFile(io.BytesIO(bytes(blob))) as zf:
+        expected = zf.read("t.txt")
+    assert extract_member("http://x/a.zip", member, session=_RangedSession(bytes(blob))) == expected
+
+
+def test_a_directory_entry_is_refused_because_it_has_no_data() -> None:
+    blob = _archive((("combined/txt/", b"", zipfile.ZIP_STORED),))
+    member = _member(blob, "combined/txt/")
+    assert member.is_directory
+    with pytest.raises(RuntimeError, match="directory entry"):
+        extract_member("http://x/a.zip", member, session=_RangedSession(blob))
+
+
+def test_a_local_header_that_is_not_where_the_directory_says_is_refused() -> None:
+    """The offset is trusted from the central record; if it does not land on `PK\x03\x04` the
+    bytes after it are not this member's, and inflating them would return something plausible."""
+    blob = bytearray(_archive((("t.txt", _payload(), zipfile.ZIP_DEFLATED),)))
+    struct.pack_into("<I", blob, _central_entries(blob)[0] + 42, 3)
+    member = _member(bytes(blob), "t.txt")
+    with pytest.raises(RuntimeError, match="no local file header"):
+        extract_member("http://x/a.zip", member, session=_RangedSession(bytes(blob)))
+
+
+def test_a_local_header_naming_a_different_member_is_refused() -> None:
+    """Two members of equal name length: pointing one central record at the other's local header
+    would return the wrong table under the right name, which no CRC check downstream would catch
+    because the CRC would also be the wrong member's."""
+    blob = bytearray(
+        _archive(
+            (
+                ("aaa.txt", b"first body", zipfile.ZIP_DEFLATED),
+                ("bbb.txt", b"second body", zipfile.ZIP_DEFLATED),
+            )
+        )
+    )
+    entries = _central_entries(blob)
+    other = struct.unpack("<I", blob[entries[1] + 42 : entries[1] + 46])[0]
+    struct.pack_into("<I", blob, entries[0] + 42, other)
+    member = _member(bytes(blob), "aaa.txt")
+    with pytest.raises(RuntimeError, match="not b'aaa.txt'"):
+        extract_member("http://x/a.zip", member, session=_RangedSession(bytes(blob)))
+
+
+def test_a_name_that_is_not_utf8_is_still_identified_by_its_bytes() -> None:
+    """Why the member record carries raw bytes. `\xef` alone is not valid UTF-8, so the decoded
+    name comes back with a replacement character — and a caller selecting by that string could not
+    match it. Selecting by the record makes the question disappear."""
+    blob = _archive((("naive_x.txt", _payload(), zipfile.ZIP_DEFLATED),)).replace(
+        b"naive_x.txt", b"na\xefve_x.txt"
+    )
+    member = _member(blob, "na\ufffdve_x.txt")
+    assert member.name_bytes == b"na\xefve_x.txt"
+    assert member.name != member.name_bytes.decode("latin-1")
+    with zipfile.ZipFile(io.BytesIO(blob)) as zf:
+        expected = zf.read(zf.namelist()[0])
+    assert extract_member("http://x/a.zip", member, session=_RangedSession(blob)) == expected
+
+
+class _TruncateBody(_RangedSession):
+    """Serves the local header whole and truncates the body read, so the two short-read guards can
+    be told apart. `_RangedSession(truncate=...)` cuts every bounded read, which reaches the local
+    header first and never gets to the body."""
+
+    def get(self, url: str, *, headers: Mapping[str, str] | None = None, timeout: int = 0):  # type: ignore[no-untyped-def]
+        bounded = sum(1 for r in self.ranges if not r.endswith("-"))
+        out = super().get(url, headers=headers, timeout=timeout)
+        if bounded >= 1:
+            return self._R(out.content[:-4], {}, 206)
+        return out
+
+
+def test_a_short_local_header_is_refused_rather_than_unpacked() -> None:
+    """Found while writing the body test: this reached `struct.unpack` and surfaced as
+    `struct.error`, which `expand_archives` records as `unreadable` with no sign it was truncated."""
+    blob = _archive((("t.txt", _payload(), zipfile.ZIP_DEFLATED),))
+    member = _member(blob, "t.txt")
+    with pytest.raises(RuntimeError, match="bytes of local header"):
+        extract_member("http://x/a.zip", member, session=_RangedSession(blob, truncate=5))
+
+
+def test_a_short_body_is_refused_rather_than_inflated() -> None:
+    blob = _archive((("t.txt", _payload(), zipfile.ZIP_DEFLATED),))
+    member = _member(blob, "t.txt")
+    with pytest.raises(RuntimeError, match="bytes of 't.txt' and received"):
+        extract_member("http://x/a.zip", member, session=_TruncateBody(blob))
+
+
+def test_extraction_costs_two_ranged_reads() -> None:
+    """One for the local header and its name, one for the body. The first is not optional: the
+    data start needs the local header's own extra length."""
+    blob = _archive((("t.txt", _payload(), zipfile.ZIP_DEFLATED),))
+    member = _member(blob, "t.txt")
+    session = _RangedSession(blob)
+    extract_member("http://x/a.zip", member, session=session)
+    assert len(session.ranges) == 2
+
+
+def test_a_server_that_ignores_range_is_caught_during_extraction_too() -> None:
+    """Guard 2 has one home in `_ranged`, so the extractor inherits it rather than re-deriving it.
+
+    **Its bound here is the same one it has in the parser, and the second member is what shows it.**
+    Guard 2 tests `start > 0`, so a member whose local header sits at offset **0** cannot trip it —
+    the first read starts at zero. That case is not left uncovered: the length check catches it
+    instead, which is why both are asserted rather than only the one that reads better.
+    """
+    blob = _archive(
+        (
+            ("first.txt", _payload(), zipfile.ZIP_DEFLATED),
+            ("second.txt", _payload(), zipfile.ZIP_DEFLATED),
+        )
+    )
+    at_zero = _member(blob, "first.txt")
+    assert at_zero.local_header_offset == 0
+    with pytest.raises(RuntimeError, match="bytes of local header"):
+        extract_member("http://x/a.zip", at_zero, session=_RangedSession(blob, honour_range=False))
+
+    beyond_zero = _member(blob, "second.txt")
+    assert beyond_zero.local_header_offset > 0
+    with pytest.raises(RuntimeError, match="ignored Range"):
+        extract_member(
+            "http://x/a.zip", beyond_zero, session=_RangedSession(blob, honour_range=False)
+        )
+
+
+def test_zip64_sizes_are_read_from_the_extra_field() -> None:
+    """`MaxQUANT_HpH.zip` at 16,993,871,159 bytes is past the 32-bit ceiling, so a sentinel in the
+    fixed record is a certainty for it rather than a contingency."""
+    real = 0x1_0000_0003
+    extra = struct.pack("<HHQQ", 0x0001, 16, 999, real)
+    from bzk.deposit_survey import _zip64_values
+
+    assert _zip64_values(extra, 2) == [999, real]
+    assert _zip64_values(extra, 1) == [999]
+    assert _zip64_values(b"", 2) == []
+    assert _zip64_values(struct.pack("<HH", 0x000A, 0), 2) == []
+
+
+def _zip64_csize(blob: bytes) -> bytes:
+    """Rewrite the first central entry so its compressed size is a zip64 sentinel in the fixed
+    record and its real value sits in the extra field — the shape a >4 GiB archive produces, built
+    here because no archive small enough to test with will produce it on its own."""
+    b = bytearray(blob)
+    at = b.rfind(b"PK\x05\x06")
+    cd_off = struct.unpack("<I", b[at + 16 : at + 20])[0]
+    cd_size = struct.unpack("<I", b[at + 12 : at + 16])[0]
+    d = bytearray(b[cd_off : cd_off + cd_size])
+    nlen, elen, clen = struct.unpack("<HHH", d[28:34])
+    real = struct.unpack("<I", d[20:24])[0]
+    struct.pack_into("<I", d, 20, 0xFFFFFFFF)
+    extra = struct.pack("<HHQ", 0x0001, 8, real)
+    struct.pack_into("<H", d, 30, elen + len(extra))
+    rebuilt = (
+        bytes(d[:46])
+        + bytes(d[46 : 46 + nlen])
+        + bytes(d[46 + nlen : 46 + nlen + elen])
+        + extra
+        + bytes(d[46 + nlen + elen : 46 + nlen + elen + clen])
+        + bytes(d[46 + nlen + elen + clen :])
+    )
+    out = bytearray(bytes(b[:cd_off]) + rebuilt + bytes(b[cd_off + cd_size :]))
+    struct.pack_into("<I", out, out.rfind(b"PK\x05\x06") + 12, len(rebuilt))
+    return bytes(out)
+
+
+def test_a_zip64_sentinel_is_resolved_from_the_extra_field_and_extracts() -> None:
+    """The unit test of `_zip64_values` did not cover the assignment back into the record: removing
+    it left every test green. This builds the sentinel into a real central directory."""
+    content = _payload()
+    plain = _archive((("t.txt", content, zipfile.ZIP_DEFLATED),))
+    with zipfile.ZipFile(io.BytesIO(plain)) as zf:
+        real = zf.getinfo("t.txt").compress_size
+    blob = _zip64_csize(plain)
+    member = _member(blob, "t.txt")
+    assert member.compressed_size == real
+    assert member.compressed_size != 0xFFFFFFFF
+    assert extract_member("http://x/a.zip", member, session=_RangedSession(blob)) == content
+
+
+def test_a_declared_uncompressed_size_that_disagrees_with_the_bytes_is_refused() -> None:
+    """Isolated from the CRC check, which otherwise subsumes it: the CRC here is left correct, so
+    only the length disagrees. Removing the length check left every test green until this existed."""
+    blob = bytearray(_archive((("t.txt", _payload(), zipfile.ZIP_DEFLATED),)))
+    struct.pack_into("<I", blob, _central_entries(blob)[0] + 24, 999_999)
+    member = _member(bytes(blob), "t.txt")
+    with pytest.raises(RuntimeError, match="declares 999999 bytes and inflated to"):
+        extract_member("http://x/a.zip", member, session=_RangedSession(bytes(blob)))
+
+
+def test_the_member_record_carries_what_the_parser_used_to_step_past() -> None:
+    """Offsets into the 46-byte central header, verified against `zipfile` rather than a summary."""
+    content = _payload()
+    blob = _archive((("t.txt", content, zipfile.ZIP_DEFLATED),))
+    member = _member(blob, "t.txt")
+    with zipfile.ZipFile(io.BytesIO(blob)) as zf:
+        info = zf.getinfo("t.txt")
+    assert member.crc32 == info.CRC == zlib.crc32(content) & 0xFFFFFFFF
+    assert member.compressed_size == info.compress_size
+    assert member.uncompressed_size == info.file_size == len(content)
+    assert member.local_header_offset == info.header_offset
+    assert member.method == info.compress_type
+
+
+def test_archive_entries_is_still_names_and_only_names() -> None:
+    """The projection the survey path depends on, unchanged by the record type beneath it."""
+    blob = _archive(
+        tuple((n, b"x" * 16, zipfile.ZIP_DEFLATED) for n in ("a.txt", "dir/b.tsv", "c.raw"))
+    )
+    assert archive_entries("http://x/a.zip", session=_RangedSession(blob)) == (
+        "a.txt",
+        "dir/b.tsv",
+        "c.raw",
+    )
+
+
+def test_extraction_reaches_no_network_of_its_own() -> None:
+    """`_Forbidden` shape: every read goes through the injected session, so an extractor that
+    reached out on its own would fail here rather than pass quietly in a container with a network."""
+    blob = _archive((("t.txt", _payload(), zipfile.ZIP_DEFLATED),))
+    member = _member(blob, "t.txt")
+    session = _RangedSession(blob)
+    extract_member("http://x/a.zip", member, session=session)
+    assert session.ranges and all(r.startswith("bytes=") for r in session.ranges)
+    with pytest.raises(AssertionError, match="a request was made"):
+        extract_member("http://x/a.zip", member, session=_ForbiddenRanged())
 
 
 def test_expand_archives_threads_the_ranged_session_it_is_given() -> None:

@@ -37,6 +37,7 @@ import json
 import struct
 import sys
 import urllib.parse
+import zlib
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -427,10 +428,206 @@ def file_urls(accession: str, *, session: RestSession | None = None) -> dict[str
     return out
 
 
+@dataclass(frozen=True)
+class ArchiveMember:
+    """One entry of a remote zip's central directory, as the parser reads it.
+
+    **The raw name bytes are carried beside the decoded name, and that is what makes extraction
+    safe.** `name` is decoded `"utf-8", "replace"`, so a member whose name is not valid UTF-8 — the
+    format permits it, since bit 11 of `flags` clear means the bytes are in the writer's own code
+    page — comes back with replacement characters. An extractor that selected members *by that
+    string* could fail to match, or match the wrong entry where two raw names mangle alike. Selecting
+    by this record instead makes the question disappear: `extract_member` never parses a name.
+
+    Field offsets are into the 46-byte central-directory file header and were verified against
+    archives built by `zipfile` rather than taken from a summary.
+    """
+
+    #: bytes 46.. — decoded for display and for `archive_entries`' contract.
+    name: str
+    #: bytes 46.. — the bytes themselves, which are what identifies the member.
+    name_bytes: bytes
+    #: bytes 10–12. `0` stored, `8` deflate; anything else is refused at extraction.
+    method: int
+    #: bytes 8–10. Bit 0 encrypted, bit 3 data descriptor, bit 11 UTF-8 name.
+    flags: int
+    #: bytes 16–20, checked against the inflated bytes.
+    crc32: int
+    #: bytes 20–24, or the zip64 extra field where that reads `0xFFFFFFFF`.
+    compressed_size: int
+    #: bytes 24–28, likewise.
+    uncompressed_size: int
+    #: bytes 42–46, likewise. Where the member's local header starts.
+    local_header_offset: int
+
+    @property
+    def is_encrypted(self) -> bool:
+        return bool(self.flags & 0x0001)
+
+    @property
+    def has_data_descriptor(self) -> bool:
+        """Bit 3: the **local** header's sizes and CRC are placeholders.
+
+        Handled rather than refused, because nothing here reads those fields — sizes and CRC come
+        from the central record, which is authoritative under bit 3. Only the local header's name
+        and extra *lengths* are read, and bit 3 does not touch them.
+        """
+        return bool(self.flags & 0x0008)
+
+    @property
+    def is_directory(self) -> bool:
+        return self.name_bytes.endswith(b"/")
+
+
+#: The zip64 extended-information extra field. Where a 32-bit field in the fixed record reads this
+#: sentinel, the real value is in the extra field — and `MaxQUANT_HpH.zip` at 16,993,871,159 bytes
+#: is past the 32-bit ceiling, so this is a certainty for that archive rather than a contingency.
+_ZIP64_SENTINEL = 0xFFFFFFFF
+_ZIP64_EXTRA_ID = 0x0001
+
+
+def _zip64_values(extra: bytes, wanted: int) -> list[int]:
+    """The first `wanted` 64-bit values of the zip64 extra field, if it is present.
+
+    The field lists **only** the members that were sentinels, in a fixed order — uncompressed size,
+    compressed size, local-header offset — so the caller counts its own sentinels and takes that
+    many. Returns `[]` when the field is absent, which is the correct answer for an entry that had
+    no sentinel to resolve.
+    """
+    p = 0
+    while p + 4 <= len(extra):
+        header_id, data_size = struct.unpack("<HH", extra[p : p + 4])
+        body = extra[p + 4 : p + 4 + data_size]
+        if header_id == _ZIP64_EXTRA_ID:
+            have = len(body) // 8
+            return [
+                int(struct.unpack("<Q", body[i * 8 : i * 8 + 8])[0])
+                for i in range(min(have, wanted))
+            ]
+        p += 4 + data_size
+    return []
+
+
+def _ranged(http: RangedSession, url: str, start: int, end: int | None = None) -> bytes:
+    """One ranged read, with the ignored-`Range` guard that both readers depend on.
+
+    **Guard 2 lives here and nowhere else.** `raise_for_status` passes on a 200, and a 200 to a
+    ranged request means the server sent the whole file from byte zero. Nothing downstream can tell
+    that from a correctly served range, so it is caught at the read rather than surfacing as no
+    entries — or, for `extract_member`, as the head of the archive inflating to nothing.
+    """
+    rng = f"bytes={start}-" + ("" if end is None else str(end))
+    response = http.get(url, headers={"Range": rng}, timeout=120)
+    response.raise_for_status()
+    if start > 0 and response.status_code == 200:
+        raise RuntimeError(
+            f"{url}: ranged request answered 200, not 206 — the server ignored Range, so the "
+            "bytes are the head of the file and not the part asked for"
+        )
+    return bytes(response.content)
+
+
+def extract_member(
+    url: str, member: ArchiveMember, *, session: RangedSession | None = None
+) -> bytes:
+    """One member's bytes, range-read out of a remote zip and verified against its CRC.
+
+    **Two ranged reads, and the first is not optional.** The central directory gives the local
+    header's offset but *not* where the member's data begins: the local header carries its **own**
+    name and extra lengths, and they need not match the central record's. Measured on an archive
+    built here — a zip64 entry gave a central extra length of `0` against a local `20`, so computing
+    the data start from the central directory alone lands twenty bytes short, inside the member's
+    first bytes. So the local header is read, its lengths are used, and only then is the body asked
+    for.
+
+    **The CRC check is the point of the function, not a courtesy.** The four guards on
+    `archive_members` all detect *absence or truncation* — a short directory, an ignored range, a
+    parse that stopped early. This one detects a **wrong answer**: bytes that arrived, inflated, and
+    are not what the archive says they should be. An extractor returning plausible bytes it cannot
+    vouch for is the silent-zero failure wearing different clothes.
+
+    **What is refused, and what is handled.** Encrypted entries and any compression method other
+    than stored or deflate are refused by name; a directory entry is refused because it has no data.
+    A data descriptor (`flags` bit 3) is **handled**: it makes the *local* header's sizes and CRC
+    placeholders, and nothing here reads those — they come from the central record. Zip64 sizes are
+    resolved during the directory parse, before this function sees them.
+
+    **Nothing is retained.** The bytes are returned to the caller; this writes no file.
+    """
+    if member.is_encrypted:
+        raise RuntimeError(f"{url}: {member.name!r} is encrypted (flag bit 0); refusing to guess")
+    if member.is_directory:
+        raise RuntimeError(f"{url}: {member.name!r} is a directory entry and carries no data")
+    if member.method not in (0, 8):
+        raise RuntimeError(
+            f"{url}: {member.name!r} uses compression method {member.method}, which is neither "
+            "stored (0) nor deflate (8); refusing rather than returning bytes it cannot decode"
+        )
+    http = session or requests.Session()
+
+    at = member.local_header_offset
+    nlen = len(member.name_bytes)
+    head = _ranged(http, url, at, at + 30 + nlen - 1)
+    # Found by a test rather than by design: a short local header reached `struct.unpack` and came
+    # back as `struct.error`, which `expand_archives` catches and records as `unreadable` with no
+    # indication the read was truncated. Length first, so truncation is not reported as a bad offset.
+    if len(head) != 30 + nlen:
+        raise RuntimeError(
+            f"{url}: asked for {30 + nlen} bytes of local header for {member.name!r} and received "
+            f"{len(head)}; a truncated header gives a data start that is not this member's"
+        )
+    if head[:4] != b"PK\x03\x04":
+        raise RuntimeError(
+            f"{url}: no local file header at offset {at} for {member.name!r}; the central directory "
+            "points somewhere that is not a member, so the bytes after it are not this member's"
+        )
+    local_nlen, local_elen = struct.unpack("<HH", head[26:30])
+    if local_nlen != nlen or head[30 : 30 + nlen] != member.name_bytes:
+        raise RuntimeError(
+            f"{url}: the local header at offset {at} names "
+            f"{head[30 : 30 + local_nlen]!r}, not {member.name_bytes!r}; extracting it would return "
+            "a different member's bytes under this member's name"
+        )
+    start = at + 30 + local_nlen + local_elen
+    body = _ranged(http, url, start, start + member.compressed_size - 1)
+    if len(body) != member.compressed_size:
+        raise RuntimeError(
+            f"{url}: asked for {member.compressed_size} bytes of {member.name!r} and received "
+            f"{len(body)}; a truncated body inflates to a shorter table that reads as a small one"
+        )
+
+    raw = body if member.method == 0 else zlib.decompress(body, -15)
+    if len(raw) != member.uncompressed_size:
+        raise RuntimeError(
+            f"{url}: {member.name!r} declares {member.uncompressed_size} bytes and inflated to "
+            f"{len(raw)}"
+        )
+    if zlib.crc32(raw) & 0xFFFFFFFF != member.crc32:
+        raise RuntimeError(
+            f"{url}: {member.name!r} failed its CRC-32 — the archive declares "
+            f"{member.crc32:#010x} and the bytes give {zlib.crc32(raw) & 0xFFFFFFFF:#010x}. "
+            "These bytes are wrong, not merely short"
+        )
+    return raw
+
+
 def archive_entries(
     url: str, *, tail: int = 65536, session: RangedSession | None = None
 ) -> tuple[str, ...]:
-    """Entry names inside a remote zip, read from its central directory. Nothing is retained.
+    """Entry names inside a remote zip. A thin projection of `archive_members`, which does the work.
+
+    Kept as its own function because the survey path wants names and nothing else — `expand_archives`
+    grows `f"{name}!{entry}"` strings and counts them — and because every caller and test written
+    against it stays correct. **There is still one parse**: a second implementation of the
+    central-directory walk would carry a second copy of the four guards, and two copies drift.
+    """
+    return tuple(m.name for m in archive_members(url, tail=tail, session=session))
+
+
+def archive_members(
+    url: str, *, tail: int = 65536, session: RangedSession | None = None
+) -> tuple[ArchiveMember, ...]:
+    """Every entry of a remote zip's central directory, with the fields extraction needs.
 
     **Written because the filename-only survey produced a false zero.** `PXD065158` deposits its
     entire search as `Search_GlyGly.zip` — 405 MB — so a survey that reads names off the file
@@ -455,18 +652,8 @@ def archive_entries(
     size = int(http.head(url, timeout=60).headers["Content-Length"])
 
     def chunk(start: int, end: int | None = None) -> bytes:
-        rng = f"bytes={start}-" + ("" if end is None else str(end))
-        response = http.get(url, headers={"Range": rng}, timeout=120)
-        response.raise_for_status()
-        # Guard 2: `raise_for_status` passes on a 200, and a 200 to a ranged request means the
-        # server sent the whole file from byte zero. Nothing downstream can tell that from a
-        # correctly served range, so it is caught here rather than surfacing as no entries.
-        if start > 0 and response.status_code == 200:
-            raise RuntimeError(
-                f"{url}: ranged request answered 200, not 206 — the server ignored Range, so the "
-                "bytes are the head of the file and not the part asked for"
-            )
-        return bytes(response.content)
+        # Guard 2 lives in `_ranged`, so both this parser and `extract_member` inherit it.
+        return _ranged(http, url, start, end)
 
     blob = chunk(max(0, size - tail))
     at = blob.rfind(b"PK\x05\x06")
@@ -496,19 +683,46 @@ def archive_entries(
             f"{url}: asked for {cd_size} bytes of central directory and received "
             f"{len(directory)}; a truncated directory parses cleanly and returns fewer names"
         )
-    names, p = [], 0
+    members: list[ArchiveMember] = []
+    p = 0
     while p + 46 <= len(directory) and directory[p : p + 4] == b"PK\x01\x02":
         nlen, elen, clen = struct.unpack("<HHH", directory[p + 28 : p + 34])
-        names.append(directory[p + 46 : p + 46 + nlen].decode("utf-8", "replace"))
+        name_bytes = directory[p + 46 : p + 46 + nlen]
+        extra = directory[p + 46 + nlen : p + 46 + nlen + elen]
+        usize = int(struct.unpack("<I", directory[p + 24 : p + 28])[0])
+        csize = int(struct.unpack("<I", directory[p + 20 : p + 24])[0])
+        offset = int(struct.unpack("<I", directory[p + 42 : p + 46])[0])
+        # The zip64 extra lists only the fields that were sentinels, in this order, so the count of
+        # sentinels is what decides how many values to take.
+        sentinels = [v == _ZIP64_SENTINEL for v in (usize, csize, offset)]
+        if any(sentinels):
+            wide = _zip64_values(extra, sum(sentinels))
+            values = [usize, csize, offset]
+            for i, is_sentinel in enumerate(sentinels):
+                if is_sentinel and wide:
+                    values[i] = wide.pop(0)
+            usize, csize, offset = values
+        members.append(
+            ArchiveMember(
+                name=name_bytes.decode("utf-8", "replace"),
+                name_bytes=name_bytes,
+                method=int(struct.unpack("<H", directory[p + 10 : p + 12])[0]),
+                flags=int(struct.unpack("<H", directory[p + 8 : p + 10])[0]),
+                crc32=int(struct.unpack("<I", directory[p + 16 : p + 20])[0]),
+                compressed_size=csize,
+                uncompressed_size=usize,
+                local_header_offset=offset,
+            )
+        )
         p += 46 + nlen + elen + clen
     # Guard 3: the loop's exit is structural, so anything that stops it early — a corrupt header, a
     # directory cut mid-entry — returns a short list that reads as a small archive.
-    if len(names) != declared:
+    if len(members) != declared:
         raise RuntimeError(
-            f"{url}: the end-of-central-directory declares {declared} entries and {len(names)} "
+            f"{url}: the end-of-central-directory declares {declared} entries and {len(members)} "
             "parsed; a short parse reads as a small archive rather than as a failure"
         )
-    return tuple(names)
+    return tuple(members)
 
 
 def expand_archives(
