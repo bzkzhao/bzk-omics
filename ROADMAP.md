@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.82 |
+| Version | 1.83 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -5838,6 +5838,131 @@ about PRIDE, so none of these rests on it.
 
 **No prediction is made about what any column header will contain**, and no C1 criterion is scored
 this turn.
+
+### The extractor's first live use: twelve directories, one member, 2026-08-12
+
+**No guard raised.** Twelve central directories read live and one member extracted and CRC-verified.
+Nothing was retained — no file under `raw/`, none under `data/curation/`, nothing in the
+content-addressed store; the member was held in memory and dropped.
+
+#### Twelve directories, live
+
+| Accession | Archive | Archive bytes | Entries | Guard | K-GG member, uncompressed | Method |
+|---|---|---|---|---|---|---|
+| `PXD019152` | `MaxQUANT_HpH.zip` | 16,993,871,159 | 9,210 | **none** | 393,147 | 8 |
+| `PXD074990` | `PTMH1299_search_results.zip` | 2,283,114,958 | 482 | **none** | 1,115,157 | 8 |
+| `PXD019152` | `MaxQUANT_PRM.zip` | 1,765,625,472 | 1,297 | **none** | 42,042 | 8 |
+| `PXD032078` | `txt_GlyGlyKsites.zip` | 1,330,037,043 | 19 | **none** | 2,551,526 | 8 |
+| `PXD075538` | `search_1023_1032.zip` | 476,843,006 | 22 | **none** | 124,642 | 8 |
+| `PXD075538` | `search_0995_R01R18.zip` | 319,100,824 | 21 | **none** | 533,887 | 8 |
+| `PXD074949` | `search_1066_R01R18.zip` | 278,912,137 | 22 | **none** | 70,631 | 8 |
+| `PXD060435` | `txt.zip` | 275,252,853 | 17 | **none** | 2,672,464 | 8 |
+| `PXD070339` | `txt.zip` | 275,252,853 | 17 | **none** | 2,672,464 | 8 |
+| `PXD075538` | `search_0995_R19R34.zip` | 219,652,728 | 22 | **none** | 105,317 | 8 |
+| `PXD074949` | `search_1233_R01R18.zip` | 202,629,531 | 21 | **none** | 354,273 | 8 |
+| `PXD074949` | `search_1066_R47R64.zip` | 191,509,376 | 22 | **none** | 328,913 | 8 |
+
+**Zip64 fired live, and this is the finding of the step.** `MaxQUANT_HpH.zip` at 16,993,871,159 bytes
+is past the 32-bit ceiling, and **6,057 of its 9,210 entries carry a local-header offset above
+`0xFFFFFFFF`** — so the sentinel path the offline tests exercised through a hand-built fixture
+resolved six thousand real offsets on a real archive. No entry in any of the twelve carries a
+compressed or uncompressed size above the ceiling, and **exactly one archive of twelve shows Zip64 at
+all**, which is what the archive sizes predicted.
+
+**Every K-GG member is deflate (method 8), and every archive read on the first or second attempt.**
+Entry counts span 17 to 9,210; directory reads took 0.5–1.3 s each.
+
+#### One transport failure, and it is not a guard
+
+**`PXD075538` / `search_0995_R01R18.zip` raised `ChunkedEncodingError` —
+*Connection broken: IncompleteRead(0 bytes read, 65536 more expected)* — on its first attempt, and
+read cleanly on retry.** It is not one of the four guards and not evidence about the format: it is a
+transport failure on the tail read, of the same kind as the `diGly` search that read-timed-out once
+and succeeded on the second attempt. Retried once, recorded, and it recurred **zero** times across
+the remaining reads and the re-reads for the Zip64 measurement.
+
+**It also demonstrates a deferred item live, with a non-guard exception.** `expand_archives` catches
+`requests.RequestException` alongside the guards and writes `unreadable ({type})`, so in a survey run
+this would have been recorded as `unreadable (ChunkedEncodingError)` — **indistinguishable from a
+guard raise, and indistinguishable from a permanent failure**. The gap was recorded as *which guard
+fired is not recoverable*; what this shows is that it is wider than that, because the trace cannot
+separate a guard from a retryable transient either. Recorded, not fixed.
+
+#### One member, extracted and verified
+
+| | |
+|---|---|
+| accession / archive | `PXD019152` / `MaxQUANT_PRM.zip` (1,765,625,472 B) |
+| member | `MaxQUANT_PRM/combined/txt/GlyGly (K)Sites.txt` |
+| method / flags | 8 (deflate) / `0x0000` — no encryption, no data descriptor |
+| local-header offset | 1,758,362,673 — **below** the 32-bit ceiling |
+| compressed / uncompressed | 10,464 B / 42,042 B |
+| ranged reads | **2** — 75 B of local header and name, then 10,464 B of body |
+| bytes transferred | **10,539** |
+| elapsed | 1.08 s |
+| CRC-32 | `0x45f29d3f` — verified by the function, recomputed independently here: **True** |
+| declared length | matches the inflated length: **True** |
+
+**10,539 bytes moved to lift a 42,042-byte table out of a
+1,765,625,472-byte archive — a ratio of about 167,533:1.**
+That is the retrieval decision's premise, measured rather than argued, on one member.
+
+#### The first line, as evidence the bytes are a readable table
+
+**69 tab-separated columns**, 1,133 bytes. It is a MaxQuant `GlyGly (K)Sites.txt`
+header on its face: `Proteins`, `Localization prob`, `Number of GlyGly (K)`, `Sequence window`, `GlyGly (K) Probabilities`, `Intensity`, `Intensity___1`, `Ratio mod/base`, `Reverse`, `id`, `Best localization raw file`, `Best PEP scan number
+`. The `___1`/`___2`/`___3` suffixes are MaxQuant's multiplicity columns
+and `Ratio mod/base` is I4's stoichiometry column.
+
+**No C1 criterion is scored against these headers.** They are evidence that the extraction produced a
+readable table, not a measurement — and several of them are exactly what criteria 5, 6, 7 and 11 will
+be read from, which is why scoring them here would pre-empt a turn that has to register its
+predictions first.
+
+#### What this establishes, and what it does not
+
+**The *never read a PRIDE archive* limit is now partly discharged, and only partly.**
+
+| Claim | Status after this turn |
+|---|---|
+| `archive_members`' walk reads PRIDE archives | already true before this turn — 18,124 entry names during the survey |
+| its **new fields** — method, flags, CRC, sizes, offsets — read live | **established, on 12 archives** |
+| its **Zip64 sentinel resolution** runs live | **established**, 6,057 offsets on `MaxQUANT_HpH.zip` |
+| `extract_member` works against a real server | **established for one member of one archive** |
+| the other eleven members will extract | **not established** |
+| `extract_member` handles a Zip64 **offset** | **not established** — and almost certainly not exercised: Step 4 takes the *smallest* member, whose offset is 1,758,362,673, below the ceiling, while the Zip64 archive holds the *largest* |
+| stored (method 0), encrypted, or data-descriptor members | **not exercised** — every K-GG member here is plain deflate |
+
+**So one success does not read as general.** The parse is now live-exercised broadly; the extractor is
+live-exercised once, on the easiest member of the twelve, through the paths a small deflate entry
+takes and no others.
+
+#### Predicted beside measured
+
+| Quantity | Predicted | Measured | |
+|---|---|---|---|
+| directories reading with no guard raising | **12** | **12** | hit |
+| archives showing Zip64 | **exactly 1** | **1** | hit |
+| compression method of the K-GG members | **8 throughout** | **8 throughout** | hit |
+| smallest K-GG member, uncompressed | **~10^7 B**, band 10^6–10^8 | **42,042 B** ≈ 4×10^4 | **missed, two orders low, outside the band** |
+
+**The miss is evidence that I predicted from the wrong population.** The band came from the *direct*
+K-GG tables — 0.10, 2.76, 15.8 and 66 MB — which are all global diGly experiments. The smallest
+archived member is from `MaxQUANT_PRM.zip`, a **parallel-reaction-monitoring** run: targeted at a
+handful of peptides, so its site table has almost no rows. The archived twelve differ from the direct
+four in experimental **design**, not only in size, and a size extrapolated across that difference was
+extrapolated across the thing that determines it.
+
+#### No code change was required
+
+No guard raised, and the one failure was a transport transient that did not recur, so nothing in
+`bzk/deposit_survey.py` changed and no test was added. **Two defects in this turn's own probes were
+found and corrected**, neither in the module: a Zip64 check written as `resolved == 0xFFFFFFFF`, which
+cannot ever hold because the parse replaces a sentinel with the real value — it reported *no Zip64
+anywhere*, including on the 17 GB archive, until it was rewritten as `resolved > 0xFFFFFFFF`; and a
+`head -60` on the extraction script's output, which broke its pipe before it wrote its record, so the
+**same** member was extracted a second time for that mechanical reason. One member, twice; no second
+member.
 
 ### Deposit and supplementary survey, 2026-08-07
 
