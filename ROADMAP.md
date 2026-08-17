@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.80 |
+| Version | 1.81 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -5474,9 +5474,33 @@ extractor's first live run is a measurement, not a formality.
 #### Decided: (b), staged by what each criterion needs, with (e) first. Never (a)
 
 **Chosen: build the range-extraction increment on `archive_entries`, and sequence retrieval by
-criterion need rather than by where the file happens to sit.** Header reads first — settling criteria
-7, 8 and 11 and the two halves across all eleven at kilobytes — then the same machinery for the full
-tables the value criteria need.
+criterion need rather than by where the file happens to sit.** ~~Header reads first — settling
+criteria 7, 8 and 11 and the two halves across all eleven at kilobytes — then the same machinery for
+the full tables the value criteria need.~~
+
+**Mispriced, corrected 2026-08-12 before the first live use.** *At kilobytes* was wrong, and the
+reason is a guard this document already calls the extractor's purpose: `extract_member` verifies the
+inflated bytes against the central directory's **CRC-32**, and a read stopping at the first newline
+cannot verify it. So a header costs a **whole member** — tens of megabytes — not kilobytes.
+
+**The resolution is that the saving which matters is archive → member, not member → line.** The
+archives are gigabytes and a site table is tens of megabytes, so extracting the whole member and
+verifying its CRC is cheap by roughly three orders of magnitude against the archive it sits in. A
+partial-inflate path would buy back tens of megabytes out of a saving already measured in gigabytes,
+and would pay for it with the one guard that detects a **wrong answer** rather than an absent one.
+**No partial path is built.**
+
+**(b) over (a) is unaffected.** That choice rested on 24.61 GB of whole archives against the members
+themselves. Even at 100 MB per member — well above the 66 MB of the largest *direct* K-GG table — the
+sixteen come to ~1.6 GB, still an order of magnitude under 24.61 GB, so the comparison survives under
+any plausible member size rather than needing the exact figures.
+
+**What does not survive is the stage ordering, and it is void rather than wrong.** *Headers first*
+was a cost argument — header reads are nearly free — and at the granularity the CRC requires they
+cost exactly what the full member costs. **So the two stages are the same operation**: one pass
+extracts a member, and every criterion that member can settle is settled from the same bytes. The
+ordering dissolves instead of needing to be re-decided, and the corrected plan is simpler than the
+one it replaces rather than a different trade.
 
 **(a) is rejected on capacity, not on weight.** 24.61 GB against 29 GB of a per-session allowance,
 re-paid every container, to read sixteen tables. **(c) alone is rejected because it cannot select** —
