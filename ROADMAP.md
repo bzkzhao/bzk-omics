@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.93 |
+| Version | 1.94 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -6939,6 +6939,168 @@ turn; the other three are never written at all. Nothing enters `data/curation/`,
 
 **No prediction is made about what any header contains beyond the nine**, and **no C1 criterion is
 scored.** Criteria 5, 6, 7 and 11 are read from exactly these columns.
+
+### The four direct tables fetched: the population is complete and unequally verified, 2026-08-12
+
+**All four fetched, all four plausible MaxQuant K-GG site tables, and one of the fifteen artefacts
+carries no verification at all.** Nothing entered the repository: the anchor's store write went to a
+scratchpad `home` and was deleted, the other three were never written, and each file was held in
+memory, its header line taken, and dropped.
+
+#### What was fetched
+
+| Accession | File | Bytes | s | Path | Verification it carried |
+|---|---|---|---|---|---|
+| `PXD079072` | `GlyGlySites.txt` | 102,731 | 1.99 | `fetch_bytes` | **none** — the listing's `checksum` is empty |
+| `PXD018299` | `HAP1_USP18KO_GlyGlyKSites.txt` | 2,759,052 | 2.3 | `fetch` | **expected digest** (`fetch` did not raise) **and** publisher SHA-1 |
+| `PXD027163` | `UbiSite_GlyGly__K_Sites.txt` | 15,802,963 | 10.8 | `fetch_bytes` | publisher SHA-1 |
+| `PXD027328` | `GlyGly__K_Sites.txt` | 65,992,977 | 43.59 | `fetch_bytes` | publisher SHA-1 |
+
+**Total 84,657,723 bytes = 84.66 MB**, and every file's length matched the length its listing
+published, to the byte.
+
+**The anchor's pinned digest still holds.** `fetch` recomputed
+`sha256:a4a503e39581334c3553d3631456ad8aca22e193ba928810f6d46fde15622009` on a cold container from a
+fresh download and returned rather than raised — so the value pinned in `bzk/sources/pride.py`, cited
+by all three `data/curation/` records and by the Welch fixture, is confirmed against the deposit
+today and not merely against itself.
+
+#### The published checksum is SHA-1, established by measurement
+
+The pre-registration refused to assume an algorithm from a 40-character width. All three candidates
+of that width were computed over every fetched file and compared: **SHA-1 matches the published value
+for all three files that publish one**, RIPEMD-160 matches none. That pins the field's algorithm on
+three independent files rather than on one, and a mismatch would have meant the algorithm rather
+than the bytes — which is why all three were computed before any of them was believed.
+
+#### Where the checksum is published, and where it is not
+
+The split across the ten deposits behind the fifteen artefacts is **all-or-nothing per deposit** —
+no deposit publishes it on some files and not others — and it falls on a date boundary:
+
+| Deposit | Archive path | Files publishing a checksum |
+|---|---|---|
+| `PXD019152` | 2020-06 | 24 of 24 |
+| `PXD018299` | 2022-02 | 39 of 39 |
+| `PXD027328` | 2022-05 | 100 of 100 |
+| `PXD027163` | 2022-08 | 100 of 100 |
+| `PXD032078` | 2024-05 | 0 of 77 |
+| `PXD070339` | 2025-11 | 0 of 43 |
+| `PXD074949` | 2026-03 | 0 of 58 |
+| `PXD075538` | 2026-03 | 0 of 65 |
+| `PXD074990` | 2026-05 | 0 of 3 |
+| `PXD079072` | 2026-05 | 0 of 24 |
+
+**Every deposit archived 2022-08 or earlier publishes it; every deposit archived 2024-05 or later
+publishes none.** The boundary itself is unobserved — nothing in this sample sits between those two
+dates. This is ten deposits, not a statement about PRIDE, and **no cause is offered**: it is recorded
+because it decides which artefacts in *this* population can be verified, not because the mechanism is
+known.
+
+*Two of the row counts above are page-0 counts against an endpoint that caps at 100 — see the
+pre-registration. `PXD027163` and `PXD027328` hold more files than the rows shown; every row that was
+seen carried a checksum.*
+
+#### The provenance state of all fifteen
+
+| Group | n | CRC-32 | expected digest | publisher SHA-1 | any external check |
+|---|---|---|---|---|---|
+| archived members from `PXD019152` | 2 | **yes** | no | holder publishes one, **unusable** | yes |
+| archived members from the other five deposits | 9 | **yes** | no | holder publishes none | yes |
+| direct — the anchor | 1 | n/a | **yes** | **yes** | yes, **twice** |
+| direct — `PXD027163`, `PXD027328` | 2 | n/a | no | **yes** | yes |
+| direct — `PXD079072` | 1 | n/a | no | **no** | **none** |
+
+**Fourteen of fifteen carry at least one check against something outside the downloaded bytes. One
+does not.** Counted by kind: **11 CRC-verified, 3 publisher-checksum verified, 1 expected-digest
+verified** — the anchor being in two rows, since it is the only artefact anywhere in the population
+with two independent checks.
+
+**`PXD019152`'s checksum is published and cannot be used**, and the reason is the retrieval decision
+rather than the deposit: the SHA-1 covers the whole archive, and its two archives are 16,993,871,159
+and 1,765,625,472 bytes. Verifying against it means downloading **18.76 GB** to check two members
+totalling 435,189 B, both of which the central directory already verifies. So the only two archived
+artefacts whose holder publishes a checksum are exactly the two where using it costs four orders of
+magnitude more than the artefact. It is recorded as unusable, not as absent.
+
+**`PXD079072` is the one artefact with nothing.** Its 102,731 bytes arrived, hash to a digest of
+themselves, and that digest attests only that the download completed. Its deposit publishes no
+checksum on any of its twenty-four files, so this is not a gap that a different fetch path closes.
+**It is flagged rather than hidden, and it is not promoted**: any later use of this artefact carries
+a weaker provenance claim than the other fourteen, and saying so is cheaper than discovering it
+downstream.
+
+#### The first lines, verbatim
+
+**All four carry 9 of 9** of the structural columns this record uses for the eleven — `Proteins`,
+`Positions within proteins`, `Localization prob`, `Sequence window`, `Amino acid`,
+`Position in peptide`, `id`, `Reverse`, `Potential contaminant` — and all four carry the same
+`GlyGly (K)` modification family (`Number of GlyGly (K)`, `GlyGly (K) Probabilities`,
+`GlyGly (K) Score diffs`). **No implausible header was found**, so there is no finding under that
+head.
+
+**Column counts are 115, 159, 290 and 171.** One structural difference is worth naming without being
+scored: **`PXD079072`'s header has no `Gene names` column**, where the other three carry it in
+position 6. It is not one of the nine, so it changes nothing here — it is recorded because it is the
+sort of absence a later read would otherwise attribute to the reader.
+
+**`PXD079072` was the odd one on three counts going in** — the only file named without a `(K)`, the
+only one whose deposit publishes no checksum, the only 2026 deposit — and that is why the prediction
+banded 3–4 rather than 4. **All three turned out to be nothing to do with its header**, which is
+9 of 9 like the rest.
+
+**Cost of the verbatim form: 735 columns, 15,839 characters, about 15 KB**, which
+is roughly **2.5%** of this document, against the eleven's 2,682 columns and 76 KB. **Judged still
+worth it at this price** and recorded in full; the eleven's entry invites a later turn to reverse the
+choice deliberately, and four more at a sixth of the cost is not the occasion.
+
+**No C1 criterion is scored against them**, for the reason the eleven's entry gives: criteria 5, 6, 7
+and 11 are read from exactly these columns.
+
+**`PXD079072` / `GlyGlySites.txt` — 115 columns**
+
+> `Proteins`, `Positions within proteins`, `Leading proteins`, `Protein`, `Protein names`, `Fasta headers`, `Localization prob`, `Score diff`, `PEP`, `Score`, `Delta score`, `Score for localization`, `Localization prob Xinyi1`, `Score diff Xinyi1`, `PEP Xinyi1`, `Score Xinyi1`, `Localization prob Xinyi2`, `Score diff Xinyi2`, `PEP Xinyi2`, `Score Xinyi2`, `Localization prob Xinyi3`, `Score diff Xinyi3`, `PEP Xinyi3`, `Score Xinyi3`, `Localization prob Xinyi4`, `Score diff Xinyi4`, `PEP Xinyi4`, `Score Xinyi4`, `Localization prob Xinyi5`, `Score diff Xinyi5`, `PEP Xinyi5`, `Score Xinyi5`, `Diagnostic peak`, `Number of GlyGly (K)`, `Amino acid`, `Sequence window`, `Modification window`, `Peptide window coverage`, `GlyGly (K) Probabilities`, `GlyGly (K) Score diffs`, `Position in peptide`, `Charge`, `Mass error [ppm]`, `Identification type Xinyi1`, `Identification type Xinyi2`, `Identification type Xinyi3`, `Identification type Xinyi4`, `Identification type Xinyi5`, `Intensity`, `Intensity___1`, `Intensity___2`, `Intensity___3`, `Ratio mod/base`, `Intensity Xinyi1`, `Intensity Xinyi2`, `Intensity Xinyi3`, `Intensity Xinyi4`, `Intensity Xinyi5`, `Ratio mod/base Xinyi1`, `Ratio mod/base Xinyi2`, `Ratio mod/base Xinyi3`, `Ratio mod/base Xinyi4`, `Ratio mod/base Xinyi5`, `Intensity Xinyi1___1`, `Intensity Xinyi1___2`, `Intensity Xinyi1___3`, `Intensity Xinyi2___1`, `Intensity Xinyi2___2`, `Intensity Xinyi2___3`, `Intensity Xinyi3___1`, `Intensity Xinyi3___2`, `Intensity Xinyi3___3`, `Intensity Xinyi4___1`, `Intensity Xinyi4___2`, `Intensity Xinyi4___3`, `Intensity Xinyi5___1`, `Intensity Xinyi5___2`, `Intensity Xinyi5___3`, `Occupancy Xinyi1`, `Occupancy ratioXinyi1`, `Occupancy error scale Xinyi1`, `Occupancy Xinyi2`, `Occupancy ratioXinyi2`, `Occupancy error scale Xinyi2`, `Occupancy Xinyi3`, `Occupancy ratioXinyi3`, `Occupancy error scale Xinyi3`, `Occupancy Xinyi4`, `Occupancy ratioXinyi4`, `Occupancy error scale Xinyi4`, `Occupancy Xinyi5`, `Occupancy ratioXinyi5`, `Occupancy error scale Xinyi5`, `Reverse`, `Potential contaminant`, `id`, `Protein group IDs`, `Positions`, `Position`, `Peptide IDs`, `Mod. peptide IDs`, `Evidence IDs`, `MS/MS IDs`, `Best localization evidence ID`, `Best localization MS/MS ID`, `Best localization raw file`, `Best localization scan number`, `Best score evidence ID`, `Best score MS/MS ID`, `Best score raw file`, `Best score scan number`, `Best PEP evidence ID`, `Best PEP MS/MS ID`, `Best PEP raw file`, `Best PEP scan number`
+
+**`PXD018299` / `HAP1_USP18KO_GlyGlyKSites.txt` — 159 columns**
+
+> `Proteins`, `Positions within proteins`, `Leading proteins`, `Protein`, `Protein names`, `Gene names`, `Fasta headers`, `Localization prob`, `Score diff`, `PEP`, `Score`, `Delta score`, `Score for localization`, `Localization prob KO_1_181212063719`, `Score diff KO_1_181212063719`, `PEP KO_1_181212063719`, `Score KO_1_181212063719`, `Localization prob KO_2`, `Score diff KO_2`, `PEP KO_2`, `Score KO_2`, `Localization prob KO_3`, `Score diff KO_3`, `PEP KO_3`, `Score KO_3`, `Localization prob KO_IFN_1`, `Score diff KO_IFN_1`, `PEP KO_IFN_1`, `Score KO_IFN_1`, `Localization prob KO_IFN_2`, `Score diff KO_IFN_2`, `PEP KO_IFN_2`, `Score KO_IFN_2`, `Localization prob KO_IFN_3`, `Score diff KO_IFN_3`, `PEP KO_IFN_3`, `Score KO_IFN_3`, `Localization prob WT_1`, `Score diff WT_1`, `PEP WT_1`, `Score WT_1`, `Localization prob WT_2`, `Score diff WT_2`, `PEP WT_2`, `Score WT_2`, `Localization prob WT_3`, `Score diff WT_3`, `PEP WT_3`, `Score WT_3`, `Localization prob WT_IFN_1`, `Score diff WT_IFN_1`, `PEP WT_IFN_1`, `Score WT_IFN_1`, `Localization prob WT_IFN_2`, `Score diff WT_IFN_2`, `PEP WT_IFN_2`, `Score WT_IFN_2`, `Localization prob WT_IFN_3`, `Score diff WT_IFN_3`, `PEP WT_IFN_3`, `Score WT_IFN_3`, `Diagnostic peak`, `Number of GlyGly (K)`, `Amino acid`, `Sequence window`, `Modification window`, `Peptide window coverage`, `GlyGly (K) Probabilities`, `GlyGly (K) Score diffs`, `Position in peptide`, `Charge`, `Mass error [ppm]`, `Intensity`, `Intensity___1`, `Intensity___2`, `Intensity___3`, `Ratio mod/base`, `Intensity KO_1_181212063719`, `Intensity KO_2`, `Intensity KO_3`, `Intensity KO_IFN_1`, `Intensity KO_IFN_2`, `Intensity KO_IFN_3`, `Intensity WT_1`, `Intensity WT_2`, `Intensity WT_3`, `Intensity WT_IFN_1`, `Intensity WT_IFN_2`, `Intensity WT_IFN_3`, `Ratio mod/base KO_1_181212063719`, `Ratio mod/base KO_2`, `Ratio mod/base KO_3`, `Ratio mod/base KO_IFN_1`, `Ratio mod/base KO_IFN_2`, `Ratio mod/base KO_IFN_3`, `Ratio mod/base WT_1`, `Ratio mod/base WT_2`, `Ratio mod/base WT_3`, `Ratio mod/base WT_IFN_1`, `Ratio mod/base WT_IFN_2`, `Ratio mod/base WT_IFN_3`, `Intensity KO_1_181212063719___1`, `Intensity KO_1_181212063719___2`, `Intensity KO_1_181212063719___3`, `Intensity KO_2___1`, `Intensity KO_2___2`, `Intensity KO_2___3`, `Intensity KO_3___1`, `Intensity KO_3___2`, `Intensity KO_3___3`, `Intensity KO_IFN_1___1`, `Intensity KO_IFN_1___2`, `Intensity KO_IFN_1___3`, `Intensity KO_IFN_2___1`, `Intensity KO_IFN_2___2`, `Intensity KO_IFN_2___3`, `Intensity KO_IFN_3___1`, `Intensity KO_IFN_3___2`, `Intensity KO_IFN_3___3`, `Intensity WT_1___1`, `Intensity WT_1___2`, `Intensity WT_1___3`, `Intensity WT_2___1`, `Intensity WT_2___2`, `Intensity WT_2___3`, `Intensity WT_3___1`, `Intensity WT_3___2`, `Intensity WT_3___3`, `Intensity WT_IFN_1___1`, `Intensity WT_IFN_1___2`, `Intensity WT_IFN_1___3`, `Intensity WT_IFN_2___1`, `Intensity WT_IFN_2___2`, `Intensity WT_IFN_2___3`, `Intensity WT_IFN_3___1`, `Intensity WT_IFN_3___2`, `Intensity WT_IFN_3___3`, `Reverse`, `Potential contaminant`, `id`, `Protein group IDs`, `Positions`, `Position`, `Peptide IDs`, `Mod. peptide IDs`, `Evidence IDs`, `MS/MS IDs`, `Best localization evidence ID`, `Best localization MS/MS ID`, `Best localization raw file`, `Best localization scan number`, `Best score evidence ID`, `Best score MS/MS ID`, `Best score raw file`, `Best score scan number`, `Best PEP evidence ID`, `Best PEP MS/MS ID`, `Best PEP raw file`, `Best PEP scan number`
+
+**`PXD027163` / `UbiSite_GlyGly__K_Sites.txt` — 290 columns**
+
+> `Proteins`, `Positions within proteins`, `Leading proteins`, `Protein`, `Protein names`, `Gene names`, `Fasta headers`, `Localization prob`, `Score diff`, `PEP`, `Score`, `Delta score`, `Score for localization`, `Localization prob S1`, `Score diff S1`, `PEP S1`, `Score S1`, `Localization prob S2`, `Score diff S2`, `PEP S2`, `Score S2`, `Localization prob S3`, `Score diff S3`, `PEP S3`, `Score S3`, `Diagnostic peak`, `Number of GlyGly (K)`, `Amino acid`, `Sequence window`, `Modification window`, `Peptide window coverage`, `GlyGly (K) Probabilities`, `GlyGly (K) Score diffs`, `Position in peptide`, `Charge`, `Mass error [ppm]`, `Identification type S1`, `Identification type S2`, `Identification type S3`, `Ratio M/L`, `Ratio M/L___1`, `Ratio M/L___2`, `Ratio M/L___3`, `Ratio M/L normalized`, `Ratio M/L normalized___1`, `Ratio M/L normalized___2`, `Ratio M/L normalized___3`, `Ratio M/L unmod. pep.`, `Ratio M/L localized`, `Ratio M/L nmods`, `Ratio M/L variability [%]`, `Ratio M/L count`, `Ratio M/L iso-count`, `Ratio M/L type`, `Ratio H/L`, `Ratio H/L___1`, `Ratio H/L___2`, `Ratio H/L___3`, `Ratio H/L normalized`, `Ratio H/L normalized___1`, `Ratio H/L normalized___2`, `Ratio H/L normalized___3`, `Ratio H/L unmod. pep.`, `Ratio H/L localized`, `Ratio H/L nmods`, `Ratio H/L variability [%]`, `Ratio H/L type`, `Ratio H/L count`, `Ratio H/L iso-count`, `Ratio H/M`, `Ratio H/M___1`, `Ratio H/M___2`, `Ratio H/M___3`, `Ratio H/M normalized`, `Ratio H/M normalized___1`, `Ratio H/M normalized___2`, `Ratio H/M normalized___3`, `Ratio H/M unmod. pep.`, `Ratio H/M localized`, `Ratio H/M nmods`, `Ratio H/M variability [%]`, `Ratio H/M count`, `Ratio H/M iso-count`, `Ratio H/M type`, `Occupancy L`, `Occupancy M`, `Occupancy H`, `Ratio M/L S1`, `Ratio M/L S1___1`, `Ratio M/L S1___2`, `Ratio M/L S1___3`, `Ratio M/L normalized S1`, `Ratio M/L normalized S1___1`, `Ratio M/L normalized S1___2`, `Ratio M/L normalized S1___3`, `Ratio M/L unmod. pep. S1`, `Ratio M/L localized S1`, `Ratio M/L nmods S1`, `Ratio M/L variability [%] S1`, `Ratio M/L count S1`, `Ratio M/L iso-count S1`, `Ratio M/L type S1`, `Ratio H/L S1`, `Ratio H/L S1___1`, `Ratio H/L S1___2`, `Ratio H/L S1___3`, `Ratio H/L normalized S1`, `Ratio H/L normalized S1___1`, `Ratio H/L normalized S1___2`, `Ratio H/L normalized S1___3`, `Ratio H/L unmod. pep. S1`, `Ratio H/L localized S1`, `Ratio H/L nmods S1`, `Ratio H/L variability [%] S1`, `Ratio H/L count S1`, `Ratio H/L iso-count S1`, `Ratio H/L type S1`, `Ratio H/M S1`, `Ratio H/M S1___1`, `Ratio H/M S1___2`, `Ratio H/M S1___3`, `Ratio H/M normalized S1`, `Ratio H/M normalized S1___1`, `Ratio H/M normalized S1___2`, `Ratio H/M normalized S1___3`, `Ratio H/M unmod. pep. S1`, `Ratio H/M localized S1`, `Ratio H/M nmods S1`, `Ratio H/M variability [%] S1`, `Ratio H/M count S1`, `Ratio H/M iso-count S1`, `Ratio H/M type S1`, `Occupancy L S1`, `Occupancy M S1`, `Occupancy H S1`, `Ratio M/L S2`, `Ratio M/L S2___1`, `Ratio M/L S2___2`, `Ratio M/L S2___3`, `Ratio M/L normalized S2`, `Ratio M/L normalized S2___1`, `Ratio M/L normalized S2___2`, `Ratio M/L normalized S2___3`, `Ratio M/L unmod. pep. S2`, `Ratio M/L localized S2`, `Ratio M/L nmods S2`, `Ratio M/L variability [%] S2`, `Ratio M/L count S2`, `Ratio M/L iso-count S2`, `Ratio M/L type S2`, `Ratio H/L S2`, `Ratio H/L S2___1`, `Ratio H/L S2___2`, `Ratio H/L S2___3`, `Ratio H/L normalized S2`, `Ratio H/L normalized S2___1`, `Ratio H/L normalized S2___2`, `Ratio H/L normalized S2___3`, `Ratio H/L unmod. pep. S2`, `Ratio H/L localized S2`, `Ratio H/L nmods S2`, `Ratio H/L variability [%] S2`, `Ratio H/L count S2`, `Ratio H/L iso-count S2`, `Ratio H/L type S2`, `Ratio H/M S2`, `Ratio H/M S2___1`, `Ratio H/M S2___2`, `Ratio H/M S2___3`, `Ratio H/M normalized S2`, `Ratio H/M normalized S2___1`, `Ratio H/M normalized S2___2`, `Ratio H/M normalized S2___3`, `Ratio H/M unmod. pep. S2`, `Ratio H/M localized S2`, `Ratio H/M nmods S2`, `Ratio H/M variability [%] S2`, `Ratio H/M count S2`, `Ratio H/M iso-count S2`, `Ratio H/M type S2`, `Occupancy L S2`, `Occupancy M S2`, `Occupancy H S2`, `Ratio M/L S3`, `Ratio M/L S3___1`, `Ratio M/L S3___2`, `Ratio M/L S3___3`, `Ratio M/L normalized S3`, `Ratio M/L normalized S3___1`, `Ratio M/L normalized S3___2`, `Ratio M/L normalized S3___3`, `Ratio M/L unmod. pep. S3`, `Ratio M/L localized S3`, `Ratio M/L nmods S3`, `Ratio M/L variability [%] S3`, `Ratio M/L count S3`, `Ratio M/L iso-count S3`, `Ratio M/L type S3`, `Ratio H/L S3`, `Ratio H/L S3___1`, `Ratio H/L S3___2`, `Ratio H/L S3___3`, `Ratio H/L normalized S3`, `Ratio H/L normalized S3___1`, `Ratio H/L normalized S3___2`, `Ratio H/L normalized S3___3`, `Ratio H/L unmod. pep. S3`, `Ratio H/L localized S3`, `Ratio H/L nmods S3`, `Ratio H/L variability [%] S3`, `Ratio H/L count S3`, `Ratio H/L iso-count S3`, `Ratio H/L type S3`, `Ratio H/M S3`, `Ratio H/M S3___1`, `Ratio H/M S3___2`, `Ratio H/M S3___3`, `Ratio H/M normalized S3`, `Ratio H/M normalized S3___1`, `Ratio H/M normalized S3___2`, `Ratio H/M normalized S3___3`, `Ratio H/M unmod. pep. S3`, `Ratio H/M localized S3`, `Ratio H/M nmods S3`, `Ratio H/M variability [%] S3`, `Ratio H/M count S3`, `Ratio H/M iso-count S3`, `Ratio H/M type S3`, `Occupancy L S3`, `Occupancy M S3`, `Occupancy H S3`, `Intensity`, `Intensity L`, `Intensity M`, `Intensity H`, `Ratio mod/base L`, `Ratio mod/base M`, `Ratio mod/base H`, `Intensity S1`, `Intensity L S1`, `Intensity M S1`, `Intensity H S1`, `Ratio mod/base L S1`, `Ratio mod/base M S1`, `Ratio mod/base H S1`, `Intensity S2`, `Intensity L S2`, `Intensity M S2`, `Intensity H S2`, `Ratio mod/base L S2`, `Ratio mod/base M S2`, `Ratio mod/base H S2`, `Intensity S3`, `Intensity L S3`, `Intensity M S3`, `Intensity H S3`, `Ratio mod/base L S3`, `Ratio mod/base M S3`, `Ratio mod/base H S3`, `Occupancy S1`, `Occupancy ratioS1`, `Occupancy error scale S1`, `Occupancy S2`, `Occupancy ratioS2`, `Occupancy error scale S2`, `Occupancy S3`, `Occupancy ratioS3`, `Occupancy error scale S3`, `Reverse`, `Potential contaminant`, `id`, `Protein group IDs`, `Positions`, `Position`, `Peptide IDs`, `Mod. peptide IDs`, `Evidence IDs`, `MS/MS IDs`, `Best localization evidence ID`, `Best localization MS/MS ID`, `Best localization raw file`, `Best localization scan number`, `Best score evidence ID`, `Best score MS/MS ID`, `Best score raw file`, `Best score scan number`, `Best PEP evidence ID`, `Best PEP MS/MS ID`, `Best PEP raw file`, `Best PEP scan number`
+
+**`PXD027328` / `GlyGly__K_Sites.txt` — 171 columns**
+
+> `Proteins`, `Positions within proteins`, `Leading proteins`, `Protein`, `Protein names`, `Gene names`, `Fasta headers`, `Localization prob`, `Score diff`, `PEP`, `Score`, `Delta score`, `Score for localization`, `Localization prob DMSO1`, `Score diff DMSO1`, `PEP DMSO1`, `Score DMSO1`, `Localization prob DMSO2`, `Score diff DMSO2`, `PEP DMSO2`, `Score DMSO2`, `Localization prob DMSO3`, `Score diff DMSO3`, `PEP DMSO3`, `Score DMSO3`, `Localization prob MG1`, `Score diff MG1`, `PEP MG1`, `Score MG1`, `Localization prob MG2`, `Score diff MG2`, `PEP MG2`, `Score MG2`, `Localization prob MG3`, `Score diff MG3`, `PEP MG3`, `Score MG3`, `Localization prob PR1`, `Score diff PR1`, `PEP PR1`, `Score PR1`, `Localization prob PR2`, `Score diff PR2`, `PEP PR2`, `Score PR2`, `Localization prob PR3`, `Score diff PR3`, `PEP PR3`, `Score PR3`, `Localization prob TAK1`, `Score diff TAK1`, `PEP TAK1`, `Score TAK1`, `Localization prob TAK2`, `Score diff TAK2`, `PEP TAK2`, `Score TAK2`, `Localization prob TAK3`, `Score diff TAK3`, `PEP TAK3`, `Score TAK3`, `Diagnostic peak`, `Number of GlyGly (K)`, `Amino acid`, `Sequence window`, `Modification window`, `Peptide window coverage`, `GlyGly (K) Probabilities`, `GlyGly (K) Score diffs`, `Position in peptide`, `Charge`, `Mass error [ppm]`, `Identification type DMSO1`, `Identification type DMSO2`, `Identification type DMSO3`, `Identification type MG1`, `Identification type MG2`, `Identification type MG3`, `Identification type PR1`, `Identification type PR2`, `Identification type PR3`, `Identification type TAK1`, `Identification type TAK2`, `Identification type TAK3`, `Intensity`, `Intensity___1`, `Intensity___2`, `Intensity___3`, `Ratio mod/base`, `Intensity DMSO1`, `Intensity DMSO2`, `Intensity DMSO3`, `Intensity MG1`, `Intensity MG2`, `Intensity MG3`, `Intensity PR1`, `Intensity PR2`, `Intensity PR3`, `Intensity TAK1`, `Intensity TAK2`, `Intensity TAK3`, `Ratio mod/base DMSO1`, `Ratio mod/base DMSO2`, `Ratio mod/base DMSO3`, `Ratio mod/base MG1`, `Ratio mod/base MG2`, `Ratio mod/base MG3`, `Ratio mod/base PR1`, `Ratio mod/base PR2`, `Ratio mod/base PR3`, `Ratio mod/base TAK1`, `Ratio mod/base TAK2`, `Ratio mod/base TAK3`, `Intensity DMSO1___1`, `Intensity DMSO1___2`, `Intensity DMSO1___3`, `Intensity DMSO2___1`, `Intensity DMSO2___2`, `Intensity DMSO2___3`, `Intensity DMSO3___1`, `Intensity DMSO3___2`, `Intensity DMSO3___3`, `Intensity MG1___1`, `Intensity MG1___2`, `Intensity MG1___3`, `Intensity MG2___1`, `Intensity MG2___2`, `Intensity MG2___3`, `Intensity MG3___1`, `Intensity MG3___2`, `Intensity MG3___3`, `Intensity PR1___1`, `Intensity PR1___2`, `Intensity PR1___3`, `Intensity PR2___1`, `Intensity PR2___2`, `Intensity PR2___3`, `Intensity PR3___1`, `Intensity PR3___2`, `Intensity PR3___3`, `Intensity TAK1___1`, `Intensity TAK1___2`, `Intensity TAK1___3`, `Intensity TAK2___1`, `Intensity TAK2___2`, `Intensity TAK2___3`, `Intensity TAK3___1`, `Intensity TAK3___2`, `Intensity TAK3___3`, `Reverse`, `Potential contaminant`, `id`, `Protein group IDs`, `Positions`, `Position`, `Peptide IDs`, `Mod. peptide IDs`, `Evidence IDs`, `MS/MS IDs`, `Best localization evidence ID`, `Best localization MS/MS ID`, `Best localization raw file`, `Best localization scan number`, `Best score evidence ID`, `Best score MS/MS ID`, `Best score raw file`, `Best score scan number`, `Best PEP evidence ID`, `Best PEP MS/MS ID`, `Best PEP raw file`, `Best PEP scan number`
+
+
+#### Predicted beside measured
+
+| Quantity | Predicted | Measured | |
+|---|---|---|---|
+| total bytes transferred | **84,657,723**, band 84.5–84.8 MB | **84,657,723** | hit, exactly |
+| of four headers, carrying the nine structural columns | **4**, band 3–4 | **4** | hit |
+| the anchor's SHA-256 against the pinned digest | matches; `fetch` does not raise | **matches** | hit |
+| the algorithm behind `checksum` | **SHA-1**, all three published values match | **SHA-1**, all three match | hit |
+| verbatim header cost | 300–900 columns, 10–30 KB | **735 columns, 15 KB** | hit |
+
+**Five predictions, five hits, and that is worth less than it looks.** Four of the five were
+predictions about *measurements already published*: the byte total was the sum of four
+`fileSizeBytes` values, and the header count rested on eleven prior observations of the same file
+type. The one that carried real risk was the algorithm, and it was hedged by computing all three
+widths rather than by predicting well.
+
+**The band that did not bind is the informative one.** The 3–4 band on headers existed entirely
+because `PXD079072` differed on three visible axes. All three were irrelevant to what was being
+predicted — **the odd-one-out signals were real and none of them predicted the header** — which is
+evidence that deposit-level metadata does not carry structural information about the tables inside.
+That is a caution for any later turn tempted to infer table structure from deposit properties.
+
+#### No code change
+
+Every fetch succeeded on the path the pre-registration named, and no check refused anything. Nothing
+in `bzk/` changed and no test was added. **No check was weakened to let a fetch succeed** — the one
+artefact that cannot be verified is recorded as unverified rather than made to look otherwise.
 
 ### Deposit and supplementary survey, 2026-08-07
 
