@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.92 |
+| Version | 1.93 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -6827,6 +6827,118 @@ denominator.*
 No guard raised, and the single failure was a transport transient handled by the caller's retry, so
 **nothing in `bzk/deposit_survey.py` changed and no test was added.** Nothing in this run asked the
 extractor to do something it refused, and no guard was weakened to let a read succeed.
+
+### Pre-registration: the four direct tables, and what verification each can carry, 2026-08-12
+
+Eleven archived artefacts are read and CRC-verified. The four **direct** files at § *The register
+framed a binary, and it is not one — three corrections before choosing* are not, and they belong to
+four of the twelve candidates, so
+nothing can be scored on eleven of fifteen. This turn completes the population and **scores nothing**.
+
+#### The verification available is not two-valued, and not three-valued either
+
+An archived member is checked against its archive's own central-directory CRC-32. A direct file has
+no such structure. Three categories were expected; **the listing turns out to publish a fourth, and
+one of the four files can carry none of them.**
+
+| Category | What it establishes | Who has it |
+|---|---|---|
+| **CRC-verified** | the bytes are the bytes the archive's directory describes | the eleven archived members |
+| **Expected-digest verified** | the bytes are the bytes *this repository has pinned* | **the anchor only** — `bzk/sources/pride.py` l.57–65 pins `PXD018299_SITES.expected_content_hash`, and `fetch` l.106–116 raises if the stored bytes differ, *after* storing so the differing bytes are on disk to compare |
+| **Publisher-checksum verified** | the bytes are the bytes *PRIDE says it holds* | **three of the four** — see below |
+| **Store digest only** | what arrived, and nothing about whether it is what was deposited | anything `raw_store` accepts |
+| **none** | — | **`PXD079072`** |
+
+The three are not redundant. A CRC says an archive is internally consistent; an expected digest says
+the repository's own claim still holds; a publisher checksum says the copy matches the archive's
+record of it. **`raw_store`'s digest is none of these** and must not be allowed to read as one — it
+hashes whatever arrived, so a truncated download that completes cleanly gets a perfectly good digest
+of the wrong bytes.
+
+#### The listing publishes a checksum, and the survey module has never read it
+
+**Established before fetching, by reading the API rather than the module.** `file_urls`
+(`bzk/deposit_survey.py` l.415–428) reads `fileName` and `publicFileLocations` and nothing else. The
+rows it discards carry **`checksum`**, a **40-hex-character** field — 160 bits, so SHA-1 or
+RIPEMD-160; **the API declares no algorithm anywhere in the row**, and this pre-registration does not
+assume one. It is pinned by measurement in the fetch below.
+
+| Accession | Direct file | Bytes | `checksum` | Files in the listing carrying one |
+|---|---|---|---|---|
+| `PXD079072` | `GlyGlySites.txt` | 102,731 | **empty string** | **0 of 24** |
+| `PXD018299` | `HAP1_USP18KO_GlyGlyKSites.txt` | 2,759,052 | `577e7a9c743161f9008fead1d22f8d8ec4642ea9` | 39 of 39 |
+| `PXD027163` | `UbiSite_GlyGly__K_Sites.txt` | 15,802,963 | `8a13ac217a983a089aa1609af2d14585edb4bc98` | 100 of 100 |
+| `PXD027328` | `GlyGly__K_Sites.txt` | 65,992,977 | `4ca47c02cf23f6b923225bd40b9ad5705e9008c8` | 100 of 100 |
+
+**`PXD079072` publishes the field empty on every one of its twenty-four files**, so its emptiness is
+a property of the deposit, not of this file. It is a 2026-05 deposit and the other three are
+2022 — that is a correlation across four points and is **not** offered as the cause.
+
+**A second finding, and it is about the instrument rather than the data.** Those two `100 of 100`
+counts are the endpoint's page cap, not file counts. `_get` (l.322–326) does not paginate and
+`file_urls` asks for `pageSize=500`; the server answers **100 regardless**, and `page=1` returns a
+further 95 rows for `PXD027163` and a further 100 for `PXD027328`, all new. **So `file_urls`
+silently truncates any deposit holding more than 100 files**, and it truncated both of these during
+the survey. All four direct files sit inside page 0 and this turn's fetches are unaffected. What is
+*not* established is whether either deposit holds further K-GG tables on the pages never requested.
+**That is recorded, not acted on** — re-drawing the survey is out of scope here, and no criterion is
+adjusted for it.
+
+#### The anchor: fetched fresh, through `fetch`, and not read from the repository
+
+`PXD018299`'s `HAP1_USP18KO_GlyGlyKSites.txt` is one of the four and the baseline already rests on
+it. Both grounds were weighed and the decision is **fetch it fresh**.
+
+**The deciding fact is that there is nothing to read.** `raw/` does not exist in this container, so
+"read what the repository holds" resolves to reading the *curation records*, and those hold the
+digest — in five places — but not the bytes and not the header. `curation_PXD018299.json` names
+twelve columns in its `mapping` (`Ratio mod/base KO_1_181212063719` and eleven siblings) and pins
+`search_engine: maxquant`, `search_engine_version: 1.5.5.1`. **That answers less than a header read
+would**: it establishes the engine and twelve sample columns, and says nothing about whether the nine
+structural columns are present — which is the only question this turn asks of a header.
+
+The second ground stands on its own. **Re-fetching risks nothing here**, because `fetch` raises
+rather than returns differing bytes, and its message says what a difference would mean: a revised
+deposit or a truncated download, never routine drift. Running it is a *test* of the pinned digest, on
+a cold container, rather than an exposure. Uniform provenance across the four is worth having, and it
+costs one 2.76 MB read.
+
+#### What is fetched, by which path, and what is retained
+
+| # | Accession | File | Bytes | URL | Path | Verification it will carry |
+|---|---|---|---|---|---|---|
+| 1 | `PXD079072` | `GlyGlySites.txt` | 102,731 | `…/2026/05/PXD079072/GlyGlySites.txt` | `fetch_bytes` | **none** — store digest only |
+| 2 | `PXD018299` | `HAP1_USP18KO_GlyGlyKSites.txt` | 2,759,052 | `…/2022/02/PXD018299/HAP1_USP18KO_GlyGlyKSites.txt` | **`fetch(PXD018299_SITES)`** | expected-digest **and** publisher-checksum |
+| 3 | `PXD027163` | `UbiSite_GlyGly__K_Sites.txt` | 15,802,963 | `…/2022/08/PXD027163/UbiSite_GlyGly__K_Sites.txt` | `fetch_bytes` | publisher-checksum |
+| 4 | `PXD027328` | `GlyGly__K_Sites.txt` | 65,992,977 | `…/2022/05/PXD027328/GlyGly__K_Sites.txt` | `fetch_bytes` | publisher-checksum |
+
+All four URLs are the listing's own `publicFileLocations` value with `ftp://` rewritten, which is
+what `file_urls` returns; row 2's is additionally identical to `PXD018299_SITES.url`, and that
+identity is checked rather than assumed.
+
+**Only the anchor takes `fetch`, and that is a constraint rather than a preference.** `fetch`
+requires a `DepositFile`; only the anchor is one, and `bzk/sources/pride.py` gains no new constant
+this turn. The other three take `fetch_bytes` with the listing's URL — **no store write and no
+expected-hash check** — and are checked against the published checksum in the driver instead, which
+is a check the module does not currently offer to anyone.
+
+**Retained: nothing in the repository.** `fetch` must write before it can check, so the anchor's
+store write is routed to a scratchpad `home` outside the working tree and deleted at the end of the
+turn; the other three are never written at all. Nothing enters `data/curation/`, nothing enters
+`raw/`, and each file is held in memory, its header line taken, and dropped.
+
+#### Predictions
+
+| Quantity | Prediction | Ground, and what argues against it |
+|---|---|---|
+| **total bytes transferred** | **84,657,723 B exactly** (= 102,731 + 2,759,052 + 15,802,963 + 65,992,977), band 84.5–84.8 MB | these are whole-file `GET`s, not ranged reads, and `Content-Length` is published for each. A `HEAD` on the anchor already returned exactly 2,759,052. Against: a listing figure could be stale, and one file is from a 2026 deposit |
+| **of four headers, carrying the nine structural columns of l.6716** — `Proteins`, `Positions within proteins`, `Localization prob`, `Sequence window`, `Amino acid`, `Position in peptide`, `id`, `Reverse`, `Potential contaminant` | **4 of 4**, band 3–4 | all eleven archived members carry 9 of 9, and the anchor's curation record pins MaxQuant 1.5.5.1. Against: `PXD079072`'s file is named `GlyGlySites.txt` with no `(K)`, is the only one whose deposit publishes no checksum at all, and is the only 2026 deposit — three ways in which it is the odd one, which is why the band's low end is 3 and not 4 |
+| **the anchor's SHA-256** | **matches the pinned digest; `fetch` does not raise** | the deposit's `updatedDate` is 2020-03-31 and the digest was re-verified on a cold container before |
+| **the algorithm behind `checksum`** | **SHA-1**, and all three published values match | 40 hex characters, and SHA-1 is what file listings publish. Against: RIPEMD-160 is the same width, and the API declares nothing — so a mismatch on all three would mean the algorithm, not the bytes |
+| **verbatim header cost** | **300–900 columns, 10–30 KB**, against the eleven's 2,682 columns and 76 KB | the anchor carries twelve sample columns, so on the eleven's pattern roughly 130 total; the two large tables are 15.8 MB and 66 MB and may run wide |
+
+**No prediction is made about what any header contains beyond the nine**, and **no C1 criterion is
+scored.** Criteria 5, 6, 7 and 11 are read from exactly these columns.
 
 ### Deposit and supplementary survey, 2026-08-07
 
