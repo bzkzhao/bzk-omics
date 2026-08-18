@@ -60,3 +60,6 @@ credentials.json
 # Archives — usually accidental browser downloads
 *.zip
 *.tar.gz
+
+# Ephemeral agent working files (.claude/config/issue-tracker.md)
+.scratch/
