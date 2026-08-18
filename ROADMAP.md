@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.94 |
-| Last reviewed | 2026-08-12 |
+| Version | 1.95 |
+| Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
 
@@ -7101,6 +7101,194 @@ That is a caution for any later turn tempted to infer table structure from depos
 Every fetch succeeded on the path the pre-registration named, and no check refused anything. Nothing
 in `bzk/` changed and no test was added. **No check was weakened to let a fetch succeed** — the one
 artefact that cannot be verified is recorded as unverified rather than made to look otherwise.
+
+### The procedure for the five header-derivable C1 components, fixed before application, 2026-08-18
+
+Fifteen artefacts have verbatim headers. Five components of C1 are reachable from a first line:
+criteria **7**, **8** and **11** whole, plus the **intensity-family** part of 5 and the
+**column-name** part of 6, per the band table at l.3884–3894. This turn scores those five and
+**ranks nothing**.
+
+**This pre-registration does not pretend to blindness.** The headers are in this document and were
+read while writing what follows. What is fixed in advance is the **procedure** — how a header maps
+to *differs* or *does not differ* — so that another person applying it to the same fifteen headers
+reaches the same fifteen scores. The disclosure form is the one the C0(d) reading turn settled.
+**No band is amended.**
+
+#### Two definitions everything else is built on
+
+Criteria 8 and 11 both read *sample names*, and neither is decidable until sample names are. Both
+definitions are stated here, once, and neither mentions a header that has been seen.
+
+**D1 — the sample-name set of a header.** MaxQuant emits per-sample quantitative columns as a family
+prefix followed by the sample name. The closed list of prefixes, in this precedence order:
+
+> `Reporter intensity corrected`, `Reporter intensity`, `LFQ intensity`, `Intensity`, `iBAQ`,
+> `Ratio mod/base normalized`, `Ratio mod/base`, `Occupancy error scale`, `Occupancy`, `Ratio H/L`,
+> `Ratio M/L`, `Ratio H/M`
+
+For each prefix *P*, take every column beginning `P` + one space, drop that prefix, then drop a
+trailing multiplicity suffix — `___` followed by digits, which MaxQuant appends per modification
+count in site tables. The remainders are *S(P)*. **The sample-name set is the largest *S(P)*;** ties
+go to the earlier prefix in the list. A bare column exactly equal to a prefix is a summary column,
+not a sample, and contributes nothing.
+
+**D2 — an opaque token.** Split a sample name on `_`, `-`, `.` and space. A token is **opaque** iff
+it is six or more characters and either all digits, or alphanumeric containing at least two digits.
+Every other token is **semantic**. The threshold is six because a replicate index, a plex channel and
+a timepoint are all short, and an instrument run ID, a barcode and a plate-well code are all long;
+it is set here rather than tuned later.
+
+#### Criterion 7 — native stoichiometry (I4)
+
+Band: *`Ratio mod/base` present per sample; informative if **absent***.
+
+**Present** iff at least one column is exactly `Ratio mod/base` or begins `Ratio mod/base` followed
+by a space. The prefix rule admits normalised variants deliberately: I4 asks whether a
+modified-to-base ratio is carried at all, not which normalisation.
+
+**One column suffices.** The band's *per sample* describes the anchor's shape — twelve of them — and
+the informative direction is *absent*, which any presence defeats. The count of matching columns is
+recorded beside each score so a stricter per-sample reading is checkable without re-deriving it.
+
+**Scored strictly on the named column, with the looser reading recorded.** MaxQuant's `Occupancy`
+columns express the same quantity, and a deposit carrying `Occupancy` but not `Ratio mod/base` would
+score *differs* here while arguably carrying native stoichiometry. Whether `Occupancy` is present is
+therefore recorded for every artefact. **Flagging it is not scoring it** — the band names one column
+and this turn amends no band.
+
+**Differs** iff absent.
+
+#### Criterion 8 — sample-name convention
+
+Band: *one replicate carrying a run ID like `KO_1_181212063719`; informative on a different
+convention **in kind, not just in spelling***.
+
+**In kind versus in spelling is the criterion, so the kinds are enumerated and closed.** A header's
+convention is exactly one of:
+
+| Kind | Definition over the sample-name set |
+|---|---|
+| **K1 semantic** | no name carries an opaque token |
+| **K2 opaque** | no name carries a semantic token |
+| **K3 mixed-systematic** | **every** name carries both an opaque and a semantic token |
+| **K4 mixed-inconsistent** | some names carry an opaque token and some do not |
+| **K5 none** | the sample-name set is empty |
+
+**Differs in kind** iff the artefact's kind is not the anchor's kind. Two artefacts of the same kind
+differ only in **spelling** however unlike their tokens read — `WT` against `Control`, `_1` against
+`_rep1`, `KO_IFN` against `Ko.Ifn` are all K1-to-K1 and none scores. That is the whole content of the
+distinction: *kind* is the shape of the scheme, *spelling* is the vocabulary poured into it.
+
+**K5 counts as a difference in kind.** A table with no per-sample quantitative columns has no naming
+convention rather than a different one, and that is categorical. It overlaps criterion 11, which will
+also fire on K5; the overlap is stated here rather than discovered in the scoring, and neither
+criterion is adjusted for it.
+
+#### Criterion 11 — design recoverable from column names
+
+Band: *unambiguous for the anchor; informative if **not** recoverable*.
+
+**The band is only coherent if *recoverable* is defined over the site table's own per-sample column
+names**, which is what the band says and is not the same thing as `filename_inference`. The recorded
+anchor case is the trap: `PXD018299`'s fourteen quantitative columns were not deducible under
+`filename_inference`, yet the band reads *unambiguous* for the anchor. Those fourteen are the
+**protein-grain** columns of a different file. This criterion reads the site table.
+
+**Recoverable** iff all four hold over the sample-name set:
+
+1. there are at least two samples;
+2. every sample name, after **every opaque token is removed**, splits into a non-empty **group** and
+   a trailing **replicate index** — a final token matching `rep`, `r` or `R` optionally followed by
+   one or two digits, or one or two bare digits;
+3. at least two distinct groups result;
+4. every group holds at least two samples.
+
+**Opaque tokens are stripped before condition 2, and that is what keeps 8 and 11 orthogonal.** A run
+ID is instrument bookkeeping, not design. Criterion 8 asks whether the opaque token is there and how
+consistently; criterion 11 asks whether what remains encodes an experiment. Without the strip the
+anchor would fail condition 2 on its one run-ID replicate and score *not recoverable*, contradicting
+its own band — which is exactly the incoherence this definition exists to remove.
+
+**Differs** iff not recoverable.
+
+#### Criterion 5 — the intensity-family component only
+
+Band: *`intensity_multiplicity_summed`; informative on a different multiplicity treatment **or
+intensity family***. **The multiplicity-treatment half is not header-derivable and stays unscored.**
+
+The family of an artefact is the set of labels whose prefix appears, from this closed map:
+
+| Prefix | Family |
+|---|---|
+| `Reporter intensity` (including `corrected`) | `reporter_isobaric` |
+| `LFQ intensity` | `lfq` |
+| `iBAQ` | `ibaq` |
+| `Ratio H/L`, `Ratio M/L`, `Ratio H/M` | `silac_ratio` |
+| `Intensity`, where not already matched as `Reporter intensity` | `label_free_intensity` |
+
+`Ratio mod/base` and `Occupancy` are **not** intensity families. They are stoichiometry, and they are
+criterion 7's business; counting them here would score one property twice.
+
+**Differs** iff the family set is not equal to the anchor's family set. Whether a difference is a
+**different primary family** or merely **additional families alongside the anchor's** is recorded
+beside each score, because the stricter reading — only a changed primary scores — is defensible and a
+later reader should be able to apply it without re-deriving anything.
+
+#### Criterion 6 — the column-name component only
+
+Band: *median 1.00, min 0.35; informative on a different median, **a different column name**, or a
+different scale*. **Criterion 6 has three components, not two.** Median and scale need the values in
+the table body and stay unscored.
+
+**Differs** iff no column is exactly `Localization prob`.
+
+**This component is already determined and cannot separate anything.** Every one of the fifteen was
+measured at 9 of 9 structural columns (l.6716, l.7035) and `Localization prob` is one of the nine.
+Its score is therefore fixed by a measurement already in this document, and reporting *0 of 15*
+would be re-reading an existing number rather than finding one. It is scored anyway, for
+completeness of the five, and **labelled as carrying no information** rather than presented as a
+result.
+
+#### The population and the three denominators
+
+Scoring is **per artefact**, under the shared-artefact rule as written at l.6495–6501: the
+byte-identical `txt.zip` is measured once, under the accession the extent tie-break selects, and the
+other candidate is recorded as sharing it rather than re-measured.
+
+| Denominator | Count | What it is |
+|---|---|---|
+| **candidates** | **12** | the drawn set at l.5283 |
+| **candidates with a measured artefact** | **10** | the twelve less `PXD070789`, which has none, and less `PXD060435`, whose artefact is measured under another accession |
+| **artefacts** | **15** | 11 archived members + 4 direct tables |
+| **artefacts with headers** | **15** | all of them |
+| **artefacts compared against the anchor** | **14** | the fifteen less the anchor, which cannot differ from itself |
+
+**Every count below states which of these it is over.** Counts of artefacts and counts of candidates
+are not interchangeable here: `PXD019152` holds two artefacts and `PXD074949` and `PXD075538` hold
+three each, so a criterion can fire on one artefact of a candidate and not another, and a
+candidate-level count would hide that.
+
+**`PXD070789` is unscorable, which is a third state and not *does not differ*.** It passes C0(c) on
+`Phospho-STY-Sites.txt` and has no K-GG table at all, so it has no artefact and no header. It is
+absent from all five denominators above except *candidates*, and it is reported as **unscorable**
+wherever a per-candidate figure appears.
+
+#### Predictions
+
+**Made with the headers visible, and therefore weak evidence.** Fragments of these headers are
+already quoted in this document — column counts, the GlyGly families, one artefact's 148 `Intensity`
+and 37 `Ratio mod/base` columns, `PXD079072`'s missing `Gene names`. Predicting against data one has
+partly seen tests the procedure's *determinacy*, not one's foresight, and the hits below should be
+read as worth roughly nothing except where a prediction is wrong.
+
+| Prediction | Value | Ground |
+|---|---|---|
+| **of the five components, how many separate at least one artefact from at least one other** | **4**, band 3–5 | criterion 6's component is fixed at *no difference* by the 9/9 measurement and cannot separate, so 4 is the ceiling reachable by the other four. Each of those four is expected to fire: `Ratio mod/base` requires a matched proteome run that not every deposit performs; the anchor's K4 convention — one run-ID leak among twelve otherwise clean names — is an inconsistency unlikely to recur; archive names such as `search_1066_R01R18` suggest opaque run indices, which reduce to nothing under the strip and fail recoverability; and the wider tables suggest sample counts that isobaric labelling would explain |
+| **of the fourteen non-anchor artefacts, how many differ from the anchor on at least one component** | **13**, band 10–14 | the anchor's convention is idiosyncratic on criterion 8 alone, and criterion 8 fires on any kind that is not K4. Against: three artefacts come from `PXD074949` and three from `PXD075538`, so a shared convention within a submitter could leave several matching |
+
+**No prediction is made about which artefact differs**, and none about criteria 1, 2, 3, 4, 9, 10 or
+the non-header components of 5 and 6.
 
 ### Deposit and supplementary survey, 2026-08-07
 
