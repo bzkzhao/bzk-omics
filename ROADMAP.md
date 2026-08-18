@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.96 |
+| Version | 1.97 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -6396,7 +6396,7 @@ the exclusion clause removes. **So the selection effect the clause was written a
 larger than expected**: strip the query vocabulary and almost no method vocabulary remains. The clause
 did its job, and the cost of it doing its job is eight undetermined.
 
-### The shared-artefact rule: consequences registered before the choice, 2026-08-12
+### The shared-artefact rule: consequences registered before the choice, 2026-08-17
 
 **No network call was made this turn.** The duplicate blocks: extracting both spends bytes for
 identical numbers, and scoring both gives one study two entries in any ranking. **This turn decides
@@ -6584,7 +6584,7 @@ tests only that the reasoning was stable, not that it was right. What carries we
 the rule fires on the duplicate and not on the control, and that its tie-break selects against the
 three readings that had priority, publication and C2's own tie-break behind them.
 
-### Pre-registration: extracting the eleven artefacts, 2026-08-12
+### Pre-registration: extracting the eleven artefacts, 2026-08-18
 
 **Committed before any extraction, in its own commit.** The archive host was confirmed answering
 first: `https://ftp.pride.ebi.ac.uk/pride/data/archive/2020/06/PXD019152/` → `HEAD 200`,
@@ -6640,7 +6640,7 @@ once, record it, and say whether it recurred.
 
 **No prediction is made about what any header will contain**, and **no C1 criterion is scored.**
 
-### Eleven artefacts extracted, every CRC verified, 2026-08-12
+### Eleven artefacts extracted, every CRC verified, 2026-08-18
 
 **No guard raised.** Eleven members range-read out of eleven archives across six candidates, each
 verified against its central-directory CRC-32 and each length-checked against its declared size.
@@ -6828,7 +6828,7 @@ No guard raised, and the single failure was a transport transient handled by the
 **nothing in `bzk/deposit_survey.py` changed and no test was added.** Nothing in this run asked the
 extractor to do something it refused, and no guard was weakened to let a read succeed.
 
-### Pre-registration: the four direct tables, and what verification each can carry, 2026-08-12
+### Pre-registration: the four direct tables, and what verification each can carry, 2026-08-18
 
 Eleven archived artefacts are read and CRC-verified. The four **direct** files at § *The register
 framed a binary, and it is not one — three corrections before choosing* are not, and they belong to
@@ -6940,7 +6940,7 @@ turn; the other three are never written at all. Nothing enters `data/curation/`,
 **No prediction is made about what any header contains beyond the nine**, and **no C1 criterion is
 scored.** Criteria 5, 6, 7 and 11 are read from exactly these columns.
 
-### The four direct tables fetched: the population is complete and unequally verified, 2026-08-12
+### The four direct tables fetched: the population is complete and unequally verified, 2026-08-18
 
 **All four fetched, all four plausible MaxQuant K-GG site tables, and one of the fifteen artefacts
 carries no verification at all.** Nothing entered the repository: the anchor's store write went to a
@@ -7509,8 +7509,180 @@ nothing in this turn touches it.
 The five sections preceding this one are headed **2026-08-12**. They were committed on 2026-08-17 and
 2026-08-18, which the commit dates and an independent `Date` header from the archive host both give.
 The headings are stale by five and six days. **`Last reviewed` in this document's header is corrected
-to 2026-08-18; the five earlier headings are named here and left as they stand**, because editing
+to 2026-08-18; ~~the five earlier headings are named here and left as they stand~~**, because editing
 five earlier records is not in this turn's scope and doing it silently is worse than recording it.
+
+*Superseded 2026-08-18: the five were corrected, each against the commit that introduced it — see* § *The qualifier vocabulary cannot be established here*. **The count of five was also wrong**: twelve headings are stale, not five, and the seven beyond this turn's scope are enumerated there with their commits.
+
+### The qualifier vocabulary cannot be established here, and criterion 11 is withdrawn, 2026-08-18
+
+**This turn stopped.** The corrected D1 and D2 were to be derived from MaxQuant's documentation, and
+the documentation is not reachable from this container. What follows is the reason, with its
+evidence, the part of the repair that *is* derivable without documentation and how far it gets, and
+one ruling that needed no documentation at all.
+
+#### The evidence for the block, stated exactly
+
+**The repository holds three Cox Labs citations and they are all about file names.** `grep -c
+"Cox Labs" ROADMAP.md` returns **3**, at l.4975–4977: *Output Tables* for the list of result tables
+MaxQuant writes, *First steps with MaxQuant* for `combined/txt`, *Download & Installation* for
+`mqpar.xml`. **No column name is quoted from any of them, no page is cached anywhere in the tree,
+and no `.html` from `coxdocs` exists in the working copy.** The engine matcher took file names from
+those pages; the qualifier vocabulary is column-level and was never extracted.
+
+**Fetching is out of scope for this turn by name**, so the pages cannot be read now.
+
+**Every occurrence of `Occupancy`, `error scale`, `iso-count`, `count` and `normalized` in this
+repository is inside the fifteen verbatim headers** — that is, inside the sample. Building the
+qualifier list from them is precisely the move Step 1 forbids and precisely the move that made
+criterion 8's rule a description of its own data the first time. **So the terms are left out**, on
+the same ground the matcher turn left out `experimentalDesignTemplate.txt`: not judged generic,
+simply not established.
+
+#### What is derivable without documentation, and it is not nothing
+
+**The collision the instruction names is resolved structurally.** A flat qualifier vocabulary
+containing `normalized` or `error scale` would strip tokens that D1's own prefix list (l.7126–7128)
+treats as families. The resolution rule needs no vocabulary:
+
+> **Every column is assigned to exactly one family: the *longest* prefix in the list that claims it.
+> A set *S(P)* is built only from columns assigned to *P*.** A term is a qualifier only where no
+> longer prefix claims it.
+
+Applied to the two named prefixes before anything else: `Occupancy error scale Flg` is claimed by
+`Occupancy error scale`, which is longer than `Occupancy`, so `error scale` is **never** a qualifier
+of `Occupancy` and the collision cannot arise. `Ratio mod/base normalized …` resolves identically
+against `Ratio mod/base`. **Neither term needs to appear in a qualifier list at all.**
+
+**This also fixes the structural defect the scoring turn identified.** The old rule chose the largest
+*S(P)* over overlapping sets, so the polluted set was always strictly larger and precedence — which
+only breaks ties — could never fire. Under disjoint assignment the sets no longer overlap, so
+selection is well-founded.
+
+#### And it is provably insufficient, which is what fixes the stopping decision
+
+| Accession | Artefact | D1 samples | After longest-prefix-first | Winning family | Residue |
+|---|---|---|---|---|---|
+| `PXD019152` | `GlyGly (K) no C termSites.txt` | 6 | **4** | `Occupancy` | `ratioFlg`, `ratioGST` |
+| `PXD019152` | `GlyGly (K)Sites.txt` | 2 | **2** | `Intensity` | **none** |
+| `PXD032078` | `GlyGly (K)Sites.txt` | 108 | **72** | `Occupancy` | `ratio3790_Ap_CMB-220_FRIMP_GlyGlyIP_Belinglab_CVB3_KO_m42rerun`, `ratio3792_Ap_CMB-220_FRIMP_GlyGlyIP_Belinglab_DMEM_WT_m29` |
+| `PXD070339` | `GlyGly (K)Sites.txt` | 18 | **12** | `Occupancy` | `ratioHFD-1`, `ratioHFD-2` |
+| `PXD074949` | `GlyGly (K)Sites.txt` | 54 | **36** | `Occupancy` | `ratioR01`, `ratioR02` |
+| `PXD074949` | `GlyGly (K)Sites.txt` | 54 | **36** | `Occupancy` | `ratioR47`, `ratioR48` |
+| `PXD074949` | `GlyGly (K)Sites.txt` | 54 | **36** | `Occupancy` | `ratioR01`, `ratioR02` |
+| `PXD074990` | `GlyGly (K)Sites.txt` | 15 | **15** | `Ratio H/L` | `count PTMH1299`, `iso-count` |
+| `PXD075538` | `GlyGly (K)Sites.txt` | 54 | **36** | `Occupancy` | `ratioR01`, `ratioR02` |
+| `PXD075538` | `GlyGly (K)Sites.txt` | 48 | **32** | `Occupancy` | `ratioR19`, `ratioR20` |
+| `PXD075538` | `GlyGly (K)Sites.txt` | 81 | **54** | `Occupancy` | `ratio1023_R01`, `ratio1023_R02` |
+| `PXD079072` | `GlyGlySites.txt` | 15 | **10** | `Occupancy` | `ratioXinyi1`, `ratioXinyi2` |
+| `PXD018299` | `HAP1_USP18KO_GlyGlyKSites.txt` | 12 | **12** | `Intensity` | **none** |
+| `PXD027163` | `UbiSite_GlyGly__K_Sites.txt` | 35 | **35** | `Ratio H/L` | `count S1`, `count S2` |
+| `PXD027328` | `GlyGly__K_Sites.txt` | 12 | **12** | `Intensity` | **none** |
+
+**Longest-prefix-first alone fully cleans 3 of 15 and leaves 12 of 15 polluted.** It changes the
+sample count on 10 of 15. The three it cleans are the three whose winning family is `Intensity`,
+which carries no qualifiers at all.
+
+**The entire residue is qualifiers absent from the prefix list** — `ratio…`, `count …`,
+`iso-count …`, `localized …`. Excluding those requires knowing they are MaxQuant qualifiers rather
+than sample names, which is exactly the documented vocabulary that cannot be established here. **So
+the block is not a formality: without it, four fifths of the population's sample sets stay wrong.**
+
+**One detail the residue exposes and documentation would have to settle.** `Occupancy ratioFlg` has
+**no separator** between the qualifier and the sample name, unlike `Occupancy error scale Flg`. A
+documented qualifier list would therefore not be enough on its own — the rule would also need to know
+that this one qualifier is emitted un-separated. That is a second thing the pages would have to
+establish, and it is recorded so a later turn reads for it rather than discovering it.
+
+#### D2 is blocked for a different and harder reason
+
+Step 2 asked for a rule about what a sample name **is**, derived from MaxQuant's naming of experiment
+and raw-file columns. **The repository establishes that the per-sample suffix identifies a sample**
+— `bzk/adapters/maxquant_sites.py` maps each curated sample to a column name, `Ratio mod/base WT_1`
+on the anchor. **It establishes nothing about what form that suffix may take.**
+
+Whether MaxQuant constrains the experiment name at all is not settled by any source in this
+container, and it is not asserted here from memory. **The artefact that would settle it is
+`experimentalDesignTemplate.txt`** — which is the exact file the matcher turn excluded because the
+three pages read do not name it. The one document that would ground D2 is the one already on record
+as absent from the available sources.
+
+So D2 has **no replacement**, and the six-character threshold stays unretuned — not because retuning
+was refused a second time, but because there is nothing yet to replace it with. The anchor check Step
+2 asked for cannot be run against a rule that does not exist. `KO_1_181212063719` is noted as the
+case any future rule must handle: a condition, a replicate index and a run ID concatenated, so length
+and token count both misread it.
+
+#### Criterion 11 is withdrawn, and the previous record was wrong to keep it
+
+**This needed no documentation and is settled now.** l.7409–7410 reports criterion 11 at **13 of 15**
+under the committed rule and **11 of 15** under the diagnostic, and concluded that the finding was
+robust across versions. **That is not a ruling, and two numbers cannot both stand.**
+
+The ruling: **neither stands, and criterion 11 is unscored.**
+
+| Version | Rule that produced it | Standing |
+|---|---|---|
+| **13 of 15** | the committed procedure, reading D1's sample-name set | **invalid** — its input is a known-defective extraction |
+| **11 of 15** | the diagnostic, de-polluted and fused-index | **not a score** — written after seeing the failure, never pre-registered |
+| a third number | the corrected rule | **does not exist** — the correction is blocked above |
+
+**The ground is the one that already invalidated criterion 8, and it applies unchanged.** Criterion
+11 reads the same sample-name set from the same defective D1. The previous record accepted a caveat
+— *number moves by two, finding robust* — where it should have drawn the same conclusion, and let a
+small magnitude substitute for validity. **The magnitude is a fact about this sample, not a licence**;
+the measurement above shows the same rule leaving 12 of 15 sample sets polluted, so there was never a
+reason to expect the movement to stay small.
+
+**What survives is an observation and not a C1 point.** Under the defective rule and both repairs,
+between eleven and thirteen of fifteen came out not recoverable and the anchor came out recoverable
+every time. That is worth keeping and **must not be counted as a scored criterion.**
+
+**The header-derivable set therefore stands at three of five, not five of five**: criterion 7 (real
+null, all fifteen carry `Ratio mod/base`), criterion 6's column-name component (determined in
+advance, no information), and criterion 5's intensity component (two artefacts, and only under the
+looser of its two readings). **Criteria 8 and 11 are unscored.** Criterion 5 is unaffected by any of
+this — it reads prefix presence directly and never touches the sample-name set.
+
+#### The stale headings: five corrected, and the count of five was wrong
+
+Each of the five the record named was corrected only after naming the commit that introduced it.
+
+| Heading | Was | Now | Commit |
+|---|---|---|---|
+| The shared-artefact rule: consequences registered before the choice | 2026-08-12 | **2026-08-17** | `ee123e7` |
+| Pre-registration: extracting the eleven artefacts | 2026-08-12 | **2026-08-18** | `67e006e` |
+| Eleven artefacts extracted, every CRC verified | 2026-08-12 | **2026-08-18** | `570da8b` |
+| Pre-registration: the four direct tables, and what verification each can carry | 2026-08-12 | **2026-08-18** | `e446e5c` |
+| The four direct tables fetched: the population is complete and unequally verified | 2026-08-12 | **2026-08-18** | `ca8cabb` |
+
+**Twelve headings are stale, not five.** All twenty-three headings reading `2026-08-12` were checked
+against the commit that introduced each. Eleven are correct — written and committed the same day. The
+five above are corrected. **Seven more are stale and are left as they stand**, because this turn's
+scope permits five:
+
+| Heading | Commit | Committed |
+|---|---|---|
+| How the site tables get retrieved — decided, and nothing fetched | `2df41ae` | 2026-08-14 |
+| The member extractor, built and stopped at the tautology sweep | `1103c9e` | 2026-08-17 |
+| Classifying the extractor's eleven sweep matches | `2e9f2f7` | 2026-08-17 |
+| Pre-registration: the extractor's first live use | `60d57e9` | 2026-08-17 |
+| The extractor's first live use: twelve directories, one member | `e11c19d` | 2026-08-17 |
+| Experimental design across the twelve, from held evidence only | `077dbc2` | 2026-08-17 |
+| Pre-registration: the title rule and the duplicate branches | `f26329a` | 2026-08-17 |
+
+**The record's *five* was an enumeration that was short by seven**, and it was short because it
+counted the sections adjacent to the one being written rather than checking the file. The commit
+column above is what makes each row a repair rather than a guess, and it is what bounded the sweep.
+`grep -c "2026-08-12"` returned **45** before this turn and returns **40** after it. Of the 45, **23**
+were headings — eleven correct, five corrected here, seven left — and the remaining **22** are dated
+claims inside prose, which no commit date can adjudicate and none of which was touched.
+
+**Deliberately not corrected, and narrowed on purpose: the inline dated claims inside those five
+sections.** Sentences within them that say *"measured 2026-08-12"* or *"as of 2026-08-12"* carry the
+same drift and are left untouched. Correcting a heading is mechanical against a commit; correcting a
+claim inside prose requires deciding what each sentence was asserting about when, which is a
+different job. **It is named here so it is not found later and read as an oversight.**
 
 ### Deposit and supplementary survey, 2026-08-07
 
