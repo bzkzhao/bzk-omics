@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.90 |
+| Version | 1.91 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -6583,6 +6583,62 @@ prediction and the decision were written by the same reasoning in the same turn,
 tests only that the reasoning was stable, not that it was right. What carries weight instead is that
 the rule fires on the duplicate and not on the control, and that its tie-break selects against the
 three readings that had priority, publication and C2's own tie-break behind them.
+
+### Pre-registration: extracting the eleven artefacts, 2026-08-12
+
+**Committed before any extraction, in its own commit.** The archive host was confirmed answering
+first: `https://ftp.pride.ebi.ac.uk/pride/data/archive/2020/06/PXD019152/` → `HEAD 200`,
+`Accept-Ranges: bytes`, and a ranged `GET` → **206** with an exact `Content-Range` over a
+1,765,625,472-byte archive.
+
+#### The eleven, and which accession supplies the shared one
+
+| # | Accession | Archive | Member | Uncompressed | Compressed |
+|---|---|---|---|---|---|
+| 1 | `PXD019152` | `MaxQUANT_HpH.zip` | `MaxQUANT_HpH/combined/txt/GlyGly (K) no C termSites.txt` | 393,147 | 93,251 |
+| 2 | `PXD019152` | `MaxQUANT_PRM.zip` | `MaxQUANT_PRM/combined/txt/GlyGly (K)Sites.txt` | 42,042 | 10,464 |
+| 3 | `PXD032078` | `txt_GlyGlyKsites.zip` | `txt - change glygly/GlyGly (K)Sites.txt` | 2,551,526 | 485,893 |
+| 4 | **`PXD070339`** | `txt.zip` | `txt/GlyGly (K)Sites.txt` | 2,672,464 | 535,252 |
+| 5 | `PXD074949` | `search_1066_R01R18.zip` | `search_1066_R01R18/GlyGly (K)Sites.txt` | 70,631 | 12,635 |
+| 6 | `PXD074949` | `search_1066_R47R64.zip` | `search_1066_R47R64/GlyGly (K)Sites.txt` | 328,913 | 44,575 |
+| 7 | `PXD074949` | `search_1233_R01R18.zip` | `search_1233_R01R18/GlyGly (K)Sites.txt` | 354,273 | 47,680 |
+| 8 | `PXD074990` | `PTMH1299_search_results.zip` | `combined/txt/GlyGly (K)Sites.txt` | 1,115,157 | 228,308 |
+| 9 | `PXD075538` | `search_0995_R01R18.zip` | `search_0995_R01R18/GlyGly (K)Sites.txt` | 533,887 | 72,762 |
+| 10 | `PXD075538` | `search_0995_R19R34.zip` | `search_0995_R19R34/GlyGly (K)Sites.txt` | 105,317 | 19,101 |
+| 11 | `PXD075538` | `search_1023_1032.zip` | `search_1023_1032/GlyGly (K)Sites.txt` | 124,642 | 21,041 |
+
+**Row 4 is the shared artefact and `PXD070339` supplies it**, being the candidate of greater extent —
+2,281 files against 75. `PXD060435` is **not extracted** and is recorded as sharing it. **Row 2 was
+extracted once before**, so its result is a reproducibility check rather than a new measurement.
+
+**`PXD018299` is not a question this turn.** Its table is a **direct** file, and direct files are out
+of scope, so it is not extractable here on any view.
+
+#### Success, and what a failure means
+
+**Success per member**: the CRC-32 verifies — `extract_member` raises otherwise, so a returned value
+*is* a verified one — the inflated length equals the declared uncompressed size, and the first line
+parses as a tab-separated header with more than one column. **Nothing persists**: no `raw/`, no
+`data/curation/`, nothing in the content-addressed store.
+
+**A guard raising is evidence about the format or the server, not necessarily a defect.** Only a
+**CRC-32 mismatch** would indicate this code is broken on its face; a local-header signature or name
+mismatch is evidence about the archive, a short read about the transfer, an ignored `Range` about the
+server. **A transport failure is not a guard** — the `ChunkedEncodingError` precedent stands: retry
+once, record it, and say whether it recurred.
+
+#### Predicted, from the held directory reads rather than from the offline suite
+
+| Quantity | Predicted | Rests on |
+|---|---|---|
+| of the eleven, extracting with **no guard raising** | **11**, band 9–11 | all twelve directories read cleanly on this host, and the extraction path succeeded end-to-end once. Against that: **ten of the eleven have never been extracted**, and two take paths never exercised live |
+| **total bytes transferred** | **≈ 3.7 MB**, band 3–5 MB | 11 tail reads at 65,536 = 720,896; directory reads ≈ 1.4 MB, dominated by `MaxQUANT_HpH.zip`'s 9,210 entries; compressed bodies **1,570,962**; local headers ≈ 825. **Less than the 8.29 MB of table it yields**, because deflate runs about 5:1 |
+| the Zip64 **size** sentinel branch | **not exercised** | held sizes settle it: the largest member is 2,672,464 B, roughly 1,600× under the 4.29 GB ceiling, and **no member's compressed or uncompressed size is above it** |
+| the Zip64 **offset** path in `extract_member` | **exercised once** | `MaxQUANT_HpH.zip`'s member sits at offset **16,927,488,954**, above the ceiling. The one member extracted before sat below it, so this is its first exercise in extraction |
+| the **data-descriptor** path | **exercised once** | row 4 carries `flags = 0x0008`. It is the shared artefact, so the tie-break that chose `PXD070339` also decides which deposit exercises it |
+| **stored** (method 0) and **encrypted** members | **not exercised** | all eleven are method 8 with flags 0 or 8 |
+
+**No prediction is made about what any header will contain**, and **no C1 criterion is scored.**
 
 ### Deposit and supplementary survey, 2026-08-07
 
