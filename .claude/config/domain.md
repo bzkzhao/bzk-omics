@@ -47,20 +47,17 @@ writing one. Two rules bind:
 - **Once `Accepted`, a record is append-only.** It is never edited. A changed decision gets a new
   record that supersedes the old, and both stay readable.
 
-**Adding, removing, or restatusing an ADR is a test-guarded change.** `tests/test_decision_index.py`
-checks three enumerations of ADR numbers against each other and against the directory, and pins
-exact counts so a parser that stops matching fails loudly instead of comparing two empty sets. A new
-ADR must move, in the same commit:
+**Adding, removing, or restatusing an ADR is a test-guarded change spanning several files.**
+`tests/test_decision_index.py` is the authority on which: its module docstring names every surface
+it checks, and the constants pinned at the top of that module are the ones a new record must move.
+Read it before writing a record.
 
-- the file in `decisions/`
-- the **Written** table in `decisions/README.md`
-- the **Queued** table in `decisions/README.md`, if the number was reserved there
-- `ARCHITECTURE.md` §5's seed list, if the number is within its range
-- the pinned constants in `tests/test_decision_index.py` — `EXPECTED_FILES`,
-  `EXPECTED_WRITTEN_ROWS`, `EXPECTED_QUEUED_ROWS`, `EXPECTED_STATUSES`
+The surfaces are deliberately not copied here. A copy of that list is a second source for a fact
+the test already owns, and it would go stale the moment the test gained a surface — which is the
+defect this file otherwise warns against.
 
-Skip any of these and the suite goes red. Run `pytest tests/test_decision_index.py` before
-claiming the ADR is written.
+Skip any of them and the suite goes red. Run `pytest tests/test_decision_index.py` before claiming
+the ADR is written.
 
 ## Flag ADR conflicts
 

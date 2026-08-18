@@ -65,6 +65,6 @@ or ontology term. Use a real one or mark the fixture synthetic — `CLAUDE.md` �
 
 ## Never branch on pipeline metadata
 
-Invariant I13. `search_engine`, `acquisition_mode`, `library_type` and `test` are recorded data. A
-conditional on their value outside `adapters/` or the statistics registry is a defect — including
-in a test helper or a fixture factory.
+Invariant I13, in `ONTOLOGY.md` §8, names the fields it covers; read them there rather than from a
+copy. They are recorded data, and a conditional on their value outside `adapters/` or the
+statistics registry is a defect — including in a test helper or a fixture factory.

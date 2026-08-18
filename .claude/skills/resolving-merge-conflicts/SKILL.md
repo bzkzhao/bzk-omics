@@ -9,22 +9,14 @@ description: "Use when you need to resolve an in-progress git merge/rebase confl
 
 3. **Resolve each hunk.** Preserve both intents where possible. Where incompatible, pick the one matching the merge's stated goal and note the trade-off. Do **not** invent new behaviour. Always resolve; never `--abort`.
 
-4. Run this repo's **automated checks** and fix anything the merge broke:
-
-   ```bash
-   uv run mypy bzk tests
-   uv run pytest
-   uv run ruff check bzk tests
-   uv run ruff format --check bzk tests
-   ```
-
-   Report each by name at its actual result, with its target stated. A check not run is reported
-   as not run — silence is not a pass. `ruff check .` additionally covers the three `colab_*.ipynb`
-   notebooks, which are permanently out of scope.
+4. Run this repo's **automated checks** and fix anything the merge broke. `CLAUDE.md`
+   § Working style, point 1, enumerates them and their targets; run them from there, not
+   from a list copied into this file. Report each by name at its actual result, with its
+   target stated — a check not run is reported as not run.
 
    **Regenerate `uv.lock` rather than hand-merging it.** Same for any other generated file.
 
-   If the merge touched `bzk/schema.py`, `decisions/`, or anything §3/§5.3 mirrors, run
+   If the merge touched `bzk/ontology/schema.py`, `decisions/`, or anything §3/§5.3 mirrors, run
    `uv run pytest tests/test_schema.py tests/test_decision_index.py` specifically — those modules
    guard mirrors between two sources and a conflict resolution is exactly how a mirror drifts.
 

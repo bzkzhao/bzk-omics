@@ -26,21 +26,15 @@ first. An adapter that ingests data while violating I3 or I14 is worse than no a
 
 ## Checks
 
-Run these throughout — `mypy` and a single test file regularly, the full suite once at the end:
+Run `mypy` and a single test file regularly, and the full suite once at the end.
 
-```bash
-uv run pytest                          # full suite
-uv run pytest tests/test_schema.py     # schema mirror against ONTOLOGY.md §4–§7
-uv run ruff check bzk tests
-uv run ruff format --check bzk tests
-uv run mypy bzk tests
-```
+`CLAUDE.md` § Working style, point 1, enumerates the checks and the target each runs against,
+and says why the targets are narrower than the repository. Run them from there rather than
+from a copy — a copied command list goes stale the moment a target moves, and this file has
+no way to notice.
 
-The targets are part of the instruction. They are not the whole repository: `ruff check .` also
-covers the three `colab_*.ipynb` notebooks, which are **deliberately and permanently out of
-scope** — they are records of experiments, not maintained source, and reformatting one would
-damage its value as evidence of what was actually run. Report a number against a stated target, or
-state the wider number.
+Report each by name at its actual result, with its target stated. A check not run is reported
+as not run — silence is not a pass.
 
 ## Closing the turn
 

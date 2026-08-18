@@ -1,6 +1,7 @@
 ---
 name: code-review
 description: Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes — Standards (does the code follow this repo's documented coding standards?) and Spec (does the code match what the originating issue/spec asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to "review since X".
+disable-model-invocation: true
 ---
 
 Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
@@ -45,34 +46,19 @@ and names which one governs a given change. Pass the sub-agent whichever of thes
 | `decisions/NNNN-*.md` | Why a settled choice was made — read before flagging it as wrong |
 | `VISION.md` | Positioning and non-goals |
 
-**These are hard violations, not judgement calls.** Each is a documented rule in `CLAUDE.md`
-§ Conventions, and each has a defect it was written in response to. Check the diff against every
-one that applies:
+**The repo's own rules are hard violations, not judgement calls**, and they are not copied here.
+`CLAUDE.md` § Conventions and `ONTOLOGY.md` §8 own them; a list reproduced in this file would be
+short by one the first time either gains a rule, and "short by one" is the exact defect
+`CLAUDE.md` records against its own four-pair mirror list.
 
-- **Code diverging from `ONTOLOGY.md`'s DDL is wrong** — or the document is wrong and must be
-  amended *before* the code changes. Silent reconciliation in the code is the violation.
-- **An invariant downgraded to a warning to make a dataset load** (`ONTOLOGY.md` §8).
-- **A K-GG site labelled "ubiquitination" without a live non-ambiguous `ModifierAssignment`**, or a
-  site attributed to an enzyme without a live `EnzymeAssociation` — I3 and I10, the product's core
-  honesty claim.
-- **An `isinstance` branch on `Observation` or `EvidencedInference` outside a subtype module** —
-  §10. Domain logic lives in subtypes.
-- **A conditional on `search_engine`, `acquisition_mode`, `library_type` or `test` outside
-  `adapters/` or the statistics registry** — I13. That metadata is recorded data, not a switch.
-- **A generated value displayed as a measurement** — I15 and I16. Imputed points, razor-picked
-  proteins and inferred designs carry their status.
-- **The quantitative matrix discarded after computing a statistic** — I11.
-- **Content that exists only inside `graph.kuzu/`** — I9. The graph is derived and must be
-  regenerable from `raw/` plus the curation export.
-- **A fact restated in a second document** rather than cross-referenced — § Single source of truth.
-- **An `Accepted` ADR edited in place** rather than superseded by a new record.
-- **An invented UniProt accession, PXD accession, or ontology term** in an example or fixture.
-- **A new mirror between two sources with no test guarding it.** Every existing mirror here is
-  guarded; prose in `HANDOFF.md` §8 does not close a machine-checkable class.
-- **Copy positioning the platform as an alternative to Perseus or the search engines** — they are
-  inputs, not competitors (`VISION.md` § Positioning).
+Instead, **pass the sub-agent the documents and have it read them**: `CLAUDE.md` § Conventions in
+full, `ONTOLOGY.md` §8 in full, and any ADR in `decisions/` touching the area. Brief it to check
+the diff against every rule stated there and to cite each by its source line — not against a
+summary supplied in this prompt. A sub-agent can read files; it does not need the rules pasted.
 
-A documented repo standard always wins over the smell baseline below.
+The one thing worth saying here, because it is about *severity* rather than content: a breach of a
+documented rule in those two documents is **hard**, not a judgement call, and outranks every
+baseline smell below. A documented repo standard always wins over the smell baseline below.
 
 On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below — a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:
 
@@ -127,21 +113,13 @@ Reporting them separately stops one axis from masking the other.
 
 ## Report the checks, don't infer them
 
-Neither sub-agent runs the suite. Before presenting the two reports, run the checks yourself and
-name each at its actual result with its target stated:
+Neither sub-agent runs the suite. Before presenting the two reports, run the checks yourself
+and name each at its actual result with its target stated.
 
-```bash
-uv run pytest
-uv run pytest tests/test_schema.py
-uv run ruff check bzk tests
-uv run ruff format --check bzk tests
-uv run mypy bzk tests
-```
-
-A check not run is reported as not run — silence is not a pass, and "lint clean" without naming
-which of the three it covered is the same defect one level in. `ruff check .` additionally covers
-the three `colab_*.ipynb` notebooks, which are permanently out of scope: they are records of
-experiments, not maintained source.
+`CLAUDE.md` § Working style, point 1, enumerates the checks and the target each runs
+against, and says why the targets are narrower than the repository. Run them from there
+rather than from a copy — a copied command list goes stale the moment a target moves, and
+this file has no way to notice.
 
 Green tests have twice been consistent with a real defect here — four invariant checks passing
 vacuously (ADR-0019), and `test_rebuild` asserting a count against its own source. If the diff adds

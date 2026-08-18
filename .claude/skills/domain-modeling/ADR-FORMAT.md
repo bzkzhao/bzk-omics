@@ -1,7 +1,7 @@
 # ADR format
 
-ADRs live in `decisions/` as `NNNN-slug.md`, sequentially numbered. The directory already exists
-and holds 24 records. **Read `decisions/README.md` before writing one** — it carries the status
+ADRs live in `decisions/` as `NNNN-slug.md`, sequentially numbered. **Read `decisions/README.md`
+before writing one** — it carries the status
 convention, and corrections that could not be made inside the records themselves.
 
 ## The two rules that bind
@@ -25,13 +25,10 @@ proposing. The `Superseded by` row carries the successor.
 against the directory, and **pins exact counts** so a parser that stops matching fails loudly
 instead of comparing two empty sets. A new record must move all of these in the same commit:
 
-| Surface | What changes |
-|---|---|
-| `decisions/NNNN-slug.md` | the new file |
-| `decisions/README.md` § Written | a new row |
-| `decisions/README.md` § Queued | remove the row, if the number was reserved there |
-| `ARCHITECTURE.md` §5 seed list | strike the number, if it is within `0001`–`0018` |
-| `tests/test_decision_index.py` | `EXPECTED_FILES`, `EXPECTED_WRITTEN_ROWS`, `EXPECTED_QUEUED_ROWS`, `EXPECTED_STATUSES` |
+The surfaces are not listed here, because a list of them is exactly the kind of copy that goes
+stale silently. `tests/test_decision_index.py` is the authority: its module docstring names every
+surface it checks, and the pinned constants at the top of that module are the ones a new record
+must move. **Read it before writing a record, and move every constant it pins.**
 
 Run `pytest tests/test_decision_index.py` before claiming the record is written. A green run is
 the check; the exit status alone is not — read the count it asserted.

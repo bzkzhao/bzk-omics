@@ -107,10 +107,13 @@ reporting.
 ## Where tests go
 
 `tests/`, per `[tool.pytest.ini_options] testpaths`. The schema mirror has its own module,
-`tests/test_schema.py`, which checks `bzk/schema.py` against `ONTOLOGY.md` §4–§7.
+`tests/test_schema.py`, which checks `bzk/ontology/schema.py` against `ONTOLOGY.md` §4–§7.
 
-**Every mirror between two sources in this repo is guarded by a test.** `schema.py` ↔ §4–§7,
-`ABSENCE` ↔ §3, `CURATION_BASIS` ↔ §5.3, the deposit digest ↔ `bzk/sources/pride.py`, and the
-three ADR-number enumerations ↔ `decisions/`. If your change introduces a new mirror, it needs a
-guard in the same commit — a note in `HANDOFF.md` §8 does not close a class that is
-machine-checkable.
+**Every mirror between two sources in this repo is guarded by a test.** `CLAUDE.md` § Working
+style, point 3, enumerates which — read it there rather than from a copy. That list is the reason
+this paragraph does not repeat it: `CLAUDE.md` records that an earlier four-pair version of it
+"was a claim of universality and was false while it stood", and a list that enumerates is a list
+that can be short by one.
+
+If your change introduces a new mirror, it needs a guard in the same commit — a note in
+`HANDOFF.md` §8 does not close a class that is machine-checkable.

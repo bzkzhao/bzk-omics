@@ -21,7 +21,7 @@ The issue may sit in `ready-for-agent` for days or weeks. The codebase will chan
 Describe **what** the system should do, not **how** to implement it. The agent will explore the codebase fresh and make its own implementation decisions.
 
 - **Good:** "The `SkillConfig` type should accept an optional `schedule` field of type `CronExpression`"
-- **Bad:** "Open bzk/schema.py and add a field on line 42"
+- **Bad:** "Open bzk/ontology/schema.py and add a field on line 42"
 - **Good:** "When a user runs `/triage` with no arguments, they should see a summary of issues needing attention"
 - **Bad:** "Add a switch statement in the main handler function"
 
@@ -195,7 +195,7 @@ The function around line 150 has the issue.
 
 **Files to change:**
 - bzk/curation/loader.py (line 150)
-- bzk/schema.py (line 42)
+- bzk/ontology/schema.py (line 42)
 ```
 
 This is bad because:

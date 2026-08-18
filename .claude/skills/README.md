@@ -61,11 +61,10 @@ Setup has already been run. Change a setting by editing the file directly — no
 `docs/agents/` → `.claude/config/`. Multi-context branches (`CONTEXT-MAP.md`, per-package
 glossaries, per-context ADR directories) removed — this repo is single-context.
 
-**Toolchain, everywhere.** npm/pnpm, vitest/jest, `tsc`, Prettier and ESLint replaced with
-`uv run pytest`, `uv run ruff check bzk tests`, `uv run ruff format --check bzk tests`,
-`uv run mypy bzk tests`. All TypeScript examples rewritten in Python. The stated targets are part
-of the instruction: `ruff check .` additionally covers the three `colab_*.ipynb` notebooks, which
-are **deliberately and permanently out of scope** — records of experiments, not maintained source.
+**Toolchain, everywhere.** npm/pnpm, vitest/jest, `tsc`, Prettier and ESLint replaced with this
+repo's `uv`-driven equivalents, and all TypeScript examples rewritten in Python. The skills do not
+carry a copy of the check list: they point at `CLAUDE.md` § Working style, point 1, which owns the
+checks, their targets, and why the targets are narrower than the repository.
 
 **Per skill:**
 
@@ -124,7 +123,75 @@ governs — it is the router, and the skills are downstream of it. Three specifi
 already resolved in the adapted text:
 
 - Upstream creates domain docs lazily when absent. Here they exist, and are older and stricter.
-- Upstream treats an ADR as one file. Here it is a five-surface, test-guarded change.
+- Upstream treats an ADR as one file. Here it spans several, and which ones is a fact
+  `tests/test_decision_index.py` owns.
 - Upstream's `implement` commits to the current branch. `CLAUDE.md` § Working style lands
   development on `main`; the adapted skill asks before fast-forwarding, because a harness that
   pinned a branch may have its own reason.
+
+## Integration
+
+An earlier version of this file offered to fast-forward this work onto `main` on request. **That
+offer was not honourable when it was written.** The branch was based on `6da8795`; `main` had since
+moved to `63d2438`, one commit further on, so `main` was not an ancestor of the branch and no
+fast-forward existed to perform. An offer that cannot be honoured is worse than no offer, because
+the reader plans around it.
+
+The branch was rebased onto `63d2438`, which makes the fast-forward real rather than promised.
+Rebase was chosen over a merge commit on the evidence: `origin/main` carries **zero** merge commits
+across its history, and the commit this clone had cached as `main` is an ancestor of nothing
+current — the project keeps its history linear by rewriting, so a merge here would have been the
+only merge in the repository. The rebase was verifiably safe rather than assumed safe: `63d2438`
+touches `ROADMAP.md` alone and this work touches `.claude/` and `.gitignore`, so the two commits
+share no file and no conflict was possible.
+
+The cost is that the branch commit's SHA changed. That is cheap here — the commit is unmerged,
+unreviewed, and referenced by nothing but this paragraph.
+
+**The fast-forward itself has not been performed.** `main` can take it at any time; leaving it
+undone is a harness constraint, not a judgement about the work.
+
+## Model invocation
+
+Skills are model-invoked by default: the description is read and the skill loads when the task
+matches. Twenty-four of the twenty-six carry `disable-model-invocation: true`, so they load only
+when named. **Two do not**, deliberately:
+
+- **`resolving-merge-conflicts`** — its trigger is a machine state, not a topic word. There either
+  is an in-progress merge or rebase conflict or there is not, so it cannot fire on a passing
+  mention, and when it does fire it is already the right thing to be reading.
+- **`codebase-design`** — a vocabulary reference that writes nothing, and one other skills reach
+  for by name. `tdd` tells the agent to load it for the seam and depth terms; flagging it would
+  break that call, since the request comes from the model rather than the user.
+
+The other twenty-four were flagged because their descriptions overlap a standing out-of-scope line
+somewhere in this project's review loop, because they write, or — for `wizard` and
+`git-guardrails-claude-code` — because the blast radius of an unbidden run is the largest in the
+set. `domain-modeling` is the sharp case: its description names writing an ADR and editing
+`GLOSSARY.md`, which is precisely what a review turn is most often forbidden to do, so it was
+configured to fire exactly at the boundary it must not cross.
+
+The cost is convenience, not capability. Every one is still available as `/name`.
+
+**No skill carries `allowed-tools`, and that is deliberate.** The field pre-approves tools whenever
+the skill is invoked, including in `-p` runs in untrusted folders. `grep -rn "allowed-tools"
+.claude/` returning nothing is a property to preserve, not an omission to correct.
+
+## Pointers, not copies
+
+These files reference this repository's normative documents. Twenty-six of them name one; eight
+additionally *restated* something a document owned — a pinned constant's name, a record count, the
+invariant list, the check-command list. Each restatement was an unguarded mirror: it could go
+false while its source changed, and nothing in the suite could see it.
+
+All eight were reduced to pointers rather than guarded as copies. A pointer carries no independent
+claim about content, so it cannot disagree with its source — which is the mirror discipline's own
+answer, and a stronger one than a test asserting two copies still match. The `code-review` skill in
+particular no longer pastes a rule list into its sub-agent prompt; it hands the sub-agent
+`CLAUDE.md` and `ONTOLOGY.md` and has it read them, so the review cannot be short by one rule the
+way a pasted list would be.
+
+What that leaves is narrower and is guarded: a pointer can still name a document that has been
+renamed or a section that no longer exists. `tests/test_agent_config_references.py` asserts every
+section pointer and every code path in `.claude/` resolves against the live documents. It found two
+real defects on its first run.

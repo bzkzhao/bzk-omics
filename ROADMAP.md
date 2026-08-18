@@ -8174,6 +8174,37 @@ Method: read the column headers of every processed file in the PXD018299 PRIDE d
 
 ---
 
+### An agent-skills layer under `.claude/`, and the one thing it changes about how turns run, 2026-08-18
+
+Twenty-six vendored engineering skills now live in `.claude/skills/`, with their configuration in
+`.claude/config/`. What they are, where they came from, and what had to change for them to run here
+is in `.claude/skills/README.md`; none of it is repeated in this file.
+
+Two consequences belong in the project's narrative rather than in that README, because they bear on
+how any future turn behaves rather than on the skills themselves.
+
+**A skill can load without being asked, and one of them writes ADRs.** Skills are model-invoked by
+default: the agent reads a description and loads the skill when the task matches. `domain-modeling`
+describes itself as the skill for *recording or editing an ADR* and *writing or editing a
+`GLOSSARY.md`* — the two things a review turn here is most often explicitly forbidden to do, and
+`tests/test_decision_index.py` turns the suite red if an ADR appears without its other surfaces
+moving. Twenty-four of the twenty-six now carry `disable-model-invocation: true` and load only when
+named. The two that do not are named in `.claude/skills/README.md` with the reason. **This is the
+property to re-check whenever a skill is added**: the question is not whether it is useful but
+whether its description overlaps something a turn is routinely told not to do.
+
+**`.claude/` is now inside the mirror discipline, not beside it.** These files reference
+`ONTOLOGY.md`, `CLAUDE.md`, `decisions/` and the test modules by name and by section. Eight of them
+originally restated what those documents own — a pinned constant's name, a record count, the
+invariant list — and each was an unguarded mirror of exactly the kind this project has been closing
+everywhere else. They were reduced to pointers rather than guarded as copies: a pointer makes no
+claim about content, so it cannot go false. What remains is that a pointer can name a section that
+has since been renamed, and `tests/test_agent_config_references.py` asserts every one of them
+resolves against the live documents. It found two real defects on its first run, and a third — five
+pointers it was silently failing to check — when it was made to fail on purpose.
+
+---
+
 ## Recorded assumptions
 
 The collaborating project has not started, so its pipeline is not yet chosen. These are assumptions, not findings. Each is recorded with what would falsify it, so being wrong is detectable rather than silent.
