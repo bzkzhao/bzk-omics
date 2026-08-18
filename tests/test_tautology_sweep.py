@@ -202,6 +202,33 @@ def analyse(name: str, source: str) -> tuple[Counter[tuple[str, str]], int]:
 #: print(sorted(sweep()[0]))"` **after** classifying whatever is new.
 PINNED: frozenset[tuple[str, str, int]] = frozenset(
     {
+        # ── tests/test_agent_config_references.py, classified individually 2026-08-18 ──────────
+        # **One match, `PINNED` rather than `INSTANCES`, and the two sides have independent
+        # origins.** `len(docs)` is read off the filesystem by `_agent_docs()`; the right side is
+        # `EXPECTED_AGENT_DOCS`, a literal `47` written by hand at l.52 of that module. Neither
+        # produced the other, which is the question the failure message poses — so it is not the
+        # call-equals-its-own-expression class `INSTANCES` records, and there is no mutation to
+        # keep green.
+        #
+        # **Measured rather than read, and to the stricter standard: the failure names *this*
+        # assertion, not an earlier line in the same test.** Mutation: one `.md` file added under
+        # `.claude/config/` carrying no code path, so `test_code_paths_resolve` cannot redden with
+        # it and the demonstration is isolated to one assert. Result `F..` — the other two tests
+        # pass — failing at `tests/test_agent_config_references.py:116` with
+        # *".claude/ holds 48 Markdown files, not 47"* and `assert 48 == 47`. That test carries a
+        # single assert, so reddening at an earlier line was not available to it anyway; the
+        # mutation establishes the count reaches the message rather than merely that the test
+        # fails.
+        #
+        # **Occurrences measured off `sweep()` rather than taken from the failure text**, since
+        # this record is a multiset and a wrong count is a hole in the guard: one.
+        #
+        # **It could have been made to vanish in one character and was not.** Pass C excludes a
+        # comparison against a literal display, so `len(docs) == 47` never matches while
+        # `len(docs) == EXPECTED_AGENT_DOCS` does. Writing the literal would have bought a green
+        # suite by removing the expression from review rather than by reviewing it — the turn that
+        # wrote the guard stopped instead and recorded the block in `HANDOFF.md` §8.
+        ("test_agent_config_references.py", "len(docs) == EXPECTED_AGENT_DOCS", 1),
         (
             "test_curation_content_hash.py",
             "_record(name)['content_hash'] == PXD018299_SITES.expected_content_hash",
@@ -1059,7 +1086,13 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # `tests/test_deposit_survey.py` (the thirty-first module already counted). Read off
     # `sweep()` rather than incremented, and moved for those tests alone — the `>=` did not
     # fail on the additions, which is the standing reason this line moves by hand.
-    assert modules >= 31 and asserts >= 1123, (
+    # 1123 -> 1129 on 2026-08-18, and **31 -> 32 — the module count moves this time**. The
+    # previous move left it at 31 because the new tests landed in `tests/test_deposit_survey.py`,
+    # a module the sweep already counted; `tests/test_agent_config_references.py` is a module that
+    # did not exist, so both figures move together as they did at 993 -> 1007 / 29 -> 30. Read off
+    # `sweep()` — 32 modules, 1129 asserts — rather than incremented, and moved for that module's
+    # three tests alone.
+    assert modules >= 32 and asserts >= 1129, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

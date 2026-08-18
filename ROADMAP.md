@@ -8203,6 +8203,22 @@ has since been renamed, and `tests/test_agent_config_references.py` asserts ever
 resolves against the live documents. It found two real defects on its first run, and a third — five
 pointers it was silently failing to check — when it was made to fail on purpose.
 
+**The suite baseline moves, and a turn that does not know the new figure cannot tell a regression
+from an expected count.** Three tests were added, and the sweep entry they produced is now
+classified, so the whole suite is green again. **Un-populated — no graph at `~/.bzk-omics/`, no
+deposit in `raw/` — is `535 passed, 11 skipped`**, up from `532 passed, 11 skipped`; that is what
+this container measures and what a fresh clone will measure. **Populated is `546 passed`, no
+skips**: the eleven are the `test_query_real_graph` and deposit-backed cases, which run rather than
+skip once the graph is built, and the pairing already recorded above at `424 passed, 11 skipped` ↔
+`435 passed` is the precedent for the arithmetic. The populated figure is arithmetic from that
+precedent, not something measured here — `raw/` is empty in this container, which is the standing
+open item.
+
+**Two skills can fire without being asked**, and any later turn's unexplained file change should be
+traced to them first: `resolving-merge-conflicts` and `codebase-design`. Every other vendored skill
+is manual-only and loads on `/name`. The reasoning for that split is in `.claude/skills/README.md`
+and is not repeated here.
+
 ---
 
 ## Recorded assumptions
