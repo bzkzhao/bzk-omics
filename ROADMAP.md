@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.97 |
+| Version | 1.98 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -7674,15 +7674,227 @@ scope permits five:
 **The record's *five* was an enumeration that was short by seven**, and it was short because it
 counted the sections adjacent to the one being written rather than checking the file. The commit
 column above is what makes each row a repair rather than a guess, and it is what bounded the sweep.
-`grep -c "2026-08-12"` returned **45** before this turn and returns **40** after it. Of the 45, **23**
+`grep -c "2026-08-12"` returned **45** before this turn and returns ~~**40**~~ **48** after it. Of the 45, **23**
 were headings — eleven correct, five corrected here, seven left — and the remaining **22** are dated
 claims inside prose, which no commit date can adjudicate and none of which was touched.
+
+*After-figure corrected: the 40 was counted in the working tree before this section was inserted, and
+the section names that date on eight lines of its own — 45 − 5 corrected headings + 8 = **48**,
+measured at the commit. Nothing else in the sentence above moves: the 45 and the 23 + 22 breakdown
+are of the pre-turn file and are right. A count of a string in the document that reports the count is
+self-affecting, which is the whole of the error.*
 
 **Deliberately not corrected, and narrowed on purpose: the inline dated claims inside those five
 sections.** Sentences within them that say *"measured 2026-08-12"* or *"as of 2026-08-12"* carry the
 same drift and are left untouched. Correcting a heading is mechanical against a commit; correcting a
 claim inside prose requires deciding what each sentence was asserting about when, which is a
 different job. **It is named here so it is not found later and read as an oversight.**
+
+### The column vocabulary is documented after all: D1 closes, D2 stops on the page's own words, 2026-08-18
+
+**The previous stop was correct and is now lifted for D1 only.** The pages were not readable from the
+container that turn; they are readable from this one. What they carry is not the qualifier list that
+was being looked for — it is something better, and it dissolves the problem rather than solving it.
+
+#### Pages fetched, and what each supplied
+
+| Page | URL | Supplied |
+|---|---|---|
+| **Output Tables** | `https://cox-labs.github.io/coxdocs/output_tables.html` | **67 per-experiment column templates**, written as `“<prefix>” + exp`; the multiplicity form `“Intensity” + exp + “___” + j`; and the plain column names of every output table, including `Score for localization` |
+| **Raw Files tab** | `https://cox-labs.github.io/coxdocs/rawFilesTab.html` | what an *experiment* is, and how its value arises |
+| MaxQuant instructions | `https://cox-labs.github.io/coxdocs/maxquant_instructions.html` | **nothing** — an index page; fetched to find the two above |
+| First steps with MaxQuant | `https://cox-labs.github.io/coxdocs/MQ_FirstSteps.html` | **nothing on naming.** The engine matcher's second source; it does not describe experimental design |
+| Glossary | `https://cox-labs.github.io/coxdocs/Glossary.html` | **nothing.** No entry for *experiment*, *experimental design* or any column name |
+
+**Two of the five carried nothing and are listed anyway.** A page that ought to hold the vocabulary
+and does not is a fact about the documentation; omitting the misses would make the two hits look like
+the whole of what is available.
+
+#### There is no qualifier vocabulary, and that is the finding
+
+The premise of the last two turns was that `Occupancy error scale R01` is a family prefix plus a
+*qualifier* plus a sample name, and that the qualifier list was the missing piece. **The page shows
+otherwise.** It writes, as three separate templates on consecutive lines:
+
+> `“Occupancy” + exp` · `“Occupancy ratio” + exp` · `“Occupancy error scale” + exp`
+
+**These are three prefixes, not one prefix with two qualifiers.** The same holds across the ratio
+families, which document `count`, `iso-count`, `localized`, `nmods`, `normalized`, `type`,
+`unmod. pep.` and `variability [%]` each as part of a full prefix — `“Ratio H/L iso-count” + exp` —
+never as a detachable token.
+
+**So D1's defect was never pollution. Its prefix list was incomplete**, holding twelve entries where
+the documentation gives sixty-seven. Nothing needs stripping; the missing prefixes need adding. The
+resolution rule the instruction called for — a term is a qualifier only where no longer prefix claims
+it — turns out to be the *whole* rule rather than a tie-break inside a larger one, because with the
+complete list there is nothing left over to be a qualifier.
+
+**What that does to the two prefixes named as colliding, and one of them should never have been
+there.** `Occupancy error scale` **is** documented, so under longest-prefix-first it claims its own
+columns and `error scale` is never a candidate for stripping. `Ratio mod/base normalized` **is not
+documented at all** — the page gives `Ratio mod/base` with `H`, `L` and `M` variants and no
+normalised one. Either way the collision cannot arise, but for two different reasons, and the second
+is worth naming on its own.
+
+**The original twelve-entry list was not merely short: two of its entries had no documentary basis.**
+Ten of the twelve appear in the page. `Ratio mod/base normalized` does not, and
+`Reporter intensity corrected` does not — the documented forms are `Reporter intensity`,
+`Reporter intensity count` and `Reporter intensity **not** corrected`, so that entry inverted the
+one it was reaching for. **Both were written from memory** when D1 was drafted, in a procedure whose
+stated discipline was to name nothing that could not be established. Neither occurs in any of the
+fifteen headers — zero columns match either — so nothing measured was ever wrong because of them, and
+that is luck rather than method. **57 documented prefixes were missing and 2 unfounded ones were
+present**; the corrected list drops both and takes only what the page gives.
+
+#### The corrected D1, stated in full
+
+> **1. Vocabulary.** The families are the **67 templates the page writes as `“<prefix>” + exp`**,
+> extracted programmatically from the fetched page rather than transcribed, so the list is provably
+> the documentation's. Three of them place a channel index between prefix and experiment —
+> `“Reporter intensity” + i + ” “ + exp`, likewise `Reporter intensity count` and
+> `Reporter intensity not corrected` — and are matched with an integer between the two.
+>
+> **2. Longest documented prefix claims the column**, with one restriction: **a prefix whose final
+> token is a single SILAC letter (`H`, `L`, `M`) claims a column only if followed by a space or by
+> nothing.** Without that restriction `Occupancy H` would claim `Occupancy HFD-1` and return the
+> sample name `FD-1`.
+>
+> **3. A documented prefix never claims a column whose whole name is itself a documented plain
+> column.** This is what stops `Score` swallowing `Score for localization`, which the page lists as a
+> Site Table column in its own right.
+>
+> Then strip **one** leading space if present, and a trailing `___` and digits.
+
+**The separatorless case is settled and needs no third state.** `Occupancy ratioFlg` carries no
+separator while `Occupancy error scale Flg` does, and the page's `+ exp` notation does not say which
+to expect — it is written identically for both. **With the complete prefix list the question
+dissolves**: `Occupancy ratio` is matched as a prefix and the remainder is `Flg` whether or not a
+space intervenes, so rule 2's *strip one leading space if present* covers both forms. A distinct
+`unparseable` state was considered and is **not** introduced, because nothing in the fifteen reaches
+it and inventing a state no input can occupy is the kind of dead branch this project already carries
+too many of.
+
+**What the corrected rule would falsely include, stated rather than discovered.** A sample whose name
+begins with one of the **45** documented variant words — a sample literally called `ratioX`,
+`countA`, `normalizedRun2` — would be mis-split, its leading word eaten as part of the prefix. **In
+the fifteen this occurs zero times**, so the rule is unambiguous on this population and ambiguous in
+general. **What it would falsely exclude**: a sample name that makes the whole column coincide with a
+documented plain name — a sample called `diff` under the `Score` family, giving `Score diff`. Also
+zero times here. Both are properties of MaxQuant's own output format, not of the rule: the format is
+genuinely ambiguous and no parser can be right on every input.
+
+#### Measured against the fifteen
+
+| Accession | Artefact | Original D1 | Partial fix | **Corrected** | Sample names |
+|---|---|---|---|---|---|
+| `PXD019152` | `GlyGly (K) no C termSites.txt` | 6 | 4 | **2** | `Flg`, `GST` |
+| `PXD019152` | `GlyGly (K)Sites.txt` | 2 | 2 | **2** | `FLAG`, `GST` |
+| `PXD032078` | `GlyGly (K)Sites.txt` | 108 | 72 | **36** | `3790_Ap_CMB-220_FRIMP_GlyGlyIP_Belinglab_CVB3_KO_m42rerun`, `3792_Ap_CMB-220_FRIMP_GlyGlyIP_Belinglab_DMEM_WT_m29`, `3794_Ap_CMB-220_FRIMP_GlyGlyIP_Belinglab_CVB3_Ci_m46`, … (+33) |
+| `PXD070339` | `GlyGly (K)Sites.txt` | 18 | 12 | **6** | `HFD-1`, `HFD-2`, `HFD-3`, … (+3) |
+| `PXD074949` | `GlyGly (K)Sites.txt` | 54 | 36 | **18** | `R01`, `R02`, `R03`, … (+15) |
+| `PXD074949` | `GlyGly (K)Sites.txt` | 54 | 36 | **18** | `R47`, `R48`, `R49`, … (+15) |
+| `PXD074949` | `GlyGly (K)Sites.txt` | 54 | 36 | **18** | `R01`, `R02`, `R03`, … (+15) |
+| `PXD074990` | `GlyGly (K)Sites.txt` | 15 | 15 | **1** | `PTMH1299` |
+| `PXD075538` | `GlyGly (K)Sites.txt` | 54 | 36 | **18** | `R01`, `R02`, `R03`, … (+15) |
+| `PXD075538` | `GlyGly (K)Sites.txt` | 48 | 32 | **16** | `R19`, `R20`, `R21`, … (+13) |
+| `PXD075538` | `GlyGly (K)Sites.txt` | 81 | 54 | **27** | `1023_R01`, `1023_R02`, `1023_R03`, … (+24) |
+| `PXD079072` | `GlyGlySites.txt` | 15 | 10 | **5** | `Xinyi1`, `Xinyi2`, `Xinyi3`, … (+2) |
+| `PXD018299` | `HAP1_USP18KO_GlyGlyKSites.txt` | 12 | 12 | **12** | `KO_1_181212063719`, `KO_2`, `KO_3`, … (+9) |
+| `PXD027163` | `UbiSite_GlyGly__K_Sites.txt` | 35 | 35 | **3** | `S1`, `S2`, `S3` |
+| `PXD027328` | `GlyGly__K_Sites.txt` | 12 | 12 | **12** | `DMSO1`, `DMSO2`, `DMSO3`, … (+9) |
+
+**Fully clean: 15 of 15. Polluted: 0 of 15.** The partial fix reported at l.7582–7583 gave 3 clean
+and 12 polluted; the count changes on 12 of 15 against the original D1. Every set is now a plausible
+list of samples rather than a list inflated two- or threefold by variant columns — `PXD027163` falls
+from 35 to **3**, `PXD074990` from 15 to **1**, `PXD032078` from 108 to **36**.
+
+**The strongest evidence is one the rule was not designed to produce.** Each header carries between
+6 and 45 distinct per-experiment families. **In every one of the fifteen, every family returns the
+same sample set** — 45 independent column families agreeing on `S1, S2, S3` for `PXD027163`, 22
+agreeing on the single `PTMH1299` for `PXD074990`. A wrong extraction does not produce agreement
+across dozens of independently-named families. The selection rule that picks *which* family to read
+is therefore almost inert, which is what it should be.
+
+**One artefact's verdict falls out without needing anything further.** `PXD074990` has **one** sample.
+Criterion 11's first condition — at least two samples — fails on it whatever else is decided. That is
+recorded as an observation, not scored, because the criterion as a whole is not scorable.
+
+#### D2 stops, and this time the documentation says why
+
+The Raw Files tab page defines the experiment, and the definition is the answer:
+
+> *"The experiment is text that the user can choose and use however convenient, for example to group
+> raw data or to remind him of the characteristics of the samples from which the data was taken."*
+
+**MaxQuant imposes no form on the sample name.** The previous turn stopped on an absence of
+documentation; this turn has the documentation and it stops harder, because the page positively
+establishes that there is nothing to derive. A rule about *what a sample name is* cannot come from
+MaxQuant's naming, since MaxQuant does no naming — the string is whatever the depositor typed.
+
+The same page adds the one case where MaxQuant does generate a value:
+
+> *"Normally the experiment is left blank when raw data is loaded. The exception is when data is
+> loaded recursively from a folder, in which case MaxQuant generates an value for the experiment from
+> the paths to the files."*
+
+**That documents the mechanism behind the shapes this population actually shows.**
+`PXD032078`'s `3790_Ap_CMB-220_FRIMP_GlyGlyIP_Belinglab_CVB3_KO_m42rerun` and the `R01`…`R18` runs are
+path-derived, not chosen — so the two kinds of string in the sample set are *user prose* and *file
+paths*, and neither is constrained.
+
+**So D2 has no replacement and the six-character threshold is neither retuned nor defended.** The
+anchor check Step 4 asked for cannot be run: `KO_1_181212063719` at l.3891 is a condition, a replicate
+index and a run ID concatenated, and no documented rule separates those three, because the whole
+string is one free-text field.
+
+#### Criteria 8 and 11 remain unscorable, and that is now a result about the criteria
+
+D1 closing does not make either scorable, and the reason is the same for both: **their operational
+tests are defined over token opacity, and opacity is D2.** Criterion 8's five kinds are partitions of
+opaque against semantic tokens. Criterion 11's condition 2 strips opaque tokens before looking for a
+replicate index, and without the strip the anchor fails its own band on its one run-ID sample —
+the incoherence the definition existed to remove.
+
+**No new number is produced, so nothing supersedes the withdrawal.** Criterion 11 stands withdrawn as
+l.7627 records it, and criterion 8 stands unscored; there is no third figure to rank against the two
+already retired.
+
+**What is now established is stronger than *not yet done*.** Criterion 8 asks for a difference *in
+kind, not just in spelling* between naming conventions. The documentation says the naming convention
+is free text chosen by the depositor or generated from their folder layout. **There is no MaxQuant
+convention for a deposit's convention to differ from in kind** — so any kind-classification is a
+classification of depositor habits, and no documentation can ground one. The band is not amended and
+nothing here touches it; what is recorded is that its operational test cannot be derived from the
+tool, which is a different and more durable statement than *the pages were unreachable*.
+
+#### What the completed set would be worth, if it completed
+
+**Header-derivable components: five. Sound and scored: three** — criterion 7 (a real null, all
+fifteen carry `Ratio mod/base`), criterion 6's column-name component (determined in advance, no
+information), criterion 5's intensity component. **On those three, 2 of 14 non-anchor artefacts
+differ from the anchor** (l.7447), and both are criterion 5's SILAC pair under the looser of its two
+readings.
+
+**So the discriminating power of a completed header-derivable set rests entirely on criteria 8 and
+11** — the two that are blocked, and blocked now on a documented impossibility rather than a missing
+page. Even if both were scored and both separated every artefact, the set would be five components of
+eleven criteria, which C2 cannot order: a partial score is not a ranking, and this partial score's
+sound part currently separates two artefacts out of fourteen on a reading the record itself declines
+to choose between.
+
+**Reaching the rest costs re-extraction, because nothing was retained.** Criteria 1, 2 and 9 read the
+table body — multi-mapping rate, razor picks, the localisation distribution — and the eleven archived
+members and four direct tables were held in memory, their header lines taken, and dropped. Scoring
+them means fetching **4,408,470 bytes** of ranged reads again for the eleven and **84,657,723 bytes**
+again for the four, about 89 MB, plus retention somewhere for as long as the scoring takes. Criterion
+3 additionally needs the deposit resolved against UniProt. **Criterion 4 is unscorable in principle**
+— its state is one the platform's own resolver produces and no deposit's table can supply.
+
+**Stated plainly, and it is a statement of what the next decision faces rather than the decision:**
+the header-derivable route has been taken as far as documentation allows, it separates two artefacts
+of fourteen, and that is not enough to distinguish candidates for selection. Everything that would
+separate more lies behind either re-extraction or a rule the tool's own documentation says cannot be
+written.
 
 ### Deposit and supplementary survey, 2026-08-07
 
