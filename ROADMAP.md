@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.95 |
+| Version | 1.96 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -7289,6 +7289,228 @@ read as worth roughly nothing except where a prediction is wrong.
 
 **No prediction is made about which artefact differs**, and none about criteria 1, 2, 3, 4, 9, 10 or
 the non-header components of 5 and 6.
+
+### The five header-derivable components scored, and two of them scored the procedure, 2026-08-18
+
+The procedure committed at the previous section was applied mechanically to the fifteen headers.
+**Three of the five components are sound as scored. Two measured the procedure rather than the
+deposits, and the record below reports both numbers rather than the better one.** Nothing is ranked,
+no C2 tie-break is applied, and no band is amended.
+
+**The headers were re-read out of this document, not out of the working notes.** All fifteen verbatim
+blocks were parsed back from the committed `ROADMAP.md`, every declared column count matched the
+parsed count, and every parsed header matched the measurement it was transcribed from — fifteen of
+fifteen, zero mismatches. A scoring pass that read its own scratchpad would not have established that.
+
+#### The scores as the committed procedure gives them
+
+| Accession | Artefact | Samples, raw / de-polluted | Convention | 7 | 8 | 11 | 5 | 6 |
+|---|---|---|---|---|---|---|---|---|
+| `PXD019152` | `GlyGly (K) no C termSites.txt` | 6 / **2** | K1 semantic | · | **D** | **D** | · | · |
+| `PXD019152` | `GlyGly (K)Sites.txt` | 2 / **2** | K1 semantic | · | **D** | **D** | · | · |
+| `PXD032078` | `GlyGly (K)Sites.txt` | 108 / **36** | K4 mixed-inconsistent | · | · | **D** | · | · |
+| `PXD070339` | `GlyGly (K)Sites.txt` | 18 / **6** | K1 semantic | · | **D** | · | · | · |
+| `PXD074949` | `GlyGly (K)Sites.txt` | 54 / **18** | K4 mixed-inconsistent | · | · | **D** | · | · |
+| `PXD074949` | `GlyGly (K)Sites.txt` | 54 / **18** | K4 mixed-inconsistent | · | · | **D** | · | · |
+| `PXD074949` | `GlyGly (K)Sites.txt` | 54 / **18** | K4 mixed-inconsistent | · | · | **D** | · | · |
+| `PXD074990` | `GlyGly (K)Sites.txt` | 15 / **7** | K4 mixed-inconsistent | · | · | **D** | **D** | · |
+| `PXD075538` | `GlyGly (K)Sites.txt` | 54 / **18** | K4 mixed-inconsistent | · | · | **D** | · | · |
+| `PXD075538` | `GlyGly (K)Sites.txt` | 48 / **16** | K4 mixed-inconsistent | · | · | **D** | · | · |
+| `PXD075538` | `GlyGly (K)Sites.txt` | 81 / **27** | K4 mixed-inconsistent | · | · | **D** | · | · |
+| `PXD079072` | `GlyGlySites.txt` | 15 / **5** | K1 semantic | · | **D** | **D** | · | · |
+| `PXD018299` *(anchor)* | `HAP1_USP18KO_GlyGlyKSites.txt` | 12 / **12** | K4 mixed-inconsistent | · | · | · | · | · |
+| `PXD027163` | `UbiSite_GlyGly__K_Sites.txt` | 35 / **19** | K1 semantic | · | **D** | **D** | **D** | · |
+| `PXD027328` | `GlyGly__K_Sites.txt` | 12 / **12** | K1 semantic | · | **D** | **D** | · | · |
+
+**D** = *differs from the anchor*, that is, the criterion is informative for that artefact. `·` = does
+not differ. The anchor cannot differ from itself. **Denominator: 15 artefacts** for the *of 15*
+counts below, **14** for any statement about differing *from the anchor*, and **12 candidates** only
+where a candidate-level figure is named.
+
+| Criterion | Component | Differs, of 15 | Separates any pair | Status |
+|---|---|---|---|---|
+| **7** native stoichiometry (I4) | whole | **0** | **no** | **sound** |
+| **8** sample-name convention | whole | **6** | yes | **number not usable** — see below |
+| **11** design recoverable | whole | **13** | yes | number moves by 2; **finding robust** |
+| **5** declared quantity (I16) | intensity family only | **2** | yes | **sound** |
+| **6** localisation distribution | column name only | **0** | **no** | **sound, and carries no information** |
+
+#### Criterion 7 is a real null, and it is the consequential one
+
+**All fifteen artefacts carry `Ratio mod/base`.** Counts run from 3 to 37 columns; not one artefact
+is missing it. The informative direction of the band is *absent*, and absent never occurs in this
+population, so **criterion 7 cannot discriminate any candidate from any other here.**
+
+That is not a shrug. The band's own reasoning was that absence *"would test whether `native` is
+reachable outside this deposit at all"* — and the answer is that it is reachable in **every artefact
+of every candidate that has one**, which is a stronger result than the criterion was designed to
+return. I4's `native` stoichiometry is not an anchor peculiarity. The criterion is answered and spent
+in the same measurement.
+
+**The looser reading was recorded and does not change it.** `Occupancy` is present on twelve of the
+fifteen and absent on three — `PXD019152`'s PRM artefact, `PXD027328`, and the anchor. Since
+`Ratio mod/base` is universal, the strict and loose readings agree on *present* everywhere, and the
+`Occupancy` split is recorded without being scored.
+
+#### Criterion 6 was determined before it was scored
+
+**Zero of fifteen differ**, because `Localization prob` is one of the nine structural columns every
+artefact was already measured to carry (l.6716, l.7035). The number is a re-reading of a measurement
+already in this document, not a new one. It is reported for completeness of the five and **carries no
+information about any candidate**; treating it as a scored null would inflate the count of criteria
+this turn actually settled.
+
+#### Criterion 5 separates two artefacts, on SILAC
+
+**Two of fifteen differ**, and both are SILAC. `PXD074990` carries `Ratio H/L` — a two-channel
+labelling. `PXD027163` carries `Ratio H/L`, `Ratio M/L` **and** `Ratio H/M`, which is triple SILAC.
+Both carry `label_free_intensity` alongside it; the other thirteen, the anchor included, carry
+`label_free_intensity` alone. **The two differ from each other as well as from the anchor**, which
+the closed family map does not express — it labels both `silac_ratio` — and that limitation is
+recorded rather than repaired, since repairing it would amend the map after seeing the data.
+
+**Both are *additional* families rather than a different primary**, which the procedure required to be
+recorded because the stricter reading is defensible. Under the stricter reading — only a changed
+primary scores — criterion 5 separates **nothing**, and this component joins 6 and 7 in the null.
+Both readings are stated; neither is chosen here, because choosing would be amending the band.
+
+#### Criterion 8's number is not usable, and the defect is in the procedure
+
+**Committed score: 6 of 15 differ. The number is wrong, and de-polluting the sample-name
+extraction alone moves it to 12 of 15 — flipping the convention kind of 6 artefacts.**
+
+**D1 is the defect.** MaxQuant inserts sub-family qualifiers between a family prefix and the sample
+name — `Occupancy error scale R01`, `Occupancy ratio R01`, `Ratio H/L count S1`, `Ratio H/L
+normalized S1`. D1 takes the **largest** *S(P)*, and the unqualified prefix matches the qualified
+columns too, so the largest set is always the polluted one. `PXD070339`'s six samples came out as
+eighteen, `PXD074949`'s eighteen as fifty-four, `PXD032078`'s thirty-six as a hundred and eight.
+The precedence list was written to head this off and does not, because precedence only breaks
+**ties** and the polluted set is strictly larger.
+
+**The pollution then changes the answer, not just the count.** `PXD074949`'s real sample names are
+`R01`…`R18`, every token semantic under D2, which is **K1**. The qualifier `ratioR01` is eight
+alphanumeric characters with two digits, which is **opaque** under D2 — so the polluted set mixes
+opaque and semantic names and classifies as **K4**, the anchor's own kind, and the criterion reads
+*does not differ* for six artefacts that do differ.
+
+**D2's threshold is the second defect and it is smaller.** `R01` is three characters, so D2 calls it
+semantic, when it is plainly an opaque run index. The six-character threshold was set explicitly and
+in advance, with its reasoning stated; it is wrong for this data. It is named here and **not
+retuned** — retuning a threshold against the data it failed on is how a rule becomes a description of
+its own sample.
+
+**Neither number is offered as criterion 8's score.** 6 is what the committed procedure returns
+and is invalid. 12 comes from a diagnostic written after seeing the failure and is therefore
+not a pre-registered measurement. **Criterion 8 is unscored**, and what this turn established about
+it is that its rule does not survive contact with real MaxQuant headers.
+
+#### Criterion 11's number moves by two, and its finding survives
+
+**Committed score: 13 of 15 not recoverable.** The diagnostic — de-polluted sample names *and* a
+replicate index allowed to be fused to its group token — gives **11 of 15**. Two artefacts
+flip.
+
+The fused-index gap is real: `PXD027328`'s samples are `DMSO1, DMSO2, DMSO3, MG1, MG2, MG3, PR1,
+PR2, PR3`, which any reader resolves into three groups of three, and the committed condition 2 rejects
+because it splits only on `_`, `-`, `.` and space, so `DMSO1` has no separable trailing index.
+`PXD075538`'s `search_1023_1032` flips on de-pollution alone.
+
+**The finding is the same under all three versions.** Recoverable: the anchor and `PXD070339`
+(`HFD-1…3`, `NCD-1…3`) as committed; those two plus `PXD075538`'s third artefact de-polluted; those
+three plus `PXD027328` with the fused index allowed. **Between eleven and thirteen of fifteen carry no
+design recoverable from their column names** — so criterion 11 is the one component of the five that
+separates strongly whichever way its edges are drawn, and the anchor is close to unique in the
+population in having a design legible from its header.
+
+`PXD032078` is a true negative rather than an artefact: its samples read
+`3790_Ap_CMB-220_FRIMP_GlyGlyIP_Belinglab_CVB3_KO_m42rerun`, which encodes a design — CVB3/DMEM
+crossed with KO/WT/Ci — but carries no replicate index in any recoverable position. A design that is
+*present but not positionally recoverable* is exactly what the band's *not recoverable* means.
+
+**`PXD019152` shows why the artefact is the unit and the candidate is not.** Its two artefacts have
+six and two samples (`Flg`/`GST` against `FLAG`/`GST`), and both score *not recoverable* — but a
+candidate-level roll-up would have hidden that one of them has only two samples at all.
+
+#### What the scoring cost, honestly
+
+| Prediction | Predicted | Measured | |
+|---|---|---|---|
+| of the five components, how many separate at least one artefact from another | **4**, band 3–5 | **3** — 5, 8 and 11 | inside the band, one low |
+| of the fourteen non-anchor artefacts, how many differ on ≥1 component | **13**, band 10–14 | **14** | inside the band, one high |
+
+**Both predictions landed inside their bands and both are worth nothing, which is what was
+pre-registered about them.** They were made with the headers visible and they tested the procedure's
+determinacy, not foresight.
+
+**The number that matters is the one no prediction named.** Of the fourteen non-anchor artefacts,
+**14 differ on at least one component as scored** — but on the three **sound** components
+alone, 5, 6 and 7, only **2 of 14** differ, and both of those are criterion 5's SILAC pair
+under the looser of its two readings. **Twelve of the fourteen are separated from the anchor by
+nothing this turn can stand behind.** All of the apparent separation is carried by criterion 8, whose
+number is invalid, and criterion 11, whose number moves by two.
+
+**That is criterion 10's result again, at a different width.** Criterion 10 returned 0 of 12 because
+SDRF is absent everywhere. Criteria 6 and 7 return 0 of 15 for the same shape of reason — the
+property is uniform across the population, so a criterion keyed on it cannot rank. Three of the five
+header-derivable components, and one of the six non-header criteria already answered, are inert on
+this drawn set. **That is a finding about C1 rather than about the deposits**, and it is the second
+time this population has produced it.
+
+#### What remains unscorable, and the arithmetic checked rather than taken
+
+**Eleven criteria.** Scored whole this turn: **7** and — as an intent, not an achievement — **8** and
+**11**, of which 8 is withdrawn and 11 stands with a stated ±2. Scored in part: **5**'s
+intensity-family component, **6**'s column-name component. Already answered: **10**, at 0 of 12
+(l.5283, `N` for all twelve).
+
+**The arithmetic in the instruction does not quite hold and the enumeration does.** What remains is
+**1, 2, 3, 4, 9** whole — five criteria — plus **5**'s multiplicity component (one of two) and **6**'s
+median and scale (two of three, since l.3889 names three components). Called *five-and-a-half*, that
+lumps both partial criteria into a single half. By the block's own three-component reading of
+criterion 6 the fraction is 5 + ½ + ⅔ = **6⅙**, and counted as *criteria not fully scored* it is
+**seven**: 1, 2, 3, 4, 9, 5 and 6. The guard against *six-and-a-half* is right — criterion 10 must not
+be counted as outstanding — and the enumeration is right; only the fraction is.
+
+| Outstanding | What it needs |
+|---|---|
+| **1** multi-mapping rate (I14) | values from the table body — the `Proteins` column, per row |
+| **2** razor picks that are isoforms (I2) | table body **and** the deposit resolved against UniProt |
+| **3** razor pick on TrEMBL despite a reviewed entry (I17) | table body **and** the resolver |
+| **9** unrecorded threshold (I16's unfired case) | values from the table body — the `Localization prob` distribution |
+| **5** multiplicity treatment | see below — partly header-visible, and not scored here |
+| **6** median and scale | values from the table body |
+| **4** `AMBIGUOUS` fold | **unscorable under any option** |
+
+**Criterion 4 is unscorable in principle, not merely unfunded.** Its band at l.3887 names a state
+*measured 0 of 198 times*, carried by 7 of 2,260 cold snapshots — a state **the platform's own
+resolver produces**. No deposit's table can supply it, because it is not a property of the deposit.
+Fetching everything and reading every byte would not score criterion 4.
+
+**Criterion 5's multiplicity component is more header-visible than the procedure assumed.** Every one
+of the fifteen carries `___1`, `___2`, `___3` multiplicity columns — `Intensity___1` and siblings on
+thirteen, `Ratio H/L___1` on `PXD074990`, `Ratio M/L___1` on `PXD027163`. So a header does show
+**which multiplicity states exist and that they are split out**. What it does not show is the
+*treatment* — whether the declared quantity sums across them, which is what
+`intensity_multiplicity_summed` asserts. The component stays unscored, as the procedure fixed and as
+this turn's scope requires, but *not header-derivable* was too strong and is corrected here to
+**partly header-visible, not header-decidable**.
+
+**Scoring 11 settles the `filename_inference` discrepancy only in part.** The incoherence — the
+anchor's fourteen quantitative columns not deducible under `filename_inference` while the band reads
+*unambiguous* — is resolved, and by definition rather than by measurement: criterion 11 reads the
+**site table's** per-sample column names, and the fourteen are the **protein-grain** columns of
+`HAP1_USP18KO_proteinGroups.txt`, a different file (l.68). The anchor now scores *unambiguous*
+coherently. **What is not settled is the deferred item itself**, which asks whether
+`filename_inference` generalises — a question about a mechanism's reach, not about a header, and
+nothing in this turn touches it.
+
+#### A date discrepancy, named and not fixed
+
+The five sections preceding this one are headed **2026-08-12**. They were committed on 2026-08-17 and
+2026-08-18, which the commit dates and an independent `Date` header from the archive host both give.
+The headings are stale by five and six days. **`Last reviewed` in this document's header is corrected
+to 2026-08-18; the five earlier headings are named here and left as they stand**, because editing
+five earlier records is not in this turn's scope and doing it silently is worse than recording it.
 
 ### Deposit and supplementary survey, 2026-08-07
 
