@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.98 |
+| Version | 1.99 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -7481,10 +7481,16 @@ be counted as outstanding — and the enumeration is right; only the fraction is
 | **6** median and scale | values from the table body |
 | **4** `AMBIGUOUS` fold | **unscorable under any option** |
 
-**Criterion 4 is unscorable in principle, not merely unfunded.** Its band at l.3887 names a state
+~~**Criterion 4 is unscorable in principle, not merely unfunded.** Its band at l.3887 names a state
 *measured 0 of 198 times*, carried by 7 of 2,260 cold snapshots — a state **the platform's own
 resolver produces**. No deposit's table can supply it, because it is not a property of the deposit.
-Fetching everything and reading every byte would not score criterion 4.
+Fetching everything and reading every byte would not score criterion 4.~~
+
+*Struck 2026-08-18. The last sentence is true and the first does not follow from it: reading is not
+the only option, and the resolver run that produces the state is available. Criterion 4 needs the
+table body plus the resolver, exactly as criterion 3 does. See* § *What C1 has delivered* — **the two
+rows above it are also wrong**, and are left uncorrected because table edits are out of this turn's
+scope.*
 
 **Criterion 5's multiplicity component is more header-visible than the procedure assumed.** Every one
 of the fifteen carries `___1`, `___2`, `___3` multiplicity columns — `Intensity___1` and siblings on
@@ -7887,14 +7893,269 @@ table body — multi-mapping rate, razor picks, the localisation distribution �
 members and four direct tables were held in memory, their header lines taken, and dropped. Scoring
 them means fetching **4,408,470 bytes** of ranged reads again for the eleven and **84,657,723 bytes**
 again for the four, about 89 MB, plus retention somewhere for as long as the scoring takes. Criterion
-3 additionally needs the deposit resolved against UniProt. **Criterion 4 is unscorable in principle**
-— its state is one the platform's own resolver produces and no deposit's table can supply.
+3 additionally needs the deposit resolved against UniProt. ~~**Criterion 4 is unscorable in
+principle** — its state is one the platform's own resolver produces and no deposit's table can
+supply.~~ *Struck 2026-08-18: unscorable from the table, not in principle — see* § *What C1 has
+delivered*.
 
 **Stated plainly, and it is a statement of what the next decision faces rather than the decision:**
 the header-derivable route has been taken as far as documentation allows, it separates two artefacts
 of fourteen, and that is not enough to distinguish candidates for selection. Everything that would
 separate more lies behind either re-extraction or a rule the tool's own documentation says cannot be
 written.
+
+### What C1 has delivered, and the decision to pay for the bodies, 2026-08-18
+
+**This turn fetches nothing and scores nothing. It decides method.**
+
+#### Prediction, before the reasoning below was written
+
+**Expected choice: fetch.** Grounds held in advance: (b) selects a subset by expected discrimination,
+which is selection by the answer and is the shape this project has undone twice; (c) needs an
+alternative selection rule and none exists; (d) forecloses a route that is affordable and whose yield
+can be argued positively rather than hoped for. **The same discount applies as last time** — the
+prediction and the reasoning come from one source — and it is not re-derived here.
+
+*Outcome: the option chosen is a variant of (a) that this list did not contain, split by which
+resource a criterion needs rather than by what it might return. What moved me was Step 2: two of the
+seven outstanding components turn out to need the resolver, which is a different kind of cost with
+different side-effects, and the split is knowable before any score.*
+
+#### What C1 has delivered, across all eleven criteria
+
+| # | Criterion | Status | Waiting on |
+|---|---|---|---|
+| **7** | native stoichiometry (I4) | **scored** — 0 of 15 differ | — |
+| **10** | SDRF present | **scored** — 0 of 12 differ | — |
+| **5** | declared-quantity enum (I16) | **partly scored** — intensity family, 2 of 15 differ | multiplicity: the table body |
+| **6** | localisation distribution | **partly scored** — column name, 0 of 15 differ | median and scale: the table body |
+| **8** | sample-name convention | **withdrawn** | nothing — no groundable test exists |
+| **11** | design recoverable from column names | **withdrawn** | the same |
+| **1** | multi-mapping rate (I14) | blocked | the table body |
+| **2** | razor picks that are isoforms (I2) | blocked | the table body |
+| **9** | unrecorded threshold (I16's unfired case) | blocked | the table body |
+| **3** | razor pick on TrEMBL despite a reviewed entry (I17) | blocked | the table body **and** the resolver |
+| **4** | `AMBIGUOUS` fold | blocked | the table body **and** the resolver |
+
+**Two scored whole, two scored in part, two withdrawn, five blocked on data not held. Nothing is
+unscorable in principle.**
+
+**The instrument has produced one discriminating component out of eleven criteria.** Criterion 7
+returns 0 of 15, criterion 10 returns 0 of 12, criterion 6's column-name component returns 0 of 15
+and was determined before it was scored. **Only criterion 5's intensity component separates
+anything** — two artefacts — and only under the looser of two readings the record declines to choose
+between. That is what four criteria's worth of scoring has yielded.
+
+#### Criterion 4 can be scored, and the claim that it cannot was mine
+
+**The premise that C1 contains a criterion that can never be scored is false.** `AMBIGUOUS` is set at
+`bzk/resolve/uniprot.py` l.232, when UniProt returns several HGNC ids for an accession and the
+platform refuses to pick one. Scoring criterion 4 therefore needs a candidate's accession list — the
+table body — and a resolver run over it. **Both are available. Neither is cheap. Neither is
+impossible.**
+
+**The original classification was right and a later summary of it was not.** The scorability table at
+l.5236–5248 has three columns, and its third is headed *"Unscorable even with the file"* — which says
+the file is not **sufficient**, not that nothing suffices. It puts criteria 3 and 4 in that column for
+the same stated reason, that the datum comes from UniProt rather than from the deposit. Every turn
+since has treated criterion 3 as scorable with the resolver. **Criterion 4 is scorable on identical
+terms**, and the two rows should never have parted company.
+
+**A second row of the same later table is wrong in the same direction.** l.7477 says criterion 2 needs
+*"table body **and** the deposit resolved against UniProt"*. It does not: `bzk/resolve/uniprot.py`
+l.357 is `is_isoform = "-" in requested`, so isoform status is decided from the accession's own
+spelling with no network at all — which is exactly what l.5239 says. **Criterion 2 needs the body
+alone.**
+
+**Both degradations moved the same way — toward needing more than is needed — and both were summaries
+of a table that had it right.** The prose asserting them is struck above; the two table rows are named
+and left, since table edits are out of this turn's scope.
+
+**So the question Step 1 poses does not arise, and the nearest real one is worth answering.** C1 has
+no never-scorable criterion. What it does have is **five of eleven criteria requiring data the survey
+was never designed to fetch** — the survey reads listings and headers, and criteria 1, 2, 3, 4 and 9
+read values. **That is a property, not a defect**, and the reason is at l.3833–3838: the criteria were
+induced from one deposit's *measurements*, so a criterion that could be settled from a listing would
+be testing something the instrument had not measured in the first place. An instrument whose hardest
+criteria need the same evidence the original observation needed is behaving correctly. **C1 is not
+amended, in either direction.**
+
+#### What 89.07 MB buys, criterion by criterion
+
+The re-fetch is **89,066,193 B = 89.07 MB** — 4,408,470 B of ranged reads for the eleven archived
+members, 84,657,723 B for the four direct tables.
+
+| Component | What the body supplies that the header did not | Becomes |
+|---|---|---|
+| **1** multi-mapping rate | the `Proteins` column per row, so sites mapping to >1 protein can be counted against the anchor's 1,896 / 2,298 | **fully scorable** |
+| **2** isoform razor picks | the razor/leading-protein accession per row; isoform is `"-" in accession`, no network | **fully scorable, no resolver** |
+| **9** unrecorded threshold | the `Localization prob` values, so the fraction below 0.75 can be counted against 242 / 2,298 | **fully scorable** |
+| **6** median and scale | the same values, giving the median against 1.00 and the range against a 0.35 minimum | **fully scorable**, completing criterion 6 |
+| **5** multiplicity | `Intensity <exp>` beside `Intensity <exp>___1…3`, so whether the declared quantity **sums** across states is an arithmetic identity between columns rather than a claim | **fully scorable**, completing criterion 5 |
+| **3** TrEMBL razor pick | the razor accession; `reviewed` then comes from the UniProt pin | **partly** — body is necessary, resolver decides |
+| **4** `AMBIGUOUS` fold | the accession set; the state then comes from the resolver | **partly** — same shape as 3 |
+
+**What the resolver adds beyond bytes, for 3 and 4.** It is not more download; it is a different kind
+of dependency. A resolver run writes the UniProt entry cache — an I9 input since 2026-08-07 per
+`OPERATIONS.md` l.27 — so scoring 3 and 4 mutates captured external state that the rebuild depends
+on, for candidates that are not admitted and have no curation record. It also makes the score a
+function of the snapshot in force on the day it ran. **Bytes are recoverable; a cache write against
+un-admitted candidates is a change to an I9 input made on behalf of nothing.**
+
+#### Whether the bodies will discriminate, argued rather than hoped
+
+**The headers were near-identical for a reason that says nothing about the values.** MaxQuant writes
+a fixed output schema: the same site table columns for every run. Fifteen MaxQuant site tables
+agreeing on their column set is a fact about the tool, and it was never evidence about the deposits.
+The one header component that did separate — criterion 5's intensity family — separated exactly where
+the *tool* was configured differently, on SILAC.
+
+**Four of the seven outstanding components measure depositor choices, which vary by construction:**
+
+- **2** and **3** measure the **search database** — whether isoforms were included, whether TrEMBL was
+  searched alongside SwissProt. That is a per-laboratory decision with no default, and it is the kind
+  of thing two groups reliably do differently.
+- **9** measures **pre-deposit filtering** — whether the depositor applied a localisation cut before
+  uploading. Some do; the anchor did not, which is why its unfired I16 case exists at all.
+- **6**'s scale measures the **export path** — a Perseus-processed table can carry rescaled
+  probabilities where a raw MaxQuant one does not.
+
+**Two of the seven will very likely not discriminate, and for a structural reason:**
+
+- **1** measures how often a K-GG peptide is shared between protein groups, and **4** measures how
+  often an accession maps to several HGNC ids. **Both are properties of the human proteome**, not of
+  the experiment. Any human diGly deposit searched against a human FASTA should land near the
+  anchor's 82.5%, and the `AMBIGUOUS` rate should track the reference release rather than the lab.
+  These are the same shape as criteria 7 and 10: uniform across the population because the property
+  is not one a deposit varies.
+
+**The honest expectation, stated without hedging: yes, there is positive reason to expect the bodies
+to discriminate — on 2, 3, 9 and 6's scale — and positive reason to expect 1 and 4 not to.** That is
+a different and better-founded expectation than the header pass carried, because it rests on what
+each criterion measures rather than on the criteria being untried. It is not a prediction of any
+candidate's score and none is made.
+
+#### Retention: nothing durable, and the digests recorded — decided
+
+**The three sources agree, so there is no contradiction to stop on.**
+
+| Source | What it says | What it decides |
+|---|---|---|
+| `bzk/provenance/raw_store.py` l.1–4 | *"Content-addressed storage for **ingested source files**"*, grounded in I9 and `OPERATIONS.md` §2's cite-by-SHA-256 requirement | a candidate's table is **not** an ingested source file and has no curation record to cite it — **out of scope for `raw/` by the module's own first line** |
+| `OPERATIONS.md` l.26 | `raw/` source files back up *"Only if the deposit is unchanged — re-fetchable from PRIDE, not reproducible"* | neutral on what belongs there; it prices what is already in |
+| `OPERATIONS.md` l.85 | `raw/` has **no reachability notion**; `.warm` already carries 6 objects against the cold trees' 4, **the two extras cited by no curation record, no fetcher and no document** | decisive against — *"a content-addressed store still cannot tell an input from a leftover inside itself"*. Fifteen un-referenced candidate tables would take that from two orphans to seventeen |
+
+**Decision: retain no bytes anywhere, and record the fifteen SHA-256 digests in this document.**
+
+**`raw/` is refused on the first and third sources, which point the same way from opposite ends** —
+one says the store is for ingested files, the other says the store cannot tell a non-input from an
+input once it is inside. Adding fifteen would make the orphan problem 8.5× worse and would do it
+deliberately, in a store whose whole purpose is that a rebuild can trust what it finds there.
+
+**Elsewhere is refused because there is no elsewhere.** This container has no `raw/` and is discarded
+at session end, so *retain durably* can only mean *commit to the repository*, and 89 MB of
+re-fetchable deposit tables does not belong in a version-controlled documents-and-code repository —
+on `OPERATIONS.md` l.26's own reasoning, which prices `raw/` as re-fetchable and backs it up rather
+than versioning it. **What "retain" can honestly mean here is: hold the bytes in the session's
+scratchpad for as long as the scoring turn runs, and drop them.** That is working memory, not
+retention, and calling it retention would be the mislabel this decision exists to avoid.
+
+**What is retained instead is the identity, and this is the part that is new.** The repository
+currently holds a digest for **three of the fifteen** artefacts — the published SHA-1s of
+`PXD018299`, `PXD027163` and `PXD027328` at l.6869–6871. `PXD079072` publishes no checksum and its
+digest was never written down. **The eleven archived members have none**: the extraction table records
+each CRC as *verified* and does not record the value. **So twelve of fifteen artefacts have no
+recorded identity, and a re-fetch cannot be shown to have got the same bytes as the fetch it
+repeats.**
+
+Recording them converts every future fetch from a repetition into a **verification**, which is
+precisely what `OPERATIONS.md` §2 requires of an ingested file and what this population has been
+denied by not being ingested. **It is the cheapest thing this decision could have produced and it was
+invisible until the retention question was asked.**
+
+**So the decision is executed here rather than declared.** Every value below was measured during the
+extraction and fetch turns and simply never transcribed; **no byte was fetched to produce this
+table**, and nothing new was computed. The eleven carry the CRC-32 their archive's own central
+directory declares — the value each was verified against — and the four carry a SHA-256 computed over
+the fetched bytes.
+
+| Artefact | Bytes | Identity | Algorithm |
+|---|---|---|---|
+| `PXD019152` / `MaxQUANT_HpH.zip` / `GlyGly (K) no C termSites.txt` | 393,147 | `0x2a213a9b` | CRC-32, from the archive's central directory |
+| `PXD019152` / `MaxQUANT_PRM.zip` / `GlyGly (K)Sites.txt` | 42,042 | `0x45f29d3f` | CRC-32, from the archive's central directory |
+| `PXD032078` / `txt_GlyGlyKsites.zip` / `GlyGly (K)Sites.txt` | 2,551,526 | `0xb9b71527` | CRC-32, from the archive's central directory |
+| `PXD070339` / `txt.zip` / `GlyGly (K)Sites.txt` | 2,672,464 | `0xb6226139` | CRC-32, from the archive's central directory |
+| `PXD074949` / `search_1066_R01R18.zip` / `GlyGly (K)Sites.txt` | 70,631 | `0x551389d3` | CRC-32, from the archive's central directory |
+| `PXD074949` / `search_1066_R47R64.zip` / `GlyGly (K)Sites.txt` | 328,913 | `0x66e89666` | CRC-32, from the archive's central directory |
+| `PXD074949` / `search_1233_R01R18.zip` / `GlyGly (K)Sites.txt` | 354,273 | `0x5bf95606` | CRC-32, from the archive's central directory |
+| `PXD074990` / `PTMH1299_search_results.zip` / `GlyGly (K)Sites.txt` | 1,115,157 | `0x975b966e` | CRC-32, from the archive's central directory |
+| `PXD075538` / `search_0995_R01R18.zip` / `GlyGly (K)Sites.txt` | 533,887 | `0x590b22fb` | CRC-32, from the archive's central directory |
+| `PXD075538` / `search_0995_R19R34.zip` / `GlyGly (K)Sites.txt` | 105,317 | `0x25187eb4` | CRC-32, from the archive's central directory |
+| `PXD075538` / `search_1023_1032.zip` / `GlyGly (K)Sites.txt` | 124,642 | `0x3bc49e9a` | CRC-32, from the archive's central directory |
+| `PXD079072` / `GlyGlySites.txt` | 102,731 | `sha256:37bb19d913dc124ad94688f85439dee2a35c506e4e5a5ab281c5b7ea65234001` | SHA-256, computed over the fetched bytes |
+| `PXD018299` / `HAP1_USP18KO_GlyGlyKSites.txt` | 2,759,052 | `sha256:a4a503e39581334c3553d3631456ad8aca22e193ba928810f6d46fde15622009` | SHA-256, computed over the fetched bytes |
+| `PXD027163` / `UbiSite_GlyGly__K_Sites.txt` | 15,802,963 | `sha256:bd50b39748bab29c1290423641ce1a60801b9d5e64bd4125712956382c5eceb9` | SHA-256, computed over the fetched bytes |
+| `PXD027328` / `GlyGly__K_Sites.txt` | 65,992,977 | `sha256:93fe7e9fb4cdc80b90311b62f60aa1ec76e3252841468831658c0f83979ec178` | SHA-256, computed over the fetched bytes |
+
+**The eleven are CRC-32 and not SHA-256, and that is a real weakness stated rather than papered
+over.** CRC-32 is a 32-bit error check, not a cryptographic digest: it detects corruption and does not
+establish identity against a determined change. It is what the archive supplies and what was measured,
+so it is what is recorded. **`PXD079072` moves from no identity at all to a SHA-256** — the one
+artefact whose deposit publishes no checksum now has one here.
+
+#### The re-extraction: (e), a cost-kind split — decided
+
+Options considered, beyond the four named:
+
+| | Option | Disposition |
+|---|---|---|
+| (a) | fetch all fifteen, score every outstanding component | **superseded by (e)** |
+| (b) | fetch a subset chosen by expected discrimination | **refused** — a subset chosen by what it will show is chosen by the answer. Same shape as the matcher nearly tuned to the rows it had to admit, and the post-hoc disjunction; both were undone |
+| (c) | fetch nothing, select on another ground | **refused** — see below |
+| (d) | fetch nothing, record that the survey cannot select | **refused** — see below |
+| (e) | fetch all fifteen; score the five components needing **only** the body; hold 3 and 4 for a separate decision | **chosen** |
+| (f) | fetch a bounded prefix of each table rather than the whole | **refused** — see below |
+
+**(e) is not (b) wearing a different coat, and the distinction is the whole of why it is chosen.**
+(b) splits on *what a criterion will return*, which is knowable only after scoring it. (e) splits on
+*what resource a criterion requires* — body alone, or body plus a resolver run that writes an I9
+input — which is knowable now, is written in the table above, and would be the same split whatever
+the scores turn out to be. **A split that survives every possible outcome is not selection by the
+answer.**
+
+**(f) is refused on a measurable defect, not on taste.** Criteria 2 and 3 already sample — the anchor's
+figures are 6/20 and 4/8 — so a bounded read looks admissible for them. But criteria 1, 9 and 6 are
+whole-population rates over 2,298 sites, and **a table prefix is not a random sample**: MaxQuant
+orders site tables, so the first *n* rows are a biased draw by an amount nobody here has measured.
+Trading 89 MB for an unquantified bias in three of five components is a worse deal than it looks.
+
+**(c) is refused because the alternative ground cannot be stated as a rule.** Something would have to
+replace C1, and the candidates are all preferences wearing rules: *pick the deposit whose design most
+resembles the anchor's* inverts l.3833–3838, which ranks resemblance **last**; *pick the largest* or
+*the most recent* measures nothing the platform cares about; *pick the one the anchor laboratory
+would use next* is a real ground but it is a question for a person, not a rule this repository can
+apply. **No rule is available, so (c) is not a method — it is deferral with a different name.**
+
+**(d) is refused, and its two halves are answered separately because they are not blocked by the same
+thing.** l.40–44 is explicit.
+
+- ***Ingested, resolved, stored*** — reached by **any** second deposit and needs nobody. **(d) would
+  not block this half.** A deposit could still be selected by hand or by the anchor laboratory's own
+  next dataset; what (d) forecloses is the *survey's* route to a selection, not selection itself. So
+  (d)'s true cost is narrower than it sounds — but it is the cost of abandoning the instrument three
+  turns after building it, with the one route that could still discriminate untried.
+- ***Cross-queried*** — **not** reached, and its blocker is `ONTOLOGY.md` §11 Q1, the
+  two-datasets-one-`Contrast` question, where a HAP1 contrast and an HCT116 contrast receive one id.
+  **That half is blocked whatever this turn decides**, and nothing here touches it. Choosing (a),
+  (d) or (e) makes no difference to it at all.
+
+**So the decision is (e): pay the 89.07 MB, score the five body-only components, and hold criteria 3
+and 4 pending a separate decision about writing the UniProt cache on behalf of un-admitted
+candidates.** The bytes buy four components with argued discriminating power and one — criterion 1 —
+expected to be inert and worth measuring anyway, since an expectation that a criterion cannot
+discriminate is exactly the kind of claim this project checks rather than assumes.
+
+**No deposit is selected, nothing is ranked, no criterion is scored, and C1 is unchanged.**
 
 ### Deposit and supplementary survey, 2026-08-07
 
