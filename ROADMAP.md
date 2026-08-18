@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.89 |
+| Version | 1.90 |
 | Last reviewed | 2026-08-12 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -5481,14 +5481,46 @@ the full tables the value criteria need.~~
 **Mispriced, corrected 2026-08-12 before the first live use.** *At kilobytes* was wrong, and the
 reason is a guard this document already calls the extractor's purpose: `extract_member` verifies the
 inflated bytes against the central directory's **CRC-32**, and a read stopping at the first newline
-cannot verify it. So a header costs a **whole member** — tens of megabytes — not kilobytes.
+cannot verify it. So a header costs a **whole member** — ~~tens of megabytes~~ **under 3 MB, for
+every archived member** — not kilobytes.
 
 **The resolution is that the saving which matters is archive → member, not member → line.** The
-archives are gigabytes and a site table is tens of megabytes, so extracting the whole member and
+archives are gigabytes and a site table is ~~tens of megabytes~~ **under 3 MB**, so extracting the
+whole member and
 verifying its CRC is cheap by roughly three orders of magnitude against the archive it sits in. A
-partial-inflate path would buy back tens of megabytes out of a saving already measured in gigabytes,
+partial-inflate path would buy back ~~tens of megabytes~~ **under 3 MB** out of a saving already
+measured in gigabytes,
 and would pay for it with the one guard that detects a **wrong answer** rather than an absent one.
 **No partial path is built.**
+
+**The magnitude was corrected again, 2026-08-12, and this correction had the direction right the
+first time and the size wrong.** *Tens of megabytes* was written **before the directory reads
+returned member sizes**, so it was an estimate standing in for a measurement. Measured, from the
+twelve archived member rows:
+
+| Population | Bytes | |
+|---|---|---|
+| the **twelve archived member rows** | **10,964,463** | 10.96 MB — the whole population, counting the duplicated artefact twice |
+| the **eleven distinct artefacts**, under the shared-artefact rule | **8,291,999** | 8.29 MB — what an extraction of all of them actually transfers |
+| the **four direct tables** | 102,731 · 2,759,052 · 15,802,963 · 65,992,977 | a separate population, not this one |
+
+**The three must not be run together, and the largest archived member is 2,672,464 B — under 3 MB.**
+**Not one archived member reaches 10 MB**, so *tens of megabytes* was never true of this population at
+all; it was true of the **direct** tables, which is where the estimate came from and which are a
+different set.
+
+**Corrected against the instruction that asked for the correction**: *tens of megabytes* was said to
+fit exactly one direct table. It fits **two** — `PXD027163`'s 15,802,963 B (15.80 MB) and
+`PXD027328`'s 65,992,977 B (65.99 MB) — both inside [10 MB, 100 MB). The point survives and is
+sharpened: the estimate was borrowed from a population where it holds for half the members, and
+applied to one where it holds for none.
+
+**This changes no decision, and that is said rather than left to be inferred.** (b) over (a) was
+argued on gigabytes against megabytes; the archived members turn out to be **three times smaller than
+the estimate**, so the comparison it rested on becomes stronger, not weaker. The bound two paragraphs
+below — *even at 100 MB per member, the sixteen come to ~1.6 GB* — remains true and is now known to be
+loose by roughly two orders of magnitude; it is left standing because a deliberately generous bound
+does not become wrong by being generous.
 
 **(b) over (a) is unaffected.** That choice rested on 24.61 GB of whole archives against the members
 themselves. Even at 100 MB per member — well above the 66 MB of the largest *direct* K-GG table — the
