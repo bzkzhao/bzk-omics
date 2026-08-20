@@ -1,0 +1,4 @@
+Proteins	Protein	Localization prob	Intensity S1	Intensity L S1	Intensity S2	Intensity S2___1	Intensity S2___2	Reverse	Potential contaminant
+R1	R1	1	10	4	20	12	8		
+R2	R2	1	30	9	40	40	0		
+R3	R3	1	50	5	60	10	10		

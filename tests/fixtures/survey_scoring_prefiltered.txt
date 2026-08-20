@@ -1,0 +1,4 @@
+Proteins	Protein	Localization prob	Reverse	Potential contaminant
+Q1;Q2	Q1	100		
+Q3	Q3	95		
+Q4	Q4-1	90		
