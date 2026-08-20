@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.01 |
+| Version | 2.02 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -8525,6 +8525,106 @@ of eleven criteria remain a partial score, and criteria 3 and 4 are still held.
 
 **Nothing was retained.** Every artefact was held in the session scratchpad for the duration of the
 scoring and deleted; nothing was written to `raw/`, to the repository, or anywhere durable.
+
+### The five procedures are durable, and the anchor converges on all five, 2026-08-18
+
+The previous turn's scoring code was held in a scratchpad and never committed, so no figure in the
+three results tables at l.8344–8360, l.8394–8410 and l.8427–8443 could be recomputed by anyone.
+**`bzk/survey_scoring.py` and `tests/test_survey_scoring.py` were committed at `07715af`, before
+anything was fetched and before any comparison was run**, and the ordering is provable from
+`git log` rather than from position in this document.
+
+**Disclosure, since no blindness can be claimed.** The target figures at l.8429 were on file and
+visible throughout. The module was written from the registration at l.8189–8288 and from nothing
+else — the result tables were not consulted while writing it — and it was then run. That statement is
+what stands in for the pre-registration the ordering cannot provide, and it is worth exactly what a
+reader thinks it is worth.
+
+#### The module, and the one seam that was left open
+
+The five procedures are transcribed one to one from the registration: the denominator (l.8189–8190),
+criterion 1 (l.8206–8207), criterion 2 (l.8218–8220), criterion 9's yes/no (l.8236–8238), criterion
+6's median and scale (l.8257–8259) and criterion 5's full block (l.8273–8288). It reports the third
+state, `unscorable`, wherever a band's own sample floor is not met. **No criterion, band or
+denominator is defined in the module**; those stay in `ROADMAP.md` and the module computes the
+quantities they are read against.
+
+**Sample names are an argument rather than something the module derives, and the reason is
+provenance rather than convenience.** The corrected D1 at l.7755 defines its vocabulary as the 67
+templates *"extracted programmatically from the fetched page rather than transcribed"*. Writing those
+67 strings into `bzk/` would transcribe a list whose entire provenance claim is that it was not
+transcribed — the defect that put `Ratio mod/base normalized` and `Reporter intensity corrected`,
+neither documented, into D1's first draft. Fetching the page at call time would make scoring depend
+on a network. **The seam is left exactly where the unresolved provenance question is**, so D1 can be
+made durable later without touching the scorer.
+
+#### Three synthetic fixtures, and five mutations that were made to fail
+
+The fixtures under `tests/fixtures/` are hand-computable and **none reads a deposit's table**, so all
+sixteen tests pass in an un-populated container. They exist to reach branches a real site table
+touches only by accident: a razor pick falling back to `Leading proteins`, a `NaN` base, a zero base
+with a non-zero total, a 0–100 localisation scale, and a SILAC sample with `Intensity S1` but no
+`Intensity S1___1`.
+
+| Mutation | Test that caught it |
+|---|---|
+| drop the `Leading proteins` fallback | criterion 2's isoform count falls from 2 to 1 |
+| fold zero-base-nonzero-total into `trivial` | the test that separates the two shapes |
+| replace the tolerance with strict equality | the `\|100 − 99\| = 1` agreement |
+| divide by the post-cut count instead of the denominator | criterion 1's rate, and one other |
+| score a sample that has no multiplicity columns | the SILAC test |
+
+**Each mutation was read back from disk before the suite was run**, so a mutation that silently
+failed to apply could not be mistaken for a guard that fires; each failed exactly the test written
+for it; and the file was restored and confirmed byte-identical afterwards.
+
+**The tautology sweep caught eight assertions and they were rewritten rather than pinned.** All eight
+were of the form `x == pytest.approx(literal)`, a shape the sweep already tracks in `test_stats.py`.
+They now assert numerator and denominator as a pair. **The sweep is right about the shape**: a
+quotient asserted under a default relative tolerance is satisfied by two wrong counts in the same
+ratio, and `(multi, total) == (3, 9)` is not. `tests/test_tautology_sweep.py` was not edited.
+
+#### The check
+
+**`PXD018299` / `HAP1_USP18KO_GlyGlyKSites.txt` fetched once, 2,759,052 bytes transferred against a
+budget of 2,759,052 — exact.** Its SHA-256 was verified before scoring and matches l.8096 to the
+character. Nothing else was fetched.
+
+| Figure | Committed module | Recorded at l.8429 | |
+|---|---|---|---|
+| c1 multi-map | 1,896 / 2,298 = 82.5% | 1,896 / 2,298 = 82.5% | converge |
+| c2 isoform picks | 335 / 2,298 = 14.6% | 335 / 2,298 = 14.6% | converge |
+| c9 below 0.75 | 242 | 242 | converge |
+| c6 median / max | 1 / 1 | 1 / 1 | converge |
+| c5 agree | 6,896 / 6,910 = 99.8% | 6,896 / 6,910 = 99.8% | converge |
+
+**All five converge. Nothing was adjusted to make them.**
+
+The three row counts also reproduce — 2,341 rows, 2,298 in the denominator, 2,056 after the
+localisation cut — as does the minimum localisation probability at **0.352892**, which the band
+records to two places as 0.35 and which no figure in this comparison required.
+
+#### What the convergence is worth, bounded
+
+**This is the weakest of the fifteen available checks.** The anchor is the artefact the previous turn
+calibrated its procedure against — its 1,896 / 2,298 and 242 / 2,298 were the stated stop condition
+for that turn — so a procedure written to the same registration reproducing them is close to the
+minimum the check could have returned. **Convergence pins the module against one artefact and leaves
+the other fourteen rows of l.8427–8443 uncomputed.**
+
+**One divergence was expected and did not arrive, and its absence is not a vindication.** The
+registration computes criterion 5's verdict over `base > 0` (l.8283–8284), which leaves a row with a
+zero base and a non-zero total outside both the trivial clause and the counted clause; the previous
+turn's scratchpad code counted such rows as comparisons. The two readings genuinely differ. **The
+anchor has zero rows of that shape**, so both readings return 6,896 / 6,910 here and this artefact
+cannot distinguish them. The module surfaces the count as its own field rather than folding it into a
+neighbour, so the next artefact that has one will show it instead of hiding it.
+
+**Nothing was retained.** The anchor was held in the session scratchpad for the duration of the
+scoring and deleted; nothing was written to `raw/`, nothing durable, and no fixture was built from
+the real table. The module and its three synthetic fixtures are the only durable output.
+
+**No result table was amended**, and none needed to be.
 
 ### Deposit and supplementary survey, 2026-08-07
 
