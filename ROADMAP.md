@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.00 |
+| Version | 2.01 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -8331,6 +8331,200 @@ eleven, 84,657,723 for the four.
 
 Bytes are held in the session scratchpad for as long as scoring runs and then dropped. **Nothing is
 written to `raw/`, nothing to the repository, nothing anywhere durable**, and the report confirms it.
+
+### The five body-only components scored; the anchor calibrates and criterion 1 was predicted wrong, 2026-08-18
+
+**Every identity re-derived and every one matched.** Fifteen of fifteen, value by value, against
+l.8084–8098. **The anchor reproduces 1,896 / 2,298 and 242 / 2,298 exactly**, so the registered
+denominator is confirmed and the other scores mean something. **Criteria 3 and 4 were not scored**;
+no resolver ran, no UniProt call was made, nothing was written to the entry cache. C1 is unamended.
+
+#### The identity check, reported before any score
+
+| Artefact | Bytes | Re-derived identity | Recorded (l.8084–8098) | |
+|---|---|---|---|---|
+| `PXD019152` / `MaxQUANT_HpH.zip` | 393,147 | `0x2a213a9b` | identical | **match** |
+| `PXD019152` / `MaxQUANT_PRM.zip` | 42,042 | `0x45f29d3f` | identical | **match** |
+| `PXD032078` / `txt_GlyGlyKsites.zip` | 2,551,526 | `0xb9b71527` | identical | **match** |
+| `PXD070339` / `txt.zip` | 2,672,464 | `0xb6226139` | identical | **match** |
+| `PXD074949` / `search_1066_R01R18.zip` | 70,631 | `0x551389d3` | identical | **match** |
+| `PXD074949` / `search_1066_R47R64.zip` | 328,913 | `0x66e89666` | identical | **match** |
+| `PXD074949` / `search_1233_R01R18.zip` | 354,273 | `0x5bf95606` | identical | **match** |
+| `PXD074990` / `PTMH1299_search_results.zip` | 1,115,157 | `0x975b966e` | identical | **match** |
+| `PXD075538` / `search_0995_R01R18.zip` | 533,887 | `0x590b22fb` | identical | **match** |
+| `PXD075538` / `search_0995_R19R34.zip` | 105,317 | `0x25187eb4` | identical | **match** |
+| `PXD075538` / `search_1023_1032.zip` | 124,642 | `0x3bc49e9a` | identical | **match** |
+| `PXD079072` / `GlyGlySites.txt` | 102,731 | `sha256:37bb19d…234001` | identical | **match** |
+| `PXD018299` / `HAP1_USP18KO_GlyGlyKSites.txt` | 2,759,052 | `sha256:a4a503e…622009` | identical | **match** |
+| `PXD027163` / `UbiSite_GlyGly__K_Sites.txt` | 15,802,963 | `sha256:bd50b39…5eceb9` | identical | **match** |
+| `PXD027328` / `GlyGly__K_Sites.txt` | 65,992,977 | `sha256:93fe7e9…9ec178` | identical | **match** |
+
+**Fifteen of fifteen match. None is missing.** The eleven CRC-32 values entered the repository at
+`63d2438` with nothing on disk able to check them — the measured extraction table at l.6654–6664
+records each CRC as *verified* without its value. **They are now checked against an independent
+fetch**, and neither candidate explanation for a mismatch is needed: the deposits did not change and
+the transcription at `63d2438` was correct.
+
+The eleven uncompressed lengths match the **measured** table at l.6654–6664 individually and sum to
+**8,291,999**, the figure at l.6667. The prediction table at l.6598–6608 was not used for this.
+
+**Bytes: the direct four came in at exactly 84,657,723 — the budget to the byte.** The archived
+figure **cannot be reported for this turn**, and the reason is the run below: the first attempt
+fetched eight of the eleven and then died on the ninth before writing its byte counter, and the
+resumed run moved only 385,178 for the remaining three plus retries. The eleven's 4,408,470 budget is
+therefore neither confirmed nor refuted here. Reporting 85,042,901 as the turn's transfer would be
+false, and it is not reported.
+
+#### Six transport failures, all on the same deposit, and the pattern is now a rate
+
+**`PXD075538` failed six times across two runs of this turn** — three on `search_0995_R01R18.zip`
+that exhausted a three-attempt loop and killed the first run, one more on the same archive after the
+loop was widened, and two on `search_0995_R19R34.zip`. Every one was `ChunkedEncodingError` with
+`IncompleteRead(0 bytes read, …)`; every one succeeded on a later attempt with a fresh connection.
+**No other deposit failed once**, across fifteen artefacts.
+
+**With the two failures already on record, that is eight, all on one of the seven deposits.** The
+record's *"two events is not a rate"* is superseded by its own successor: eight against zero across
+six other deposits is a rate. **It is still not explained** — the failures hit different archives,
+different phases and different read sizes, and all cleared on retry — but it is no longer a pattern
+that might be chance.
+
+#### The scores
+
+| Artefact | Denominator | 1 | 2 | 9 | 6 | 5 |
+|---|---|---|---|---|---|---|
+| `PXD018299` / `HAP1_USP18KO_GlyGlyKSites.txt` *(anchor)* | 2,298 | · | differs | · | · | · |
+| `PXD019152` / `MaxQUANT_HpH.zip` | 522 | · | differs | · | · | differs |
+| `PXD019152` / `MaxQUANT_PRM.zip` | 31 | differs | · | · | · | differs |
+| `PXD032078` / `txt_GlyGlyKsites.zip` | 827 | differs | differs | · | · | · |
+| `PXD070339` / `txt.zip` | 2,238 | · | differs | · | · | differs |
+| `PXD074949` / `search_1066_R01R18.zip` | 32 | differs | differs | · | · | · |
+| `PXD074949` / `search_1066_R47R64.zip` | 203 | differs | differs | · | · | · |
+| `PXD074949` / `search_1233_R01R18.zip` | 246 | differs | differs | · | · | · |
+| `PXD074990` / `PTMH1299_search_results.zip` | 1,404 | differs | differs | · | · | **unscorable** |
+| `PXD075538` / `search_0995_R01R18.zip` | 333 | differs | differs | · | · | · |
+| `PXD075538` / `search_0995_R19R34.zip` | 70 | differs | differs | · | · | · |
+| `PXD075538` / `search_1023_1032.zip` | 45 | differs | differs | differs | · | differs |
+| `PXD079072` / `GlyGlySites.txt` | 19 | differs | **unscorable** | differs | · | differs |
+| `PXD027163` / `UbiSite_GlyGly__K_Sites.txt` | 9,641 | differs | differs | · | · | **unscorable** |
+| `PXD027328` / `GlyGly__K_Sites.txt` | 56,722 | differs | differs | · | · | · |
+
+**`differs` = the criterion is informative for that artefact.** `·` = does not differ.
+**`unscorable` is the third state and is never rounded to `·`.** Denominator: rows with `Reverse` and
+`Potential contaminant` both empty, as registered.
+
+| Criterion | Differs, of 14 non-anchor | Unscorable |
+|---|---|---|
+| **1** multi-mapping rate | **12** | — |
+| **2** isoform razor picks | **12** | **1** |
+| **9** unrecorded threshold (yes/no) | **2** | — |
+| **6** median and scale | **0** | — |
+| **5** multiplicity | **5** | **2** |
+| **any of the five** | **14 of 14** | |
+
+#### The evidence behind each
+
+| Artefact | c1 multi-map | c2 isoform picks | c9 below 0.75 | c6 median / max | c5 agree |
+|---|---|---|---|---|---|
+| `PXD018299` / `HAP1_USP18KO_GlyGlyKSites.txt` | 1,896 / 2,298 = **82.5%** | 335 / 2,298 = 14.6% | 242 | 1 / 1 | 6,896 / 6,910 = 99.8% |
+| `PXD019152` / `MaxQUANT_HpH.zip` | 414 / 522 = **79.3%** | 61 / 522 = 11.7% | 5 | 1 / 1 | 557 / 565 = 98.6% |
+| `PXD019152` / `MaxQUANT_PRM.zip` | 17 / 31 = **54.8%** | 8 / 31 = 25.8% | 4 | 0.999996 / 1 | 39 / 40 = 97.5% |
+| `PXD032078` / `txt_GlyGlyKsites.zip` | 155 / 827 = **18.7%** | 0 / 827 = 0.0% | 82 | 1 / 1 | 13,480 / 13,519 = 99.7% |
+| `PXD070339` / `txt.zip` | 1,814 / 2,238 = **81.1%** | 0 / 2,238 = 0.0% | 459 | 1 / 1 | 5,561 / 5,646 = 98.5% |
+| `PXD074949` / `search_1066_R01R18.zip` | 16 / 32 = **50.0%** | 1 / 32 = 3.1% | 5 | 1 / 1 | 255 / 255 = 100.0% |
+| `PXD074949` / `search_1066_R47R64.zip` | 118 / 203 = **58.1%** | 0 / 203 = 0.0% | 12 | 1 / 1 | 901 / 901 = 100.0% |
+| `PXD074949` / `search_1233_R01R18.zip` | 80 / 246 = **32.5%** | 5 / 246 = 2.0% | 43 | 1 / 1 | 361 / 361 = 100.0% |
+| `PXD074990` / `PTMH1299_search_results.zip` | 172 / 1,404 = **12.3%** | 0 / 1,404 = 0.0% | 48 | 1 / 1 | no comparable pair |
+| `PXD075538` / `search_0995_R01R18.zip` | 172 / 333 = **51.7%** | 0 / 333 = 0.0% | 27 | 1 / 1 | 1,412 / 1,413 = 99.9% |
+| `PXD075538` / `search_0995_R19R34.zip` | 12 / 70 = **17.1%** | 0 / 70 = 0.0% | 4 | 1 / 1 | 208 / 208 = 100.0% |
+| `PXD075538` / `search_1023_1032.zip` | 25 / 45 = **55.6%** | 0 / 45 = 0.0% | 0 | 1 / 1 | 341 / 358 = 95.3% |
+| `PXD079072` / `GlyGlySites.txt` | 0 / 19 = **0.0%** | 0 / 19 = 0.0% | 0 | 1 / 1 | 43 / 56 = 76.8% |
+| `PXD027163` / `UbiSite_GlyGly__K_Sites.txt` | 567 / 9,641 = **5.9%** | 0 / 9,641 = 0.0% | 1,035 | 1 / 1 | no comparable pair |
+| `PXD027328` / `GlyGly__K_Sites.txt` | 2,141 / 56,722 = **3.8%** | 0 / 56,722 = 0.0% | 4,021 | 1 / 1 | 162,651 / 163,149 = 99.7% |
+
+#### Criterion 1 was registered as inert and is the most discriminating component measured
+
+**The registered expectation was wrong, and wrong in the direction that matters.** It read: *multi-
+mapping is a property of the human proteome's diGly peptide space, not of the laboratory, so every
+human artefact should land inside 60–95%.* Measured, the rates run from **0% to 82.5%** — 3.8% for the largest artefact — and
+**12 of 14 fall outside the band**.
+
+**The argument failed because the `Proteins` column is not a proteome fact.** It lists the protein
+*groups* a site was assigned to, and group multiplicity is set by the search database and by protein
+inference — a search against canonical sequences alone collapses groups that a search including
+isoforms and TrEMBL keeps apart. So criterion 1 measures a search-configuration property wearing a
+proteome property's clothes, and the prediction mistook the clothes for the thing.
+
+**Criterion 2 confirms that reading independently.** The anchor picks isoforms on 335 of 2,298 razor
+picks; **ten of the fourteen others pick zero isoforms out of populations reaching 56,722**. A deposit
+with zero isoform picks in 56,722 rows did not search isoforms. The same configuration difference
+that drives criterion 2 to fire drives criterion 1's spread, which is why the two agree on almost the
+same artefacts.
+
+#### The anchor fails criterion 2's own band, and that is reported rather than smoothed
+
+Criterion 2's band at l.3885 is *6/20 = 30%; differs if outside 15–45%, sample ≥ 20*. **Over its whole
+population the anchor scores 335 / 2,298 = 14.6%, which is outside 15–45%.** The anchor differs from
+itself.
+
+**Two candidate explanations, and the arithmetic favours the first.** Either the recorded 6/20 was an
+unrepresentative draw, or the twenty-row sample was taken over a different column than the razor pick
+this procedure reads. At a population rate of 14.6%, drawing 6 or more isoforms in 20 has probability
+about **5%** — unlikely but entirely possible, and exactly the kind of tail a sample of twenty
+produces. The second explanation would require the earlier sample to have read a different field, for
+which there is no evidence in the record.
+
+**Nothing is adjusted for it.** The band is not amended, the anchor's figure stands as measured, and
+the fourteen scores against that band stand as computed. What the finding says is that a band induced
+from a twenty-row sample can exclude the very deposit it was induced from.
+
+#### The third state fired once for each criterion that carries one
+
+**`PXD079072` is unscorable on criterion 2 at nineteen rows**, one short of the band's floor of
+twenty — and the reason is a property of the deposit worth recording on its own: **114 of its 133
+rows are flagged `Potential contaminant`**, 86% of the table, against one reverse hit. Its denominator
+is genuinely 19. That also makes its criterion 9 verdict weak evidence: zero rows below 0.75 out of
+19 has probability about 12% at the anchor's rate, where `PXD075538` / `search_1023_1032.zip`'s zero
+out of 45 has probability about 0.7%.
+
+**`PXD074990` and `PXD027163` are unscorable on criterion 5**, and for one structural reason: both are
+SILAC, and in a SILAC site table the multiplicity split is carried on the ratio family, not on the
+per-sample intensity. They emit `Intensity PTMH1299` and `Intensity L PTMH1299` but no
+`Intensity PTMH1299___1`, so the registered identity has **no comparable pair** — not a failed
+comparison, an absent one.
+
+#### What the other three returned
+
+**Criterion 9 fires twice**, on `PXD075538` / `search_1023_1032.zip` and `PXD079072`, the two
+artefacts with no row below 0.75. The registered yes/no is what is scored. **The rate was measured too
+and is not the score**: it runs from 0% to 20.5% across the fifteen, and the anchor's 10.5% is
+reproduced exactly — which is the calibration, not a result.
+
+**Criterion 6's median and scale return zero of fourteen.** Every artefact has median `Localization
+prob` of 1.0 and maximum 1.0, so no median differs by more than the registered 0.005 and every
+artefact is on the 0–1 scale. The registered expectation that scale would discriminate is **wrong**:
+no artefact in this population is Perseus-rescaled. The anchor's minimum reproduces at **0.352892**
+against the recorded 0.35, which is a second, unrequested calibration and it holds.
+
+**Criterion 5 fires five times, all as `indeterminate` rather than `not summed`.** Four of the five
+sit between 95.3% and 98.6% agreement, below the registered 99% floor and far above the 1% that would
+mean *not summed*; the fifth, `PXD079072`, sits at 76.8% on 56 comparisons. **The registration's floor
+is what separates them and it is not moved now that the values are visible.** The anchor reaches
+99.8%, confirming `intensity_multiplicity_summed` by arithmetic for the first time.
+
+#### What this leaves
+
+**14 of the fourteen non-anchor artefacts differ from the anchor on at least one of the five.**
+Before this turn the sound header-derivable components separated two. **The body discriminates and the
+headers did not**, which was the argued expectation — but not for the components predicted: criterion
+1 was expected inert and separates most, criterion 6's scale was expected to separate and separates
+nothing.
+
+**No ranking, no shortlist, no preferred candidate, no C2 application, no selection.** Five components
+of eleven criteria remain a partial score, and criteria 3 and 4 are still held.
+
+**Nothing was retained.** Every artefact was held in the session scratchpad for the duration of the
+scoring and deleted; nothing was written to `raw/`, to the repository, or anywhere durable.
 
 ### Deposit and supplementary survey, 2026-08-07
 
