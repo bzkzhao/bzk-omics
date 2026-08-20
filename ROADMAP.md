@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.99 |
+| Version | 2.00 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -8156,6 +8156,181 @@ expected to be inert and worth measuring anyway, since an expectation that a cri
 discriminate is exactly the kind of claim this project checks rather than assumes.
 
 **No deposit is selected, nothing is ranked, no criterion is scored, and C1 is unchanged.**
+
+### Pre-registration: scoring the five body-only components, 2026-08-18
+
+Decision (e) at l.8116 is executed. **This registration is committed before any fetching or scoring
+code exists**, and the ordering is provable from `git log` rather than from position in this
+document. The code lives in the session scratchpad and never enters the tree.
+
+**In scope: the five component rows at l.7990–7994** — criteria 1, 2, 9, 6's median and scale, and
+5's multiplicity. **Criteria 3 and 4 are held.** No resolver run, no UniProt call, no entry-cache
+write. **No prediction is registered for either**, and criterion 4's anchor at l.3887 is *the state
+measured 0 of 198 times* — near zero, and not near criterion 1's 82.5%. They are separate
+expectations and are not merged here.
+
+**C1 is not amended in any direction.** Every band below is quoted, not adjusted.
+
+#### What has already been seen, disclosed rather than claimed away
+
+| Already visible | Consequence for this registration |
+|---|---|
+| the fifteen headers, verbatim in this document | every column name in every artefact is known, so the procedure can be written against real column names — that is why it is the **procedure** and not the outcome that is registered |
+| criterion 6's column-name component, scored **0 of 15** | `Localization prob` is present in all fifteen, so the median-and-scale half will not fail for want of the column |
+| l.7496 — all fifteen carry `___1`, `___2`, `___3` | criterion 5's comparison has an operand in every artefact |
+| the corrected D1 sample-name sets | the per-sample column names are known for each artefact |
+| **no table body, in any artefact** | every value below is unseen. Only first lines were ever read; the bodies were dropped |
+
+#### The denominator, chosen once and applied to all sixteen scorings
+
+The anchor's 2,298 is a filtered site count and 2,029 is the ingested count; the record uses 2,298
+for both criterion 1 (l.3884) and criterion 9 (l.3892).
+
+> **Registered denominator: rows whose `Reverse` and `Potential contaminant` fields are both empty —
+> reverse hits and contaminants removed, and no localisation cut applied.**
+
+The reasoning is that criterion 9's band drops **242 of 2,298** *at* `Localization prob >= 0.75`, so
+2,298 must be the population **before** that cut; and reverse/contaminant removal is the only other
+filter MaxQuant's own flag columns support. `2,298 − 242 = 2,056` then sits above the 2,029 ingested,
+which is consistent: ingestion refuses further rows for reasons downstream of this table.
+
+**The same construction is applied to every artefact and to the anchor.** Three counts are reported
+for each — all rows, rows after reverse/contaminant removal, rows after the localisation cut — but
+**the registered denominator is the second, and reporting the other two is diagnostic and does not
+license switching to one that fits better.**
+
+#### Criterion 1 — multi-mapping rate (I14), l.3884
+
+Anchor **1,896 / 2,298 = 82.5%**; differs if outside **60–95%**.
+
+> A row is **multi-mapping** iff its `Proteins` field, split on `;` with empty parts discarded,
+> yields more than one accession. The rate is multi-mapping rows over the registered denominator.
+
+**Registered expectation: inert.** Multi-mapping is a property of the human proteome's diGly peptide
+space, not of the laboratory, so every human artefact should land inside 60–95%. **Measured anyway** —
+an expectation that a criterion cannot discriminate is a claim to check, not to assume.
+
+#### Criterion 2 — isoform razor picks (I2), l.3885
+
+Anchor **6/20 = 30%**; differs if outside **15–45%**, **sample ≥ 20**. Requires no resolver and no
+network: `bzk/resolve/uniprot.py` l.357 is `is_isoform = "-" in requested`.
+
+> The razor pick is the `Protein` column where present, else the first entry of `Leading proteins`.
+> A pick is an **isoform** iff `-` appears in the accession. The rate is over rows in the registered
+> denominator carrying a parseable pick, and that count **is** the sample.
+
+**The anchor's 6/20 is a twenty-row sample; this computes over the whole population**, which
+satisfies the band's `sample ≥ 20` floor with a strictly tighter estimate. **An artefact whose
+parseable-pick count is below 20 is `unscorable`** — a third state, reported as such and **never
+rounded to *does not differ***.
+
+**Registered expectation: discriminates.** Whether isoforms were in the search FASTA is a
+per-laboratory choice with no default.
+
+#### Criterion 9 — unrecorded threshold, l.3892: the yes/no is scored, not the rate
+
+The two readings are not the same test. l.3892's differ-condition is a yes/no — *"the deposit
+applying its own filtering before deposit"*. l.7992 frames it as a rate against 242 / 2,298. l.6122
+records the rate as **misleading for a targeted run** while the yes/no survives.
+
+> **Scored: the yes/no.** An artefact **pre-filtered** iff the count of rows in the registered
+> denominator with `Localization prob < 0.75` is **zero**. The anchor has 242 such rows and therefore
+> scores *did not pre-filter*, which is what makes I16's unfired case unfired.
+
+**The band's own differ-condition is a yes/no, so that is the test**; choosing the rate would be
+scoring something the band does not state, and l.6122 has already recorded why the rate misleads.
+
+**Two things this test cannot do, stated before it runs.** It cannot distinguish a filter *at* 0.75
+from one *above* it, and it cannot detect a filter *below* 0.75. Both would read as the same verdict.
+
+**The rate is measured as well and reported beside the score, marked as not the score** — it costs
+nothing once the counts exist, and the instruction to say what the other test would have returned is
+answerable only by measuring it.
+
+**Registered expectation: discriminates.** Pre-deposit filtering is a per-laboratory habit.
+
+#### Criterion 6 — median and scale, l.3889
+
+Anchor median **1.00**, min **0.35**; differs on a different median, a different column name, or a
+different scale. The column-name third is already scored 0 of 15.
+
+> Over the registered denominator, take the **median** and **minimum** of `Localization prob`, and
+> the **maximum** to fix the scale. **Differs** iff `|median − 1.00| > 0.005`, **or** the maximum
+> exceeds 1.0, which indicates a 0–100 scale rather than 0–1.
+
+The 0.005 tolerance is because the anchor's figure is recorded to two decimal places and nothing
+finer is available to compare against. The minimum is reported for every artefact but **is not part
+of the differ-test**, because the band names median, column name and scale — not the minimum.
+
+**Registered expectation: discriminates on scale**, since a Perseus-processed export can rescale
+where a raw MaxQuant table does not.
+
+#### Criterion 5 — the multiplicity component, l.3888 and l.7994
+
+Anchor `intensity_multiplicity_summed`. The reading at l.7994 is an arithmetic identity: does
+`Intensity <exp>` equal the sum of `Intensity <exp>___1…3`?
+
+> **Per sample and per row**, compare `base = Intensity <exp>` against
+> `total = Σ Intensity <exp>___j` over the multiplicity columns present for that sample.
+>
+> **Missing and empty values.** An empty string, a missing column and the literal `NaN` are read as
+> **0** in the `___j` operands; the count of rows needing that substitution is reported. A row whose
+> **base** is empty, missing or unparseable is **excluded**, not zeroed.
+>
+> **Tolerance.** A row **agrees** iff `|base − total| ≤ max(1, 1e-6 × base)`. The absolute unit
+> covers integer rounding in MaxQuant's written intensities; the relative term covers large values.
+>
+> **Trivial rows.** Rows where `base == 0` **and** `total == 0` agree vacuously. They are counted and
+> reported separately, and **the verdict is computed over non-trivial rows only** — `base > 0`.
+>
+> **Verdict.** `summed` iff ≥ 99% of non-trivial comparisons agree; `not summed` iff ≤ 1% agree;
+> **`indeterminate`** otherwise. The actual fraction is reported in every case. An artefact with
+> fewer than 20 non-trivial comparisons is **`unscorable`**.
+
+The samples are those the corrected D1 returns for that artefact. **Differs** iff the verdict is not
+`summed`.
+
+**No expectation registered** beyond that the identity is decidable — this component has never been
+measured on any artefact, the anchor included.
+
+#### The anchor calibrates, and a mismatch stops the turn
+
+`PXD018299` is one of the fifteen, at l.8096, and its 2,759,052 B are inside the budget. **It is
+scored with the identical procedure, not a special one.**
+
+> **If the procedure does not reproduce 1,896 / 2,298 for criterion 1 and 242 / 2,298 for criterion 9
+> from the anchor's own table, the procedure is wrong and no other score from this turn means
+> anything.** The turn stops and reports rather than adjusting the construction until it matches.
+> The anchor's reproduced figures are reported whether they match or not.
+
+The registered denominator is a hypothesis about what 2,298 counts. **This is the test of it**, and
+it is stated before the count is taken so that a near-miss cannot quietly become a redefinition.
+
+#### The identity check, reported before any score
+
+The identity table at l.8082–8098 carries fifteen values: eleven CRC-32 from central directories at
+l.8084–8094, four SHA-256 over fetched bytes at l.8095–8098. **The eleven CRC-32 values entered the
+repository at `63d2438` and exist at no earlier commit** — the measured extraction table at
+l.6654–6664 records each CRC as *verified* without its value, so nothing on disk can check them.
+
+> All fifteen are re-derived from this fetch and compared **value by value**. The comparison is
+> reported **before** any score, as fifteen of fifteen or with the missing ones named.
+>
+> **A mismatch on any of the eleven has two candidate explanations — the deposit changed, or the
+> value was transcribed wrongly at `63d2438`.** Both are reported, with which the evidence supports.
+> Reporting only the first is refused in advance.
+
+The eleven uncompressed lengths are confirmed against the **measured** table at l.6654–6664 and their
+sum against **8,291,999** at l.6667. The prediction table at l.6598–6608, under the heading at
+l.6587, is **not** used for this: a measurement is not compared against a forecast.
+
+Bytes actually transferred are reported against the budget of **89,066,193 B** — 4,408,470 for the
+eleven, 84,657,723 for the four.
+
+#### Retention
+
+Bytes are held in the session scratchpad for as long as scoring runs and then dropped. **Nothing is
+written to `raw/`, nothing to the repository, nothing anywhere durable**, and the report confirms it.
 
 ### Deposit and supplementary survey, 2026-08-07
 
