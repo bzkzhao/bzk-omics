@@ -1,0 +1,4 @@
+Proteins	Protein	Localization prob	Reverse	Potential contaminant
+Y1	Y1	NA		
+Y2;Y3	Y2	n/a		
+Y4	Y4			

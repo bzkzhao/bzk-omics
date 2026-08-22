@@ -1,0 +1,4 @@
+Protein	Leading proteins	Reverse	Potential contaminant
+Z1	Z1		
+Z2-1	Z2		
+Z3	Z3		

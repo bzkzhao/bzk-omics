@@ -15,6 +15,8 @@ import pytest
 from bzk.survey_scoring import (
     MIN_MULTIPLICITY_COMPARISONS,
     MIN_PICK_SAMPLE,
+    PER_ROW,
+    PER_TABLE,
     Scores,
     score_site_table,
 )
@@ -48,21 +50,36 @@ def test_criterion_1_counts_a_semicolon_list_with_empty_parts_discarded(basic: S
     assert (basic.multi_mapping.multi, basic.multi_mapping.total) == (3, 9)
 
 
-def test_criterion_2_falls_back_to_leading_proteins_and_reads_isoforms_from_spelling(
-    basic: Scores,
-) -> None:
-    """`Protein` where present, else the first of `Leading proteins`; isoform iff `-` (l.8218-8220).
+def test_criterion_2_reads_present_as_a_property_of_the_column_by_default() -> None:
+    """`PER_TABLE` is normative (l.8218): *present* is said of a column, *empty* of a cell.
 
-    The fallback row is the only source of the `P4-2` isoform, so a regression that dropped the
-    fallback would show here as 1 isoform rather than 2.
+    The fixture's third row is the case that separates the readings — `Protein` empty, `Leading
+    proteins` holding the isoform `P4-2`. Under `PER_TABLE` that row yields no pick at all, so both
+    the sample and the isoform count fall by one against `PER_ROW`.
 
-    **Numerator and denominator are pinned as a pair throughout this module, never as a quotient.**
-    The tautology sweep flags `x == pytest.approx(literal)` and it is right to: a quotient asserted
-    under a default relative tolerance is satisfied by two wrong counts in the same ratio, where the
-    pair is not.
+    Numerator and denominator are pinned as a pair throughout this module, never as a quotient. The
+    tautology sweep flags `x == pytest.approx(literal)` and it is right to: a quotient asserted under
+    a default relative tolerance is satisfied by two wrong counts in the same ratio, where the pair
+    is not.
     """
-    assert basic.isoform_picks.sample == 9
-    assert basic.isoform_picks.isoform == 2
+    default = score_site_table(FIXTURES / "survey_scoring_basic.txt", ["S1"])
+    per_table = score_site_table(FIXTURES / "survey_scoring_basic.txt", ["S1"], fallback=PER_TABLE)
+    per_row = score_site_table(FIXTURES / "survey_scoring_basic.txt", ["S1"], fallback=PER_ROW)
+
+    assert (per_table.isoform_picks.isoform, per_table.isoform_picks.sample) == (1, 8)
+    assert (per_row.isoform_picks.isoform, per_row.isoform_picks.sample) == (2, 9)
+    assert default.isoform_picks == per_table.isoform_picks
+    assert default.isoform_picks.fallback == PER_TABLE
+
+
+def test_criterion_2_falls_back_when_the_column_is_absent_under_either_reading() -> None:
+    """`PER_TABLE` still falls back — for a table with no `Protein` column, which is the case the
+    registered *else* clause is actually about."""
+    for mode in (PER_TABLE, PER_ROW):
+        scores = score_site_table(
+            FIXTURES / "survey_scoring_missing_columns.txt", [], fallback=mode
+        )
+        assert scores.isoform_picks.sample == 3, mode
 
 
 def test_criterion_9_is_the_yes_no_and_the_rate_rides_alongside(basic: Scores) -> None:
@@ -171,6 +188,11 @@ def test_an_empty_sample_list_leaves_criterion_5_unscorable_and_the_rest_intact(
 
 
 def test_a_header_only_table_scores_zero_rather_than_raising(tmp_path: Path) -> None:
+    """A table with no rows answers `None` to criterion 9, not `True`.
+
+    Zero rows below the cut out of zero rows read is the same absence of evidence as an unparseable
+    column, and this test asserted the vacuous `True` before the distinguishable state existed.
+    """
     path = tmp_path / "empty.txt"
     path.write_text("Proteins\tProtein\tLocalization prob\tReverse\tPotential contaminant\n")
     scores = score_site_table(path, [])
@@ -178,7 +200,7 @@ def test_a_header_only_table_scores_zero_rather_than_raising(tmp_path: Path) -> 
     assert scores.multi_mapping.rate is None
     assert scores.localisation.median is None
     assert scores.localisation.differs is None
-    assert scores.unrecorded_threshold.pre_filtered is True  # zero rows below the cut, vacuously
+    assert scores.unrecorded_threshold.pre_filtered is None  # no evidence, not a vacuous yes
 
 
 def test_a_file_with_no_header_raises(tmp_path: Path) -> None:
@@ -186,3 +208,76 @@ def test_a_file_with_no_header_raises(tmp_path: Path) -> None:
     path.write_text("")
     with pytest.raises(ValueError, match="no header line"):
         score_site_table(path, [])
+
+
+def test_criterion_1_without_its_column_is_not_a_rate_of_zero() -> None:
+    """A missing `Proteins` column must not read as *no site multi-maps*.
+
+    Criterion 2 answers `unscorable` in the same position and criterion 6 answers `None`; criterion 1
+    reported `0 / denominator`, a figure indistinguishable from a real measurement — and the record
+    has criterion 1's measured rates running down to 0%, so the two are not even far apart.
+    """
+    scores = score_site_table(FIXTURES / "survey_scoring_missing_columns.txt", [])
+    assert scores.multi_mapping.column_present is False
+    assert scores.multi_mapping.rate is None
+    assert scores.multi_mapping.scorable is False
+
+
+def test_criterion_1_with_its_column_is_still_a_rate(basic: Scores) -> None:
+    """The distinguishable state must not swallow the ordinary case."""
+    assert basic.multi_mapping.column_present is True
+    assert basic.multi_mapping.scorable is True
+    assert (basic.multi_mapping.multi, basic.multi_mapping.total) == (3, 9)
+
+
+@pytest.mark.parametrize(
+    "fixture", ["survey_scoring_missing_columns.txt", "survey_scoring_unparseable_localisation.txt"]
+)
+def test_criterion_9_without_a_readable_probability_is_not_pre_filtered(fixture: str) -> None:
+    """No readable value is not the same answer as *nobody filtered below 0.75*.
+
+    Both shapes reach it — the column absent, and the column present but unparseable on every row —
+    and both previously counted zero rows below the cut and answered `True`, which is the answer a
+    genuinely pre-filtered deposit gives.
+    """
+    scores = score_site_table(FIXTURES / fixture, [])
+    assert scores.unrecorded_threshold.values_seen == 0
+    assert scores.unrecorded_threshold.pre_filtered is None
+    assert scores.unrecorded_threshold.rate_not_scored is None
+
+
+def test_the_multiplicity_accounting_closes_over_every_parseable_base() -> None:
+    """Comparisons, trivial, zero-base and negative-base must exhaust the parseable bases.
+
+    The docstring claimed closure while a negative base fell into no counter at all. Intensities are
+    non-negative so the counter is expected zero on real tables; the fixture forces one per sample so
+    the claim is checked rather than asserted.
+    """
+    scores = score_site_table(FIXTURES / "survey_scoring_verdicts.txt", ["A", "B"])
+    m = scores.multiplicity
+    assert m.negative_base == 2
+    assert m.comparisons + m.trivial + m.zero_base_nonzero_total + m.negative_base == 52
+
+
+def test_criterion_5_differs_is_implemented_from_the_registered_rule() -> None:
+    """l.8290: *differs iff the verdict is not `summed`*, over a table large enough to have one."""
+    summed = score_site_table(FIXTURES / "survey_scoring_verdicts.txt", ["A"])
+    assert (summed.multiplicity.agree, summed.multiplicity.comparisons) == (25, 25)
+    assert summed.multiplicity.verdict == "summed"
+    assert summed.multiplicity.differs is False
+
+    mixed = score_site_table(FIXTURES / "survey_scoring_verdicts.txt", ["B"])
+    assert (mixed.multiplicity.agree, mixed.multiplicity.comparisons) == (12, 25)
+    assert mixed.multiplicity.verdict == "indeterminate"
+    assert mixed.multiplicity.differs is True
+
+
+def test_criterion_5_unscorable_answers_neither_differs_nor_does_not(basic: Scores) -> None:
+    """The third state is not rounded in either direction.
+
+    Read literally, `unscorable != "summed"` and l.8290 would return *differs*. The same registration
+    forbids rounding the third state to *does not differ* at l.8223-8225, and rounding it to *differs*
+    collapses it just as completely — so it answers neither.
+    """
+    assert basic.multiplicity.verdict == "unscorable"
+    assert basic.multiplicity.differs is None
