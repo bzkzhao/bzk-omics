@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.03 |
+| Version | 2.04 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -8760,6 +8760,151 @@ one artefact tested, and the fourteen where they might disagree further are not 
 **Nothing was retained.** The anchor was held in the session scratchpad for the duration of the
 scoring and deleted; nothing was written to `raw/`, nothing durable, and no fixture was built from
 the real table.
+
+### C2 applied, and a second deposit selected: `PXD075538`, 2026-08-18
+
+**C2 as written ranks `PXD075538` first, and this turn selects it.** Nothing was fetched, nothing
+scored, nothing ingested, no code written, and **C2 was applied exactly as written and repaired
+nowhere**.
+
+The direction is the record's own, at l.3833–3838: *"A deposit resembling PXD018299 in these
+respects is the weaker choice, not the stronger one… a candidate that would confirm all of them
+ranks last."* More `differs` is higher, not lower.
+
+#### The ranking, with the arithmetic
+
+C2 at l.3906–3907: *"Rank by C1 points. Ties break on: SDRF present, then site count ≥ 1,000 so the
+rates are measurable at all, then smaller download."* Points are taken from the verdict table at
+l.8396–8410, one point per criterion on which the candidate differs.
+
+| Rank | Candidate | Points | Artefacts | Per-artefact `differs` | Unscorable |
+|---|---|---|---|---|---|
+| **1** | **`PXD075538`** | **4** — c1, c2, c9, c5 | 3 | 2, 2, **4** | — |
+| 2= | `PXD019152` | 3 — c1, c2, c5 | 2 | 2, 2 | — |
+| 2= | `PXD079072` | 3 — c1, c9, c5 | 1 | 3 | **c2** |
+| 4= | `PXD027163` | 2 — c1, c2 | 1 | 2 | **c5** |
+| 4= | `PXD027328` | 2 — c1, c2 | 1 | 2 | — |
+| 4= | `PXD032078` | 2 — c1, c2 | 1 | 2 | — |
+| 4= | `PXD070339` | 2 — c2, c5 | 1 | 2 | — |
+| 4= | `PXD074949` | 2 — c1, c2 | 3 | 2, 2, 2 | — |
+| 4= | `PXD074990` | 2 — c1, c2 | 1 | 2 | **c5** |
+| — | `PXD060435` | shares `PXD070339`'s artefact under the rule at l.6399 | 0 of its own | — | — |
+| — | `PXD070789` | no K-GG table, no artefact, no row | — | — | — |
+| *n/a* | `PXD018299` *(anchor)* | 1 — c2 | 1 | 1 | — |
+
+**`PXD075538` is first under every reading of the two rules C2 does not contain**, which is the
+reason a selection is defensible at all despite them:
+
+| Combination rule | `PXD075538` | Runner-up | First |
+|---|---|---|---|
+| per-criterion **union** across a candidate's artefacts | 4 | 3 | `PXD075538` |
+| **best artefact** | 4 | 3 | `PXD075538` |
+| **sum** across artefacts | 8 | 6 (`PXD074949`) | `PXD075538` |
+| union, **normalised** over scorable criteria | 4/5 = 0.80 | 0.75 (`PXD079072`) | `PXD075538` |
+
+**Union is the reading used.** l.3879 says *"a candidate scores one point per criterion on which it
+is predicted to differ"* — the subject is the candidate, so a candidate whose one artefact differs
+on c1 and whose other differs on c5 differs on both. **C2 does not specify this and it is not
+amended**; the table above is there because the choice is mine, not C2's, and the ranking should be
+checkable against the alternatives.
+
+#### Four things about C2 bit, and none was fixed
+
+**1. C2 ranks candidates; the inputs are per artefact.** `PXD019152` holds two artefacts,
+`PXD074949` and `PXD075538` three each, and **C2 says nothing about how they combine**. The reading
+used is per-criterion union, stated above. The rule matters: `PXD019152` scores 2 on best-artefact,
+3 on union and 4 on sum. **Sum is the reading that would reward a laboratory for depositing more
+searches**, which is why it is reported and not used.
+
+**2. The SDRF tiebreak is dead.** l.5283–5285 records **zero of twelve informative** on criterion
+10 — every candidate is `N`, matching the anchor. The first tiebreak separates nothing, and the
+chain decays to site count, then download size.
+
+**3. Points are not normalised against scorability.** `PXD079072` cannot earn criterion 2,
+`PXD074990` and `PXD027163` cannot earn criterion 5. **C2 does not say whether that is a zero or an
+exclusion from the denominator.** The reading used is **zero** — C2 says *rank by points*, and a
+point is earned by differing, so a criterion that could not be evaluated earns none. The normalised
+alternative is in the table above and does not change first place. A third treatment, counting
+`unscorable` as a differ, would tie `PXD079072` with `PXD075538` at 4; it is rejected because it
+awards a point for a criterion that could not be evaluated, which is the third state collapsed.
+
+**4. The criterion set is partial: four of eleven contribute a point to anyone.**
+
+| Criteria | State |
+|---|---|
+| **1, 2, 9, 5** | scored and fire at least once — **the whole of the ranking** |
+| 6, 7, 10 | scored and return zero for every artefact; contribute nothing |
+| 3, 4 | held unscored; cannot contribute |
+| 8, 11 | withdrawn; cannot contribute |
+
+**Seven of the eleven contribute nothing, and three of those seven were measured to contribute
+nothing rather than merely being unavailable.**
+
+**A fifth bites and is named beyond the four asked for.** `PXD060435` and `PXD070339` are two
+candidates sharing one artefact under the rule at l.6399. C2 gives no rule for ranking two
+candidates on one measurement either. Nothing turns on it here — the shared artefact scores 2 and
+neither is near the top — but the gap is the same shape as the first.
+
+#### What the ranking hands over, stated without softening
+
+**First place is a deposit whose winning artefact has 45 sites.** `PXD075538` /
+`search_1023_1032.zip` is the only row in the table differing on four criteria, and criteria 9 and 5
+fire **only** there among that candidate's three artefacts — its other two differ on c1 and c2 like
+almost everything else. The deposit's three denominators are 333, 70 and 45, and none reaches 1,000.
+
+**C2's own tiebreak text says rates need ≥ 1,000 sites *"so the rates are measurable at all"* — and
+it cannot reach this.** The clause is positioned as a tiebreak, `PXD075538` is alone at 4 points, and
+a tiebreak only breaks ties. **Using that clause as a filter would move it to a position C2 does not
+put it in, which is a C2 amendment in substance. It is named here and not applied.**
+
+**`PXD075538` is also the deposit at l.8386–8390 with eight transport failures against zero across
+six other deposits.** **This turn was directed to treat that as a measured count and not as a rate,
+and does so, and records that it was directed to.** The ground given is that a rate implies a
+denominator of attempts the record does not carry, and that recurrence is not establishable from the
+repository. **This is a disagreement with l.8386–8390, which stays exactly as written and is not
+corrected here.** No prediction or estimate about recurrence is registered.
+
+**Whether the failures should bear on selection is outside C2 entirely** — C2 ranks on points and
+breaks ties on SDRF, site count and download size, and reliability appears in none of them.
+
+#### Two things the selection does not lean on, and one it does
+
+**Criterion 2's band is defective, and the ranking needs criterion 2.** l.3885 sets the band at
+15–45% from a twenty-row sample, and **the anchor's own full-table figure falls outside it under
+both readings** — 334 / 2,297 = 14.5% at l.8735 under the normative `PER_TABLE` reading, 335 / 2,298
+= 14.6% at l.8429 under the recorded per-row one. A criterion whose inducing artefact fails it is a
+known weakness in the input, and the `differs` verdicts drawn from it are used **as weak input, not
+as sound**.
+
+**Set criterion 2 aside entirely and first place is no longer unique**: `PXD075538` and `PXD079072`
+tie at 3, the SDRF tiebreak is dead, the site-count tiebreak is dead too — 333 and 19, neither
+reaching 1,000 — and the download tiebreak hands it to `PXD079072`, whose artefact is 102,731 B
+against `PXD075538`'s three archives totalling 1,015,596,558 B. **So the selection depends on a
+criterion known to be defective, and that is stated rather than buried.**
+
+**Every c2 figure in l.8394–8410 and l.8427–8443 is a `PER_ROW` reading under a `PER_TABLE`
+default.** Those cells came from the previous scratchpad's per-row reading while
+`bzk/survey_scoring.py` l.107 and l.255 now default to `PER_TABLE`; l.8744 locates the difference on
+the anchor to exactly one row. **Nothing at those tables marks this, and this turn does not re-score
+to resolve it.** The c2 column is not current and is not presented as current.
+
+#### The selection
+
+**`PXD075538` is selected as the second deposit.** It ranks first on C2 as written under every
+combination rule and every defensible treatment of `unscorable`, and no ground inside C2 displaces
+it. The grounds that would displace it — the 45-site denominator, the transport-failure count,
+criterion 2's defective band — are all outside C2, and acting on any of them would be a C2 amendment
+this turn is not entitled to make.
+
+**What the selection does not establish:**
+
+- **It is a candidate, not an admission.** Nothing here admits `PXD075538` to the platform.
+- **No curation record exists for it**, and none is written here.
+- **No sample-to-column mapping has been established for it.** Its three artefacts carry
+  `R01`…`R18`, `R19`…`R34` and `1023_R01`… style sample names, which the corrected D1 recovers as
+  strings and which no one has mapped to conditions or replicates.
+- **None of the above is in this turn**, and neither is ingestion, a graph write, or any resolver
+  contact.
 
 ### Deposit and supplementary survey, 2026-08-07
 
