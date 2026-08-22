@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.02 |
+| Version | 2.03 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -8625,6 +8625,141 @@ scoring and deleted; nothing was written to `raw/`, nothing durable, and no fixt
 the real table. The module and its three synthetic fixtures are the only durable output.
 
 **No result table was amended**, and none needed to be.
+
+### Four readings settled in the scoring module, and criterion 2's anchor figure moves, 2026-08-18
+
+`bzk/survey_scoring.py` transcribed the registration correctly and the anchor converged on all five
+figures. Four readings inside it were unsettled, undisclosed, inconsistent with the module's own
+stated principle, or absent. **This turn settles each with its reasoning and re-proves the anchor pin
+against the changed module. It scores nothing new**, and the fourteen uncomputed rows of l.8427–8443
+are deliberately left alone: re-running them against an unsettled criterion 2 would make every
+divergence ambiguous between the scratchpad having differed and the reading having differed.
+
+#### (a) Criterion 2's fallback: `PER_TABLE` is normative
+
+l.8218 registers the pick as *"the `Protein` column where present, else the first entry of
+`Leading proteins`"*. The module read *present* as the **cell** being non-empty, so the fallback
+fired row by row. Read as the **column** being present, it fires once per table.
+
+**Both are implemented; `PER_TABLE` is normative, on two grounds and neither is line count** — the
+normative branch is the longer one.
+
+| | |
+|---|---|
+| **The words.** | *Present* is what one says of a column; *empty* is what one says of a cell. A column is present or absent and a cell is filled or blank, so the column reading is the more literal one. |
+| **Homogeneity.** | Under `PER_ROW` a single artefact's rate blends picks drawn from **two different columns**. Criterion 2 exists to compare that rate across artefacts, and a blended quantity compares badly against an unblended one. Under `PER_TABLE` every pick in one artefact comes from one column. |
+
+Where `PER_TABLE` costs picks it costs them into the `sample ≥ 20` floor, which is the third state
+doing its job rather than a loss. **The registered *else* clause is not made dead**: it still fires,
+for a table with no `Protein` column at all, which is the case it is actually about.
+
+#### (b) Criterion 1 and criterion 9 no longer answer from no evidence
+
+`proteins = position.get("Proteins")` yields `None` when the column is absent, and criterion 1 then
+reported **`0 / denominator`** — a figure indistinguishable from a measured absence of multi-mapping,
+and l.8449 records the measured rates running down to **0%**, so the two are not even far apart.
+Criterion 2 in the same position answers `unscorable` and criterion 6 answers `None`. **Criterion 1
+was the only one of the five that degraded to a number**, and it now carries `column_present`, with
+`rate` returning `None` and `scorable` returning `False`.
+
+Criterion 9 had the same shape: an absent or wholly unparseable `Localization prob` column counts
+zero rows below the cut and answered **`pre_filtered = True`** — the answer a genuinely pre-filtered
+deposit gives, from no evidence at all. It now carries `values_seen`, and answers `None` when nothing
+was read. A **header-only table** reaches the same state and its test, which previously asserted the
+vacuous `True`, was rewritten.
+
+**The defect is inert on the present population, and that was confirmed rather than assumed.** All
+fifteen verbatim header blocks were parsed back out of this document — every declared column count
+matching its parsed count — and **fifteen of fifteen carry `Proteins`, `Protein`,
+`Leading proteins` and `Localization prob`**. No artefact in the population reaches either state.
+
+#### (c) The accounting closes, as the docstring already claimed it did
+
+`MultiplicityIdentity`'s docstring said `zero_base_nonzero_total` was surfaced *"so the accounting
+closes"*, and a negative base was then dropped into no counter at all — so
+`comparisons + trivial + zero_base_nonzero_total` could silently fail to account for every row with a
+parseable base. **`negative_base` is added.** MaxQuant intensities are non-negative, so it is expected
+zero on every real table and is zero on the anchor; a counter that is always zero still closes the
+books, and a docstring that promises closure and does not deliver it is the defect. This changes
+nothing recorded.
+
+#### (d) Criterion 5's differ-rule was never implemented, because no citation reached it
+
+**The registered block runs to l.8294, not l.8288.** l.8290 reads *"The samples are those the
+corrected D1 returns for that artefact. **Differs** iff the verdict is not `summed`."* Every citation
+of the block — in three consecutive instructions and in the module's own comment — stopped at
+l.8288, one line short, and the consequence is exact: `LocalisationDistribution` has a `differs`
+property and `MultiplicityIdentity` had only `verdict`. **Criterion 5 was the sole one of the five
+whose registered differ-condition was absent from the module.** It is now implemented from l.8290.
+
+**`unscorable` answers `None` rather than `True`, and that is a reading rather than a
+transcription.** Taken literally, `unscorable != "summed"` and the rule returns *differs*. But the
+same registration insists at l.8223–8225 that the third state is *"never rounded to does not
+differ"*, and rounding it to *differs* collapses it just as completely in the other direction. A
+criterion that could not be evaluated has no differ-verdict. The choice is stated in the module's own
+docstring, not buried.
+
+**Reading l.8273–8294 whole, nothing else in l.8289–8294 is unhonoured.** l.8290's first sentence —
+the samples are D1's — the module honours by delegation, taking them as an argument; making D1
+durable is out of scope. l.8293–8294 registers no expectation, so there is nothing to implement.
+
+#### Guards
+
+Seven mutations, **each read back from disk to confirm it landed** before the suite ran, each caught
+by the test written for it, and the file restored byte-identical afterwards.
+
+| Mutation | Test that reddened |
+|---|---|
+| `PER_ROW` becomes the default | criterion 2 reads *present* as a property of the column |
+| the reading flag is ignored, always per-row | the same |
+| `column_present` forced to `True` | criterion 1 without its column is not a rate of zero |
+| criterion 9 back to the vacuous yes | the two no-readable-probability cases, and the header-only table |
+| the negative base back into no counter | the multiplicity accounting closes |
+| criterion 5's `differs` always `None` | criterion 5's differ-rule is implemented |
+| `unscorable` rounded to *differs* | `unscorable` answers neither |
+
+**Nothing new matched the tautology sweep.** `survey_scoring` appears nowhere in its pinned set and
+still does not. Surface after the additions: **33 modules, 1,190 asserts, 144 matches**, against the
+floor at l.1095 of 32 / 1,129. The floor was not moved and the drift is recorded here so it stays
+visible.
+
+#### The anchor pin, re-proved: four hold and one moves
+
+`PXD018299` / `HAP1_USP18KO_GlyGlyKSites.txt` fetched once. **2,759,052 bytes transferred against
+2,759,052 — exact.** SHA-256 verified against l.8096 before scoring and identical. Nothing else was
+fetched.
+
+| Figure | Changed module, `PER_TABLE` | l.8429 | |
+|---|---|---|---|
+| c1 multi-map | 1,896 / 2,298 = 82.5% | 1,896 / 2,298 = 82.5% | holds |
+| **c2 isoform picks** | **334 / 2,297 = 14.5%** | 335 / 2,298 = 14.6% | **moved** |
+| c9 below 0.75 | 242 | 242 | holds |
+| c6 median / max | 1 / 1 | 1 / 1 | holds |
+| c5 agree | 6,896 / 6,910 = 99.8% | 6,896 / 6,910 = 99.8% | holds |
+
+**Criterion 2 moved, and it moved because of (a).** `PER_ROW` reproduces **335 / 2,298** exactly, so
+the recorded figure is the per-row reading's; the normative reading gives 334 / 2,297.
+
+**One row accounts for the whole difference, and it was located rather than inferred from the
+deltas.** Exactly one denominator row in the anchor has an empty `Protein` cell. Its
+`Leading proteins` is `P31946-2;P31947-2`, whose first entry `P31946-2` is an isoform — so under
+`PER_ROW` that row contributes one pick and one isoform, and under `PER_TABLE` it contributes
+neither. Both numerator and denominator fall by one, which is exactly what is observed.
+
+**Nothing was reverted and l.8429 was not amended.** Which of the two readings should stand as the
+population's is a separate decision; what this turn establishes is that they differ on the anchor,
+by one row, for a locatable reason.
+
+**The band verdict is unchanged.** 14.5% and 14.6% are both below 15%, so the anchor sits outside
+criterion 2's 15–45% band either way. The move is a change in a figure, not in a verdict.
+
+**Identity on one artefact would not have settled the population and identity did not even hold
+here.** The remark reserved for the case where the two readings agreed is moot: they disagree on the
+one artefact tested, and the fourteen where they might disagree further are not yet re-run.
+
+**Nothing was retained.** The anchor was held in the session scratchpad for the duration of the
+scoring and deleted; nothing was written to `raw/`, nothing durable, and no fixture was built from
+the real table.
 
 ### Deposit and supplementary survey, 2026-08-07
 
