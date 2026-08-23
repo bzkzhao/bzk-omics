@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.04 |
+| Version | 2.05 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -8905,6 +8905,151 @@ this turn is not entitled to make.
   strings and which no one has mapped to conditions or replicates.
 - **None of the above is in this turn**, and neither is ingestion, a graph write, or any resolver
   contact.
+
+### No design mapping is recoverable for `PXD075538`, and the deposit is a plant, 2026-08-18
+
+`publication_methods` has been excluded by name from every instruction in this project and l.68
+records it as *"public, is open, and is **unchecked**; it is not walked here."* **It is walked here,
+for `PXD075538` only.** No curation record is written, nothing is ingested, and no artefact is
+fetched — project metadata and nothing else.
+
+**The ruling: `submitter_metadata` is *present but insufficient*; `publication_methods` is
+*absent*.** No mapping from the 27 columns to conditions is recoverable from either public basis.
+
+#### What has to be mapped, counted from the record rather than taken
+
+The selected artefact's header at l.6779, labelled at l.6777, parses to **400 columns** exactly as
+declared, and its `Intensity <sample>` columns name **27 samples**: `1023_R01`…`1023_R09` (nine) and
+`1032_R01`…`1032_R18` (eighteen). Nothing outside those two prefixes.
+
+**Not one of the 27 carries a genotype, a treatment, a timepoint or a cell line.**
+
+#### Basis 1 — `submitter_metadata`: present but insufficient
+
+Fetched `https://www.ebi.ac.uk/pride/ws/archive/v3/projects/PXD075538`, **8,333 bytes**, HTTP 200.
+
+The deposit describes its design at length. From `projectDescription`:
+
+> *"Analysis of NAC53 and NAC78 interactome in normal condition or upon Pseudomonas syringea pv.
+> tomato DC3000 ∆HopQ infection… Analysis of ubiquitination sites on NAC53 and NAC78 upon HRD1a/b
+> ubiquitination."*
+
+and from `sampleProcessingProtocol`:
+
+> *"5g of leaf material was sampled in triplicates for each condition… For ubiquitination sites
+> analysis, in vitro trans ubiquitination assay was carried out on MBP-NAC53 and MBP-NAC78
+> recombinant proteins using GST-HRD1a or GST-HRD1b as E3 ligases."*
+
+**This is a description of conditions with nothing attached to a column.** It names conditions —
+mock against `Pst∆HopQ`, eGFP control, N-terminal against C-terminal moieties, three MDP25 variants,
+two E3 ligases — and it says *triplicates*, but it assigns none of them to `1023_R01` or to any other
+name. **This is exactly the anchor's own situation and it is not rounded up to partially
+recoverable**: zero of the 27 are assigned.
+
+`sampleAttributes` carries **three deposit-level tuples** — organism, organism part, disease — and
+**no per-sample rows**. `additionalAttributes` is empty. There is no structured per-sample record of
+any kind.
+
+**A second insufficiency, sharper than the first.** The `dataProcessingProtocol` states two different
+searches:
+
+> *"For in vivo IP samples, database search was performed against a N. benthamiana database… For in
+> vitro ubiquitination samples, database search was performed against an E. coli database, the
+> sequences of MBP-NAC53/78, GST-HRD1a/b and 285 commonly observed contaminants."*
+
+**The metadata does not say which of the two arms produced `search_1023_1032.zip`.** So the basis
+fails to establish not only which sample is which condition, but which *proteome* the selected
+artefact was searched against. Deciding it from the archive's name would be `filename_inference`,
+which is out of scope on I8 and is not done.
+
+#### Basis 2 — `publication_methods`: absent
+
+**`references` is `[]` and `doi` is the empty string.** The deposit carries no publication reference
+at all. **No paper was fetched, because there is none to fetch**, and no title search was performed —
+that would manufacture an association nothing supports.
+
+**This is an empty source, not a blocked route.** No host refused anything this turn; every request
+made returned HTTP 200.
+
+The deposit is recent — submitted 2026-03-12, published 2026-03-23 — and `submissionType` is
+`PARTIAL`. Neither fact is offered as the cause; they are recorded because they are what the metadata
+says.
+
+#### The `sdrf` basis is confirmed unavailable, not merely assumed
+
+l.5283–5285 measured every candidate as SDRF `N` at survey time. **That was re-checked against the
+deposit's live file listing rather than carried forward**: 65 files, 61 `RAW`, 3 `SEARCH`, 1 `OTHER`,
+and **no file whose name contains `sdrf`**. So the only two `authoritative` bases at l.580–581 stand
+as: `sdrf` unavailable, `author_correspondence` unattempted.
+
+#### What a recovered mapping would have cost, had one existed
+
+`ONTOLOGY.md` l.578–584 makes `basis` a closed enum of **five** values, and the confidence column
+splits them two against three:
+
+| Basis | Confidence | Available here |
+|---|---|---|
+| `sdrf` | **authoritative** | no — confirmed absent above |
+| `author_correspondence` | **authoritative** | not attempted; the operator's route, not mine |
+| `submitter_metadata` | `inferred` | present, insufficient |
+| `publication_methods` | `inferred` | absent |
+| `filename_inference` | `inferred` | out of scope on I8, and not used |
+
+**Both public bases are `inferred`, permanently.** Had either supplied a mapping, `ONTOLOGY.md`
+l.888's I8 would then oblige *"any result derived from a curation with `confidence = 'inferred'`"* to
+be **labelled as such in every view and export, naming the `basis`** — so a recovered mapping would
+not have been free. It would have carried a permanent label through
+`bzk/query/`, `bzk/ui/app.py` and the I18 export boundary, exactly as the anchor's own
+`publication_methods` curation already does.
+
+**That obligation is not incurred, because nothing was recovered.**
+
+#### What this means for the selection
+
+**`PXD075538` cannot be ingested.** I8 requires every `Sample` to reach a curation `Analysis`, and no
+`Sample` can be constructed without knowing what its column represents. Neither public basis supplies
+that. **The remaining route is `author_correspondence` at l.581** — `authoritative`, and the
+operator's to walk rather than mine. Named, and this turn stops there.
+
+**And a finding larger than the mapping question: the deposit is a plant.** `organisms` is
+`Nicotiana benthamiana` (NEWT:4100), `organismParts` is leaf and plant cell, `diseases` is bacterial
+infectious disease, and the lab is a plant cell biology group. The experiment types are
+*Affinity purification coupled with mass spectrometry* and *Bottom-up proteomics*. **The anchor is
+human HAP1 cells and the platform's anchor domain is cancer ubiquitinomics and ISGylation.**
+
+**The GlyGly sites are real but they are not a cellular diGly proteome.** The deposit's ubiquitination
+arm is an *in vitro trans-ubiquitination assay on two recombinant substrates*, and GlyGly on lysine
+was one variable modification among five in a MaxQuant 1.5.2.8 search. **That is the most economical
+explanation available for the 45-site denominator that won the ranking** — an in vitro reaction on
+two proteins yields a handful of sites, not a proteome — and it is offered as an explanation, not as
+a measurement, because which arm produced the artefact is precisely what the metadata does not say.
+
+**C0 has no organism gate, and that is a fact about C0 rather than a defect being fixed here.** Its
+five gates at l.3844–3848 are embargo, reuse terms, site-grain table, MaxQuant, and *a proteome
+UniProt can resolve*. A plant deposit passes all five as written — UniProt resolves *N. benthamiana*
+— and nothing in C0, C1 or C2 ever looked at organism or assay type. **The selection at l.8764 is not
+re-opened here**; it stands as the ranking produced it, and what is added is what the ranking could
+not see.
+
+One caveat on gate (e), stated because it is not established either way: **if** the selected artefact
+came from the in vitro arm, its proteome is an *E. coli* database plus recombinant MBP- and GST-fusion
+sequences, which are not UniProt accessions. The metadata does not say which arm it is, so gate (e)'s
+satisfaction *for this artefact* is unestablished. That is recorded, not ruled on.
+
+#### Would the answer have been different for `PXD079072`?
+
+**The record does not establish that it would**, and this turn did not fetch anything for it.
+
+What the record carries: `PXD079072`'s artefact has a denominator of **19** at l.8408 — smaller than
+the 45 that won — with 114 of its 133 rows flagged as potential contaminants; it is the one deposit
+publishing an **empty `checksum` on all twenty-four files**; and it was measured SDRF `N` at
+l.5283–5285 like every other candidate. **The record carries no organism for it, no publication
+reference, and no per-sample metadata**, because none was ever fetched.
+
+So the two public bases would have to be walked for it exactly as they were here, and **the `sdrf`
+basis is closed for it by the same measurement**. The one thing the record does establish is that
+being second in the ranking would not have made the mapping question easier: a 19-row artefact
+constrains a design mapping less than a 45-row one, not more.
 
 ### Deposit and supplementary survey, 2026-08-07
 
