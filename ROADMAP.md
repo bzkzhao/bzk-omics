@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.06 |
+| Version | 2.07 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -9100,6 +9100,143 @@ guess hedged in prose is still a guess.
 
 **No prediction is registered about criterion 1, about which explanation the organisms will support,
 or about the selection.** Establishing the organisms is this turn; what follows from them is not.
+
+### Twelve organisms established: seven are not human, and the titles said so three times, 2026-08-18
+
+**Five of the twelve candidates are human.** The organism question, asked of one deposit at l.8909,
+is now asked of all twelve. **Nothing is selected, re-selected or scored, and no criterion changes.**
+
+#### What was fetched
+
+Twelve PRIDE project-metadata calls, one per deposit, **99,786 bytes**, all HTTP 200. **No host
+refused anything and no deposit was blocked** — there is no refusal to report and no route was
+retried. `PXD075538` was fetched with the rest rather than carried from l.8909, and came back
+`Nicotiana benthamiana` as recorded there.
+
+| Accession | Predicted from title | Recorded organism(s) | Title carried it? |
+|---|---|---|---|
+| `PXD079072` | no organism signal | **`Xenopus laevis`** | no |
+| `PXD075538` | a plant — *Arabidopsis thaliana* | **`Nicotiana benthamiana`** | **yes, at family level** |
+| `PXD070339` | *Homo sapiens* (guess) | **`Mus musculus`** | no |
+| `PXD074990` | *Homo sapiens* | **`Homo sapiens`** | **yes — `H1299`** |
+| `PXD027328` | no organism signal | **`Homo sapiens`** | no |
+| `PXD074949` | no organism signal | **`Nicotiana benthamiana`, `Pseudomonas syringae` pv. `tomato`, `Arabidopsis thaliana`** | no |
+| `PXD027163` | *Homo sapiens* | **`Homo sapiens`** | weakly — all-caps `TNIP1`, `TLR3` |
+| `PXD032078` | *Mus musculus* | **`Coxsackievirus`, `Mus musculus`** | **yes — `Coxsackie virus` is named outright** |
+| `PXD019152` | *Homo sapiens* | **`Homo sapiens`** | weakly — all-caps `DDI2`, `NRF1` |
+| `PXD018299` | *Homo sapiens* | **`Homo sapiens`** | weakly — `USP18`, *tumour cell* |
+| `PXD070789` | *Mus musculus* | **`Mus musculus`** | indirectly — *acute kidney injury*, *serine 312* |
+| `PXD060435` | *Homo sapiens* (guess) | **`Mus musculus`** | no |
+
+**Two deposits carry more than one organism** and both are reported whole rather than reduced to
+one: `PXD074949` at three — two plants and the plant pathogen — and `PXD032078` at two, the mouse
+host and the virus.
+
+#### Predicted against measured
+
+| Quantity | Registered | Measured | |
+|---|---|---|---|
+| species-level correct | **4**, band 2–7 | **5 of 7 claimable** | hit |
+| of the three *no organism signal* rows, how many the title genuinely does not imply | **3**, band 2–3 | **3** | hit |
+| **distinct organisms** | **3**, band 2–5 | **7** | **miss, above the band** |
+| **non-human deposits** | **3**, band 1–6 | **7** | **miss, above the band** |
+
+`PXD075538` and `PXD018299` were disclosed as known and forfeited; the five claimed hits are
+`PXD074990`, `PXD027163`, `PXD032078`, `PXD019152` and `PXD070789`. **Both misses run the same way:
+the population is more non-human and more taxonomically scattered than the titles led me to
+register.** The two wrong species calls, `PXD070339` and `PXD060435`, are the same title twice —
+visceral adipose tissue in obesity, guessed human, recorded mouse — so one misreading cost two rows.
+
+**The forfeited `PXD075538` row is worth its disclosure.** Its title-only prediction was
+*Arabidopsis thaliana* on gene-nomenclature grounds and the recorded value is *Nicotiana
+benthamiana*: right at plant, wrong at species, and different from the answer I already had. That
+divergence is the only evidence available that the prediction came from the title rather than from
+l.8909.
+
+**One organism signal was under-read rather than missed.** `PXD032078`'s title names *Coxsackie
+virus*, and `Coxsackievirus` is one of its two recorded organisms. The registration used those words
+as evidence about the **host** and did not notice they name a recorded organism outright. The mouse
+call was right; the reading was still incomplete.
+
+#### What rule (a) did with the same titles
+
+Rule (a)'s `Deciding words` column at l.6290–6301 is populated for exactly three rows and `—` for
+nine. **The comparison has two halves and they have different remedies.**
+
+**The three populated rows: the words rule (a) quoted are not the words that carry organism, and in
+two of the three no organism-bearing word exists at all.**
+
+| Accession | Rule (a) took | Organism | Overlap |
+|---|---|---|---|
+| `PXD070339` | **Proteome** | `Mus musculus` | none — the title names no species, so *Proteome* is not competing with an organism word, there is none |
+| `PXD060435` | **Proteome** | `Mus musculus` | none, identically |
+| `PXD018299` | **Deep**, **proteome** | `Homo sapiens` | none — the organism reading rests on `USP18` and *tumour cell*, different words in the same title |
+
+**The nine `—` rows: six titles carried something and three carried nothing.** That is the
+distinction the two halves exist to draw.
+
+| Carried an organism signal that rule (a) recorded as `—` | What the title says |
+|---|---|
+| `PXD075538` | `NAC53`, `NAC78`, `MDP25`, `Pst` — a plant-specific TF family, an Arabidopsis protein and a plant pathogen |
+| `PXD074990` | **`H1299`** — a named human cell line |
+| `PXD032078` | **`Coxsackie virus`** — literally one of the two recorded organisms |
+| `PXD027163` | all-caps `TNIP1`, `TLR3`; weak, and right |
+| `PXD019152` | all-caps `DDI2`, `NRF1`; weak, and right |
+| `PXD070789` | *acute kidney injury*, *serine 312*; indirect, and right |
+
+| Carried nothing | Recorded |
+|---|---|
+| `PXD079072` | `Xenopus laevis` |
+| `PXD027328` | `Homo sapiens` |
+| `PXD074949` | `Nicotiana benthamiana`, `Pseudomonas syringae` pv. `tomato`, `Arabidopsis thaliana` |
+
+**So *the titles did not say* is true of three of the twelve and false of the rest.** For the other
+nine the titles said something — outright in three cases — and rule (a) was reading for a different
+predicate and recorded `—`. **That is a fact about what rule (a) was asked, not a defect in it**: it
+was built to classify discovery against targeted, and it did that. What it demonstrates is that a
+title parse recording `—` for its own question says nothing about whether the title answers a
+different one, and the survey has been treating those `—` cells as though the titles were silent.
+
+#### What this means for the survey as a whole
+
+**A criterion set induced from a human anchor was applied to a population whose organisms were never
+established, and seven of the twelve are not human.** They are mouse (four: `PXD070339`,
+`PXD060435`, `PXD032078`, `PXD070789`), plant (two: `PXD075538`, `PXD074949`) and frog
+(`PXD079072`), with a bacterium and a virus alongside two of them. **Not one of C0's five gates at
+l.3844–3848, none of C1's eleven criteria, and no part of C2 ever asked.**
+
+**The measured criterion 1 rates, grouped by the organisms now established.** This is arithmetic
+over facts already in the record plus the fetch above; **it settles nothing and is not offered as
+settling anything.**
+
+| Group | n | Range | Inside the 60–95% band |
+|---|---|---|---|
+| human artefacts | 6 | **3.8% – 82.5%** | 2 of 6 |
+| non-human artefacts | 9 | **0.0% – 81.1%** | 1 of 9 |
+
+**The two ranges are almost the same and each nearly spans the whole scale.** The middle band the
+instruction identified — 17.1% to 58.1%, eight artefacts — resolves as six plant, one mouse
+(`PXD032078` at 18.7%) and one human (`PXD019152`'s PRM artefact at 54.8%), so the concentration in
+`PXD075538` and `PXD074949` is a plant concentration, and the two rows outside that pair are one
+mouse and one human.
+
+**Whether that refutes the organism explanation, supports the search-configuration one, or neither,
+is the separate decision this turn was told not to make, and does not make.** What is established is
+the input that decision needs: the organisms, and the fact that the human subset alone spans
+3.8%–82.5%.
+
+#### Three consequences, named and not acted on
+
+1. **The registration at l.8025–8028** reads *"any human diGly deposit searched against a human FASTA
+   should land near the anchor's 82.5%"*. **It was registered for a population nobody had established
+   was human, and seven of the twelve are not.** Re-scoring criterion 1 or amending that registration
+   is out of scope and is not done.
+2. **C0 has no organism gate.** Its five gates are embargo, reuse terms, site-grain table, MaxQuant
+   and a UniProt-resolvable proteome — and every one of the seven non-human deposits passes all five
+   as written, since UniProt resolves mouse, both plants, frog, the bacterium and the virus. **Whether
+   organism belongs among them is a criteria change and is not made here.**
+3. **The selection at l.8764 is not re-opened.** `PXD075538` remains what C2 ranked first, and what
+   this turn adds is that it is one of seven non-human deposits rather than the only one.
 
 ### Deposit and supplementary survey, 2026-08-07
 
