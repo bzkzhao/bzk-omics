@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.05 |
+| Version | 2.06 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -9050,6 +9050,56 @@ So the two public bases would have to be walked for it exactly as they were here
 basis is closed for it by the same measurement**. The one thing the record does establish is that
 being second in the ranking would not have made the mapping question easier: a 19-row artefact
 constrains a design mapping less than a 45-row one, not more.
+
+### Pre-registration: predicting twelve organisms from the recorded titles, 2026-08-18
+
+l.8909 established the organism of one deposit out of twelve. **This turn asks it of all twelve and
+tests whether the titles at l.6273–6284 could have answered it without a fetch.** It selects
+nothing, scores nothing and changes no criterion. **This registration is committed before any
+fetch**, and the ordering is provable from `git log`.
+
+#### What is already known, disclosed rather than claimed away
+
+| Already in hand | Consequence for this registration |
+|---|---|
+| **`PXD075538` is *Nicotiana benthamiana*** (l.8909) | its row is contaminated. The prediction below is made from title text anyway and **differs from the known answer at species level**, which is the only evidence available that it was made from the title. **No credit is claimed for that row.** |
+| **`PXD018299` is human HAP1**, throughout the record | same shape, same disclosure, same forfeit |
+| **every criterion 1 rate at l.8429–8443**, and the distribution the instruction sets out | **leaning on a rate would be circular** — under the hypothesis this turn exists to test, the rates are themselves evidence of organism. No prediction below cites a rate, and the reasoning column is written so that a rate-derived guess would be visible as an unsupported leap |
+| **`PXD075538` and `PXD074949` share submitter `111980178`** (l.6350) | **deliberately not used.** The submitter link is not title text, and using it would let one title answer for another and make *could the titles have answered it* untestable. `PXD074949` is predicted from its own title alone |
+
+#### The twelve predictions, from title text only
+
+| Accession | Predicted organism | Words carrying the signal, or none |
+|---|---|---|
+| `PXD079072` | **no organism signal** | *hemimethylated CG*, *histone ubiquitylation* — a chromatin mechanism, not a taxon. UHRF1-type hemimethyl-CpG-guided histone ubiquitylation is described in vertebrates and has plant analogues; the title picks neither |
+| `PXD075538` | **a plant — *Arabidopsis thaliana*** | *NAC53*, *NAC78* — NAC is a plant-specific transcription-factor family; *MDP25* is an Arabidopsis microtubule-destabilising protein; *Pst* is *Pseudomonas syringae* pv. *tomato*, a plant pathogen. **Arabidopsis on gene-nomenclature grounds**, since those symbols are Arabidopsis symbols. *(Row disclosed above; no credit claimed.)* |
+| `PXD070339` | **mammal, species not separable — guessing *Homo sapiens*** | *Visceral Adipose Tissue*, *Obesity*, *STEAP4*. Visceral adipose in obesity is studied in human biopsies and in mouse models about equally; the title names no species. Guess recorded rather than withheld |
+| `PXD074990` | ***Homo sapiens*** | **`H1299`** — a named human non-small-cell lung carcinoma line. **The only title in the twelve naming an organism-bearing entity outright** |
+| `PXD027328` | **no organism signal** | *Deubiquitinating enzymes and the proteasome regulate unique sets of ubiquitin substrates* — no species, no line, no species-specific symbol |
+| `PXD074949` | **no organism signal** | *P-body components*, *proximity labeling*, *IP-MSMS*. P-bodies are found in yeast, plants and animals; proximity labelling is a method. Nothing taxonomic |
+| `PXD027163` | ***Homo sapiens*** | **`TNIP1`, `TLR3`** in all capitals — HGNC style. Mouse orthologues would be *Tnip1*, *Tlr3*. **A weak signal: title capitalisation is unreliable**, and it is registered as the reasoning so its failure is legible |
+| `PXD032078` | **mammal — guessing *Mus musculus*** | *in vivo* with *Coxsackie virus infection*; coxsackievirus myocarditis is a murine model. Against it: `ISG15` is all-caps human style. **Mouse chosen on the model-system word over the nomenclature word** |
+| `PXD019152` | ***Homo sapiens*** | **`DDI2`, `NRF1`** all-caps HGNC style, same weak nomenclature signal as `PXD027163` |
+| `PXD018299` | ***Homo sapiens*** | `USP18` all-caps, *tumour cell antigenicity*. *(Row disclosed above; no credit claimed.)* |
+| `PXD070789` | **guessing *Mus musculus*** | *acute kidney injury* is a rodent model term, and ***p53 at serine 312* does not match a canonical human p53 phosphosite** — human p53's characterised serines are 15, 20, 46 and 392, and mouse p53 is 387 residues against human's 393, so the numbering points away from human. Registered explicitly so the reasoning is checkable |
+| `PXD060435` | **mammal, species not separable — guessing *Homo sapiens*** | the same title as `PXD070339` bar *Integrated* for *Combined*; same reasoning, same guess |
+
+#### The counts predicted, before fetching
+
+| Quantity | Prediction | Ground |
+|---|---|---|
+| **species-level correct**, of 12 | **4**, band **2–7** | one is near-certain (`H1299`). Three rest on all-caps nomenclature, which is a convention and not a rule. Four are guesses between two mammals. Three are registered as *no signal* and **cannot be species-correct by construction** |
+| of the three *no organism signal* rows, how many have a recorded organism the title genuinely does not imply | **3**, band **2–3** | if a recorded organism turns out to be implied by words already in the title, the reading missed it, and that is the finding |
+| **distinct organisms** across the twelve | **3**, band **2–5** | human, mouse and one plant is the shape the titles suggest |
+| **non-human** deposits | **3**, band **1–6** | `PXD075538` (known), plus the two mouse guesses. The band is wide because the eight remaining titles constrain species barely at all |
+
+**A species-level hit requires the predicted species to equal the recorded one.** A prediction of
+*no organism signal* is never scored as species-correct; it is scored on the separate line above.
+Where a row's guess is recorded as *not separable*, the guess still counts against it if wrong — a
+guess hedged in prose is still a guess.
+
+**No prediction is registered about criterion 1, about which explanation the organisms will support,
+or about the selection.** Establishing the organisms is this turn; what follows from them is not.
 
 ### Deposit and supplementary survey, 2026-08-07
 
