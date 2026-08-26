@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.07 |
+| Version | 2.08 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -3846,6 +3846,7 @@ ranks last.
 | c | **Carries a site-grain processed table** | The v0.1 path is the MaxQuant site adapter; a protein-only deposit tests nothing at the grain the anchor domain lives at |
 | d | **MaxQuant** | The two written adapters are MaxQuant; DIA-NN, FragPipe and Spectronaut are v0.2 by § *Explicitly deferred*. A non-MaxQuant deposit is excluded **for this survey only** and recorded with its engine |
 | e | **A proteome UniProt can resolve** | Position validation and I2's sequence pinning both run through UniProt; a species it cannot resolve makes every rate unmeasurable |
+| f | **The recorded organism set includes the anchor's organism** | **Added 2026-08-18** — see § *C0 gains an organism gate*. Seven of the twelve C0 passes were not human and no gate asked; criteria 1–4 measure properties of a proteome, so a non-human rate against a human-induced band is confounded before it is informative. A deposit carrying several organisms passes if **any** is the anchor's |
 
 **C0(d)'s reading rule, settled — 2026-08-12, committed before any count was recomputed under it.**
 The gate above is **unedited and nothing in it is struck**: it names no signal, so it was
@@ -9237,6 +9238,203 @@ the input that decision needs: the organisms, and the fact that the human subset
    organism belongs among them is a criteria change and is not made here.**
 3. **The selection at l.8764 is not re-opened.** `PXD075538` remains what C2 ranked first, and what
    this turn adds is that it is one of seven non-human deposits rather than the only one.
+
+### C0 gains an organism gate, and `PXD019152` replaces `PXD075538` — provisionally, 2026-08-18
+
+The selection at l.8764 is re-opened because its subject cannot be used: `PXD075538` is *Nicotiana
+benthamiana* and no design mapping is recoverable from either public basis. **This turn fetches
+nothing, scores nothing, ingests nothing and writes no code.**
+
+**The decision is (i): C0 gains a sixth gate.** That is a criteria change and it is recorded here as
+a decision with its reasoning, not folded into a ranking.
+
+#### What the criteria contain — established by reading, not assumed
+
+**Established: nothing in C0, C2, C3 or C4 measures organism or biological domain.** C0's five gates
+at l.3844–3848 are public/not-embargoed, reuse terms establishable, a site-grain processed table,
+MaxQuant, and a proteome UniProt can resolve. C2 at l.3906–3907 ranks by C1 points and breaks ties on
+SDRF, then site count ≥ 1,000, then smaller download. C3 at l.3909–3928 is survey size and how
+archives are listed; C4 at l.3930–3934 is the classification method. **Not one clause in any of them
+names a species, a taxon or a domain.**
+
+Gate (e) is the near miss and it is not one: *a proteome UniProt can resolve* asks whether the rates
+are computable, not whose proteome it is. UniProt resolves mouse, both plants, frog, the bacterium
+and the virus, so **all seven non-human deposits pass it**.
+
+#### The arithmetic, recomputed from l.9118–9129
+
+**Seven of the twelve C0 passes are not human**: `PXD070339`, `PXD070789` and `PXD060435` mouse;
+`PXD075538` *N. benthamiana*; `PXD079072` *Xenopus laevis*; and the two multi-organism deposits
+recorded whole at l.9131 — `PXD074949` as *N. benthamiana*, *Pseudomonas syringae* pv. *tomato* and
+*Arabidopsis thaliana*, `PXD032078` as *Coxsackievirus* and *Mus musculus*. **Neither is reduced to
+one organism at any point below.**
+
+**Five are human, one of which is the anchor**, so the human non-anchor population is **four**:
+
+| Candidate | Artefact | Sites | Bytes |
+|---|---|---|---|
+| `PXD019152` | `MaxQUANT_HpH.zip` | 522 | 393,147 |
+| `PXD019152` | `MaxQUANT_PRM.zip` | 31 | 42,042 |
+| `PXD074990` | `PTMH1299_search_results.zip` | 1,404 | 1,115,157 |
+| `PXD027163` | `UbiSite_GlyGly__K_Sites.txt` | 9,641 | 15,802,963 |
+| `PXD027328` | `GlyGly__K_Sites.txt` | 56,722 | 65,992,977 |
+
+Every figure re-derived from l.8396–8410 and l.8084–8098 rather than transcribed.
+
+#### The four options, each costed
+
+**(i) — chosen. Amend C0 with an organism gate, re-screen, apply C2.**
+**Cost:** a criteria change that binds every future draw; it excludes seven of twelve retroactively;
+and it leaves C3's cap of twelve holding five, so the survey is under-drawn until a re-draw, which is
+a separate turn. **Ground:** the survey's purpose at l.3833–3838 is a second deposit that could
+*falsify* figures induced from the anchor. A difference between a human cancer ISGylome and a plant
+in vitro ubiquitination assay is not a falsification of anything — it is attributable to organism
+before it is attributable to anything the criteria measure. l.9214–9217 already records the two
+readings of the criterion 1 spread as unseparated — the human artefacts span 3.8%–82.5% and the
+non-human 0.0%–81.1%, *"almost the same and each nearly spans the whole scale"* — so a
+non-human comparison cannot be read cleanly even where the criteria do rank it. **The restriction is what makes
+the survey's own stated purpose coherent, so it belongs in the criteria rather than beside them.**
+
+**(ii) — rejected. Leave the criteria untouched, select outside them.**
+**Cost:** nothing today, and the same failure tomorrow. C2 would still rank a plant first on the next
+application, and the restriction would live in prose that the next ranking does not read. It is
+honest about *this* selection and dishonest about the instrument.
+
+**(iii) — rejected as false. Record that the criteria cannot select.**
+**Cost:** it would be untrue. Four human deposits passed C0, were scored, and C2 ranks them. The
+criteria *can* reach a domain-relevant candidate; what they cannot do is *prefer* one. Recording (d)
+here would be recording (d) to avoid defending a selection.
+
+**(iv) — rejected, and it is not the same decision as (i). Gate on design recoverability.**
+
+This is reinstating criterion 11, withdrawn at l.7622–7628 because its two counts, 13 of 15 and 11 of
+15, were respectively **invalid** — its input was a known-defective extraction — and **not a score**,
+written after seeing the failure. **The defective input was afterwards repaired**: D1 closed on the
+documented column templates. **That is not enough.** l.7858–7861 records that criterion 11's
+operational test *"is defined over token opacity, and opacity is D2"*, and D2 did not close — the
+Raw Files documentation defines the experiment name as text the user may choose freely, so there is
+no form for an opacity test to read.
+
+**So what would be scored differently this time? Nothing.** Any header-only test would again be an
+invented predicate over free-text strings, and would again produce a number that a second invented
+predicate contradicts. **Criterion 11 cannot be reinstated on header evidence.** The evidence it
+would need is the design mapping itself — SDRF, author correspondence, or a methods section that
+assigns columns — and acquiring that is the mapping walk, which is not this turn.
+
+**And (i) and (iv) are different decisions, which is worth arguing because `PXD075538` failed on
+both properties.** Organism is readable from the metadata call the survey already makes, before any
+artefact is touched, and it screens for **relevance**. Design recoverability is readable only by
+doing the mapping walk, and it screens for **usability**. **A gate that requires the work it is meant
+to save is not a gate**; it is an ordering of the work. Only one of the two properties disqualified
+`PXD075538` for relevance, and it is the one that costs nothing to check.
+
+**Two further options, enumerated and rejected.**
+
+**(v) Amend C2 instead — organism concordance as a tiebreak or an extra point.** Rejected: it
+re-orders without excluding, so a non-human deposit scoring higher on C1 still wins. It would not
+have stopped `PXD075538`.
+
+**(vi) Re-draw under C3 with an organism-aware query set.** Rejected as an answer to *this* question:
+a new draw is C3's business and a separate turn, and it says nothing about the twelve already drawn.
+It is a consequence of (i) rather than an alternative to it.
+
+#### The decision: C0 gains gate (f)
+
+> **(f) The candidate's recorded organism set includes the anchor's organism.**
+>
+> Read from the deposit's PRIDE `organisms` field — the same metadata call C0(b) and C0(c) already
+> require. **A deposit carrying several organisms passes if any of them is the anchor's**, so a
+> human deposit with a virus, a vector or a bacterium alongside is admissible; `PXD032078` and
+> `PXD074949` fail because **none** of their organisms is human, not because they carry more than
+> one. The anchor is `PXD018299`, *Homo sapiens*, for v0.1.
+
+**Why the anchor's organism rather than *mammalian* or *vertebrate*.** Criteria 1, 2, 3 and 4 measure
+properties of a proteome — peptide sharing between protein groups, isoform and TrEMBL representation,
+HGNC multiplicity. A mouse proteome is a different proteome, so a mouse rate compared against a human
+band is confounded in exactly the way a plant rate is, only less visibly. **The gate is written
+strictly because a loose one would hide the confound rather than remove it.**
+
+**The gate is written onto the C0 table itself, not only here.** Gates (a)–(e) are unedited and
+nothing in them is struck; (f) is added as a sixth row pointing back to this section. **Recording it
+only in prose would carry the exact defect that rejects option (ii) above** — a restriction living
+somewhere the next application of C0 does not read. **No C1 criterion, no band, no denominator,
+C2, C3, C4 and the shared-artefact rule are touched.**
+
+#### Re-screening the twelve, then C2
+
+**Pass: five** — `PXD018299` (anchor), `PXD019152`, `PXD074990`, `PXD027163`, `PXD027328`.
+**Excluded on (f): seven**, each recorded with its organism set as above.
+
+C2 over the four non-anchor candidates. **The SDRF tiebreak is dead** — l.5283–5285 measures 0 of 12
+informative, every candidate `N`. **The site-count clause is a tiebreak, not a filter**, and reaches
+nothing that is not tied.
+
+| Candidate | Criteria differing | Union | Best artefact | Sum | Union / scorable |
+|---|---|---|---|---|---|
+| **`PXD019152`** | c1, c2, c5 | **3** | 2 | **4** | **0.60** |
+| `PXD074990` | c1, c2 (c5 unscorable) | 2 | 2 | 2 | 0.50 |
+| `PXD027163` | c1, c2 (c5 unscorable) | 2 | 2 | 2 | 0.50 |
+| `PXD027328` | c1, c2 | 2 | 2 | 2 | 0.40 |
+
+`PXD019152` reaches 3 because its two artefacts differ on different criteria — `MaxQUANT_HpH.zip` on
+c2 and c5, `MaxQUANT_PRM.zip` on c1 and c5 — and the union is `{c1, c2, c5}`.
+
+**The combination reading binds here, where it did not before, and that is reported rather than
+buried.** The C2 application at l.8764 used **per-criterion union**, on l.3879's *"a candidate scores
+one point per criterion on which it is predicted to differ"*, and recorded that `PXD075538` led under
+every reading so the choice did not bind. **It binds now.** Union, sum and the normalised rate all
+give `PXD019152`. **Best-artefact gives a four-way tie at 2**, which the dead SDRF tiebreak does not
+touch, which the site-count tiebreak then resolves by eliminating `PXD019152` — 522 sites, under
+1,000 — leaving three, of which smaller download picks **`PXD074990`** at 1,115,157 B.
+
+**Union is kept because it was the reading in force, not because of what it returns.** Changing the
+combination rule in the turn where it first changes the answer would be selection by the answer.
+
+#### The selection
+
+**`PXD019152` is selected as the second deposit, replacing `PXD075538`.** Three C1 points against
+two, under the reading C2 has been applied with throughout.
+
+**The same discomfort as last time, stated at the same strength.** `PXD019152`'s artefacts hold 522
+and 31 sites; C2's own tiebreak text says site count ≥ 1,000 is wanted *"so the rates are measurable
+at all"*, and it does not reach a candidate that is not tied. **The winner's tables are again below
+the threshold C2 itself names**, and that clause is again a tiebreak rather than a filter. Moving it
+would repair C2, which is not this decision.
+
+#### Provisional, and what is known about the risk
+
+**The selection is provisional pending a mapping walk, which is a separate turn.** `PXD075538` was
+selected and found unusable two turns later; `PXD019152` is in the same position until its design
+mapping is established.
+
+What the record already carries, without fetching anything:
+
+- **Its artefacts have two samples each** — `Flg`, `GST` and `FLAG`, `GST` at l.7796–7797. **A
+  two-column mapping is a far smaller problem than `PXD075538`'s twenty-seven**, and that is the
+  whole of what can be said in its favour. What those two names denote is not established, and
+  reading them would be `filename_inference`.
+- **Its SDRF is absent**, by the same 0-of-12 measurement that closes that basis for every candidate.
+- **Its title names no condition** — *DDI2 is a ubiquitin-directed endoprotease, responsible for
+  cleavage of transcription factor NRF1* — so `publication_methods`, if a publication exists, is the
+  live public basis and `submitter_metadata` is untried for it.
+
+**No prediction is registered about whether its mapping will prove recoverable.** Nothing in the
+repository settles it, and the one walk performed is a sample of one.
+
+**`PXD074990`'s title names `H1299`, the only outright organism-bearing entity among the twelve** —
+and that is evidence about **organism**, not about sample-to-column assignment. A named cell line
+says whose proteome the search used; it says nothing about which column is which condition. **The two
+are not interchangeable and the first must not be read as comfort about the second.**
+
+#### Consequences named and not acted on
+
+1. **Criterion 1's registration at l.8025–8028** was written for a population nobody had established
+   was human. Under gate (f) the scored population becomes human-only, which changes what that
+   expectation was ever a claim about. **Not amended, not re-scored.**
+2. **C3's cap of twelve now holds five.** The survey is under-drawn against its own size criterion and
+   a re-draw is a separate turn.
+3. **Criterion 11 stays withdrawn**, and this turn adds why it cannot simply be reinstated: its test
+   needs D2, and D2 is closed by documentation rather than by a missing document.
 
 ### Deposit and supplementary survey, 2026-08-07
 
