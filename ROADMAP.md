@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.13 |
+| Version | 2.14 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -10158,6 +10158,108 @@ than a truncated first page. **`author_correspondence` at l.581 remains the only
 **No prediction about recoverability was registered before this walk or is registered now.** Four
 walks are a sample of four. **The selection at l.9242 is not re-opened, nothing is re-ranked, and no
 criterion changes.**
+
+### Pre-registration: walking the anchor's own methods section, 2026-08-18
+
+`publication_methods` for `PXD018299` is the one public route this project has never taken. l.68
+records it as *"public, is open, and is **unchecked**; it is not walked here"*, and every instruction
+since has fenced it out by name. **This registration is committed before any fetch, and the ordering
+is provable from `git log`.**
+
+Three questions. **This turn answers them and settles none of their consequences** — no curation
+record, no supersession, no ingestion, no adapter run, no code change.
+
+#### Blindness is not available and is not claimed
+
+**I have read `curation_PXD018299.json`'s rationale**, in this session and before this registration,
+and it is quoted in the instruction that set this turn. **No prediction below can be called
+independent of it.** What the registration can still do is separate two things the rationale
+conflates: what a 2021 methods section *contains*, and what a Colab session in 2026 *reported* it as
+containing. **The rationale is not a source for this walk** and is not cited as evidence of what the
+methods say. It is the hypothesis under test.
+
+#### 1. What the rationale asserts the methods contain — itemised as claims, not as facts
+
+| # | Claim attributed to the methods | Kind |
+|---|---|---|
+| a | HAP1 (CML-derived) wild-type and HAP1 `USP18-/-` CRISPR knockout cells | design |
+| b | treated with human IFN-alpha2b at **1000 U/mL** | design |
+| c | GlyGly peptidome comparison performed at **48 h** | design |
+| d | GlyGly peptides enriched by immunoaffinity purification, **PTMScan Ubiquitin Remnant Motif kit** | method |
+| e | analysed on a **Q Exactive HF** | method |
+| f | searches in **MaxQuant v1.5.5.1** against **UniProtKB human** with **LFQ quantitation** | method |
+| g | *"Column names in the site table encode genotype (WT / KO), treatment … and replicate index (1-3) unambiguously"* | **not attributed to the methods** — this is the curator's reading of the table |
+| h | *"the raw 'Intensity' columns … should not be used for this contrast"* | **attribution unstated** — the rationale does not say whether this came from the paper or from the curator |
+
+**(g) and (h) are the two that matter and neither is claimed as a methods statement.** (g) is
+explicitly the curator reading the column names, which is the composition R2 at l.125 rules on. (h)
+carries no attribution at all, and Question 3 exists because of that silence.
+
+#### 2. What would count as an answer to Question 1 — the fourteen proteome columns
+
+l.2387's standard is the one to meet: *"Minting samples from the fourteen column names is what I8
+forbids in as many words."* So **naming a design is not assigning columns.**
+
+**Recoverable** requires the methods to do one of two things:
+
+- assign a condition to each of the fourteen proteome measurements by an identifier the file
+  carries — a column name, a raw-file name, or a run identifier; **or**
+- state a rule that does it without reading the column tokens — for example *"proteome samples were
+  acquired in the order WT, WT+IFN, KO, KO+IFN, in duplicate"* against a stated column order.
+
+**Present but insufficient** is the outcome if the methods describe a proteome experiment — its
+genotypes, treatments and replicate depth — without connecting any of it to the fourteen.
+**Fourteen is not divisible by the four conditions the diGly run uses**, so matching count to count
+is not even available here; if closing the gap needed it, that is an assumption and the walk stops.
+
+**No prediction is registered on this question.** The record has never been checked on it.
+
+#### 3. What would count as an answer to Question 2 — the twelve site-table samples
+
+**Recoverable requires the assignment to arrive without the column-token step.** The methods would
+have to name the twelve measurements by something the table carries independently of its own
+headers — raw-file names, run identifiers, or an explicit per-sample table. A methods section that
+says *"WT and USP18-/- cells, ± IFN, in biological triplicate"* is **present but insufficient**: it
+describes four conditions at n=3 and connects them to nothing in the file. That is the shape the
+composition at l.244–258 assumes, and this walk is what tests whether the assumption is true.
+
+**One column is the sharpest test available.** `KO_1_181212063719` carries a trailing run
+identifier. **If the methods or a cited supplementary file name that identifier**, the assignment
+has a non-token route for at least one sample and the answer is at least *partially recoverable*.
+If they do not, that column is assigned only by stripping a suffix, which is a token reading.
+
+**No prediction is registered on this question**, for the same reason.
+
+#### 4. Five registered predictions, on the rationale-derived facts
+
+Each is a prediction about **what the paper's methods section contains**, to be reported as
+confirmed, contradicted, or absent.
+
+| Fact | Prediction | Ground, and whether it is cheap |
+|---|---|---|
+| **cell lines** | **present and confirmed** — HAP1 WT and HAP1 `USP18-/-` | **A methods section cannot omit its cell lines.** Registered anyway; a hit here is worth nothing and a miss would be worth a great deal |
+| **treatment and dose** | **present and confirmed** — IFN-alpha2b at 1000 U/mL | the cytokine is near-certain; **the dose is the part that can fail**, since papers often give it only in a figure legend |
+| **timepoint** | **present, and 48 h attached to the GlyGly comparison specifically** | the weakest of the three design facts. Multi-timepoint studies commonly state one timepoint for viability and another for proteomics, and the rationale attaches 48 h to the peptidome comparison in particular. **Registered as the most likely of the five to come back partly wrong** |
+| **enrichment kit** | **present and confirmed** — PTMScan Ubiquitin Remnant Motif | a named commercial kit is standard in a methods section |
+| **quantitative columns used** | **absent** | **This is the registration that bears on Question 3 and it is not cosmetic.** I predict the methods name a *quantitation mode* — LFQ, or ratios — and **do not name a MaxQuant output column family at all**. Methods sections describe software settings; they do not name `Ratio mod/base` or `Intensity` as columns. If that prediction holds, the rationale's closing instruction has **no source in the paper** and its attribution was never established |
+
+**The conflict this fifth prediction sits on, registered plainly.** The committed curation record
+instructs that *"the raw 'Intensity' columns … should not be used for this contrast"*.
+`bzk/sources/pxd018299_differential.py` builds both arms from `Intensity` — l.126's
+`_intensity_columns` matches `f"Intensity {arm}_{i}"` exactly — and l.164 records that this
+combination is what produced **12 of 14**, which l.200 makes a regression test. **A committed record
+instructs against the columns the committed analysis uses, and the project's headline figure was
+produced by disregarding it.** This turn establishes only what the paper says. **It rules on neither
+and changes neither.**
+
+#### What this turn will not do with any answer
+
+If Question 1 comes back recoverable, the recourse is a curation record for the proteome run and
+then ingestion — **not here**, and l.2503–2504 records that a fourteen-sample mapping was once
+constructed in memory and deliberately never written. If Question 2 comes back recoverable, ADR-0026
+is `Accepted` and append-only, so a changed verdict needs a superseding record — **described, not
+written**. If Question 3 finds the methods naming a column family, that is reported against both the
+rationale and the pipeline, and **neither file is touched**.
 
 ### Deposit and supplementary survey, 2026-08-07
 
