@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.10 |
+| Version | 2.11 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -9804,6 +9804,90 @@ further call is not in the table**: a header-only probe of `PXD027163`'s files e
 `total_records`, whose body was discarded and whose size was not captured. It is named rather than
 estimated. **Every request returned HTTP 200. No host refused anything, nothing was blocked, and no
 route was retried.**
+
+### The blocked basis question is settled by ADR-0026, and the anchor record was the evidence, 2026-08-18
+
+The obstacle three walks named — whether a deposit's own `readme.txt` or `mqpar.xml` is a curation
+`basis` — is settled. **This turn fetches nothing, walks no deposit, and changes no code.** The
+decision is ADR-0026, landing `Proposed`; what follows is what it cost and what it found.
+
+**The decision: `basis` is a vocabulary of warrants, not of containers**, with three rules — a
+source that does not assert a sample-to-condition assignment is not a basis; a composed mapping
+records its **weakest** link; and a container is classified on reading, except where its format
+fixes what it can assert. **No value is added to the enum.** Two Meaning cells widen and point at
+the ADR.
+
+#### The finding that changed the decision, and it was already in the repository
+
+**`data/curation/curation_PXD018299.json` performs the exact composition three walks refused.** Its
+`basis` is `publication_methods` and its `rationale` reads:
+
+> *"Column names in the site table encode genotype (WT / KO), treatment (presence or absence of the
+> _IFN token) and replicate index (1-3) unambiguously, so the mapping from column to condition is
+> direct."*
+
+**The methods supplied the conditions; the column tokens assigned them to columns.** `KO` ↔ *USP18-/-
+knockout* is not a stronger match than `MG` ↔ *MG132*, which is the match `PXD027328`'s walk refused.
+**Either the anchor record overstates its basis or the walks were too strict**, and the two cannot
+both stand. ADR-0026's second rule says which: the record's `basis` names the half that was not
+load-bearing, and under that rule the correct value is `filename_inference`.
+
+**The record is not amended.** `basis` is identifying on `Analysis`, so a changed value mints a
+different id and the change is an I6 supersession rather than an edit. Described in the ADR, not made.
+
+#### What the three walks were taken to mean, corrected
+
+Each walk asked *are the two public bases sufficient?* and each answered correctly. **It does not
+follow that no basis was available.** `filename_inference` is in the closed enum, carries `inferred`,
+and I8 permits it with labelling. **The three walks put it out of scope by instruction, which is a
+scope rule and not an ontological bar.**
+
+So `PXD027328`'s mapping is available at the enum's weakest basis. **That is a worse basis than the
+walks were looking for, not a better one**, and whether a second deposit should be ingested on it is
+a decision nobody has made. **The survey's route was never blocked by this vocabulary.**
+
+#### Status of the completed walks under the settlement
+
+| Deposit | Unfetched source | Status |
+|---|---|---|
+| `PXD027328` | `mqpar.xml`, `mqpar_DP.xml` | **stands** — categorically not a basis |
+| `PXD027328` | nine Supplementary Datasets, Source Data | **stands** — no methods sentence cites one for the design |
+| `PXD027163` | `UbiSite_summary.txt`, `UbiSite_parameters.txt` | **stands** — same exclusion |
+| `PXD027163` | `readme.txt` | **provisional** — free-form, unread |
+| `PXD019152` | its paper's supplementary files | **unestablished** — never measured |
+| `PXD075538` | the single `OTHER` file in its listing | **unestablished** — the record counts it and does not name it |
+
+**None is amended; the ruling about their status is the output.**
+
+#### What was measured rather than assumed
+
+**Option (ii) — adding a sixth value — is not executable in a turn that may not touch `schema.py`,
+and this was proved rather than argued.** A sixth row was added to §5.3's table and
+`tests/test_schema.py::test_curation_basis_enum_matches_ontology_5_3` failed at its assertion line;
+the row was then removed and the suite went green again. **The guard's regex captures the value and
+the confidence only**, so the Meaning column is prose and the value→confidence pairs are the
+validated vocabulary — which is why the two widenings are recordable now and a sixth row is not.
+
+**`bzk/curation/loader.py` rejects any record whose `basis` is outside `schema.CURATION_BASIS`**, so
+the enum is a live validator and not documentation.
+
+#### The scoping, because it has gone wrong here before
+
+**Five node types carry a `basis`-named field with five different closed sets**, and this decision
+touches one. I17 records that calling a keying rule an inference *"is what put it in the
+`ProteinAssignment` basis enum and into conflict with I14"* — the error ADR-0024 then unpicked. The
+ADR states the scope in a table before it states the decision.
+
+**One correction to the instruction's enumeration**: it named four other `basis` vocabularies and
+there are **five**. `EnzymeAssociation.basis` is declared in the DDL and was not among them.
+
+#### Two consequences named and not acted on
+
+1. **`ONTOLOGY.md` §5.3 does not carry the three rules**, only the two widened cells. A `Proposed`
+   ADR does not write normative text into a normative document; that is the acceptance turn.
+2. **A guard for the weakest-link rule is machine-checkable and is not written.** It would assert
+   that a record whose `rationale` names a column-token reading carries no basis stronger than
+   `filename_inference`. **Named as open rather than closed**, because a note is not a guard.
 
 ### Deposit and supplementary survey, 2026-08-07
 

@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.37 |
-| Last reviewed | 2026-08-10 |
+| Version | 1.38 |
+| Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
 | Authoritative for | Node types, edge types, field semantics, invariants |
@@ -579,8 +579,8 @@ This is structurally the same problem as modifier ambiguity (§6): an inference 
 |---|---|---|
 | `sdrf` | SDRF-Proteomics accompanying the submission | `authoritative` |
 | `author_correspondence` | Design confirmed directly by the submitters | `authoritative` |
-| `submitter_metadata` | Locally generated data, or structured PRIDE metadata | `inferred` |
-| `publication_methods` | Read from the methods section of the associated paper | `inferred` |
+| `submitter_metadata` | Locally generated data, structured PRIDE metadata, or a design the submitter stated in a document deposited beside the data (ADR-0026) | `inferred` |
+| `publication_methods` | Read from the methods section of the associated paper, including a supplementary file the methods cite for the design (ADR-0026) | `inferred` |
 | `filename_inference` | Deduced from raw file naming conventions | `inferred` |
 
 For locally generated data the curation node is created automatically at ingestion with `basis = 'submitter_metadata'`, so the mechanism costs nothing where the design is already known.
