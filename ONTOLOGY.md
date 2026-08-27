@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.38 |
+| Version | 1.39 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -116,7 +116,7 @@ The identity **model** is identical for both: a node's identity is its label, it
 | `Dataset` | `content_hash` | — (the SHA-256 of the raw file is itself the anchor) | `label`, `source`, `external_accession`, `acquisition_mode`, `instrument`, `search_engine`, `search_engine_version`, `library_type`, `library_prediction_model`, `fasta_release`, `embargo_holder`, `embargo_reference`, `embargo_released_at` |
 | `SiteObservation` | `candidate_proteins` | `Dataset` (`REPORTS_SITE`), `ModificationSite` (`MEASURED_AT`) | `peptide_sequence`, `localization_prob`, `score`, `is_decoy`, `n_imputed`, `quant_ref`, `keying_basis`, `displaced_protein` |
 | `ProteinObservation` | `candidate_proteins` | `Dataset` (`REPORTS_PROTEIN`) | `quant_ref`, `n_peptides` |
-| `Contrast` | `numerator`, `denominator` | — (placement unsettled — §11 Q1) | `label` |
+| `Contrast` | `numerator`, `denominator` | — (evidence node — §11 Q1 settled 2026-08-18 by ADR-0027; the Experiment anchor it specifies is not built, so nothing is cited here yet) | `label` |
 | `Analysis` | `kind`, `basis`, `confidence`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `parameters_json` | `Dataset` (`USED`) — one or more; for a curation analysis the asserted content stands in for it | `label`, `rationale`, `started_at`, `ended_at`, `workflow_id`, `workflow_revision` |
 | `Imputation` | `method`, `downshift_sd`, `width_sd`, `seed`, `scope` | `Analysis` (`IMPUTATION_FOR`) | `n_values_imputed`, `n_values_total`, `asserted_at`, `retracted_at` |
 | `ModifierAssignment` | `basis`, `candidate_modifiers`, `confidence` | `Modifier` (`ASSIGNS`), `SiteObservation` (`ASSIGNMENT_FOR`), `Analysis` (`ASSIGNMENT_SUPPORTED_BY`) / `Publication` (`ASSIGNMENT_CITES`) | `rationale`, `asserted_at`, `retracted_at` |
@@ -1072,7 +1072,7 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
 
 ## 11. Open questions
 
-1. **`Contrast` sits awkwardly across the reference/evidence boundary.** It is currently an evidence node, since it encodes a local design decision. But it is reused: if two datasets both define *IFN-β 8h vs mock*, they share one `Contrast` node. That makes it reference-like in behaviour while evidence-like in origin, which is the one thing §1 says should not happen.
+1. ~~**`Contrast` sits awkwardly across the reference/evidence boundary.**~~ **Settled 2026-08-18 by ADR-0027: it stays an evidence node and is scoped by an `Experiment` anchor, which closes the collision below; the orphan smell in the next paragraph is not closed and remains open.** It is currently an evidence node, since it encodes a local design decision. But it is reused: if two datasets both define *IFN-β 8h vs mock*, they share one `Contrast` node. That makes it reference-like in behaviour while evidence-like in origin, which is the one thing §1 says should not happen.
 
    Concretely, if the curation for one dataset's sample mapping is retracted, every `DifferentialResult` linked through `RESULT_IN_CONTRAST` is correctly retracted — but the `Contrast` node survives, now partly orphaned. This works, and it is a design smell.
 

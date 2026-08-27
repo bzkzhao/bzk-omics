@@ -68,6 +68,7 @@ This exists because a project with one developer and a compressed timeline will 
 | [0024](0024-keying-is-not-assignment.md) | Keying a site is not assigning a protein; `reviewed_preferred` leaves the basis enum |
 | [0025](0025-adjusted-by-is-an-anchor.md) | `ADJUSTED_BY` is an anchor on `DifferentialResult`; the first self-referential one |
 | [0026](0026-basis-classifies-warrants.md) | §5.3's `basis` classifies warrants, not containers; a composed mapping records its weakest link |
+| [0027](0027-contrast-stays-evidence-with-an-experiment-anchor.md) | `Contrast` stays an evidence node and is scoped by an `Experiment` anchor (§11 Q1) |
 
 ## Queued
 
