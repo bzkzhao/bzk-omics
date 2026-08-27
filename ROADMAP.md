@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.12 |
+| Version | 2.13 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -9975,6 +9975,189 @@ The previous report said *"six lines"* of deletions and enumerated eight; `git d
 project file** — the only repository hit for the phrase is `ROADMAP.md` l.3520, about a command
 block, plus one in vendored `pandas` test data. **No correction is owed and the defect does not
 enter the standing list.**
+
+### `PXD074990` walked: the design is stated, the columns are per-channel, and one documented expansion is missing, 2026-08-18
+
+The last unwalked human candidate, walked under the source set ADR-0026 settled. **No curation record
+is written, nothing is ingested, and no site table or archive is fetched** — project metadata, the
+complete file listing, and the deposit's one document.
+
+**Ruling: *present but insufficient*, and it is the narrowest insufficiency of the four.** Unlike the
+three before it, the submitter connects the design to an axis of the data itself. What is missing is
+one expansion of a documented vocabulary, in a page this turn is not authorised to read.
+
+**With this, four of four human non-anchor candidates are *present but insufficient*. That is outcome
+(d), established by measurement.** It is recorded below at that scope, and with the fact that the
+four are not alike.
+
+#### What was fetched
+
+| Call | Bytes | HTTP |
+|---|---|---|
+| project metadata | **5,607** | 200 |
+| file listing, 1 page, reconciled against `total_records: 3` | **3,315** | 200 |
+| `checksum.txt`, the deposit's only document | **176** | 200 |
+| **total** | **9,098** | |
+
+**No host refused anything, nothing was blocked, no route was retried, and no body was discarded** —
+every call's size is measured. **No paper was fetched, because the deposit carries none.**
+
+#### The three objects, confirmed distinct, and one figure that does not attach where the instruction put it
+
+l.6766 labels all three: the archive `PTMH1299_search_results.zip`, the member path
+`combined/txt/GlyGly (K)Sites.txt`, and the table at **95 columns** — confirmed by counting the block.
+
+**l.7804's row is about the member table**, not the archive: its artefact cell reads
+`GlyGly (K)Sites.txt` and it records **1** sample, named `PTMH1299`. **Both confirmed by reading it.**
+
+**The 1,115,157 B figure is the member table's uncompressed size, not the archive's.** l.5886 gives
+the archive **2,283,114,958** and the table 1,115,157; l.6606 and l.6662 both attach 1,115,157 to
+`combined/txt/GlyGly (K)Sites.txt`, compressed to 228,308. **The live listing independently confirms
+the archive at 2,283,114,958 B** — a factor of 2,047. The instruction placed 1,115,157 on the archive
+in the same sentence that warned against this misattribution.
+
+#### Basis 1 — `submitter_metadata`: the design is stated, and stated about the labels
+
+`sampleProcessingProtocol` assigns each cell line to a labelling medium by name:
+
+> *"H1299 cells were maintained in heavy-labeling medium… Meanwhile, KO#2 cells were maintained in
+> light-labeling medium"*
+
+and states how they reached one run:
+
+> *"2×10⁷ heavy‑labeled H1299 cells and 2×10⁷ light‑labeled KO#2 cells were mixed at a 1:1 ratio."*
+
+**This is not a description beside the data; it is an assignment onto the data's own quantitative
+axis.** The three previous walks each found a source naming conditions and attaching them to
+nothing. This one attaches them to the labelling channels.
+
+`sampleAttributes` carries **two deposit-level tuples** — organism part and organism — and **no
+per-sample rows**; `additionalAttributes` is `[]`.
+
+**`sdrf` re-checked live and confirmed absent over the complete listing.** **Three files**,
+`total_records: 3`, row count reconciled before scanning: 1 `SEARCH`
+(`PTMH1299_search_results.zip`, 2,283,114,958 B), 1 `RAW` (`XD01023SPUbR1_PTMH1299.raw`,
+581,354,003 B), 1 `OTHER` (`checksum.txt`, 176 B). **No file whose name contains `sdrf`.** The
+listing fits one page; it was paginated and reconciled anyway, so the answer is right for the right
+reason.
+
+#### Basis 2 — the deposit's one document, read and classified under R3
+
+`checksum.txt` is the only deposit-borne document. **Fetched and read in full**, 176 bytes:
+
+> *"#Checksum File"* followed by two `path<TAB>SHA-1` lines.
+
+**Under R1 it is not a basis.** It asserts a filename-to-digest pairing and no sample-to-condition
+assignment. Classifying it required opening it, which is R3, and opening it settled it in one line.
+Its local paths are quoted and not read.
+
+**A side observation, not a ruling.** All three files publish an **empty** `checksum` field in the
+PRIDE metadata — consistent with the 2024-05-and-later pattern already in the record — while the
+deposit ships SHA-1s in a file of its own.
+
+#### Basis 3 — `publication_methods`: absent
+
+**`references` is `[]` and `doi` is the empty string.** No publication reference. **No paper was
+fetched because there is none to fetch**, no title search was performed, and the plural-reference
+rule does not arise. **This is an empty source, not a blocked route.**
+
+#### The one link that is missing, and why it is not crossed
+
+The chain from a column to a condition has three links, and the record supplies two:
+
+| Link | Source | State |
+|---|---|---|
+| column → SILAC letter | MaxQuant's documented column grammar | **established** — l.7765 makes `H`, `L`, `M` documented SILAC letters, l.7741 gives `Ratio mod/base` its `H`, `L` and `M` variants |
+| SILAC letter → medium | expansion of `H` and `L` to *heavy* and *light* | **not established by any source this turn may read** |
+| medium → cell line | `sampleProcessingProtocol`, quoted above | **established** |
+
+**So which arm is `H` and which is `L` is not stated here, and the expansion is not performed.** It
+is a convention, and a convention is not a source. Grepped: no file in this repository states it.
+The Cox Labs *Output Tables* page may; it is not among this turn's authorised fetches.
+
+**This is a different gap from the three before it, and the difference is D2's finding.** l.9315
+records that MaxQuant *"defines the experiment name as text the user may choose freely"* — which is
+why `PXD027328`'s `MG1` could only be matched to *MG132* by resemblance. **`H` and `L` are not
+depositor-chosen.** They are MaxQuant's own fixed vocabulary, so the missing step here is a lookup in
+a document, not a guess at a string.
+
+**Under R2, were that lookup made, the basis would be `submitter_metadata`, not
+`filename_inference`.** MaxQuant's documentation asserts what a column name means, not a
+sample-to-condition assignment, so under R1 it is an intermediate: it converts *which condition is
+`Intensity H PTMH1299`* into *which condition got heavy medium*, and the submitter answers that
+directly. **The weakest link in the composition is the submitter's own statement**, which is
+`inferred` and carries I8's labelling obligation. **This is the first walk in which a basis stronger
+than `filename_inference` is in reach.**
+
+**Zero of two channels are assigned, so the state is *present but insufficient* and is not rounded
+up.** It is not *partially recoverable*: partial means some columns and not others, and neither
+channel is assigned.
+
+#### Whether the artefact can express a two-condition contrast — reported separately
+
+**It can, and the instruction's premise about how is not what the block shows.** Per-condition
+columns exist in three families, both bare and experiment-suffixed:
+
+> `Intensity L`, `Intensity H`, `Ratio mod/base L`, `Ratio mod/base H`, `Occupancy L PTMH1299`,
+> `Occupancy H PTMH1299`, `Intensity L PTMH1299`, `Intensity H PTMH1299`,
+> `Ratio mod/base L PTMH1299`, `Ratio mod/base H PTMH1299`
+
+So the contrast does **not** live only in ratio and label columns. It is available as a ratio
+(`Ratio H/L PTMH1299` and its normalised form) **and** as two separate per-channel intensities.
+
+**The real constraint is depth, not shape.** The deposit holds **one RAW file** and the protocol
+describes **one 1:1 mix**, so there is **one value per channel per site: n = 1 per condition, and no
+replicates.** The `___1`, `___2`, `___3` suffixes are not replicates — l.7710 records the documented
+multiplicity form `"Intensity" + exp + "___" + j`, which counts GlyGly per peptide.
+
+**So the artefact can express a two-condition comparison and cannot support a two-condition test.**
+A single mix yields a fold change with no variance estimate. **That is a finding about the
+artefact's shape and about what the statistical layer can consume, and it does not reduce to any of
+the four recoverability states.** It is reported and not ruled on.
+
+#### Where the diGly sites came from
+
+**Proteome-wide enrichment, and the source establishes it in its own words:**
+
+> *"Cell lysis, protein extraction, tryptic digestion, and enrichment of K‑ε‑GG ubiquitinated
+> peptides were performed using the PTMScan® Pilot Ubiquitin Remnant Motif (K‑epsilon‑GG) Kit"*
+
+**The method is stated, not inferred from the reagent** — the sentence names the enrichment. No
+tagged bait is purified.
+
+**One tension inside the metadata, reported rather than resolved.** `experimentTypes` carries the
+single CV term *Affinity purification coupled with mass spectrometry proteomics*, which read alone
+suggests a pulldown. The protocol text is the more specific source and describes a remnant-motif
+antibody enrichment from whole-cell lysate. **Both are recorded; neither is turned into a criterion
+or a reason to prefer this deposit.**
+
+#### Outcome (d), at its scope
+
+**Four of four human non-anchor candidates are *present but insufficient*** — `PXD019152`,
+`PXD027163`, `PXD027328` and now `PXD074990`. **Not one is ingestible from the public bases, and the
+survey's route is closed on those bases.**
+
+**The four are not alike, and recording them as one number would lose the finding.**
+
+| Deposit | Why it failed |
+|---|---|
+| `PXD027163` | the sentence carrying the design breaks off three times, the last mid-description |
+| `PXD019152` | an open-access paper describes the design and never names a column |
+| `PXD027328` | a paper names four treatment groups and three replicates; the last step is a token match |
+| `PXD074990` | the design is assigned to the labelling channels; the last step is a documented lookup |
+
+**Three failed because no source connected the design to the data. This one failed because a
+vocabulary's expansion is written somewhere this turn could not go.** The trend across the four is
+toward narrower gaps, not toward a wall.
+
+**The one basis built to answer the question is `sdrf`, and it is `N` on all twelve** — now
+re-confirmed live for four of them, each over a listing reconciled against `total_records` rather
+than a truncated first page. **`author_correspondence` at l.581 remains the only untried
+`authoritative` route, and it is the operator's.**
+
+**No prediction about recoverability was registered before this walk or is registered now.** Four
+walks are a sample of four. **The selection at l.9242 is not re-opened, nothing is re-ranked, and no
+criterion changes.**
 
 ### Deposit and supplementary survey, 2026-08-07
 
