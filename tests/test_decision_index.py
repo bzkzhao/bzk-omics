@@ -56,7 +56,7 @@ EXPECTED_SEED_LINES = 18
 EXPECTED_SEED_STRUCK = 17
 
 #: The three status values `decisions/README.md` names, and their counts here.
-EXPECTED_STATUSES = {"Accepted": 15, "Proposed": 7, "Superseded": 3}
+EXPECTED_STATUSES = {"Accepted": 16, "Proposed": 6, "Superseded": 3}
 
 #: Supersessions recorded on one side only, with the reason each is permitted.
 #:

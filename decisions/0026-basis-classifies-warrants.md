@@ -2,10 +2,43 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-08-18 |
+| Reviewed | 2026-08-18 — five findings, three revisions made below |
 | Supersedes | — |
 | Superseded by | — |
+
+## Review
+
+Landed `Proposed` at `10d76f6` and reviewed in the following turn. Five findings; two required no
+change, one was a reviewer's own error ruled on below, and two produced the revisions marked
+**Added in review** further down. **No finding identified a defect in the decision itself**, which
+is the ground for the status above rather than the absence of objections.
+
+### The consequence went live in the same commit as the record, and it stands
+
+§5.3's Meaning cells were widened at `10d76f6`, citing this record while it was `Proposed`. So the
+normative ontology carried the consequence before the argument had been read. **The amendment
+stands, and the round-trip means something narrower than it appears.**
+
+**`decisions/README.md` already says so, about two of its own records.** Its status paragraph notes
+that ADR-0008 and ADR-0012 *"record decisions that are already live and normative as I6 and I9: the
+status is a property of **the record's** review state, not of the decision's settledness, which is
+what the rule's own wording says."* A `Proposed` record whose consequence is fully binding in
+`ONTOLOGY.md` is therefore not a new state in this repository; it is two-thirteenths of the
+`Proposed` set.
+
+**One asymmetry, named rather than waved past.** 0008 and 0012 documented decisions that predated
+their records; this one's consequence went live simultaneously. That does not separate them for the
+purpose the round-trip serves, which is review of the *reasoning*. Reverting the cells would leave
+§5.3 asserting a reading this review has now examined and upheld, and would leave two Meaning cells
+citing a record whose consequence had been withdrawn — worse than either stable state.
+
+**What `Proposed` means for a record whose consequence is already binding.** It governs the **cost
+of reversal**, not the permission to act. Under README's l.5 a `Proposed` record is corrected by an
+ordinary edit; under l.7 an `Accepted` one is append-only and changes only by a superseding ADR. So
+between landing and acceptance the widened cells were revertible in one commit, and from this turn
+they are not.
 
 ## Which vocabulary this touches, and which it does not
 
@@ -170,6 +203,19 @@ a decision, named as an implied change.** Insufficient alone: I8's labelling obl
 where the warrant matters. It is the natural companion to R2 and is described below rather than
 made.
 
+**(vii) Record the strongest source and disclose the composition in `rationale`, rather than R2's
+weakest link. — Rejected. Added in review**, because it is the rule the anchor record actually
+applied and the record rejected it without stating it as an option. It is the strongest case against
+R2: `basis` is one field, `rationale` is free text beside it, and a record that names
+`publication_methods` and then says in its own prose that the column tokens did the assignment has
+concealed nothing from a reader of the record.
+
+**Rejected because the two do not travel together.** I8 propagates `basis` into *"every view and
+export"*; **it propagates no `rationale`**. So the disclosure sits where a curator looks and the
+attribution goes where a reader looks, and the one that travels is the one that overstates. That
+asymmetry is the whole of the argument for R2, and it is why the anchor record is judged overstated
+rather than merely terse.
+
 **No option was chosen for unblocking the survey.** Under this settlement `PXD027328`'s mapping is
 available at `filename_inference` — which is a worse basis than the walks were looking for, not a
 better one — and `PXD027163`'s remains unestablished.
@@ -214,8 +260,54 @@ it states the composition in its own text — but its `basis` names the half tha
 load-bearing.
 
 **It is not amended here, and it could not be amended in place if it were.** `basis` is identifying,
-so a changed value mints a different `Analysis` id; under I6 that is a supersession with the
-retraction propagating to every derived result, not an edit.
+so a changed value mints a different `Analysis` id. That makes the change a supersession rather than
+an edit — under §5.3's own sentence *"Curation nodes are immutable under I6"*, which is where
+curation nodes acquire that property: **I6's own text names `ModifierAssignment` and
+`DifferentialResult` only**, so the obligation reaches `Analysis` through §5.3 and not directly.
+
+### The extent of that supersession — Added in review
+
+Measured by loading `data/curation/curation_PXD018299.json` through `bzk/curation/loader.py` twice,
+once as committed and once with `basis` substituted, and diffing the two node and edge sets. **Held
+in memory; nothing was written and no supersession was made.**
+
+| | As committed | Under R2 |
+|---|---|---|
+| curation `Analysis` id | `bzk:bc90e3eb515d6edd1351ce25ecd33209` | `bzk:33b8991446168c8b25d2405b341729ab` |
+
+**Exactly one node id moves, of sixteen.** The other fifteen are unchanged: 12 `Sample`, 1
+`Project`, 1 `Experiment`, 1 `Dataset`. `Sample` is anchored on `("Experiment", "PERFORMED_ON")`,
+not on the curation `Analysis`, so no sample id is a function of the basis.
+
+**Thirteen edges of thirty-eight are re-keyed**, all on the moved endpoint — 12 `SAMPLE_GENERATED_BY`
+(target) and 1 `USED` (source). Unchanged: 12 `PRODUCED`, 12 `PERFORMED_ON`, 1 `CONTAINS`.
+
+**Nothing further is downstream in the id sense.** The two identity specs anchored on `Analysis` are
+`DifferentialResult` (`WAS_GENERATED_BY`) and `Imputation` (`IMPUTATION_FOR`), and **neither node
+type is constructed anywhere in shipped code**; the two adapters' `Analysis` nodes are their own,
+each anchored on `Dataset`. `SampleMapping.curation_analysis_id` changes value and **is read by no
+adapter** — declared at `bzk/adapters/base.py` l.46, constructed at `loader.py` l.170, consumed
+nowhere.
+
+**Three committed literals pin the moved id** and would have to move in the same commit:
+`tests/fixtures/pxd018299_curation_ids.json`, `tests/test_perseus.py` l.74, and `HANDOFF.md`'s
+minted-id table. The fixture's own note calls itself a *"re-mint tripwire"* and requires that it
+never be regenerated to make a red test green without the move being explained — which is what this
+section exists to supply in advance.
+
+**The other two curation records are not downstream in the id sense.** Neither
+`resolution_PXD018299.json` nor `analysis_PXD018299_KOIFN_vs_WTIFN.json` is loaded into the graph by
+any shipped path; both hold counts rather than ids, and `bzk/sources/pxd018299_differential.py`
+deliberately transcribes the second's parameters rather than reading it, to keep the comparison from
+being circular. **They are downstream in I8's labelling sense**, being computed from the mapping the
+curation record supplies.
+
+**`12 of 14` is unaffected, and this is established rather than estimated.** The differential run
+consumes `curation.sample_mapping()`'s samples, not its `basis`; the mapping itself does not change;
+and `tests/fixtures/pxd018299_welch_baseline.json` — the fixture pinning which twelve — contains no
+`basis` field and no node id at all, 14 target rows with 12 flagged recovered. **Both values are
+`inferred`**, so I8's labelling obligation and its strength are identical before and after; what
+changes is the string naming the basis, not the warning a reader sees.
 
 ## Implied changes, described and not made
 
@@ -225,10 +317,23 @@ retraction propagating to every derived result, not an edit.
 2. **The `curation_PXD018299.json` supersession** above, with its I6 propagation.
 3. **A `basis_sources` or `rationale`-adjacent field** recording every source a composed mapping
    used, per option (vi) — a DDL change, and out of scope by two rules.
-4. **A guard for R2**, asserting that a record whose `rationale` names a column-token reading does
-   not carry a basis stronger than `filename_inference`. Machine-checkable in principle and not
-   written here; naming it without writing it is the gap this project's point-3 discipline exists to
-   surface, and it is named as open rather than closed.
+4. **A guard for R2 — restated in review, because the reason it was deferred has now expired.**
+   It was deferred at landing on the ground that writing it would enforce a decision ahead of its
+   acceptance. **That reason stopped applying with the status change above**, so it is replaced by a
+   narrower one rather than repeated.
+
+   **What it would assert:** for every record under `data/curation/`, if `rationale` names a reading
+   of the table's own column names as evidence for the mapping, then `basis` is `filename_inference`.
+   The anchor record is the only instance, so the guard would go red on the tree as it stands.
+
+   **Why it is not written in the same turn as the acceptance:** it would fail on a record this
+   record explicitly declines to amend, and a guard that is red from birth is indistinguishable
+   from a broken guard. The two must land together or in that order.
+
+   **What makes it writable:** the supersession described above. Once the anchor record carries
+   `filename_inference`, the guard passes on a true state rather than pinning a known violation,
+   and the three literals in the extent table have moved with it. **Named as open, with its trigger
+   stated, rather than left as a note a reader must remember.**
 5. **No amendment to I8 at l.888.** R2 changes which value gets named under I8's obligation; it does
    not change the obligation, and I8's filename clause is satisfied either way — a composed mapping
    recorded as `filename_inference` is not presented as coming from the submitters.

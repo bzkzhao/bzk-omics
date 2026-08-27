@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.11 |
+| Version | 2.12 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -9888,6 +9888,93 @@ there are **five**. `EnzymeAssociation.basis` is declared in the DDL and was not
 2. **A guard for the weakest-link rule is machine-checkable and is not written.** It would assert
    that a record whose `rationale` names a column-token reading carries no basis stronger than
    `filename_inference`. **Named as open rather than closed**, because a note is not a guard.
+
+### ADR-0026 reviewed and accepted; the anchor supersession is now costed to the node, 2026-08-18
+
+The review half of ADR-0026's round-trip. **This turn fetches nothing, walks no deposit, changes no
+code, and makes no supersession.** Five reviewer findings; the record is **`Accepted`**, on the
+ground that none of the five identified a defect in the decision itself.
+
+**It is the second completed round-trip in twenty-five records.** `decisions/README.md` names
+ADR-0022 as the only one; that measurement is re-struck in the file's own convention rather than
+edited away.
+
+#### The consequence that went live before its record, ruled
+
+§5.3's two Meaning cells were widened in the same commit that landed the ADR `Proposed`, so the
+normative ontology carried the consequence before the argument had been read. **The amendment
+stands.**
+
+**The ground is in `decisions/README.md` and is about two of its own records.** Its status paragraph
+says ADR-0008 and ADR-0012 *"record decisions that are already live and normative as I6 and I9: the
+status is a property of **the record's** review state, not of the decision's settledness"*. A
+`Proposed` record whose consequence binds is therefore not a new state here.
+
+**What `Proposed` means for such a record: it governs the cost of reversal, not the permission to
+act.** l.5 makes a `Proposed` record correctable by an ordinary edit; l.7 makes an `Accepted` one
+append-only and changeable only by a superseding ADR. Between landing and this turn the widened
+cells were revertible in one commit. **From this turn they are not**, and that is the whole of what
+the status change costs.
+
+#### The extent of the anchor supersession, measured rather than described
+
+The ADR concluded that `curation_PXD018299.json`'s correct `basis` is `filename_inference` and said
+only that a changed value mints a different `Analysis` id. **The extent is now on the record at the
+same precision as the rule**, obtained by loading the record through `bzk/curation/loader.py` twice
+— once as committed, once with the value substituted — and diffing the node and edge sets in memory.
+
+| Quantity | Result |
+|---|---|
+| node ids that move | **1 of 16** — the curation `Analysis`, `bzk:bc90e3eb…` → `bzk:33b89914…` |
+| node ids unchanged | **15** — 12 `Sample`, 1 `Project`, 1 `Experiment`, 1 `Dataset` |
+| edges re-keyed | **13 of 38** — 12 `SAMPLE_GENERATED_BY`, 1 `USED` |
+| edges unchanged | **25** — 12 `PRODUCED`, 12 `PERFORMED_ON`, 1 `CONTAINS` |
+| committed literals pinning the moved id | **3** — the id fixture, `tests/test_perseus.py`, `HANDOFF.md`'s minted-id table |
+
+**No `Sample` id moves**, because `Sample` anchors on `("Experiment", "PERFORMED_ON")` rather than
+on the curation `Analysis`. **Nothing else is downstream in the id sense**: the two specs anchored on
+`Analysis` are `DifferentialResult` and `Imputation`, and neither node type is constructed anywhere
+in shipped code. `SampleMapping.curation_analysis_id` changes value and **is read by no adapter**.
+
+**`12 of 14` is unaffected, and that is established rather than assumed.** The differential run
+consumes the sample mapping, not the basis; `tests/fixtures/pxd018299_welch_baseline.json` carries
+no `basis` and no node id; and **both values are `inferred`**, so I8's obligation and its strength
+are identical either way. What changes is the string naming the basis, not the warning a reader sees.
+
+**The other two curation records are not downstream in the id sense** — neither is loaded into the
+graph by any shipped path — **and are downstream in I8's labelling sense**, being computed from the
+mapping the curation record supplies.
+
+#### Two corrections the review produced
+
+**One precision fix.** The ADR said the change is a supersession *"under I6"*. **I6's own text names
+`ModifierAssignment` and `DifferentialResult` only**; curation nodes acquire immutability through
+§5.3's sentence *"Curation nodes are immutable under I6"*. The citation now names both hops.
+
+**One rejected option the record had applied without naming.** Option (vii): record the strongest
+source and disclose the composition in `rationale`, which is exactly what the anchor record does.
+**Rejected because the two do not travel together** — I8 propagates `basis` into every view and
+export and propagates no `rationale`, so the disclosure sits where a curator looks while the
+attribution goes where a reader looks. **That asymmetry is the whole argument for the weakest-link
+rule**, and it was missing from the options list in the turn that relied on it.
+
+#### The R2 guard's deferral, restated because its reason expired
+
+The guard was deferred at landing because writing it would enforce a decision ahead of acceptance.
+**That reason stopped applying with the status change**, so the ADR now carries a narrower one:
+the guard would assert that a curation record whose `rationale` names a reading of the table's own
+column names carries `basis = 'filename_inference'`, **the anchor record is the only instance, and
+it would therefore go red on the tree as it stands**. A guard red from birth is indistinguishable
+from a broken one. **Its trigger is the supersession**, and it is recorded with that trigger rather
+than as a note a reader must remember.
+
+#### A report figure that reached no file
+
+The previous report said *"six lines"* of deletions and enumerated eight; `git diff 31d0243 10d76f6
+| grep -c '^-[^-]'` returns **eight**. **Confirmed by grep that the figure reached no committed
+project file** — the only repository hit for the phrase is `ROADMAP.md` l.3520, about a command
+block, plus one in vendored `pandas` test data. **No correction is owed and the defect does not
+enter the standing list.**
 
 ### Deposit and supplementary survey, 2026-08-07
 
