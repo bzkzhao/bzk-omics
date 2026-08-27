@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.14 |
+| Version | 2.15 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -10260,6 +10260,160 @@ constructed in memory and deliberately never written. If Question 2 comes back r
 is `Accepted` and append-only, so a changed verdict needs a superseding record — **described, not
 written**. If Question 3 finds the methods naming a column family, that is reported against both the
 rationale and the pipeline, and **neither file is touched**.
+
+### The anchor's methods section, walked at last: three questions answered, two of them against the record, 2026-08-18
+
+l.68's *"public, is open, and is **unchecked**"* is no longer true of this project. The BJC paper was
+fetched and its methods section read. **No curation record is written, no supersession is made,
+nothing is ingested, no adapter runs, and no code changes.**
+
+**Rulings: Question 1 *present but insufficient*. Question 2 *present but insufficient*. Question 3
+— the methods name no column family at all.** The pre-registration at the previous commit predicted
+the third and registered no prediction on the first two.
+
+#### What was fetched
+
+| Call | Bytes | HTTP |
+|---|---|---|
+| Europe PMC, `DOI:"10.1038/s41416-020-01167-y"` | **15,895** | 200 |
+| full text `PMC7884788` | **142,948** | 200 |
+| **total** | **158,843** | |
+
+**No paywall, no refusal, no retry, and no discarded body** — the paper is open access at Europe PMC
+and `isOpenAccess` is `Y`. Every size is measured. **No supplementary file was fetched**, for the
+reason ruled on below.
+
+The record resolves as *Pinto-Fernández et al., "Deletion of the deISGylating enzyme USP18 enhances
+tumour cell antigenicity and radiosensitivity", Br J Cancer*, PMID **33214684**, PMC **7884788** —
+one hit, so the plural-reference question does not arise.
+
+#### Question 1 — the fourteen proteome columns: present but insufficient
+
+**The methods do describe a matching proteome, and describe it only as a procedure.** The one
+sentence that creates it:
+
+> *"At this point, 20 µg of digested protein were separated for matching proteome control analysis."*
+
+and the two that process it:
+
+> *"…a Q Exactive HF (GlyGly), Fusion Lumos (ISG15 interactome) or a Q Exactive (Matching proteome)…"*
+> *"…over a 60 min (120 min in the case of the matching proteome) gradient…"*
+
+**Every mention is procedural.** The methods never state how many proteome samples there are, which
+genotype or treatment each represents, or what any of them is called. **The number fourteen appears
+nowhere in the paper.** l.2387's standard — *"Minting samples from the fourteen column names is what
+I8 forbids in as many words"* — is not met, and nothing here changes what l.2410 records.
+
+**The registered impossibility held.** Fourteen is not divisible by four conditions, so matching
+count to count was never available; it was not needed, because there is no count to match.
+
+**One fact the methods add that the record did not have.** The matching proteome ran on a **Q
+Exactive**, the GlyGly on a **Q Exactive HF** — different instruments, on a 120-minute rather than a
+60-minute gradient. The two runs are more separate than *shared lysate, split at the C-18 step*
+suggests.
+
+#### Question 2 — the twelve site-table samples: present but insufficient
+
+**The methods name the biology and never touch the file.** The GlyGly subsection's opening is the
+whole of what it says about which cells:
+
+> *"HAP1 lysates were used for GlyGly immunoprecipitation using the PTMScan Ubiquitin Remnant Motif
+> Kit (Cell Signaling), according to the manufacturer's protocol."*
+
+**Not WT versus KO. Not ± IFN. Not a replicate count.** The four arms are established in the results
+and figure legends, not in the methods; *triplicate* and *replicate* occur three times in the paper
+and every one is a FACS or ELISA experiment, never the proteomics.
+
+**The sharpest registered test came back negative.** `KO_1_181212063719` carries a trailing run
+identifier, and if the paper named it there would be a non-token route for at least one sample.
+**`181212` returns zero hits. So do `.raw`, `raw file`, and `HAP1_USP18KO`.** No file name, no run
+identifier and no column name appears anywhere in the paper.
+
+**So the assignment cannot be made without reading the column tokens, and this is now measured
+rather than assumed.** ADR-0026's conclusion at l.258 — that under R2 at l.125 the anchor's correct
+`basis` is `filename_inference` — **stands on evidence.** The composition has a weak link, the
+column-token reading is load-bearing, and the ADR needs no superseding record on this ground.
+
+**A supplementary file could not rescue it.** The paper carries Supplementary Table 1 and
+Supplementary Data Tables 1–4. **No methods sentence cites any of them for the design** — the word
+*Supplementary* occurs exactly once in the body before the file listing, as the heading of the
+information section. Under §5.3's widened l.583 that puts them out of reach, so **they were named and
+not fetched**, and R3's boundary was not crossed.
+
+#### Question 3 — the methods name no column family, and the prediction was that they would not
+
+**Confirmed: `Ratio mod/base` returns zero hits and `Intensity` returns zero hits** in the entire
+paper. What the methods name is a quantitation *mode* and a statistical procedure:
+
+> *"…searches against the UniProtKB human sequence data base (92,954 entries) and label-free
+> quantitation were performed using MaxQuant Software (v1.5.5.1)… LFQ quantitation was performed
+> using unique peptides."*
+
+> *"…volcano and scatter plots were generated using a t-test with permutation FDR = 0.01 for
+> multiple-test correction and s0 = 0.1 as cut-off parameters."*
+
+**LFQ is a MaxQuant setting, not a site-table column family.** The methods therefore adjudicate
+**neither** the rationale's instruction nor the pipeline's choice. **This turn rules on neither and
+changes neither.**
+
+**What that does establish is a defect in a committed curation record, and it is named rather than
+fixed.** `curation_PXD018299.json`'s `rationale` opens *"Design taken from the methods section of
+Pinto-Fernandez et al."* and closes with an instruction that has **no source in that methods
+section**:
+
+> *"the raw 'Intensity' columns are confounded by interferon-driven induction of the parent proteins
+> and should not be used for this contrast."*
+
+**That is the curator's analytical judgement, carried inside a field whose first sentence attributes
+its contents to the paper, with nothing marking the change of footing.** The field is `rationale`;
+the file is `data/curation/curation_PXD018299.json`. **Not amended.**
+
+**The conflict is sharper than it looked, and the mapping keys are where it shows.** Every one of the
+record's twelve mapping keys is a `Ratio mod/base <sample>` column name.
+`bzk/sources/pxd018299_differential.py` l.126 builds `f"Intensity {arm}_{i}"`. **So the pipeline
+takes arm membership from the record and applies it to a column family the record's own keys do not
+name**, and l.164's *12 of 14* — a regression test at l.200 — was produced that way. **Reported;
+neither file is touched.**
+
+#### The five registered facts
+
+| Fact | Registered | Found | Verdict |
+|---|---|---|---|
+| cell lines | present and confirmed | *"human HAP1 cells, a chronic myeloid leukaemia (CML)-derived cell line, in the presence or absence of the USP18 gene"*; methods name *"HAP1 control or HAP1 USP18 KO cells"* | **confirmed** |
+| treatment and dose | present and confirmed | *"Cells were treated with 1000 U/mL of human interferon α 2 (α2b) from PBL Assay Science"* | **confirmed, in the methods** |
+| timepoint | present, 48 h on the GlyGly comparison; registered as the likeliest to come back partly wrong | **the methods say *"for the indicated times"* and give no figure.** 48 h appears in Fig. 1f's legend: *"GlyGly-modified peptides in HAP1 WT and USP18 KO cells treated with IFN for 48 h"* | **value confirmed, location contradicted** |
+| enrichment kit | present and confirmed | *"PTMScan Ubiquitin Remnant Motif Kit (Cell Signaling)"* | **confirmed** |
+| quantitative columns | **absent** | `Ratio mod/base` 0 hits, `Intensity` 0 hits; LFQ named as a setting | **confirmed absent** |
+
+**Four of five as registered; the fifth failed in the registered direction and for the registered
+reason.** The timepoint registration said multi-timepoint studies commonly state one figure for
+viability and another for proteomics, and that this was the most likely of the five to come back
+partly wrong. **It did — not by being wrong about 48 h, but by 48 h not being where the record says
+it came from.**
+
+**That is a second defect of the same shape as the third, and it is named and not fixed.** The
+record sets `timepoint_h: 48` on six columns — the IFN arms — and its `basis` is
+`publication_methods`, which §5.3's l.583 defines as read from the methods section. **A figure
+legend is not the methods section, and it is not a supplementary file the methods cite.** So one
+identifying-adjacent field in the shipped record has a source the record's own `basis` does not
+reach.
+
+Three further rationale claims were checked and all hold: **Q Exactive HF** for the GlyGly run,
+**MaxQuant v1.5.5.1**, and **UniProtKB human** — the paper adding **92,954 entries**, a figure the
+rationale does not carry.
+
+#### What follows, and does not
+
+**Question 1 came back insufficient, so no curation record for the proteome run is possible from
+this source**, and l.2503–2504's in-memory fourteen-sample mapping stays unwritten. **Question 2
+came back insufficient, so ADR-0026's l.258 conclusion is unchanged and no superseding record is
+needed** — the ADR is `Accepted` and append-only, and nothing here asks it to move. **Question 3
+found nothing that adjudicates the column choice**, so the rationale and the pipeline are left
+exactly as they are, with their disagreement now recorded as a defect rather than an open question.
+
+**`author_correspondence` at l.581 remains the only untried route for either run.** l.68's row said
+the entry *"would move only if the public avenue were walked and found empty."* **It has now been
+walked. It is not empty — it is insufficient**, which is a different finding and is recorded as one.
 
 ### Deposit and supplementary survey, 2026-08-07
 
