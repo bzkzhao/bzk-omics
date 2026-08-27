@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.08 |
+| Version | 2.09 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -9435,6 +9435,126 @@ are not interchangeable and the first must not be read as comfort about the seco
    a re-draw is a separate turn.
 3. **Criterion 11 stays withdrawn**, and this turn adds why it cannot simply be reinstated: its test
    needs D2, and D2 is closed by documentation rather than by a missing document.
+
+### `PXD019152`'s mapping walk: the paper is open, names the design, and assigns no column, 2026-08-18
+
+The mapping walk `PXD075538` failed is run the same way for `PXD019152`. **No curation record is
+written, nothing is ingested, and no artefact is fetched** — project metadata, the file listing and
+one paper.
+
+**Ruling, per artefact and separately, because their sample sets differ: both are *present but
+insufficient*.** Unlike `PXD075538`, the source here is rich — a publication exists, is open access,
+and describes the design in detail. **It still assigns nothing to a column**, and there is a second
+insufficiency underneath the first that no column assignment would repair.
+
+#### What had to be mapped
+
+`PXD019152` is *Homo sapiens*. Its two artefacts' sample sets are already measured and differ —
+l.7797 gives `GlyGly (K) no C termSites.txt` as **two** samples `Flg` and `GST`; l.7798 gives
+`GlyGly (K)Sites.txt` as **two** named `FLAG` and `GST`. **Both counts and both name pairs confirmed
+by reading those two rows**, not re-derived from the verbatim header blocks. Those rows name the
+member tables; the archives they came from are `MaxQUANT_HpH.zip` and `MaxQUANT_PRM.zip`
+respectively, by l.6655–6656.
+
+**Two samples per artefact is a materially smaller problem than twenty-seven. It is not a different
+problem**, and the walk below is where that shows.
+
+#### Basis 1 — `submitter_metadata`: present but insufficient
+
+`https://www.ebi.ac.uk/pride/ws/archive/v3/projects/PXD019152`, **8,850 bytes**, HTTP 200, and the
+file listing at **28,649 bytes**, HTTP 200.
+
+The `sampleProcessingProtocol` describes the design:
+
+> *"Ubiquitylated proteins purified from DDI2 KO cells and the total ubiquitylome in WT cells were
+> compared. Ubiquitylated proteins from FLAG-DDI2DàN beads or GST-DSK2 resin were eluted with 8M
+> Guanidine-HCl…"*
+
+**It names conditions and it names no column.** There is no `sampleAttributes` per-sample record and
+no experimental-design file. **`sdrf` is confirmed closed for this deposit against the live listing
+rather than inherited from l.5284–5286**: 24 files — 20 `RAW`, 2 `SEARCH`, 1 `FASTA`, 1 `OTHER` —
+and **no file whose name contains `sdrf`**. The `OTHER` file is `checksum.txt`, 2,733 B.
+
+The listing does carry a **publication reference**, which is what `PXD075538` lacked:
+PubMed **32521225**, DOI **10.1016/j.molcel.2020.05.035**, *Mol Cell* 2020. So basis 2 is live.
+
+#### Basis 2 — `publication_methods`: present, detailed, and still insufficient
+
+Europe PMC search, **9,992 bytes**; full text `PMC7369636`, **144,073 bytes**. Both HTTP 200, no
+host refused anything, nothing was retried. **Total fetched this turn: 191,564 bytes**, all metadata
+and one paper.
+
+The methods repeat the deposit's protocol verbatim and the results section adds:
+
+> *"ubiquitylated proteins from DDI2 KO cells purified via immobilized DDI2 D→N were compared with
+> the total "ubiquitylome" in WT cells."*
+
+and the PRM analysis is described as targeted:
+
+> *"the specific monitoring of the three peptide sequences … corresponding to the branched ubiquitin
+> chains at positions K11+K27, K27+K29 and K29+K33"*
+
+**The paper never mentions a column name, a MaxQuant experiment name, or how the deposit's archives
+are organised.** `Flg`, `FLAG` and `GST` appear nowhere in it as data labels — `FLAG` appears 44
+times and `GST` 8, always as reagents.
+
+#### The match that is available and is not performed
+
+**This is the near miss the walk exists to catch.** The paper names exactly two purification
+matrices, **FLAG-DDI2 D→N** and **GST-DSK2**, and the artefacts carry exactly two samples named
+**`FLAG`/`Flg`** and **`GST`**. The assignment is obvious to a reader and **it is an assumption**.
+
+**Making it would require reading depositor-chosen strings as naming the submitters' reagents**,
+which is `filename_inference` — `ONTOLOGY.md` l.888's I8 states that design inferred from filenames
+is never presented as though it came from the submitters, and criterion 11, which existed to test
+whether that inference generalises, stands withdrawn at l.7623–7629. **The paper does not say the
+column named `GST` is the GST-DSK2 arm. Nothing does.** The match is by shared token and by counting
+two against two, and both are exactly what this walk was told to refuse.
+
+**So the state is *present but insufficient*, and it is not rounded up to partially recoverable.**
+Zero of the two samples are assigned in either artefact.
+
+#### A second insufficiency, which no column assignment would repair
+
+**The design confounds two factors and the paper says so in its own sentence.** The comparison is
+**DDI2 KO against WT** — a genotype contrast — while the purification is **FLAG-DDI2 D→N against
+GST-DSK2** — an enrichment chemistry. The methods pair them: KO material comes off the DDI2 D→N
+beads, and the WT *total* ubiquitylome comes off the DSK2 resin.
+
+**Each arm therefore differs in both factors at once.** A `Contrast` built from these two samples
+would be a difference in genotype *and* in affinity matrix simultaneously, with **one sample per
+arm** — the paper reports triplicates and biological replicates only for western blots and
+Incucyte assays, never for the UbiSite mass spectrometry.
+
+**Even a correct column assignment would not produce an interpretable contrast**, and that is a
+finding about the deposit rather than about the walk. It is recorded because a future turn given a
+mapping by `author_correspondence` would still face it.
+
+**The PRM artefact carries a third problem of its own.** Its 31 sites come from a targeted assay
+monitoring three named branched-ubiquitin peptides, not from a discovery run. It is not a diGly
+site-discovery dataset in the sense the anchor's is, whatever its columns turn out to mean.
+
+#### What this means for the selection
+
+**`PXD019152` cannot be ingested.** I8 requires every `Sample` to reach a curation `Analysis`, and no
+`Sample` can be constructed without knowing what its column represents. Neither public basis supplies
+that. **The remaining route is `author_correspondence` at l.581** — `authoritative`, and the
+operator's rather than mine. Named, and this turn stops there.
+
+**Two of the four human non-anchor deposits have now failed the same walk**, and the second failed
+with far better sources than the first: `PXD075538` had no publication at all, `PXD019152` has an
+open-access one that describes its design in a paragraph. **That is a fact about the survey's route,
+not about either deposit.** The route asks a question — *which column is which condition* — that
+neither a PRIDE record nor a methods section is written to answer, because both describe experiments
+and neither describes files. The one basis built to answer it is `sdrf`, and it is `N` on all twelve.
+
+**The selection at l.9242 is not re-opened.** `PXD019152` remains what C2 ranked first among the
+human four; what this turn adds is that it is unusable without the authoritative route, exactly as
+`PXD075538` was.
+
+**No prediction was registered about recoverability and none is registered now.** The deposit's age
+and its 24 published checksums made a publication likelier, and a publication duly existed — and it
+made no difference to the outcome. Two walks are still a sample of two.
 
 ### Deposit and supplementary survey, 2026-08-07
 
