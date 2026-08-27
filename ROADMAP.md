@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.09 |
+| Version | 2.10 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -9555,6 +9555,255 @@ human four; what this turn adds is that it is unusable without the authoritative
 **No prediction was registered about recoverability and none is registered now.** The deposit's age
 and its 24 published checksums made a publication likelier, and a publication duly existed — and it
 made no difference to the outcome. Two walks are still a sample of two.
+
+### `PXD027163` and `PXD027328` walked: both insufficient, and the count the route was to reach is three of four, not four, 2026-08-18
+
+The mapping walk is run for the two remaining human non-anchor candidates named in the instruction.
+**No curation record is written, nothing is ingested, and no artefact is fetched** — project
+metadata, two complete file listings and one paper.
+
+**Ruling: `PXD027163` is *present but insufficient* on `submitter_metadata` and *absent* on
+`publication_methods`. `PXD027328` is *present but insufficient* on both.** Neither is recoverable.
+
+**And the route's arithmetic is not what the walk was set up to close.** The instruction's premise —
+that `PXD075538` and `PXD019152` are two of the four human non-anchor deposits, so these two are the
+remaining pair — is **false against the file, and the error is mine from the previous turn**. It is
+corrected below before the outcome is stated, because it changes the outcome.
+
+#### What had to be mapped, and one row that does not carry what it was asked for
+
+Both deposits are *Homo sapiens*: `PXD027328` at l.9123, `PXD027163` at l.9125.
+
+**`PXD027163` — three samples, and l.7810 carries all three.** The row reads `35 | 35 | **3** |
+`S1`, `S2`, `S3``. **Count and names confirmed by reading it**, not re-derived from the header
+blocks. Nothing is abbreviated.
+
+**`PXD027328` — twelve samples, and l.7811 does not carry the nine it was said to abbreviate.** The
+row reads `12 | 12 | **12** | `DMSO1`, `DMSO2`, `DMSO3`, … (+9)`. **The count of twelve is confirmed
+by reading it; the nine names are not on that row.** The instruction asked for them in full from
+l.7811 and l.7811 does not have them, so the file wins and the gap is reported.
+
+**The record's only other prose list of this sample set gives nine, not twelve, and reads as
+exhaustive.** l.7414–7415: *"`PXD027328`'s samples are `DMSO1, DMSO2, DMSO3, MG1, MG2, MG3, PR1,
+PR2, PR3`"*. That is **six names beyond the row's three**, and it is three short of the row's own
+count. **Two on-file statements of the same set disagree**, and neither is the header block.
+
+The last three exist in the record only in the verbatim header block at l.7075, where they read
+`TAK1`, `TAK2`, `TAK3`. **That source was excluded for this measurement and is used here for one
+purpose only** — to make 3 + 6 + 3 = 12 checkable rather than leave the row's count unreconciled.
+The exclusion was not otherwise crossed, and the discrepancy between l.7414–7415 and l.7811 is
+recorded rather than repaired.
+
+#### `PXD027163`, basis 1 — `submitter_metadata`: present but insufficient
+
+Project metadata **4,816 bytes**, HTTP 200.
+
+The deposit describes three experiments in one `projectDescription`:
+
+> *"Three set of SILAC experiments were performed (classical double-triple labeling): (1) Global
+> analysis of ubiquitination events using the UbiSite approach… (1) Protein-protein interactions of
+> TNIP1 performing HA-TNIP1 AP-MS analyses… (3) Expression proteomics comparing WT and different
+> TNIP1 ko clones."*
+
+**The design is promised three times and supplied zero times.** The sentence that would carry it is
+*"Three biological replicates were performed using following SILAC labeling"* — and **nothing
+follows it, on any of the three occurrences.** The first is followed immediately by the next
+experiment, the second likewise, and the third **is where the description ends**, mid-sentence. Under
+SILAC the conditions live in the labelling channels, so the missing clause is precisely the mapping.
+The deposit's own enumeration is also broken: the three arms are numbered `(1)`, `(1)`, `(3)`.
+
+`sampleProcessingProtocol` is generic and names no condition at all:
+
+> *"Proteins were reduced with DTT and alkylated with IAA, followed with SDS-PAGE fractionation and
+> trypsin in-gel digestion."*
+
+`sampleAttributes` carries **two deposit-level tuples** — organism part and organism — and **no
+per-sample rows**. `additionalAttributes` is `[]`. **Zero of the three samples are assigned.**
+
+**`sdrf` re-checked live and confirmed absent, over the complete listing rather than a truncated
+one.** The listing is **195 files** and the endpoint caps at 100 per page, so it was paginated: 2
+pages, **227,822 bytes**, `total_records: 195`. Categories 177 `RAW`, 15 `OTHER`, 3 `SEARCH`; **no
+file whose name contains `sdrf`**. A prior unpaginated call returned 100 rows and **116,918 bytes**,
+which is what an inherited check would have measured — it would have missed 95 files.
+
+#### `PXD027163`, basis 2 — `publication_methods`: absent
+
+**`references` is `[]` and `doi` is the empty string.** The deposit carries no publication reference.
+**No paper was fetched, because there is none to fetch**, and no title search was performed.
+
+**This is an empty source, not a blocked route.** No host refused anything.
+
+#### `PXD027328`, basis 1 — `submitter_metadata`: present but insufficient
+
+Project metadata **9,470 bytes**, HTTP 200.
+
+`sampleProcessingProtocol` opens by naming four treatments:
+
+> *"U2OS cells were treated with either DMSO, 1µM TAK-243, 10µM MG132 or 20µM PR619 for 3h then
+> washed twice with ice-cold PBS, scraped and lysed."*
+
+**It names four conditions and it names no column, no replicate count, and no sample.** The remainder
+is a single unbroken protocol paragraph — lysis, digestion, UbiSite IP, high-pH fractionation,
+gradient — applied to *"each sample"* without ever distinguishing one. `sampleAttributes` carries
+**two deposit-level tuples** and **no per-sample rows**; `additionalAttributes` is `[]`. **Zero of
+the twelve samples are assigned.**
+
+**`sdrf` re-checked live and confirmed absent over the complete listing.** **201 files**, paginated
+over 3 pages, **249,877 bytes**, `total_records: 201`. Categories 192 `RAW`, 5 `SEARCH`, 3 `OTHER`,
+1 `FASTA`; **no file whose name contains `sdrf`**. The unpaginated call returned 100 rows and
+**124,299 bytes**.
+
+The listing carries **exactly one publication reference**, so basis 2 is live.
+
+#### The plural-reference rule was tested and did not bind
+
+`references` holds **one** entry: PubMed **35585066**, DOI **10.1038/s41467-022-30376-7**, *Nat
+Commun* 2022 13(1):2736. **`PXD027163` holds zero.** So neither listing is plural, the choice-of-paper
+question does not arise, and **one paper was read in total this turn.**
+
+One divergence worth recording rather than reconciling: the deposit title says *"unique sets of
+ubiquitin substrates"* and the reference line says *"preferential sets"*. **The published title is
+not the deposit title.**
+
+#### `PXD027328`, basis 2 — `publication_methods`: present, detailed, and still insufficient
+
+Europe PMC search **8,565 bytes**; full text `PMC9117253` **177,993 bytes**. Both HTTP 200, open
+access.
+
+The paper's data availability assigns the accession to an arm:
+
+> *"…the dataset identifier PXD027330 for His10-Ub and PXD027328 for UbiSite DDA data and PXD030644
+> for UbiSite DIA data"*
+
+and the analysis methods name the four groups and the replicate depth:
+
+> *"Data were log2 transformed and filtered for identification in all three replicates separately for
+> each treatment group (TAK243, MG132 and PR619) compared to control (DMSO)."*
+
+**This is the most design detail any source has supplied in three walks, and it still assigns nothing
+to a column.** Checked directly: **`Sites.txt` appears 0 times** in the full text, and **`Supplementary
+Table` 0 times**. The word `column` appears **four** times and is a chromatography column three times
+and a heatmap axis once — **never a data-table column**. The one table filename in the paper is
+`GlyGly.txt`, which **is not the deposit's filename**; the artefact is `GlyGly__K_Sites.txt`.
+
+#### The match that is available and is not performed
+
+**This is the trap the instruction named, and it is worse than two-and-two by exactly the margin
+predicted.** The paper names four treatment groups — `DMSO`, `TAK243`, `MG132`, `PR619` — at three
+replicates each; the artefact carries twelve samples whose names are `DMSO1`–`3`, `TAK1`–`3`,
+`MG1`–`3`, `PR1`–`3`. Four groups against four token families, three replicates against three
+trailing digits.
+
+**Making the assignment would require both forbidden moves at once**: matching condition names to
+column tokens by resemblance (`TAK243`→`TAK`, `MG132`→`MG`, `PR619`→`PR`) and matching the count of
+described conditions to the count of columns. **No source says the column named `MG1` is a MG132
+sample.** `DMSO` is quoted here and not interpreted; that it looks like a vehicle control is not
+evidence, and `ONTOLOGY.md` l.888's I8 holds that design inferred from filenames is never presented
+as though it came from the submitters. Criterion 11, which existed to test whether that inference
+generalises, stands withdrawn at l.7623–7629.
+
+**A further gap that survives even the forbidden match.** Nothing in either source distinguishes
+`DMSO1` from `DMSO2` from `DMSO3`. The replicate index is unassigned by every source read.
+
+**So the state is *present but insufficient* for both deposits, and neither is rounded up.**
+
+#### A boundary met on the metadata side, recorded and not crossed
+
+The instruction anticipated a supplementary table carrying the column key. **That boundary did not
+arise**: the paper's nine Supplementary Datasets are cited for statistics and site lists, **none is
+described as carrying sample annotation**, and no methods sentence points at one for the design. They
+exist, they are unchecked, and they were not fetched.
+
+**A structurally identical boundary arose on the other basis instead, and is the more likely home for
+these mappings.** Both file listings contain deposit files that are not the artefact and would
+ordinarily carry the experiment-to-file assignment:
+
+| Deposit | File | Bytes |
+|---|---|---|
+| `PXD027163` | `readme.txt` | 1,979 |
+| `PXD027163` | `UbiSite_summary.txt` | 30,050 |
+| `PXD027163` | `UbiSite_parameters.txt` | 3,505 |
+| `PXD027328` | `mqpar.xml` | 67,922 |
+| `PXD027328` | `mqpar_DP.xml` | 66,884 |
+
+**Named, and not fetched.** They are artefacts, which this turn does not fetch; and whether a
+deposit's own README or parameter file falls under `submitter_metadata`, under `filename_inference`,
+or under neither is a question about the closed enum at `ONTOLOGY.md` l.578–584. **That is a decision
+turn.** Ruling on it here would settle a basis question inside a measurement, which is the same
+error the supplementary boundary exists to prevent. It is recorded because it is general: **no walk
+so far has named it.**
+
+#### Where the diGly sites came from, reported and not ruled on
+
+**`PXD027328` — proteome-wide enrichment, and the sources establish it.** The protocol is
+antibody enrichment from whole-cell lysate at **50 mg protein per sample**, targeting the Lys-C
+fragment of endogenous ubiquitin:
+
+> *"UbiSite antibody conjugated and crosslinked to Protein G beads were added to dissolved peptides"*
+
+and the paper describes it as *"UbiSite technology for site-specific enrichment of endogenous Ub
+sites from U2OS cells"*. **No tagged bait is purified.** The same paper's *other* deposit,
+`PXD027330`, is the His10-Ub pulldown; this one is not.
+
+**`PXD027163` — neither, because the sources do not establish it for this artefact.** The deposit
+holds three arms, one of which is *"Global analysis of ubiquitination events using the UbiSite
+approach"* and another *"HA-TNIP1 AP-MS analyses"* — a pulldown. **Its `experimentTypes` carries both
+`Shotgun proteomics` and `Affinity purification coupled with mass spectrometry proteomics` at deposit
+level and separates neither.** `sampleProcessingProtocol` never mentions UbiSite enrichment at all.
+There is no publication. **Attributing the artefact to the global arm rests on its filename prefix**,
+which is `filename_inference`, and l.6082 already records that `UbiSite` in that name *"may reflect
+the query rather than the method"*. So the third answer is the correct one here, and it is not
+forced into a binary.
+
+**Neither observation is turned into a criterion, a gate, or a reason to prefer a deposit.**
+
+#### The premise correction, and the outcome at its real scope
+
+**`PXD075538` is not one of the four human non-anchor deposits.** It is *Nicotiana benthamiana* at
+l.9120 and is **excluded by C0 gate (f)** at l.3849. The four are fixed at l.9276–9280:
+`PXD019152`, `PXD074990`, `PXD027163`, `PXD027328`.
+
+**The error originates in the record committed last turn**, which reads *"Two of the four human
+non-anchor deposits have now failed the same walk"* and then names `PXD075538` as one of them. That
+sentence counts a plant deposit inside a human population. **It is corrected here rather than edited
+there**, because these records are append-only.
+
+**So the measured outcome is three of four, not four of four.** `PXD019152`, `PXD027163` and
+`PXD027328` have each failed both public bases. **`PXD074990` has not been walked**, and nothing in
+this turn or any previous one establishes anything about its bases.
+
+**Outcome (d) is therefore not established by measurement**, and is not recorded as though it were.
+What is established is narrower and still decides the route:
+
+- **Three of the four human non-anchor candidates cannot be ingested**, each for the same reason —
+  I8 requires every `Sample` to reach a curation `Analysis`, and no `Sample` can be constructed
+  without knowing what its column represents.
+- **The failures are not explained by poor sources.** `PXD027328` has an open-access *Nat Commun*
+  paper that names its four treatment groups, its replicate depth, and its own accession's arm, and
+  it is still insufficient. `PXD027163` fails at the opposite extreme, with a description that
+  breaks off mid-sentence three times.
+- **The one basis built to answer the question is `sdrf`, and it is `N` on all twelve** — now
+  re-confirmed live and, for these two, over complete listings of 195 and 201 files rather than the
+  truncated 100 the endpoint returns by default.
+- **The remaining route for all three is `author_correspondence` at l.581** — `authoritative`, and
+  the operator's rather than mine.
+
+**The selection at l.9242 is not re-opened**, no candidate is re-ranked, and no prediction about
+recoverability was registered for either deposit before or after the walk.
+
+#### Bytes
+
+| Deposit | Metadata | Listing, paginated | Listing, first unpaginated call | Paper | Measured total |
+|---|---|---|---|---|---|
+| `PXD027163` | 4,816 | 227,822 | 116,918 | — | **349,556** |
+| `PXD027328` | 9,470 | 249,877 | 124,299 | 186,558 | **570,204** |
+| | | | | | **919,760** |
+
+`PXD027328`'s paper figure is the Europe PMC search at 8,565 plus the full text at 177,993. **One
+further call is not in the table**: a header-only probe of `PXD027163`'s files endpoint, made to read
+`total_records`, whose body was discarded and whose size was not captured. It is named rather than
+estimated. **Every request returned HTTP 200. No host refused anything, nothing was blocked, and no
+route was retried.**
 
 ### Deposit and supplementary survey, 2026-08-07
 
