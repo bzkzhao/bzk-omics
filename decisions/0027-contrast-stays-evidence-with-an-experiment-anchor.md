@@ -2,10 +2,43 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-08-18 |
+| Reviewed | 2026-08-18 — four findings, two revisions made below |
 | Supersedes | — |
 | Superseded by | — |
+
+## Review
+
+Landed `Proposed` at `b8ac9c7` and reviewed in the following turn. Four findings; one required no
+change, one produced a `ONTOLOGY.md` split recorded below, one corrected a ground in this record, and
+one is a scope note that belongs in `ROADMAP.md` rather than here. **No finding identified a defect in
+the decision**, and after the correction to ground 2 it stands on two independent sufficient grounds
+rather than three — which is the ground for the status above.
+
+### §1's diagram is not a census, and this is established by counting
+
+`Contrast` is absent from §1's partition diagram, and the review asked whether it should be added.
+**It should not, and the reason is that the diagram names 19 of the 24 node tables in the DDL.**
+Five are absent: `Contrast`, `EnzymeAssociation`, `Imputation`, `ProteinAssignment` and
+`ProteinObservation` — the last an observation node carrying a cross-boundary edge.
+
+**So the diagram is a schematic of the central distinction, not an enumeration of the model.** Adding
+only `Contrast` would be worse than leaving it: it would make the diagram read as a census while four
+node types stayed missing. Bringing all five in is a change to §1 with its own reasoning, not a review
+edit to this record, and it is not made here.
+
+### The orphan half is a different question and is now Q13
+
+Q1's strike and its surviving orphan paragraph were left unreconciled. **They are reconciled by
+splitting, not by weakening the word.** l.1077's behaviour is about I6 retraction propagation — does
+retracting a curation retract the `Contrast`s it defined — and not about which node set `Contrast`
+belongs to. The two were entangled only because Q1 raised the orphan as a symptom of the placement.
+
+**`ONTOLOGY.md` §11 gains Q13**, and Q1's entry now states that its strike covers the placement
+question and nothing else. **This decision changes the shape of the orphan fact without closing it**:
+under an `Experiment` anchor the survivor hangs off its `Experiment` rather than off nothing, so it is
+reachable and attributable, and it is still not retracted.
 
 ## Scope
 
@@ -105,13 +138,25 @@ glossing.
    locally."*** `numerator` and `denominator` are authored locally: the curator writes them into
    `contrasts_of_interest`, and `curation_PXD018299.json` carries them as free strings. The node
    fails the definition outright.
-2. **§1 l.26: *"The two sets are joined only through observation nodes,"*** called there *"the
-   load-bearing constraint of the entire model"*. `RESULT_IN_CONTRAST` runs from
-   `DifferentialResult`, which §1's diagram places in evidence and which is **not** an observation
-   node — the diagram's cross-boundary joins are `MEASURED_AT` and `ASSIGNS`. Promoting `Contrast`
-   would create a third kind of reference/evidence join, bypassing observation nodes entirely.
-   **This is the disjointness answer on the promotion branch: it does not preserve disjointness, it
-   punches a hole in the constraint disjointness exists to serve.**
+2. ~~**§1 l.26: *"The two sets are joined only through observation nodes"*** — promoting
+   `Contrast` would create a third such join and punch a hole in the constraint.~~ **Withdrawn as an
+   independent ground at review, 2026-08-18, because the premise is false.** Counted against the
+   shipped DDL: there are **eight** reference/evidence edges and only **two** run from an observation
+   node — `MEASURED_AT` from `SiteObservation` and `RESOLVES_TO_PROTEIN` from `ProteinObservation`.
+   The other six run from `Analysis` (`CURATION_CITES`), `ModifierAssignment` (`ASSIGNS`,
+   `ASSIGNMENT_CITES`), `EnzymeAssociation` (`ASSOCIATION_ENZYME`, `ASSOCIATION_CITES`) and
+   `ProteinAssignment` (`ASSIGNS_PROTEIN`) — every one an `EvidencedInference` subtype or an
+   `Analysis`, none an observation node. **`ASSIGNS` is one of the two edges §1's own diagram draws**,
+   so the diagram contradicts its caption. Promoting `Contrast` would be a seventh breach of a clause
+   already breached six times, which is an argument about direction and not a bright line.
+
+   **What survives is not independent of ground 1.** All six existing breaches point at entities that
+   exist outside this laboratory — a `Protein`, a `Modifier`, a `Publication`. `Contrast` would be the
+   first reference node with no external authority behind it, which is ground 1 restated. **So option
+   (ii) is rejected on two independent grounds, not three**, and either remains sufficient.
+
+   **§1 l.26 is left standing and is not amended here.** It is a load-bearing sentence in a normative
+   document; correcting it is a decision with its own record, not a review edit to this one.
 3. **l.1079's own stated price**, which is not a scheduling problem. A contrast is a *pair* of
    locally-defined conditions; an external vocabulary might supply the components and none
    enumerates the pair.
@@ -223,7 +268,7 @@ recordable now and why nothing needs a rebuild to record it.
 
 ## Consequences
 
-- **§11 Q1 is settled and Q1's l.1077 half is not.** Recorded above rather than left to a reader.
+- **§11 Q1's placement question is settled; its orphan half is now §11 Q13**, split out at review rather than left inside a struck entry.
 - **The Weeks 3-4 exit's cross-queried half stops being blocked on a placement question** and starts
   being blocked on the implied changes, which is a different and smaller kind of blocker.
 - **The enum of levers is unchanged**: this uses the anchor mechanism ADR-0025 established, on its

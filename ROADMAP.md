@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.16 |
+| Version | 2.17 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -10537,6 +10537,123 @@ correct guard and is what the stale run had mis-attributed. **This is the same c
 that silently does not apply**: a green or misattributed run indistinguishable from a guard that
 does not fire. Equal-length edits to a pinned integer are the case that defeats the usual
 invalidation.
+
+### ADR-0027 reviewed and accepted; §1's diagram is not a census and its caption is false, 2026-08-18
+
+The review half of ADR-0027's round-trip. **This turn changes no schema, DDL, identity field, edge,
+invariant or module, makes no supersession, and fetches nothing.** Four findings; the record is
+**`Accepted`**, on the ground that none identified a defect in the decision.
+
+#### §1's diagram omits five node types, and the count is the ruling
+
+**Established by counting, not asserted: the diagram names 19 of the DDL's 24 node tables.** Absent:
+`Contrast`, `EnzymeAssociation`, `Imputation`, `ProteinAssignment` and **`ProteinObservation`** —
+the last an observation node that carries a cross-boundary edge.
+
+**So the diagram is a schematic of the central distinction and not an enumeration of the model**, and
+`Contrast` is not added to it. **Adding only `Contrast` would be worse than leaving it**: the diagram
+would read as a census while four node types stayed missing. Bringing all five in is a change to §1
+with its own reasoning, and it is not made here.
+
+#### And the sentence the diagram illustrates is false against the shipped DDL
+
+**This was not what the finding asked and it is what the finding produced.** §1 states that *"the two
+sets are joined only through observation nodes"* and calls it *"the load-bearing constraint of the
+entire model"*.
+
+**There are eight reference/evidence edges in the DDL and two run from an observation node.**
+
+| Edge | From | Observation node? |
+|---|---|---|
+| `MEASURED_AT` | `SiteObservation` | **yes** |
+| `RESOLVES_TO_PROTEIN` | `ProteinObservation` | **yes** |
+| `CURATION_CITES` | `Analysis` | no |
+| `ASSIGNS` | `ModifierAssignment` | no |
+| `ASSIGNMENT_CITES` | `ModifierAssignment` | no |
+| `ASSOCIATION_ENZYME` | `EnzymeAssociation` | no |
+| `ASSOCIATION_CITES` | `EnzymeAssociation` | no |
+| `ASSIGNS_PROTEIN` | `ProteinAssignment` | no |
+
+The six are `EvidencedInference` subtypes or an `Analysis`, none an observation node. **`ASSIGNS` is
+one of the two edges the diagram itself draws**, so the diagram contradicts its own caption.
+
+**§1 is not amended.** It is a load-bearing sentence in a normative document and correcting it is a
+decision with its own record, not a review edit to ADR-0027. **What is amended is the ADR's reliance
+on it** — see below.
+
+#### One ground in the record was overstated and is withdrawn
+
+ADR-0027 rejected promotion to a reference node on **three** independent grounds, the second being
+that promotion would breach the observation-node clause. **The premise is false and the ground is
+struck rather than deleted**: promoting `Contrast` would be a seventh breach of a clause already
+breached six times, which is an argument about direction and not a bright line.
+
+**What survives of it is not independent of the first ground.** All six existing breaches point at
+entities that exist outside this laboratory — a `Protein`, a `Modifier`, a `Publication`. `Contrast`
+would be **the first reference node with no external authority behind it**, which is the first ground
+restated. **So promotion is rejected on two independent grounds, not three**, and either remains
+sufficient: §1 defines reference nodes as *"never authored locally"* and the contrast strings are
+written by the curator; and the condition terms resolve to no external vocabulary.
+
+**The decision is unchanged.**
+
+#### The orphan half is a different question, and is split rather than reworded
+
+Q1's strike said *settled* while its own prose said the orphan half survives. **Reconciled by
+splitting.** l.1077's behaviour is about **I6 retraction propagation** — does retracting a curation
+retract the `Contrast`s it defined — and not about which node set the node belongs to. The two were
+entangled only because Q1 raised the orphan as a symptom of the placement.
+
+**§11 gains Q13**, and Q1's entry now records that its strike covers the placement question and
+nothing else. **ADR-0027 changes the shape of the orphan fact without closing it**: under an
+`Experiment` anchor the survivor hangs off its `Experiment` rather than off nothing, so it is
+reachable and attributable, and it is still not retracted.
+
+**§11 holds twelve questions, not six** — numbered 1 to 12, so the new one is 13. Counted before
+writing it.
+
+#### The stale-bytecode hazard: scope, condition, and which turns carry the doubt
+
+**It did not reproduce in a second container.** The reviewer ran the same mutation at `b8ac9c7` and
+`tests/test_decision_index.py` reddened both with a warm `__pycache__` and with the cache cleared.
+**That is recorded as a fact about environments, not as a refutation** — the tell in the original was
+a *restored* file failing `assert 26 == 25` and a mutation attributed to the wrong test, neither of
+which is producible by mistake.
+
+**The condition under which it fires**, stated precisely: CPython invalidates a cached `.pyc` on the
+source's **mtime and size**. An edit that changes neither is invisible to it. **Mutating a pinned
+integer to another integer of the same digit count changes neither**, so the cache is stale unless
+the filesystem's mtime granularity happens to separate the two writes. It is therefore a race, and a
+container whose clock or filesystem resolves finely will not show it.
+
+**Which turns carry the doubt — established by reading history, with the bound stated.** Git cannot
+enumerate mutations: nearly all were performed and reverted inside a turn and never reached a commit.
+What git *can* enumerate is commits that **moved** a pinned integer, which is the precondition for
+such a mutation under this project's protocol.
+
+| Commit | What moved | Doubt |
+|---|---|---|
+| `9fd15e1` | the six constants created | the module's own construction; predates this session |
+| `1342550` | sweep floor 31 → 32, 1123 → 1129 | **equal-length; whether a mutation was performed is not visible in history** |
+| `10d76f6` | `EXPECTED_FILES` 24 → 25, `EXPECTED_WRITTEN_ROWS` 24 → 25, statuses | **carries it** — an equal-length mutation was performed and reverted under a warm cache |
+| `df017e0` | `EXPECTED_STATUSES` only | **carries it**, same reason |
+| `b8ac9c7` | `EXPECTED_FILES`, `EXPECTED_WRITTEN_ROWS`, statuses | where the hazard was caught and every mutation re-run clean |
+
+**So two commits carry it as a fact and one more cannot be ruled in or out.** The upper bound is four
+commits that moved an equal-length pinned integer in this repository's whole history.
+
+**The doubt cannot be resolved retrospectively** — those runs are gone, and staleness can produce
+either a false pass or a false fail depending on which value the cache holds. **It can be retired
+going forward, and was**: this turn's mutation ran with `__pycache__` removed and
+`PYTHONDONTWRITEBYTECODE=1`, read back from the file, and failed the correct guard.
+
+#### One defect deliberately left standing
+
+`decisions/README.md`'s round-trip count is now further out of date — it reads two of twenty-five and
+the true figure is three of twenty-six. **It is not corrected.** The standing defect against it is
+that it was re-measured by the party whose record it counts, in the commit that changed the count;
+**doing that a third time compounds the defect rather than fixing it.** It needs an independent
+measurement, which this turn cannot supply about itself.
 
 ### Deposit and supplementary survey, 2026-08-07
 

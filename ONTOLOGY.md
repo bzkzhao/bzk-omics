@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.39 |
+| Version | 1.40 |
 | Last reviewed | 2026-08-18 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -1072,7 +1072,7 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
 
 ## 11. Open questions
 
-1. ~~**`Contrast` sits awkwardly across the reference/evidence boundary.**~~ **Settled 2026-08-18 by ADR-0027: it stays an evidence node and is scoped by an `Experiment` anchor, which closes the collision below; the orphan smell in the next paragraph is not closed and remains open.** It is currently an evidence node, since it encodes a local design decision. But it is reused: if two datasets both define *IFN-β 8h vs mock*, they share one `Contrast` node. That makes it reference-like in behaviour while evidence-like in origin, which is the one thing §1 says should not happen.
+1. ~~**`Contrast` sits awkwardly across the reference/evidence boundary.**~~ **Settled 2026-08-18 by ADR-0027: it stays an evidence node and is scoped by an `Experiment` anchor, which closes the collision below. The strike covers the placement question and nothing else — the orphan behaviour in the next paragraph is a retraction question, not a placement one, and was split out as Q13 by that ADR's review.** It is currently an evidence node, since it encodes a local design decision. But it is reused: if two datasets both define *IFN-β 8h vs mock*, they share one `Contrast` node. That makes it reference-like in behaviour while evidence-like in origin, which is the one thing §1 says should not happen.
 
    Concretely, if the curation for one dataset's sample mapping is retracted, every `DifferentialResult` linked through `RESULT_IN_CONTRAST` is correctly retracted — but the `Contrast` node survives, now partly orphaned. This works, and it is a design smell.
 
@@ -1227,6 +1227,8 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
     reason `bzk/ontology/seed.py`'s *"a `Gene` from HGNC"* survives: it contrasts nodes resolved
     from outside against the `Modifier` set the project asserts in version control, and `Gene` is
     the former either way.
+
+13. **Should retracting a curation retract the `Contrast`s it defined?** Split out of Q1 on 2026-08-18 by ADR-0027's review, because it is not a placement question and Q1's placement half is settled. Q1's second paragraph records the behaviour: if one dataset's curation is retracted, every `DifferentialResult` linked through `RESULT_IN_CONTRAST` is correctly retracted while the `Contrast` node survives, partly orphaned. **ADR-0027 changes the shape of that fact without closing it** — under an `Experiment` anchor the survivor hangs off its `Experiment` rather than off nothing, so it is reachable and attributable, and it is still not retracted. The question is about I6 retraction propagation, not about which node set `Contrast` belongs to, and the two were entangled only because Q1 raised the orphan as a symptom of the placement. Settle alongside the ADR-0027 implied changes, since a `Contrast` that is never materialised cannot be orphaned.
 
 **Resolved**
 
