@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.17 |
-| Last reviewed | 2026-08-18 |
+| Version | 2.18 |
+| Last reviewed | 2026-08-29 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
 
@@ -10633,14 +10633,21 @@ such a mutation under this project's protocol.
 
 | Commit | What moved | Doubt |
 |---|---|---|
-| `9fd15e1` | the six constants created | the module's own construction; predates this session |
+| `9fd15e1` | the six constants created **and the sweep floor moved, 27 → 28 and 949 → 967** | **corrected 2026-08-29 — the row described only the half its author was looking at.** Both floor moves are equal-length, so this commit is a mover on the same footing as `1342550`, not a creation |
 | `1342550` | sweep floor 31 → 32, 1123 → 1129 | **equal-length; whether a mutation was performed is not visible in history** |
 | `10d76f6` | `EXPECTED_FILES` 24 → 25, `EXPECTED_WRITTEN_ROWS` 24 → 25, statuses | **carries it** — an equal-length mutation was performed and reverted under a warm cache |
 | `df017e0` | `EXPECTED_STATUSES` only | **carries it**, same reason |
 | `b8ac9c7` | `EXPECTED_FILES`, `EXPECTED_WRITTEN_ROWS`, statuses | where the hazard was caught and every mutation re-run clean |
+| `b8a0c5a` | `EXPECTED_STATUSES` 16/7 → 17/6 | **added 2026-08-29 — an omission, not out by construction.** It moved an equal-length pin and belongs in the census; its mutation was run with the cache cleared, so it does not carry the doubt |
 
-**So two commits carry it as a fact and one more cannot be ruled in or out.** The upper bound is four
-commits that moved an equal-length pinned integer in this repository's whole history.
+**So two commits carry it as a fact and one more cannot be ruled in or out.** ~~The upper bound is four
+commits that moved an equal-length pinned integer in this repository's whole history.~~ **Corrected
+2026-08-29 after an independent recount: the figure was four and the measured number is twenty-two.**
+Counting a *pinned integer* as any integer a test holds as an expectation the protocol obliges a
+session to show binds — the `EXPECTED_*` constants **and** `tests/test_tautology_sweep.py`'s floor
+bounds, which that module's own docstring groups under the same discipline — **22 commits reachable
+from `b8a0c5a` moved an equal-length pinned integer, across 36 equal-length integer moves of 37
+total.** Falsifiable by recount, and the enumeration is stated in the entry below.
 
 **The doubt cannot be resolved retrospectively** — those runs are gone, and staleness can produce
 either a false pass or a false fail depending on which value the cache holds. **It can be retired
@@ -10730,6 +10737,140 @@ is that a digit-count change is rare in slowly growing counters, so (b) should b
 
 **No prediction is registered about which convergence stage 3 should choose.** That depends on the
 measurement and on what the criterion turns out to license.
+
+### The census measured: four against twenty-two, and the number that was there is right for a population the sentence does not state, 2026-08-29
+
+Stage 2 and stage 3 of the census check. The registration is at the previous commit and the ordering
+is provable from `git log`. **This turn fetches nothing, walks nothing, ingests nothing and changes
+no code.**
+
+#### Predicted against measured
+
+| Quantity | Registered | Measured | |
+|---|---|---|---|
+| commits that moved an equal-length pinned integer | **13**, band 9–20 | **22** | **miss, above the band** |
+| verdict (a) dominates | predicted | **22 of 24, and zero (b)** | **hit** |
+
+**They did not agree.** The registration's band topped out at 20 and the answer is 22. The band was
+built by estimating the sweep floor at *roughly ten* moves; it moved in **eighteen** commits.
+**The 22 decomposes exactly**: 18 commits moved the sweep floor, 4 moved a
+`tests/test_decision_index.py` constant — `10d76f6`, `df017e0`, `b8ac9c7`, `b8a0c5a` — and the two
+sets are disjoint, because `9fd15e1` **created** that file's constants while **moving** the floor.
+
+#### The enumeration, and what it covered
+
+Two commands, both run from outside the repository so that no measuring script existed in it when
+stage 1 landed.
+
+```
+git log --all --reverse -p --unified=0 --pretty=format:@@@%H|%s -- tests/
+```
+
+parsed for three shapes: `NAME = <int>` for the nine `EXPECTED_*`/`PLANTED_ASSERTS` constants that
+have ever existed under `tests/`; `assert modules >= N and asserts >= M`, the sweep floor; and the
+`EXPECTED_STATUSES` dict literal. **Paths covered: every file under `tests/`, over every commit
+reachable from all refs.** A move is a line removed and a line added for the same name in one
+commit; *equal-length* compares the two literals' character counts.
+
+`FLOAT_RTOL` surfaced in the constant sweep and was excluded by hand: it is `1e-9`, a tolerance, not
+a pinned count.
+
+#### The result, per commit and per integer — and the two are different numbers
+
+| Figure | Value | What it counts |
+|---|---|---|
+| **22** | verdict **(a)** | **commits** that moved at least one equal-length pinned integer |
+| **0** | verdict **(b)** | commits moving a pinned integer where no move was equal-length |
+| **2** | verdict **(c)** | commits the criterion does not decide — `951cec1` and `a62f9ae`, which **create** pins and move none |
+| **37** | — | **integer** moves in total |
+| **36** | — | **integer** moves that are equal-length |
+
+**Only one integer move in the repository's history is length-changing**: `7b9559a`'s floor
+`993 → 1007`, three digits to four. **That same commit moves `modules` 29 → 30, which is
+equal-length**, so per commit it is (a) and per integer it is one of each. It is the only commit
+where the two units disagree, and it is why the figures above are labelled.
+
+**(b) is empty, and that is a finding rather than a null.** Pinned counters here grow by ones and
+tens, so a digit-count change is rare: 36 of 37 moves preserve length. **The hazard's precondition is
+not a special case in this repository — it is the normal case.**
+
+#### The per-row audit: four of five rows describe their commit completely, one does not
+
+| Row | Describes its commit completely? |
+|---|---|
+| `9fd15e1` | **No.** It reads *"the six constants created"* and the commit **also moves the sweep floor, 27 → 28 and 949 → 967**, both equal-length |
+| `1342550` | Yes — floor 31 → 32 and 1123 → 1129, and nothing else |
+| `10d76f6` | Yes — `EXPECTED_FILES` 24 → 25, `EXPECTED_WRITTEN_ROWS` 24 → 25, `EXPECTED_STATUSES` |
+| `df017e0` | Yes — `EXPECTED_STATUSES` alone |
+| `b8ac9c7` | Yes — the two counts and the statuses |
+
+**Ruling on `9fd15e1`: it counts as a commit that moved an equal-length pinned integer.** Its row
+called it *"the module's own construction"* and assigned it a different doubt verdict from
+`1342550` — but the two are in the same evidential position, both moved the floor by equal-length
+edits, and whether a mutation was performed on either is equally invisible. **The row was describing
+the half its author was looking at.** Corrected in the table above rather than only here, because
+correcting the sentence and leaving the row would move the same defect one layer down.
+
+**Ruling on `b8a0c5a`: an omission, not out by construction.** It moved `EXPECTED_STATUSES` from
+`{16, 7, 3}` to `{17, 6, 3}` — equal-length — and it is the commit that wrote the table. A commit can
+list its own move; what it cannot do is discover a doubt about itself, and `b8a0c5a`'s mutation was
+run with the cache cleared. **So it belongs in the census and not in the doubt**, and the row added
+above says exactly that.
+
+**Both offered characterisations verified against the repository, neither taken from the
+instruction.** Four of the five rows touch `tests/test_decision_index.py` and `1342550` does not;
+two of the five move the sweep floor, `1342550` and `9fd15e1`. Confirmed by `git show --name-only`
+and by counting changed floor lines per commit.
+
+#### The convergence: both (i) and (ii), and (ii) is not what it first looks like
+
+**The number is wrong and the term is undefined, and neither correction works alone.**
+
+**(i) is required.** Under the population the sentence states — *"this repository's whole history"* —
+the answer is 22, not four. Nothing at l.10629–10632 restricts the criterion to one file or one
+session: it says git can enumerate *commits that moved a pinned integer*, full stop. The five-row
+table narrows, but a table is evidence, not scope.
+
+**(ii) is required too, and not as a narrowing of the population.** The measurement turned up
+something the registration listed as its largest source of error and which proved decisive:
+**restricted to the `EXPECTED_*` equality constants in `tests/test_decision_index.py`, the count of
+movers is exactly four.** Five commits touch that file; one creates the constants and four move
+them. **So the figure that was there is right for a population the sentence does not state.** That
+is not a coincidence to correct silently — it is the defect's mechanism, and it means the sentence's
+undefined term, not just its arithmetic, was carrying the error.
+
+**So the correction defines the term rather than shrinking the population.** A *pinned integer* is
+any integer a test holds as an expectation the protocol obliges a session to show binds — which
+takes in the sweep floor's `>=` bounds, because `tests/test_tautology_sweep.py`'s own docstring
+groups them under that discipline in as many words: *"the same discipline
+`tests/test_tautology_sweep.py`'s floor carries."* **The repository had already decided the term; the
+sentence just never used it.**
+
+**The corrected sentence remains falsifiable.** It states a number, the definition it is counted
+under, and the ref it is counted from, so a recount can contradict it.
+
+**Not chosen by length.** (ii) alone is the shorter repair and it was rejected: narrowing the
+sentence to `tests/test_decision_index.py` would make *"four"* true and would make the sentence say
+something it was not trying to say — the doubt's whole point is that any turn moving any pin could
+have run a hazardous mutation, and most of those turns moved the floor.
+
+#### The class, and why it is not closable here
+
+**The class: a numeric claim whose population is named in prose and measured over a narrower set
+than the prose describes.** This census is an instance — *whole history* stated, one file counted.
+So is `decisions/README.md`'s round-trip figure, which is already carried as a standing defect.
+
+**It is machine-checkable in principle and is not machine-checkable in this repository, for a reason
+the repository already documented.** A guard would have to re-run the enumeration against
+`git log`, and `tests/test_decision_index.py`'s module docstring records why no assertion there
+reads git: *"`tests/test_tautology_sweep.py` runs the whole suite inside a copy that excludes
+`.git`, where `git log` returns fatal: not a git repository — so a git-dependent assertion would
+turn that module red for a reason unrelated to what it checks."*
+
+**So the class is open and stays open, and the reason is structural rather than an omission.** The
+measurement lives in the record, which is the same disposition that file already reaches for its own
+round-trip count. **Naming it closed would be false; naming it un-checkable without the reason would
+be worse.**
 
 ### Deposit and supplementary survey, 2026-08-07
 
