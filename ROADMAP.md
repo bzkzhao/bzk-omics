@@ -10655,6 +10655,82 @@ that it was re-measured by the party whose record it counts, in the commit that 
 **doing that a third time compounds the defect rather than fixing it.** It needs an independent
 measurement, which this turn cannot supply about itself.
 
+### Pre-registration: counting the commits the census sentence claims to bound, 2026-08-29
+
+l.10642–10643 claims **four** commits as an upper bound. A reviewer's independent count disagrees
+and the value is withheld. **This registration is committed before any measuring command is run and
+before any measuring script exists**, and the ordering is provable from `git log`.
+
+#### Blindness is not available and is not claimed
+
+**In the previous turn I ran `git log -p -- tests/test_tautology_sweep.py` and its output is in my
+context**, so I have already seen roughly how many times the sweep floor moved. **No prediction below
+is independent of that.** What the registration can still do is fix the criterion and the population
+before the count is taken, so that the count cannot be reverse-fitted to whatever the enumeration
+returns.
+
+#### The criterion, in my own words, against l.10629–10632
+
+l.10629–10632 says git cannot enumerate mutations because nearly all were reverted inside a turn,
+and that what git *can* enumerate is commits that **moved** a pinned integer — *"the precondition for
+such a mutation under this project's protocol."*
+
+**So the criterion is:** a commit counts when it changes the value of an integer that already existed
+in a test as a pinned expectation — a literal the suite compares a measured quantity against, whose
+movement this project's protocol obliges a session to demonstrate binds. **And *equal-length* narrows
+it:** the old and new source lines have identical byte length, so an invalidation scheme keyed on
+mtime and size cannot see the edit.
+
+**Two things the criterion does not say, registered now so the answer cannot be tuned later:**
+
+1. **It does not define *pinned*.** Whether `assert modules >= 32 and asserts >= 1129` — a floor,
+   not an equality — is a pinned integer is undecided by the sentence.
+2. **It does not say whether *creating* a constant counts as *moving* it.** A commit that introduces
+   a pin has no prior value to move.
+
+#### The population, stated explicitly
+
+**Every commit reachable from `b8a0c5a`, across every path in the repository.** The sentence says
+*"this repository's whole history"*, so the population is not one file, not one session, and not the
+five commits its own table lists. **Restricting to `tests/test_decision_index.py` would be reading
+the sentence as its table rather than as its words**, and that is the reading stage 3 may have to
+choose between — not something to assume here.
+
+#### The prediction
+
+| Quantity | Prediction | Band |
+|---|---|---|
+| **commits that moved an equal-length pinned integer**, whole history | **13** | **9–20** |
+| of those, how many the sentence's own table lists | 4 or 5 | 4–5 |
+
+**This is a count of commits, not of integers.** A single commit moving two pins counts once here;
+the per-integer figures are reported separately in stage 2.
+
+**Where 13 comes from.** The sweep floor moved roughly ten times, and floor moves are equal-length
+whenever neither number gains a digit — which is most of them, since these counts grow slowly.
+`tests/test_decision_index.py` adds three movers after its creating commit. Some overlap is certain,
+and at least one other pinned constant exists that I have not accounted for.
+
+**I predict verdict (a) dominates** — *moved an equal-length pinned integer*. The arithmetic reason
+is that a digit-count change is rare in slowly growing counters, so (b) should be a small minority.
+
+#### What would have to be different for 13 to be wrong
+
+- **If *pinned integer* means only the `EXPECTED_*` equality constants** and excludes the sweep
+  floor's `>=` bounds, the count collapses to about three or four and **the sentence is nearly
+  right**. This is the single largest source of error in my number.
+- **If it means every integer literal a test compares against**, the count could be far above the
+  band.
+- **If commits exist that moved pins in files I have not considered** — a per-file count elsewhere in
+  `tests/` — the number rises.
+- **If bulk or squashed commits moved pins invisibly**, git will attribute several moves to one
+  commit and the count falls.
+- **If (c) turns out to dominate**, the number is not the finding at all and the sentence's defect is
+  that its criterion does not decide most of its own population.
+
+**No prediction is registered about which convergence stage 3 should choose.** That depends on the
+measurement and on what the criterion turns out to license.
+
 ### Deposit and supplementary survey, 2026-08-07
 
 Method: read the column headers of every processed file in the PXD018299 PRIDE deposit and every supplementary table of Pinto-Fernández et al., *Br J Cancer* 124:817–830 (2021), and classified each as a Perseus export or raw search-engine output by column markers — Perseus stamps a type prefix on every column name (`C:` categorical, `N:` numerical, `T:` text, `M:` multi-numerical); MaxQuant does not. Also read `colab_reproducefigure.ipynb` end to end to establish what it persists. These are measurements of files on disk and in the publication, not inferences from a methods section.
