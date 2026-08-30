@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.18 |
-| Last reviewed | 2026-08-29 |
+| Version | 2.19 |
+| Last reviewed | 2026-08-30 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
 
@@ -10948,6 +10948,99 @@ three is the number I expect rather than the number I have counted.
 **No prediction is registered about any of the four verdicts, about defect 3's disposition, or about
 whether the four are one supersession or several.** Those are stage 3, and the measurement is an
 input to them rather than a consequence of them.
+
+### The four-defect costing measured: every figure as registered, and two of the four are not defects, 2026-08-30
+
+Stages 2 and 3 of ADR-0028. The registration is at the previous commit and the ordering is provable
+from `git log`. **Nothing under `data/curation/` is edited, no id moves, no graph is written, no
+rebuild runs.**
+
+#### Predicted against measured
+
+| Figure | Registered | Measured | |
+|---|---|---|---|
+| defect 1 — `basis` | 1 id / 13 edges | **1 / 13** | hit |
+| defect 2 — the twelve keys | 0 / 0 | **0 / 0** | hit |
+| defect 3 — `timepoint_h` | 6 / 18 | **6 / 18** | hit |
+| defect 4 — the `rationale` | 0 / 0 | **0 / 0** | hit |
+| all four together | **7 / 25** | **7 / 25** | hit |
+| ids are the sum of the parts | yes | **yes**, 1+0+6+0 | hit |
+| edges are **not** | 31 summed, 25 union | **31 summed, 25 union** | hit |
+| literals pinning a moved id | the three named **plus at least one more** | **exactly the four named, no fifth** | **miss** |
+
+**Six of seven agreed and one did not.** The registration hedged that three was the number expected
+rather than counted; the grep over the whole tree returned four files, all four of which the
+registration had already named — three as pins and ADR-0026 as a record of the move. **The miss is
+in the conservative direction and it is still a miss.**
+
+**The edge prediction is the one worth keeping.** 31 against 25, because the six treated samples'
+`SAMPLE_GENERATED_BY` edges are re-keyed on their target by defect 1 and on their source by defect
+3. It was registered with that arithmetic and returned it.
+
+#### An un-populated container is sufficient, and why
+
+The loader reads the curation record alone. `raw/` supplies site tables and `graph.kuzu/` supplies a
+store; neither is consulted, and ids are content-derived under ADR-0020. **So the figures are a
+function of the record and the identity map, not of anything on disk** — which is what makes the
+measurement possible in a container with neither directory present.
+
+Both figures are set differences, stated so they cannot be confused: **ids moved** is the baseline
+`(label, id)` set minus the mutated one, and **edges re-keyed** is the baseline `(type, from, to)`
+set minus the mutated one. **There are twelve `Sample` nodes throughout; six of their ids move.**
+
+#### ADR-0026's costing, ruled
+
+**Correct as scoped, and not the four-item figure.** Its l.278 and l.282 re-measure exactly at
+1 of 16 and 13 of 38 for the `basis` substitution, and its own l.279–280 fixes the scope in as many
+words: *"no sample id is a function of **the basis**."* **Being right about one substitution and
+reused for four is a different fact from being wrong**, and ADR-0026 is `Accepted` and append-only,
+so nothing there is corrected. **The four-item figure is 7 and 25**, and that is recorded in
+ADR-0028 rather than in ADR-0026.
+
+#### The verdicts
+
+| Defect | Verdict | Ground |
+|---|---|---|
+| 1 — `basis` | **(a)** record wrong | R2's weakest link; the methods walk measured the paper naming no column |
+| 2 — the twelve keys | **(b)** standing description wrong | the adapter **does** read them at l.122–125 and l.140–147; the divergence is `pxd018299_differential.py` l.133 |
+| 3 — `timepoint_h` | **(c)** not settled | all four dispositions blocked, below |
+| 4 — the `rationale` | **(a)** record wrong | it attributes its whole contents to a methods section that does not carry its closing instruction |
+
+**Defect 3's four dispositions, each blocked by something already `Accepted`.** Dropping the value
+is refused by §3's absence table, which makes `timepoint_h` NULL only where `treatment = 'none'` —
+and the six entries carrying 48 are the **treated** arms, so the null would be contingent and
+ADR-0021 forbids it. Moving `basis` to a value that reaches a figure legend finds none in a closed
+five-value enum. Recording that field's basis separately needs a per-field basis the DDL does not
+have. Widening §5.3 needs a record superseding ADR-0026. **The value stays, the gap is recorded, and
+no disposition was invented to avoid saying so.**
+
+**(c) is also the cheapest outcome, and that is not its ground.** Had disposition (i) been
+available, its six moved ids would not have counted against it.
+
+#### The shape: one supersession, and I6 is what makes it one
+
+**Only defect 1 mints a new `Analysis` id.** Defect 4 corrects `rationale`, which §3 l.120 lists as
+excluded — so it changes no id at all. §5.3 states *"Curation nodes are immutable under I6"*, so a
+correction supersedes rather than edits. **A `rationale` fix landing alone would have to mutate an
+immutable node in place while minting nothing, which I6 forbids and no mechanism here supports.**
+
+**So defect 4 can only travel on the node defect 1 mints**, and that is what makes the four one
+question rather than four filed together. Defects 2 and 3 ride nothing because their verdicts change
+no record.
+
+#### A defect found while measuring, which fits no existing item
+
+**The loader accepts a null it should refuse, and that is why disposition (i) did not raise.**
+`bzk/curation/loader.py` l.194–198 passes any null whose `(label, field)` pair is a **key** in
+`schema.ABSENCE`. It never reads the classification's condition. §3 records `timepoint_h` as
+determined by `treatment`, NULL only where `treatment = 'none'`; the loader would accept a null on a
+treated arm without complaint. **Measured, not inferred: nulling the six treated entries loaded
+clean and minted six new ids.**
+
+**So `_check_identifying` enforces that an absence was *classified*, not that its classification
+*applies*** — which is half of what ADR-0021 asks for. **Recorded as new defect 18**; it belongs in
+`HANDOFF.md` §8, with the trigger being any curation record that supplies a null for a conditionally
+determined field.
 
 ### Deposit and supplementary survey, 2026-08-07
 

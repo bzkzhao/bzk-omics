@@ -69,6 +69,7 @@ This exists because a project with one developer and a compressed timeline will 
 | [0025](0025-adjusted-by-is-an-anchor.md) | `ADJUSTED_BY` is an anchor on `DifferentialResult`; the first self-referential one |
 | [0026](0026-basis-classifies-warrants.md) | §5.3's `basis` classifies warrants, not containers; a composed mapping records its weakest link |
 | [0027](0027-contrast-stays-evidence-with-an-experiment-anchor.md) | `Contrast` stays an evidence node and is scoped by an `Experiment` anchor (§11 Q1) |
+| [0028](0028-the-anchor-curation-record-is-one-supersession.md) | The anchor's curation record is one supersession; two of its four defects are not defects |
 
 ## Queued
 
