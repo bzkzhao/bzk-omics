@@ -2,10 +2,106 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-08-30 |
+| Reviewed | 2026-08-30 — four findings, three grounds struck, the decision unchanged |
 | Supersedes | — |
 | Superseded by | — |
+
+## Review
+
+Landed `Proposed` at `9c921f0` and reviewed in the following turn. **Three of the four findings
+struck a ground and none touched the decision**, which is the ground for the status above. The four
+verdicts and the one-supersession shape are unchanged; what changed is which figure the record
+headlines, and two claims it made about the contents of other records.
+
+### A — the record costs a superset and never costs what it executes. Ground struck
+
+l.39 headlines **7 ids and 25 edges** for all four defects together. But defect 2 is ruled (b) and
+defect 3 (c), so **neither changes anything**, and l.171 describes what is actually executed: a new
+`Analysis` carrying `basis = 'filename_inference'` and the re-attributed `rationale`.
+
+**Measured, not summed** — the record loaded through `bzk/curation/loader.py` with both changes
+applied to an in-memory copy, diffed against the same 16-node, 38-edge baseline, nothing written:
+
+> **The supersession costs 1 node id of 16 and 13 edges of 38** — the `Analysis`, and 12
+> `SAMPLE_GENERATED_BY` on their target plus 1 `USED` on its source.
+
+**That figure appears nowhere in this record as the supersession's cost.** Its components are on the
+file — l.35 is defect 1's row and l.38 is defect 4's — but no line labels their sum as what will be
+executed, and the only combined figure offered is for a combination the record declines.
+
+**Ruling: a record that decides an execution while stating only the cost of a superset is not
+sound.** A reader scheduling the execution from l.39 would provision for seven moved ids and would
+expect six `Sample` rows in `tests/fixtures/pxd018299_curation_ids.json` to change. **They will not.**
+Only the `analysis` id moves there. The figure above is the one to schedule against, and l.39 stands
+as what the four *would* have cost had all four been executable.
+
+### B — ADR-0026 does not scope its own figures. Ground struck
+
+l.52 asserts *"The scope is stated in the record itself"* and cites ADR-0026 l.279–280. **Read whole,
+that sentence does something else.** It reads: *"`Sample` is anchored on `("Experiment",
+"PERFORMED_ON")`, not on the curation `Analysis`, so no sample id is a function of the basis."*
+
+**That explains why sample ids do not move under a `basis` change. It does not announce a limit.**
+ADR-0026 nowhere says its figures hold for one substitution and not others. **So it happens to be
+right within a limit it never stated**, rather than having anticipated it — and l.52's claim is
+withdrawn.
+
+**The ruling on ADR-0026's figures survives on the other ground and only on it: direct
+re-measurement.** The `basis` substitution reproduces 1 of 16 and 13 of 38, measured again this turn.
+**ADR-0026 is `Accepted` and append-only, so nothing there is amended**, and this paragraph is the
+record of the finding.
+
+### C — the guard's deferral is attributed to a ground ADR-0026 records as expired. Ground struck
+
+l.183 reads *"which is why ADR-0026 deferred it and why it is still deferred."* ADR-0026 l.320–323
+says the opposite: the guard *"was deferred at landing on the ground that writing it would enforce a
+decision ahead of its acceptance"*, and **"That reason stopped applying with the status change
+above"**, so it was **replaced** by the narrower one at l.329–331. **The redness ground is the
+replacement, not the original**, and l.183 collapses the two — erasing that a ground expired, which
+is exactly the kind of movement this project's records exist to keep.
+
+**And the ordering constraint is nowhere in this record.** ADR-0026 l.331 ends *"The two must land
+together or in that order."* **Stated here now, because implied change 2 places the pins in the
+supersession commit and leaving the guard's placement unstated while stating the pins' is an
+asymmetry an executing turn would trip over:**
+
+> **The R2 guard lands in the supersession's commit or in a later one, never before it.**
+
+### D — defect 18 is real, and no guard in `loader.py` can close it. No defect here
+
+**This finding is about `loader.py` and `schema.py`, not about this record's reasoning**, so it
+strikes nothing here. It is ruled because the review asked.
+
+**A guard added to `loader.py` cannot close it as the structures stand, and this is established
+rather than argued.** `schema.ABSENCE` holds **18 rows** and its values are a two-element
+vocabulary — `determined` seventeen times and `curated` once. **The value carries the *kind* of
+absence and never the condition.** The condition lives only in §3's fourth column, as prose. And the
+mirror that keeps the two in step, `tests/test_schema.py::test_schema_absence_matches_ontology_table`,
+parses four groups at l.374 and builds its dict from three: `{(label, field): kind for label, field,
+kind, _why in rows}`. **The `_why` column is read and discarded.**
+
+**So the determining condition exists in no machine-readable form anywhere.** `_check_identifying`
+has nothing to check against; it is not failing to consult a condition, it is operating in a model
+that does not carry one.
+
+**The finding's correct statement** is therefore not *the loader does not check the condition* but:
+**§3 classifies some absences as conditionally determined, and neither `schema.ABSENCE` nor its
+mirror carries the condition, so no consumer can enforce it.**
+
+**Its correct home is `ONTOLOGY.md` §11, as an open question** — whether §3's absence classification
+should carry its condition as data. **Not `HANDOFF.md` §8**, where the previous turn filed it: §8
+holds items a session must remember to do, and this needs a decision before anything can be done.
+**Ruled, not written**, and not fixed here.
+
+### One thing the review adds that no finding asked for
+
+**Disposition (i)'s block is documentary and unenforced, and l.94 does not say so.** §3 forbids a
+null `timepoint_h` on a treated arm; the loader accepts one, which is defect 18 above and was
+measured when the disposition was costed. **The block holds — §3's text is the ground and it
+stands — but a reader executing (i) would see a green suite.** Stated here so the prohibition is not
+mistaken for a mechanism.
 
 ## Scope
 

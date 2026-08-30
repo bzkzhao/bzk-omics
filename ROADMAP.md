@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.19 |
+| Version | 2.20 |
 | Last reviewed | 2026-08-30 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -11041,6 +11041,82 @@ clean and minted six new ids.**
 *applies*** — which is half of what ADR-0021 asks for. **Recorded as new defect 18**; it belongs in
 `HANDOFF.md` §8, with the trigger being any curation record that supplies a null for a conditionally
 determined field.
+
+### ADR-0028 reviewed and accepted: three grounds struck, the decision untouched, 2026-08-30
+
+The review half of ADR-0028's round-trip. **Nothing under `data/curation/` is edited, no supersession
+is executed, no id moves, no graph is written.** Four findings; **three struck a ground and none
+touched the decision**, which is the ground for acceptance.
+
+#### What the supersession actually costs, expected then measured
+
+**Expected before measuring: 1 id of 16 and 13 edges of 38** — l.171 executes defect 1 and defect 4,
+whose rows read 1/13 and 0/0. **Measured: 1 and 13.** They agreed.
+
+Measured by loading the record through `bzk/curation/loader.py` with `basis = 'filename_inference'`
+and the re-attributed `rationale` applied to an in-memory copy, diffed against the same 16-node,
+38-edge baseline. **The moved id is the `Analysis`; the re-keyed edges are 12 `SAMPLE_GENERATED_BY`
+on their target and 1 `USED` on its source.**
+
+**The figure appeared nowhere in ADR-0028 as the supersession's cost.** Its components were on the
+file and their sum was not, while the only combined figure offered — 7 and 25 — is for a combination
+the record declines to execute. **A reader scheduling from that line would have provisioned for six
+`Sample` id moves that will not happen**, and would have expected six rows of
+`tests/fixtures/pxd018299_curation_ids.json` to change when only the `analysis` id will.
+
+#### The two claims ADR-0028 made about other records, both wrong
+
+**It said ADR-0026 scopes its own figures. It does not.** ADR-0026 l.279–280 explains *why* sample
+ids are insensitive to a `basis` change; it never says the figures hold for that substitution alone.
+**So ADR-0026 is right within a limit it never stated**, which is a different fact from having
+anticipated one — and only re-measurement, not citation, supports the ruling that its numbers are
+correct.
+
+**It said the R2 guard's deferral ground is the one ADR-0026 gave. It is the replacement.** ADR-0026
+l.320–323 records that the original ground — writing the guard would enforce a decision ahead of its
+acceptance — **expired with the status change and was replaced**. ADR-0028 collapsed the two, erasing
+the movement.
+
+**And ADR-0026's ordering constraint was nowhere in ADR-0028.** l.331 reads *"The two must land
+together or in that order."* The Review now states it, because implied change 2 places the pins in
+the supersession commit and leaving the guard's placement unstated beside it is an asymmetry an
+executing turn would trip over.
+
+**ADR-0026 is `Accepted` and append-only. Nothing there is amended; both findings are recorded in
+ADR-0028's Review and stop there.**
+
+#### Defect 18 restated, and its home moved
+
+**No guard in `loader.py` can close it, and that is established from the structures rather than
+argued.** `schema.ABSENCE` holds **18 rows** whose values are a two-element vocabulary —
+`determined` seventeen times, `curated` once. **The value carries the kind of absence and never the
+condition.** The condition lives only in §3's fourth column as prose, and the mirror that keeps the
+two in step parses four groups and builds its dict from three: **`_why` is read and discarded.**
+
+**So the condition exists in no machine-readable form anywhere**, and `_check_identifying` is not
+failing to consult one — it is operating in a model that does not carry one.
+
+**Restated:** §3 classifies some absences as conditionally determined, and neither `schema.ABSENCE`
+nor its mirror carries the condition, so no consumer can enforce it. **Home ruled `ONTOLOGY.md` §11
+as an open question, not `HANDOFF.md` §8** where the previous turn filed it — §8 holds items a
+session must remember to do, and this needs a decision before anything can be done. **Ruled, not
+written.**
+
+#### One addition no finding asked for
+
+**Disposition (i)'s prohibition is documentary and unenforced, and ADR-0028's l.94 did not say so.**
+§3 forbids a null `timepoint_h` on a treated arm; the loader accepts one. The block holds, because
+§3's text is the ground — **but a reader executing (i) would see a green suite**, and the Review now
+says the prohibition is not a mechanism.
+
+#### The strongest candidate for holding, and why it was not held
+
+**Finding A.** A record that decides an execution and never states that execution's cost is one whose
+reader provisions wrongly, and *"the decision must change"* is a defensible reading of that. **It was
+not held because the verdicts and the shape are untouched** — what was missing is a figure, and
+`decisions/README.md` l.5 makes correcting a `Proposed` record during review an ordinary edit.
+**Three grounds struck in one review is the reason it was close**: the record cited other records
+where it should have read them, three times, and each citation turned out wrong on reading.
 
 ### Deposit and supplementary survey, 2026-08-07
 
