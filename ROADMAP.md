@@ -10872,6 +10872,83 @@ measurement lives in the record, which is the same disposition that file already
 round-trip count. **Naming it closed would be false; naming it un-checkable without the reason would
 be worse.**
 
+### Pre-registration: costing the four curation defects separately, 2026-08-30
+
+ADR-0028 will decide the four defects in `data/curation/curation_PXD018299.json` as one question.
+**This registration is committed before any measuring code is run**, and the ordering is provable
+from `git log`.
+
+#### What ADR-0026's costing was scoped to, established before predicting against it
+
+l.278 reads *"Exactly one node id moves, of sixteen"* and l.282 *"Thirteen edges of thirty-eight are
+re-keyed"*. **Its own next sentence fixes the scope:** *"`Sample` is anchored on `("Experiment",
+"PERFORMED_ON")`, not on the curation `Analysis`, so no sample id is a function of **the basis**."*
+
+**So that costing was measured for one substitution — `basis` alone — and for no other.** It is
+defect 1's figure. Whether it is *also* the four-item figure is exactly what this turn tests, and
+predicting against it requires saying which of the four can touch a `Sample`'s identifying fields.
+
+#### The predictions, per defect
+
+| Defect | ids move / 16 | edges re-key / 38 | Ground |
+|---|---|---|---|
+| **1 — `basis`** | **1** | **13** | `basis` is identifying on `Analysis`; both values carry `inferred`, so only the one field moves. The `Analysis`'s own edges are 1 `USED` out and 12 `SAMPLE_GENERATED_BY` in |
+| **2 — the twelve `mapping` keys** | **0** | **0** | the key becomes `Sample.label`, and `label` is in §3's **excluded** column at l.115 and absent from `schema.py`'s `Sample` fields. Changing a non-identifying property moves nothing |
+| **3 — `timepoint_h: 48`** | **6** | **18** | `timepoint_h` **is** identifying — seventh of `_SAMPLE_FIELDS`, and declared at `schema.py` l.246–259 and `ONTOLOGY.md` l.115. It is set on the six IFN entries, so six `Sample` ids move, each carrying `PERFORMED_ON`, `PRODUCED` and `SAMPLE_GENERATED_BY` |
+| **4 — the mixed `rationale`** | **0** | **0** | `rationale` is not among `Analysis`'s identifying fields in §3 |
+
+**Defect 3's figure is for the *drop* disposition only.** The other two dispositions I can see —
+move `basis` to a value that reaches a figure legend, or record that field's basis separately —
+give **0 and 0**, because neither touches a `Sample` prop. **So defect 3's cost is a function of the
+choice, not of the defect**, and registering one number for it would be registering the choice.
+
+#### Combined, and whether it is the sum of the parts
+
+| Quantity | Prediction |
+|---|---|
+| ids moved, all four applied | **7 of 16** — the `Analysis` plus six `Sample`s |
+| edges re-keyed, all four applied | **25 of 38** |
+
+**Ids: yes, the sum of the parts.** 1 + 0 + 6 + 0 = 7, and the two moving sets are disjoint.
+
+**Edges: no, and this is the registration's sharpest claim.** The parts sum to 13 + 0 + 18 + 0 = 31
+and I predict the union is **25**. The six IFN samples' `SAMPLE_GENERATED_BY` edges are re-keyed by
+defect 1 on their **target** and by defect 3 on their **source**, so six edges are counted twice in
+the sum and once in the union. **31 − 6 = 25.**
+
+#### Committed literals predicted to move
+
+| Literal | Prediction |
+|---|---|
+| `tests/fixtures/pxd018299_curation_ids.json` | **moves** — it pins the `analysis` id and all twelve `samples` ids; the analysis and six samples change |
+| `HANDOFF.md` l.504 | **moves** — that row pins the `Analysis` id. The `Sample` (WT_1) and (WT_2) rows beside it **do not**, both being untreated arms |
+| `tests/test_perseus.py` l.74 | **moves** — it hard-codes `curation_analysis_id` |
+| `decisions/0026-…md` l.276 | **does not move** — it records both the old and the new id as a costing, so it is a record of the move rather than a pin on it |
+
+**I predict at least one further occurrence I have not named**, since the instruction is right that
+three is the number I expect rather than the number I have counted.
+
+#### What would have to be different for these to be wrong
+
+- **If `timepoint_h` were non-identifying**, defect 3 collapses to 0 / 0 and the combined figure to
+  1 / 13 — which is ADR-0026's figure, and the four-item costing would then be the one-item costing
+  after all.
+- **If `label` were identifying**, defect 2 moves all twelve samples and the combined figure jumps.
+- **If dropping `timepoint_h` is not available**, defect 3's 6 / 18 never arises. §3's absence table
+  at l.146 records `timepoint_h` as *determined* by `treatment`, NULL only where
+  `treatment = 'none'` — and the six entries at issue are the **treated** arms, so a null there
+  would be undetermined and ADR-0021 forbids it. **This is the single most likely reason my defect-3
+  figure is unreachable rather than wrong.**
+- **If `confidence` moved with `basis`** the `Analysis` would still mint one id, so defect 1 is
+  insensitive to that; but if a chosen replacement basis were `authoritative`, the record would fail
+  the loader's basis/confidence check before any id was minted.
+- **If the six IFN entries are not six**, every defect-3 figure shifts with the count.
+- **If an edge type I have not enumerated touches `Sample` or `Analysis`**, the edge figures rise.
+
+**No prediction is registered about any of the four verdicts, about defect 3's disposition, or about
+whether the four are one supersession or several.** Those are stage 3, and the measurement is an
+input to them rather than a consequence of them.
+
 ### Deposit and supplementary survey, 2026-08-07
 
 Method: read the column headers of every processed file in the PXD018299 PRIDE deposit and every supplementary table of Pinto-Fernández et al., *Br J Cancer* 124:817–830 (2021), and classified each as a Perseus export or raw search-engine output by column markers — Perseus stamps a type prefix on every column name (`C:` categorical, `N:` numerical, `T:` text, `M:` multi-numerical); MaxQuant does not. Also read `colab_reproducefigure.ipynb` end to end to establish what it persists. These are measurements of files on disk and in the publication, not inferences from a methods section.
