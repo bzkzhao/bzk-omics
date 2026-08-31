@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.40 |
-| Last reviewed | 2026-08-18 |
+| Version | 1.41 |
+| Last reviewed | 2026-08-31 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
 | Authoritative for | Node types, edge types, field semantics, invariants |
@@ -1229,6 +1229,8 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
     the former either way.
 
 13. **Should retracting a curation retract the `Contrast`s it defined?** Split out of Q1 on 2026-08-18 by ADR-0027's review, because it is not a placement question and Q1's placement half is settled. Q1's second paragraph records the behaviour: if one dataset's curation is retracted, every `DifferentialResult` linked through `RESULT_IN_CONTRAST` is correctly retracted while the `Contrast` node survives, partly orphaned. **ADR-0027 changes the shape of that fact without closing it** — under an `Experiment` anchor the survivor hangs off its `Experiment` rather than off nothing, so it is reachable and attributable, and it is still not retracted. The question is about I6 retraction propagation, not about which node set `Contrast` belongs to, and the two were entangled only because Q1 raised the orphan as a symptom of the placement. Settle alongside the ADR-0027 implied changes, since a `Contrast` that is never materialised cannot be orphaned.
+
+14. **Should §3's absence classification carry the condition that determines it, rather than only the word `determined`?** §3 classifies an identifying field's absence as `determined` or `curated`, and its fourth column states *what* determines it — `Sample.timepoint_h` is determined by `treatment`, NULL only where `treatment = 'none'`, because the column is hours since treatment and an untreated arm has no elapsed time. **That condition exists nowhere a consumer can read.** `schema.ABSENCE` maps `(label, field)` to the classification word alone, and `tests/test_schema.py::test_schema_absence_matches_ontology_table` parses §3's table into four groups and binds the fourth to `_why`, discarding it — so the mirror that keeps document and code in step deliberately drops the half that carries the rule. The consequence is measurable rather than theoretical: `bzk/curation/loader.py`'s `_check_identifying` passes any null whose `(label, field)` pair is a **key** in `schema.ABSENCE`, so a null `timepoint_h` on a *treated* arm loads clean and mints an id, which §3 forbids and ADR-0021 calls contingent. The loader is not failing to consult a condition; it is operating in a model that does not carry one. To settle: whether the condition belongs in `schema.ABSENCE` as data — a determining field and the value that licenses the null, or a predicate — and whether the §3 mirror should then assert it rather than discard it. Until it is settled every conditional classification in §3 is documentary, and the ones that are unconditional are indistinguishable from the ones that are not.
 
 **Resolved**
 
