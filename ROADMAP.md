@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.20 |
-| Last reviewed | 2026-08-30 |
+| Version | 2.21 |
+| Last reviewed | 2026-08-31 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
 
@@ -11185,6 +11185,108 @@ each anchor in `spec.anchors` it appends `f"@{anchor_type}={_NULL if anchor_id i
 
 **No prediction is registered about stage 2's reachability verdict**, which is the question this
 turn exists to answer and is not inferable from anything read so far.
+
+### ADR-0027's anchor is not buildable: an `Experiment` id is reachable at neither minting site, 2026-08-31
+
+Stage 2 of ADR-0027's implied changes 1, 3 and 5 — the §11 Q1 half of the Weeks 7–8 exit.
+**Verdict (c): reachable at neither. Nothing from implied changes 1, 3 or 5 is landed, and stage 3
+did not run.**
+
+#### The reachability determination, per site
+
+**Site 1 — `bzk/analysis/differential.py` l.120, in `site_change_set`.** Its signature is
+`site_change_set(run: DeclaredRun, results: list[SiteResult], *, dataset: Node, attached_nodes:
+list[Node], attached_edges: list[Edge])`. **Verdict (c).**
+
+- `DeclaredRun` carries `quantity`, `test`, `fdr_method`, `localization_threshold`,
+  `filters_applied`, `imputation`, `numerator`, `denominator`, `parameters_json` — **no experiment**.
+- The word `Experiment` **appears nowhere in the file**.
+- `attached_nodes` is *"the slice of the ingestion change-set the results attach to, passed in whole,
+  as the adapter minted them"* — and **the only `evidence_id("Experiment", …)` call in `bzk/` is
+  `bzk/curation/loader.py` l.320**, which is the curation loader and not an adapter. So no adapter
+  ever mints an `Experiment`, and `attached_nodes` cannot carry one.
+
+**Site 2 — `bzk/adapters/perseus.py` l.226, in `PerseusAdapter.parse`.** Its signature is
+`parse(self, path: Path, mapping: SampleMapping) -> ParsedObservations`. **Verdict (c).**
+
+- `SampleMapping` carries exactly two fields, at `bzk/adapters/base.py` l.46–47:
+  `curation_analysis_id: str` and `samples: list[dict[str, Any]]`. **No experiment id.**
+- The word `Experiment` **appears nowhere in the file**.
+
+**Combined verdict: (c).**
+
+#### What (c) licenses, and it is not the build
+
+**Building implied change 3 under (c) would re-mint every `Contrast` id with `@Experiment=␀null`.**
+`keys.py` l.334–341 renders a missing anchor rather than skipping it, so the ids all move — and an
+id carrying ∅ uniformly **is reused across experiments exactly as one carrying no anchor was.** That
+is the collision at ADR-0027 l.1081's diagnosis, which the anchor exists to close. **The build would
+move every `Contrast` id in the graph and close nothing.**
+
+**`keys.py` l.303–311 says so about the one anchor where this already happened**, and names what it
+cost: *"a caller who simply fails to pass `ADJUSTED_BY` gets a real id in which the baseline is
+invisible — which re-mints the collision ADR-0025 added that anchor to close"*, measured at
+`bzk:3473130e9cb7f1198196ee40b0e30727`, and **"Nothing here can refuse it."**
+
+**The suite would have stayed green, and green is not a licence.** That was registered before the
+determination, at the previous commit: the full three-part build with call sites unchanged was
+predicted green, because the three mirrors would agree, no fixture or test pins a literal `Contrast`
+id, and `invariants._check_I21` is `DifferentialResult`-and-`ADJUSTED_BY`-specific so nothing
+recomputes a `Contrast` id against its edges. **A green suite would have meant no guard was looking,
+not that the build was sound.**
+
+**Making the two sites reach an `Experiment` id is a change to the analysis path**, is not among
+implied changes 1, 3 and 5, and was not made.
+
+#### Claim one: two on the merits, three observed, and the third is an artefact
+
+**Registered: exactly two fail — `test_identity_table_matches_ddl` and
+`test_schema_identity_matches_ontology_table`, the two ADR-0027 l.256–263 names. Measured: three.**
+
+The third is `tests/test_tautology_sweep.py::test_every_classified_instance_re_runs_its_recorded_
+evidence`, and **it is not a third test the edit breaks on its merits.** That test shells out to
+pytest (`subprocess`, imported at l.48) and reads the exit code to decide whether a recorded
+mutation stayed green. **With the tree already red from the two schema failures, the subprocess
+exits 1 whatever the mutation does**, and the test reports a `test_drift.py` row as no longer an
+instance. **Control run on the unedited tree: 1 passed.**
+
+**So ADR-0027's naming of two is right about direct failures and the observed count on a red tree is
+three.** The registration said 2 and the honest answer is 2-on-the-merits; **the prediction is
+scored a miss against the raw count and the reason is recorded rather than argued away.**
+
+The scratch test ran in a copy of `HEAD` outside the repository, with `__pycache__` cleared and
+`PYTHONDONTWRITEBYTECODE=1`; the working tree was confirmed clean by `git status --short` before and
+after. **Nothing from it is committed except this finding.**
+
+#### Claim two: confirmed by reading, not tested
+
+**Not run**, because the determination made the build moot. What was established by reading
+`keys.py` l.334–341 stands: `anchors = anchor_ids or {}` and the loop over `spec.anchors` renders
+`@Experiment=␀null` for an anchor the caller never supplied. **Every `Contrast` id would change and
+every one would carry ∅.** The colour predictions were not exercised.
+
+#### The contradiction inside ADR-0027, recorded and not amended
+
+**ADR-0027 says both things about §1's diagram.** l.121–122 states `Contrast` *"also gains a column
+in §1's diagram it has never had — on the evidence side"*, and implied change 2 at l.255 repeats it.
+**Its own Review at l.19–29 rules the opposite**: the diagram names 19 of the DDL's 24 node tables,
+adding only `Contrast` would make it read as a census while four node types stayed missing, and
+bringing all five in is a change to §1 with its own reasoning.
+
+**The Review governs and §1's diagram at l.29–41 was not touched.** ADR-0027 is `Accepted` and is
+not amended; the contradiction stands in the record, carried as a standing defect.
+
+#### A defect found by the scratch test, which fits no existing item
+
+**`tests/test_tautology_sweep.py::test_every_classified_instance_re_runs_its_recorded_evidence`
+cannot distinguish "the mutation was caught" from "the tree was already red."** It runs pytest as a
+subprocess and treats a non-zero exit as evidence that a recorded instance now catches its defect.
+**On a tree red for any unrelated reason, every classified instance reports as no longer an
+instance**, and the failure message names a specific row and mutation that had nothing to do with
+the breakage.
+
+**Recorded as new defect 21**; it belongs in `HANDOFF.md` §8, with the trigger being any turn that
+runs the sweep against a tree already failing. **Not fixed — the sweep is not edited.**
 
 ### Deposit and supplementary survey, 2026-08-07
 
