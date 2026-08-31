@@ -11118,6 +11118,74 @@ not held because the verdicts and the shape are untouched** — what was missing
 **Three grounds struck in one review is the reason it was close**: the record cited other records
 where it should have read them, three times, and each citation turned out wrong on reading.
 
+### Pre-registration: two untested claims behind ADR-0027's implied changes 1, 3 and 5, 2026-08-31
+
+**Committed before any change and before any scratch test is run**, and the ordering is provable from
+`git log`. ADR-0027's implied-changes section holds **six** items; this turn concerns 1, 3 and 5.
+
+#### Claim one — which tests go red if §3 cites an anchor nothing declares
+
+ADR-0027 l.256–263 asserts *"Writing the anchor into §3 today would turn the suite red"* and names
+two tests. **Registered prediction: exactly two fail, and they are the two it names.**
+
+| Test | Predicted | Why |
+|---|---|---|
+| `tests/test_schema.py::test_identity_table_matches_ddl` | **fails** | l.242 asserts every edge cited in §3's anchors cell is a declared rel table; `CONTRAST_IN_EXPERIMENT` would be cited and not declared |
+| `tests/test_schema.py::test_schema_identity_matches_ontology_table` | **fails** | it compares §3's anchors against `schema.IDENTITY` in both directions, and `schema.py` l.274 would still carry an empty anchor tuple |
+
+**Count predicted: 2.** More would mean §3's anchors cell is read by a parser neither ADR-0027 nor I
+have accounted for; fewer would mean one of the two does not reach this case.
+
+#### Claim two — what the anchor does to ids the callers never anchor
+
+`Contrast` is minted at `bzk/analysis/differential.py` l.120 and `bzk/adapters/perseus.py` l.226,
+both `evidence_id("Contrast", …)` with **no anchor argument** — confirmed by reading both.
+
+**`keys.py` l.334–341 is unambiguous about what happens.** `anchors = anchor_ids or {}`, then for
+each anchor in `spec.anchors` it appends `f"@{anchor_type}={_NULL if anchor_id is None else …}"`.
+**A missing anchor is not skipped; it is rendered.**
+
+**Registered:**
+
+1. **Yes, the ids change.** Adding the anchor to `schema.py` l.274 while leaving both call sites
+   unchanged adds `@Experiment=␀null` to the hash input, so **every `Contrast` id in the repository
+   changes**. The changed ids carry **`␀null`** in the anchor position — the rendering l.304 names.
+
+2. **The suite's colour depends on how much of the build lands, so both are registered.**
+   - **Partial — `schema.py` only: red.** `test_schema_identity_matches_ontology_table` fails, §3
+     still reading "—" against a populated anchor tuple.
+   - **Full — DDL and `schema.py` and §3 together, call sites unchanged: green.** The three mirrors
+     agree with each other; no fixture or test pins a literal `Contrast` id, the only two
+     `evidence_id("Contrast", …)` call sites being the minting sites themselves; and
+     `invariants._check_I21` is `DifferentialResult`-and-`ADJUSTED_BY`-specific, so nothing
+     recomputes a `Contrast` id against its edges.
+
+3. **And green would not settle it**, which is the point of registering it. l.303–311 describes this
+   exact situation for `ADJUSTED_BY`: *"a caller who simply fails to pass `ADJUSTED_BY` gets a real
+   id in which the baseline is invisible — which re-mints the collision ADR-0025 added that anchor
+   to close"*, measured at `bzk:3473130e9cb7f1198196ee40b0e30727`, and **"Nothing here can refuse
+   it"**. **A `Contrast` id carrying `@Experiment=␀null` uniformly is reused across experiments
+   exactly as one carrying no anchor at all was** — which is the collision ADR-0027 exists to close.
+   The build would move every id and close nothing.
+
+#### What would have to be different for each to be wrong
+
+- **Claim one, too few:** if §3's anchors cell for a row reading "—" is skipped before the edge
+  check, one of the two would not reach the assertion.
+- **Claim one, too many:** if another module parses §3's identity table — the sweep pins several
+  `test_schema.py` assertions and I have not enumerated every parser.
+- **Claim two (1):** if `spec.anchors` were consulted somewhere that raises on a missing anchor
+  rather than rendering it. `anchors.get()` returns `None` silently, so this would have to be
+  outside `keys.py`.
+- **Claim two (2), full build:** if any test pins a literal `Contrast` id, or if a fixture carries
+  one. Neither `curation_synthetic_loadable.json` nor `curation_synthetic_pending.json` mints a
+  `Contrast` — the loader hands contrasts on without materialising them.
+- **Claim two (3):** it would be wrong only if `␀null` differed per experiment, which it cannot,
+  being a constant.
+
+**No prediction is registered about stage 2's reachability verdict**, which is the question this
+turn exists to answer and is not inferable from anything read so far.
+
 ### Deposit and supplementary survey, 2026-08-07
 
 Method: read the column headers of every processed file in the PXD018299 PRIDE deposit and every supplementary table of Pinto-Fernández et al., *Br J Cancer* 124:817–830 (2021), and classified each as a Perseus export or raw search-engine output by column markers — Perseus stamps a type prefix on every column name (`C:` categorical, `N:` numerical, `T:` text, `M:` multi-numerical); MaxQuant does not. Also read `colab_reproducefigure.ipynb` end to end to establish what it persists. These are measurements of files on disk and in the publication, not inferences from a methods section.
