@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.22 |
+| Version | 2.23 |
 | Last reviewed | 2026-08-31 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -10646,13 +10646,44 @@ commits that moved an equal-length pinned integer in this repository's whole his
 Counting a *pinned integer* as any integer a test holds as an expectation the protocol obliges a
 session to show binds — the `EXPECTED_*` constants **and** `tests/test_tautology_sweep.py`'s floor
 bounds, which that module's own docstring groups under the same discipline — **22 commits reachable
-from `b8a0c5a` moved an equal-length pinned integer, across 36 equal-length integer moves of 37
-total.** Falsifiable by recount, and the enumeration is stated in the entry below.
+from `b8a0c5a` moved an equal-length pinned integer, across ~~36 equal-length integer moves of 37
+total~~.** **Corrected 2026-08-31, and this is a correction *to* the 2026-08-29 correction above
+rather than to the sentence it replaced — the twenty-two is untouched and only the subsidiary
+figure moves.** Recounted at `b8a0c5a`, the ref this sentence names, and not at HEAD: commits since
+have moved pinned integers, so a count at HEAD would answer a different question while appearing to
+correct this one. **Both readings are stated, because each answers a different question and
+replacing one with the other would hide what changed:**
+
+> **Per integer — one (constant, key) whose value differs from its parent — 38 equal-length moves
+> of 39.** This is the figure the label *integer moves* promises.
+>
+> **Per constant — a dict counted once however many of its keys move — 36 of 37.** This is what was
+> measured on 2026-08-29 and it is reproducible: the recount returns it exactly.
+
+**The two differ by two and only because of `EXPECTED_STATUSES`**, which moved one key at `10d76f6`
+and at `b8ac9c7` and two at `df017e0` and at `b8a0c5a`. **No commit changes verdict**: splitting a
+constant into its keys can only add moves to a commit, never remove its last one.
+
+**And the superseded figure was not cleanly either reading.** The sweep floor holds two integers on
+one line and already entered the 37 as two, while the dict entered as one — so *per-constant* was
+never quite its label either, and a correction that only relabelled would have given a true-sounding
+name to a mixed count. **Both figures above are ref-scoped to `b8a0c5a` and are not running
+totals**; nothing in the superseded text said so, and a reader would have taken them as current.
+Falsifiable by recount, and the enumeration is stated in the entry below.
 
 **The doubt cannot be resolved retrospectively** — those runs are gone, and staleness can produce
 either a false pass or a false fail depending on which value the cache holds. **It can be retired
-going forward, and was**: this turn's mutation ran with `__pycache__` removed and
-`PYTHONDONTWRITEBYTECODE=1`, read back from the file, and failed the correct guard.
+going forward, and was**: ~~this turn's~~ **`b8a0c5a`'s** mutation ran with `__pycache__` removed
+and `PYTHONDONTWRITEBYTECODE=1`, read back from the file, and failed the correct guard.
+**Referent named 2026-08-31 — a new form, and named as an invention rather than borrowed.** The
+corrections in this document strike a figure found wrong, a decision superseded, or an inference
+restated; **none of them repairs a reference that lost its referent by the document being edited
+around it**, so there was no form to follow and this one is announced instead of slipped in. What
+was lost: *this turn* meant `b8a0c5a`, which moved `EXPECTED_STATUSES` from `{16, 7, 3}` to
+`{17, 6, 3}` and recorded the mutation test in its own message. **Nine commits have since edited
+this document and three of them ran a mutation** — `9c921f0`, `9d29fcc` and `2028686` — so six
+edited it having run none, and a reader today resolving *this turn* to the last hand that touched
+the file would land on one of those six.
 
 #### One defect deliberately left standing
 
