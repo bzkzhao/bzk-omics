@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.21 |
+| Version | 2.22 |
 | Last reviewed | 2026-08-31 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -11287,6 +11287,101 @@ the breakage.
 
 **Recorded as new defect 21**; it belongs in `HANDOFF.md` §8, with the trigger being any turn that
 runs the sweep against a tree already failing. **Not fixed — the sweep is not edited.**
+
+### ADR-0029 decides the change ADR-0027 never named, and the two mints get different answers, 2026-08-31
+
+The `Experiment` id that ADR-0027's implied change 3 requires and no site supplies. **This turn
+decides and does not build:** no `Contrast` is anchored, no signature changes, no `RelTable` is
+added, no invariant is written. ADR-0029 lands **`Proposed`**; **0029 verified as the next free
+number** — `decisions/` holds 0001–0017 and 0019–0028, with 0018 reserved.
+
+The determination it rests on is `ROADMAP.md` l.11189–11289, **101 lines under six `####`
+subsections**, counted before citing.
+
+#### The three questions, decided
+
+**Q1 — `site_change_set` gains a required keyword-only `experiment_id: str`.** The id is already in
+the caller: `pxd018299_differential.py` calls `load_path(CURATION)` at l.143 and `site_change_set` at
+l.322 in one function, and `LoadedCuration` carries `experiment_id` at `loader.py` l.153.
+
+**Four call sites and two `DeclaredRun` constructions, both counted.** The three test callers at
+`tests/test_analysis_differential.py` l.84, l.138 and l.176 each gain one argument. **The three
+rejected options all cost those callers nothing, and that is why they are rejected**: a field on
+`DeclaredRun` discharges the obligation once at a module-level constant; an entry in
+`attached_nodes` needs a label search that returns nothing when the caller forgets; a defaulted
+parameter is a lookup that always succeeds and always returns the wrong thing. **Only the required
+parameter makes forgetting a `TypeError`.**
+
+**Q2 — `SampleMapping` does not widen. The loader materialises `Contrast` and hands the adapter
+pre-keyed ids.**
+
+**The decisive fact was measured: no adapter mints a `Sample` id.** The only
+`evidence_id("Sample", …)` call in `bzk/` is `loader.py` l.324, which supplies the `Experiment`
+anchor. Adapters *emit* `Sample` nodes from descriptors that arrive already keyed. **So the adapter
+has been kept out of identity work over experiment scope everywhere — with exactly one exception,
+`perseus.py` l.226, the only node type it mints and the only one whose spec has no anchor.**
+
+Adding `experiment_id` there would not widen a mapping; it would grant a capability the design has
+withheld. **The alternative is already in ADR-0027's own list** as implied change 4, and it leaves
+the two-field contract untouched.
+
+**Q3 — the check is needed and its correct form is a generalisation of I21, not a new invariant.**
+`keys.py` l.303–311 puts the obligation at write time; I21 discharges it for one anchor, at
+`ONTOLOGY.md` l.966, `invariants.py` l.588 and l.710. A `Contrast`-specific twin would start a
+per-node series where the general rule is *every anchored node's id encodes its anchors*. **Next
+free invariant number verified as I22** — the list runs to I21 and the registry holds I2, I3, I4,
+I10, I14, I15, I16, I19, I20, I21 — **and not taken**, because a new invariant is not the decision.
+Generalising I21 amends an `Accepted` invariant and needs its own record.
+
+#### Q1 and Q2 differ, and a one-site build is incoherent
+
+**They got different answers and the difference is not a compromise.** The analysis layer mints ids
+and is given the anchor; the adapter layer does not and is not.
+
+**`keys.py` l.334–341 renders the anchor for every `Contrast` mint the moment `schema.py` carries
+it.** So threading the id into `site_change_set` while leaving `perseus.py` alone produces two
+disjoint id spaces for one contrast — `@Experiment=<real>` from the analysis path,
+`@Experiment=␀null` from the adapter — and **a `RESULT_IN_CONTRAST` edge would point at an id no
+adapter ever emits.** The parts move together: implied change 4, then Q1's parameter, then implied
+changes 1, 3 and 5. **ADR-0027 states no ordering among its six items, and this is the second
+ordering constraint its list omits.**
+
+#### The figure, measured un-populated
+
+**Two of the two contrasts the repository declares change id.** Measured in memory by keying
+`curation_PXD018299.json`'s two `contrasts_of_interest` through `keys.evidence_id` before and after
+substituting an anchored identity spec, restoring the spec and asserting the restoration. **Nothing
+was written.**
+
+| Contrast | before | after, anchored | under a null-anchor build |
+|---|---|---|---|
+| `KO_IFN_vs_WT_IFN` | `bzk:f7c41f45…e267` | `bzk:8f9a0634…4393` | `bzk:03ccd33e…2df9` |
+| `KO_vs_WT_unstimulated` | `bzk:852326f3…63da` | `bzk:d78903ee…2906` | `bzk:7fa11302…be38` |
+
+**It is measurable un-populated because ids are content-derived under ADR-0020** — `evidence_id`
+reads props, the identity spec and the anchor ids, and nothing on disk.
+
+**A third id set exists and is the one to avoid.** A build that lands the anchor without the
+threading does not leave ids where they are; **it moves them to a third place that closes nothing.**
+
+**And the count of ids changing in any store is zero**, because no store exists: `graph.kuzu/` is
+absent and the loader materialises no `Contrast`. The figure above counts what the committed record
+would mint, not what is held.
+
+#### What is said plainly about ADR-0027
+
+**Its implied-changes list reads as buildable and is not.** The six items are written as
+consequences, each describable and each apparently independent; implied change 3 has no supplier for
+its anchor and the record never asks whether one exists. **ADR-0029 is the change it never named.**
+ADR-0027 is `Accepted` and is not amended.
+
+#### The class
+
+**ADR-0029 closes no class. It closes one instance.** The class it belongs to — a record whose
+implied changes are described without their reachability established — **is real and is not
+machine-checkable**: whether a described-but-unbuilt change can be built is not expressible as an
+assertion over the tree, and is answered by reading the call sites, which is what the determination
+did. **The class stays open for a structural reason, not for want of writing a guard.**
 
 ### Deposit and supplementary survey, 2026-08-07
 
