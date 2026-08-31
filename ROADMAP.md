@@ -11383,6 +11383,82 @@ machine-checkable**: whether a described-but-unbuilt change can be built is not 
 assertion over the tree, and is answered by reading the call sites, which is what the determination
 did. **The class stays open for a structural reason, not for want of writing a guard.**
 
+### Pre-registration: the census's subsidiary figure, counted per integer, 2026-08-31
+
+l.10648–10650 states **"36 equal-length integer moves of 37 total"**. **This registration is
+committed before any measuring code exists**, and the ordering is provable from `git log`.
+
+#### Blindness is not available and is disclosed twice over
+
+**Two sources make this prediction non-independent, and both are named rather than claimed away.**
+
+1. **The census output from the turn that produced the original figure is in my context**, so I have
+   already seen the per-commit, per-constant breakdown it was summed from.
+2. **The instruction that set this turn states the answer in its own out-of-scope list.** Its
+   defect 16 reads *"per integer it is 38 of 39"*, while its body says the reviewer's value is
+   withheld. **It is not withheld; it is two screens further down the same page.** The prediction
+   below would be the same without it, for the arithmetic reason given, but it is not honest to
+   register a number I have been shown and call it a prediction without saying so.
+
+#### The definition I will count under
+
+**One *integer move* is one (constant, key) whose integer value differs between the commit's parent
+and the commit itself.** Stated so the dict case is unambiguous:
+
+- `EXPECTED_FILES = 24 → 25` is **one** integer move.
+- `EXPECTED_STATUSES = {"Accepted": 15, "Proposed": 7, …} → {"Accepted": 16, "Proposed": 6, …}` is
+  **two** — `Accepted` and `Proposed` each moved. A key whose value is unchanged is not a move, so
+  `Superseded` never counts.
+- `assert modules >= 31 and asserts >= 1123 → >= 32 and >= 1129` is **two**, one per bound.
+
+**Equal-length is judged per integer, on the two literals for that key**, not on the whole line.
+
+#### The prediction
+
+| Quantity | Registered |
+|---|---|
+| **per-integer, equal-length of total** | **38 of 39** |
+| per-constant, equal-length of total (the figure on the file) | 36 of 37, unchanged |
+| **does the count of 22 commits change?** | **no** |
+
+**Where 38 of 39 comes from.** The only constant the two readings treat differently is
+`EXPECTED_STATUSES`. Per constant it contributes **four** moves, one per commit that edited it —
+`10d76f6`, `df017e0`, `b8ac9c7`, `b8a0c5a`. Per integer it contributes **six**: one key moved at
+`10d76f6` and at `b8ac9c7`, two at `df017e0` and at `b8a0c5a`. **So both totals rise by exactly two**,
+and none of the four edits changes a digit count, so the equal-length total rises by two as well.
+
+**Why 22 commits does not change.** Splitting a constant into its keys can only **add** moves to a
+commit, never remove one. Every commit that had at least one equal-length move still has at least
+one, so no commit leaves verdict (a) and none enters it. **The commit count is invariant under this
+re-reading by construction, not by measurement.**
+
+#### One thing the original figure gets wrong that is not the dict
+
+**"36 of 37" is neither cleanly per-constant nor cleanly per-integer, and this is registered before
+measuring because it changes what the correction has to say.** The sweep floor holds **two integers
+on one line**, and the count that produced 37 already treated them as two — they entered it as
+separate names. So the figure was already per-integer for the floor and per-constant for the dict.
+**Its label is not merely wrong; the count underneath it is mixed**, and a correction that only
+relabels would make a true label for a figure that answers neither reading consistently.
+
+#### What would have to be different for 38 of 39 to be wrong
+
+- **If any `EXPECTED_STATUSES` edit moved a key across a digit boundary** — 9 → 10, say — the
+  equal-length figure would fall below the total by more than one.
+- **If `Superseded` moved at any point.** From the breakdown I have seen it is 3 throughout, but I
+  have not re-derived that at `b8a0c5a`.
+- **If an edit I am reading as two keys is one or three**, which is a per-commit fact I am recalling
+  rather than re-measuring.
+- **If the floor was in fact counted as one constant in the original 37**, in which case the
+  per-integer total rises by more than two and the mixed-count finding above is wrong in the other
+  direction.
+- **If the recount at `b8a0c5a` reaches a different commit set than the one I have seen**, which
+  would move both figures and the commit count with them.
+
+**The recount runs at `b8a0c5a` and not at HEAD**, because the sentence names that ref; commits since
+have moved pinned integers, and counting at HEAD would answer a different question while appearing
+to correct this one.
+
 ### Deposit and supplementary survey, 2026-08-07
 
 Method: read the column headers of every processed file in the PXD018299 PRIDE deposit and every supplementary table of Pinto-Fernández et al., *Br J Cancer* 124:817–830 (2021), and classified each as a Perseus export or raw search-engine output by column markers — Perseus stamps a type prefix on every column name (`C:` categorical, `N:` numerical, `T:` text, `M:` multi-numerical); MaxQuant does not. Also read `colab_reproducefigure.ipynb` end to end to establish what it persists. These are measurements of files on disk and in the publication, not inferences from a methods section.
