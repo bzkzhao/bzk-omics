@@ -4,8 +4,155 @@
 |---|---|
 | Status | Proposed |
 | Date | 2026-08-31 |
+| Reviewed | 2026-09-03 — four findings, two grounds struck, one defect in the decision; held `Proposed` |
 | Supersedes | — |
 | Superseded by | — |
+
+## Review
+
+Landed `Proposed` at `2028686` and reviewed at `c5dc140`. **The record is held, not accepted.**
+Finding B struck the ground Q1 rejects option (b) on *and* the sentence that selects (a) over it,
+and the argument for (b) that the correct field list makes available was never engaged — so Q1's
+comparison has to be run again against a `DeclaredRun` described as it is. Q2, Q3 and the
+measurement stand.
+
+### A — the ordering is stated twice at two scopes, and the numerals in the operative sentence are unqualified. Defect in the decision
+
+**Two texts.** l.119–121: *"So the three parts move together: implied change 4 first or alongside,
+then Q1's parameter, then implied changes 1, 3 and 5."* l.197, closing the record's own numbered
+list: *"**Then ADR-0027's implied changes 1, 3 and 5.** Not before the four above."*
+
+**Which record each numeral belongs to.** In l.119 every numeral is **ADR-0027's** — *implied change
+4* is ADR-0027's fourth (the loader materialising `Contrast`, per l.77 and l.191) and *implied
+changes 1, 3 and 5* are ADR-0027's (per l.13 and l.197); only *"Q1's parameter"* names an item of
+**this** record, and it names it by description. In the list at l.188–197 every numeral is **this
+record's own**: item 1 is Q1's parameter, item 2 is ADR-0027's #4, item 3 is the adapter change,
+item 4 is the I21 generalisation, item 5 is ADR-0027's #1, #3 and #5.
+
+**The collision, ruled separately.** All four of l.119's unqualified numerals — 4, and 1/3/5 —
+collide with items this record numbers 4, 1, 3 and 5, and two of them denote different things
+under the two readings: ADR-0027's #4 is the loader change, this record's item 4 is the I21
+generalisation. The sentence is *recoverable*, because reading the numerals as this record's own
+makes item 1 appear twice and is incoherent — but recovery by detected incoherence is not
+disambiguation. **The record qualifies its numerals at l.13, l.77, l.191 and l.197 and drops the
+qualification in the one sentence a builder would work from.** That is a defect, and it is this
+record's, not ADR-0027's.
+
+**The orderings, ruled separately from the collision.** They are not two conflicting orderings.
+Attributed correctly, l.119 states *item 2 ≤ item 1 < item 5*; the list states *{1, 2, 3, 4} < 5*,
+with item 2 a prerequisite of ADR-0027's #3 and item 4 *"before or with the anchor landing"*. Each
+carries a constraint the other omits, and neither contradicts the other. **The list governs**,
+because it is the record's final statement and because it postdates §Q3 — l.119 closes the Q1/Q2
+section and could not have covered a part Q3 had not yet introduced.
+
+**Why that is nonetheless a defect in the decision rather than presentation.** l.119 says *"the
+three parts"*, which reads as exhaustive, and it is not: item 4, the I21 generalisation, is the
+fourth part, and Q3 makes it a prerequisite of the anchor landing. **A builder following l.119
+alone lands the anchor with no null-anchor guard** — precisely the hazard Q3 exists to close. An
+ordering is what this record contributes over ADR-0027 (*"ADR-0027 states no ordering among its six
+items"*), so an ordering stated once incompletely and once completely, without either deferring to
+the other, is a defect in the thing decided. **Ruling (a).** Q1's, Q2's and Q3's answers are
+untouched by it.
+
+### B — `DeclaredRun` is not what Q1 says it is, and (a) is not the only loud option. Two grounds struck
+
+**The field list.** `DeclaredRun` has **ten** fields at `bzk/analysis/differential.py` l.33–42:
+`quantity`, `test`, `fdr_method`, `localization_threshold`, `filters_applied`, `imputation`,
+`numerator`, `denominator`, `parameters_json`, **`label`**. l.55–56 enumerates **nine** and omits
+`label` — whose own comment reads *"Free-text, excluded from identity (§3). Never load-bearing."*
+**The omitted field is the one that refutes the category**: a free-text display name is not a
+parameter of a statistical test, and it is passed at both construction sites (l.304, l.29).
+
+**What the ten fields actually are.** Six key an `Analysis` (`quantity`, `test`, `fdr_method`,
+`localization_threshold`, `filters_applied`, `parameters_json` are all in
+`schema.IDENTITY["Analysis"].fields`); `imputation` supplies the `Imputation` child fold on that
+same identity; **`numerator` and `denominator` are `schema.IDENTITY["Contrast"].fields` entire**,
+and l.119–120 mints the `Contrast` id from exactly them; `label` is excluded from identity
+altogether. Classified as the finding asks: `localization_threshold` is a **filter** threshold,
+`filters_applied` is a **filter** record, and `numerator` and `denominator` are **references to
+graph content** — the complete key of the node this record is about. **At most five of ten are
+parameters of a test.**
+
+**So the category ground is struck.** `DeclaredRun` is not *"the declaration of statistical
+intent"*; it is the identity material for three evidence nodes plus one display label. **An
+`Experiment` id is a graph reference — and so are two fields already on it**, which is the argument
+*for* (b) that the nine-field list made invisible: the anchor would sit beside the rest of the key
+it anchors.
+
+**The selecting sentence is struck too.** l.71: *"(a) is chosen because it is the only option where
+forgetting is a `TypeError`."* **False, demonstrated**: a field with no default on a frozen
+dataclass raises `TypeError: __init__() missing 1 required positional argument` when omitted. (b)
+with a required field is exactly as loud as (a); only (d) is quiet.
+
+**Whether the second ground carries (b)'s rejection alone. As stated, no.** *"The obligation would
+be discharged once, invisibly, at a module-level constant"* is contingent on the test file's shape
+— the production site constructs `DeclaredRun` at l.304 and calls at l.322, in one function, with
+no module-level constant — and it argues from **cost**, in a paragraph that opens *"rejected on
+category, not on cost."* Its structural core does carry, restated: **a `DeclaredRun` is 1:N with
+`site_change_set` calls** (the test's `RUN` at l.29 serves all three), so an `experiment_id` on it
+is asserted once for calls that need not share an experiment. That restatement is not in the
+record.
+
+**The two call-site figures describe different populations and do not contradict each other.**
+Measured: `site_change_set` has **four** call sites — `bzk/sources/pxd018299_differential.py` l.322
+and `tests/test_analysis_differential.py` l.84, l.138, l.176 — of which **three are tests**
+(l.62 is the definition, not a call), and **two** `DeclaredRun` constructions (l.304, l.29). *"The
+three callers"* is the table's own column head, *"the four call sites"* is l.188. Both correct.
+**What the table under-reports is (b)'s real cost**: *"none change"* is true of call sites and
+false of construction sites, both of which would change, visibly.
+
+**Ruling (b) — two grounds struck. The decision does not survive on the grounds that remain, and
+that is why the record is held.** What remains is sound but insufficient: (c) and (d) are rejected
+soundly and independently (a label search that returns nothing; a default that always succeeds), so
+two of four options are eliminated. The choice between (a) and (b) rested entirely on the two
+struck grounds. It may well come out (a) again on the arity ground above — but that is a comparison
+this record has not made.
+
+### C — a guard of the named shape is writable, and the claim is narrowed. Ground struck
+
+l.180–184 rules the class *"is real and is not machine-checkable"* and stays open *"for a
+structural reason rather than for want of writing a guard."*
+
+**The named check is writable, and it is not vacuous.** Measured over `bzk/` by AST walk: **22**
+`evidence_id` call sites, **all 22 with a string-literal label** and none computed; **12 of
+`schema.IDENTITY`'s 24 labels carry non-empty `anchors`**; **14 call sites** name an anchored label
+and every one of them passes an anchor argument. So *for every anchored label, every `evidence_id`
+call for it passes anchor ids* has fourteen live subjects today, passes today, and **turns red the
+moment `schema.py` gains `Contrast`'s anchor without `differential.py` l.120 and `perseus.py` l.226
+being threaded** — which is the hazard l.112–117 describes.
+
+**What it would not catch.** It is syntactic: an anchor argument present but resolving to `None`,
+or a dict missing a key, still renders `␀null` and passes. It reads only `bzk/`. It needs a literal
+label. And it does not catch **the class** — a record describing an implied change whose
+reachability was never established leaves nothing in the tree to assert over, because the change
+is not in the tree.
+
+**Does that distinction rescue the claim? Half of it.** *The class is not machine-checkable* stands,
+and it stands for the reason the record gives: reachability of an unwritten change is answered by
+reading call sites. *It stays open for want of a structural reason rather than a guard* does not
+stand, because it reads as *no guard was available* and one is — a mirror between `schema.IDENTITY`
+and the call sites, of exactly the kind this repository guards everywhere else. **Ruling (b).** The
+decision — that this record closes one instance and no class — survives on the surviving half.
+
+### D — the measurement reproduces exactly. No defect
+
+Reproduced in memory, writing nothing, with the identity spec substituted and restored and the
+restoration asserted. `Experiment` id `bzk:222c1d19e977939d440f321823de5b94`, taken from
+`load_path` rather than invented.
+
+| Contrast | current | anchored | null-anchor |
+|---|---|---|---|
+| `KO_IFN_vs_WT_IFN` | `bzk:f7c41f45886d3cf7c5c5ce8d59b0e267` | `bzk:8f9a06344675831a26dd59b2bf8c4393` | `bzk:03ccd33e0d41b99f61407b9b30462df9` |
+| `KO_vs_WT_unstimulated` | `bzk:852326f345b67bc266845f675d1d63da` | `bzk:d78903eeb3746b372e2100d3b6e52906` | `bzk:7fa11302cf15805ef6cd325546b6be38` |
+
+**All six match the record**, across all three sets, and the three are mutually distinct per
+contrast. The anchor relationship name does not enter the digest — `keys.py` l.335 discards it —
+so the anchored figures do not depend on what the edge is eventually called.
+
+**The closing claim holds, checked rather than taken.** `graph.kuzu/` is absent and no DuckDB file
+exists; `bzk/curation/loader.py` contains no `evidence_id("Contrast", …)` call — the only two in
+`bzk/` are `differential.py` l.120 and `perseus.py` l.226 — and l.357–359 hands
+`contrasts_of_interest` on as a tuple without materialising. **Ruling (c).**
 
 ## Scope
 
@@ -51,10 +198,13 @@ Both counts are measured, not estimated.
 | (c) entry in `attached_nodes` | none change syntactically; each would have to be checked for an `Experiment` node | rejected |
 | (d) defaulted keyword parameter | none change | rejected |
 
-**(b) is rejected on category, not on cost.** `DeclaredRun` holds the declaration of statistical
+~~**(b) is rejected on category, not on cost.** `DeclaredRun` holds the declaration of statistical
 intent — `quantity`, `test`, `fdr_method`, `localization_threshold`, `filters_applied`,
 `imputation`, `numerator`, `denominator`, `parameters_json`. **An `Experiment` id is a graph
-reference, not a parameter of a test**, and the fact that it would cost the three callers nothing is
+reference, not a parameter of a test**~~ — **ground struck by Review finding B, 2026-09-03: the list
+is nine fields of ten, the omitted `label` is not a parameter of a test, and `numerator` and
+`denominator` are `Contrast`'s complete identity.** The remainder of the sentence stands as written:
+the fact that it would cost the three callers nothing is
 precisely what makes it dangerous: the obligation would be discharged once, invisibly, at a
 module-level constant.
 
@@ -68,7 +218,9 @@ nothing renders `␀null`**, which is the hazard this record exists to avoid.
 **(d) is rejected for the same reason in its purest form.** A default is a lookup that always
 succeeds and always returns the wrong thing.
 
-**(a) is chosen because it is the only option where forgetting is a `TypeError`.** Costing the three
+~~**(a) is chosen because it is the only option where forgetting is a `TypeError`.**~~ — **struck by
+Review finding B, 2026-09-03: a field with no default on a frozen dataclass raises `TypeError` on
+omission, so (b) with a required field is exactly as loud. Only (d) is quiet.** Costing the three
 test callers a line each is the point of it, not a price paid for it.
 
 ## Q2 — whether `SampleMapping` widens
@@ -119,6 +271,11 @@ differential result would then point at a `Contrast` id no adapter ever emits.**
 **So the three parts move together: implied change 4 first or alongside, then Q1's parameter, then
 implied changes 1, 3 and 5.** ADR-0027 states no ordering among its six items, and this is the
 second ordering constraint its list omits.
+
+**Review finding A, 2026-09-03 — this sentence is local and does not govern.** Every numeral in it
+is **ADR-0027's**, and all four collide with items this record's own list numbers 1, 3, 4 and 5,
+where item 4 is a different thing. It also closes the Q1/Q2 section and so omits the fourth part
+§Q3 adds — *"the three parts"* is not exhaustive. **The list at the end of this record governs.**
 
 ## Q3 — where the null-anchor check lives
 
@@ -180,8 +337,11 @@ supplier for its anchor, and this supplies one.
 **The class it belongs to — a record whose implied changes are described without their reachability
 established — is real and is not machine-checkable.** Whether a described-but-unbuilt change can be
 built is not expressible as an assertion over the tree; it is answered by reading the call sites,
-which is what the determination at `ROADMAP.md` l.11189 did. **So the class stays open, and it stays
-open for a structural reason rather than for want of writing a guard.**
+which is what the determination at `ROADMAP.md` l.11189 did. ~~**So the class stays open, and it stays
+open for a structural reason rather than for want of writing a guard.**~~ — **narrowed by Review
+finding C, 2026-09-03: the class does stay open for a structural reason, but a guard over
+`schema.IDENTITY`'s anchored labels and the 22 `evidence_id` call sites is writable and non-vacuous,
+and it would catch the shape this instance took. It does not catch the class.**
 
 ## Implied changes, described and not made
 
