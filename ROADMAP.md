@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.23 |
-| Last reviewed | 2026-08-31 |
+| Version | 2.24 |
+| Last reviewed | 2026-09-04 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
 
@@ -11489,6 +11489,81 @@ relabels would make a true label for a figure that answers neither reading consi
 **The recount runs at `b8a0c5a` and not at HEAD**, because the sentence names that ref; commits since
 have moved pinned integers, and counting at HEAD would answer a different question while appearing
 to correct this one.
+
+### Pre-registering the `evidence_id` call-site recount, 2026-09-04
+
+ADR-0029's Finding C reports **22** `evidence_id` call sites under `bzk/` and **14** of them naming
+an anchored label, against an instrument the record describes only as *"AST walk over `bzk/`"*. A
+reviewer reports three independent instruments returning **15** for the anchored figure. This
+section fixes the instrument and the expectation **before the measuring code is written**, so that
+the recount cannot be tuned until it agrees.
+
+**This is a confirmatory pre-registration and not a blind one, and saying so is the point of the
+distinction.** The turn that wrote Finding C printed a per-call-site table, and that table is
+still readable in this session's history; re-counting its own rows by hand gives 15, not 14. So the
+expectation below is not a prediction from ignorance — it is a commitment, made before any code
+runs, to what the stated instrument must return if the recorded figure was an arithmetic slip
+rather than an instrument difference. **What pre-registration buys here is the ordering, not the
+blindness**: the instrument is written down before it can be adjusted to whatever number arrives.
+
+#### The instrument, stated so a third party can re-derive it
+
+- **What is walked.** Every `*.py` under `bzk/`, recursively, parsed with `ast.parse`. Nothing
+  under `tests/`, nothing under `notebooks/`, nothing at the repository root.
+- **What counts as a call site.** An `ast.Call` node whose callee names `evidence_id` — **both**
+  the bare form (`ast.Name` with `id == "evidence_id"`) **and** the attribute form (`ast.Attribute`
+  with `attr == "evidence_id"`, e.g. `keys.evidence_id(...)`). The previous walk matched the bare
+  form only, and that is the first candidate explanation for any disagreement. One `ast.Call` node
+  is one call site; a call written across several physical lines is one site, counted at its
+  `lineno`.
+- **What the label is.** The first positional argument when it is an `ast.Constant` holding a
+  string. A call whose label is not a string literal is counted as a call site and reported
+  separately, because a non-literal label is what would make the guard Finding C describes
+  unwritable as stated.
+- **When a call site names an anchored label.** When `schema.IDENTITY[label].anchors` is non-empty.
+  Read from `schema.IDENTITY` at run time, not transcribed.
+- **The exclusion, and its ground.** Calls in `bzk/ontology/invariants.py` are excluded. They
+  **recompute** an already-minted digest in order to compare it against the id a change-set
+  carries — `_check_I21`'s recomputation — rather than **mint** an id that is then written. The
+  figure Finding C reports is about minting sites, because the guard it describes is about whether
+  a mint supplies its anchors; a recomputation that deliberately reproduces an existing id is not a
+  site where an anchor could be forgotten. **The exclusion is stated here because it was unstated
+  in the record**, which is the second defect this recount exists to fix.
+
+#### The expectation
+
+| Figure | Expected |
+|---|---|
+| call sites under `bzk/`, exclusion applied | **22** |
+| of those, naming an anchored label | **15** |
+| call sites under `bzk/`, no exclusion | **24** |
+| excluded calls, all in `bzk/ontology/invariants.py` | **2** |
+| labels in `schema.IDENTITY` with non-empty `anchors`, of 24 | **12** |
+| call sites whose label is not a string literal | **0** |
+
+**The reconciliation this predicts**, stated so that it is falsifiable as a whole and not one
+number at a time: the recorded **22** is right *under the exclusion* and wrong *under its stated
+instrument*, because the two invariants calls are in the attribute form and the previous walk
+matched bare calls only — so the previous walk arrived at 22 by two errors that cancelled. The
+recorded **14** is then a plain miscount of that walk's own output, and no instrument difference
+explains it.
+
+#### What would falsify this
+
+- Any of the six figures coming out different.
+- The two excluded calls not both being in `bzk/ontology/invariants.py`, or not both being
+  recomputations — which would mean the exclusion is doing more work than its ground supports.
+- An attribute-form `evidence_id` call existing **outside** `bzk/ontology/invariants.py`, which
+  would mean the recorded 22 was wrong for a second, independent reason and the cancellation story
+  above is wrong.
+- A non-literal label anywhere, which would falsify *"all 22 with a string-literal label"*
+  separately from the counts.
+- The anchored figure coming out 14 after all, which would mean the reviewer's three instruments
+  and this one differ on what an anchored label is, and would move the question from arithmetic to
+  definition.
+
+**No correction is made in this commit.** The record still says 22, 14 and *fourteen*; what changes
+here is only that the instrument is on the file before the measurement runs.
 
 ### Deposit and supplementary survey, 2026-08-07
 
