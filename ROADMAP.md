@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.24 |
+| Version | 2.25 |
 | Last reviewed | 2026-09-04 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -11564,6 +11564,170 @@ explains it.
 
 **No correction is made in this commit.** The record still says 22, 14 and *fourteen*; what changes
 here is only that the instrument is on the file before the measurement runs.
+
+### What grain each exit requires, what the protein path reaches, and what is recorded about `PXD055843`, 2026-09-04
+
+Read-only over the repository. **No deposit is selected, nothing is admitted, no candidate is
+re-scored and no verdict is overturned.** Every figure below was measured at `49087e9`, and the
+instrument is stated beside each. **No figure here is compared to one already recorded in this
+document, so no pre-registration was owed** — said explicitly so its absence is a ruling.
+
+#### The two exits do not require the same grain, and one of them is not grain-silent at all
+
+**Weeks 3–4's exit names an adapter, and that adapter is protein grain by design.** The sentence is
+*"a Perseus table is ingested, resolved, stored, and cross-queried against a second dataset"*, and
+`bzk/adapters/perseus.py`'s own module docstring settles what a Perseus table becomes: *"the grain
+is **protein**, so a row becomes a `ProteinObservation` anchored on a `Protein`, and there is no
+`ModificationSite`, no `ProteinSequence`, no sequence version to resolve and therefore no network
+call in the ingestion path."* **So this exit does not merely tolerate protein grain — it is written
+around it**, and a reading on which it requires site grain contradicts the module it names.
+
+**Weeks 7–8's exit names sites, and whether that binds the deposit or only the query is not fixed
+by anything in the tree.** The sentence is *"which sites are lost on ISG15 knockdown across all my
+datasets"* returning a cited, provenanced answer, *"and every displayed number carries its inference
+status."* The second clause is grain-silent. The first admits two readings and **nothing selects
+between them**: on one, *across all my datasets* requires every dataset to carry sites, and site
+grain is a requirement of the second deposit; on the other, the question ranges over whatever
+datasets have sites and a protein-grain deposit contributes nothing to it without blocking it.
+**This is outcome 3 for Weeks 7–8**: the sources do not fix a grain. **What would fix it** is a
+decision on whether *all my datasets* is a universal over the graph or a filter on it, and **where**
+it would be taken is `ONTOLOGY.md` §11, beside the modelling questions the same milestone already
+depends on — not here, and not by a survey.
+
+#### *"Any"* at the two-halves paragraph is loose, and the document contains its own qualifier
+
+That paragraph says *"Ingested, resolved, stored* is reached by any second deposit and needs
+nobody." **Nothing in the paragraph qualifies *any* by grain, engine or admissibility** — checked by
+reading it whole rather than by searching for a qualifier. **But the qualifier exists elsewhere in
+this document and is load-bearing**: C0(d) asks *"whether a written adapter can read the deposit's
+site-grain table, and an adapter consumes a file"*. A deposit no written adapter can read is not
+ingested at all. **So *any* is true of any deposit an adapter can read**, and the survey's own gate
+records that this is not all of them. The word is loose rather than false, and the two halves of the
+exit part company for a second reason recorded below.
+
+#### What the protein path reaches, measured from the code
+
+| Module | What it mints, by `evidence_id` label | Instrument |
+|---|---|---|
+| `bzk/adapters/maxquant_protein_groups.py` | `Dataset`, `Analysis`, `ProteinObservation` | AST walk for `evidence_id` calls with a literal label |
+| `bzk/adapters/maxquant_sites.py` | `Dataset`, `Analysis`, `SiteObservation`, `ModifierAssignment` | same |
+| `bzk/adapters/perseus.py` | `Dataset`, `Analysis`, `Imputation`, `Contrast`, `ProteinObservation`, `DifferentialResult` | same |
+| `bzk/analysis/differential.py` | `Analysis`, `Imputation`, `Contrast`, `DifferentialResult` | same |
+
+**The protein-groups adapter is on disk and green.** `bzk/adapters/maxquant_protein_groups.py`,
+18,441 bytes; `tests/test_maxquant_protein_groups.py`, 24,371 bytes; **27 passed** under
+`pytest tests/test_maxquant_protein_groups.py`. **Its four emission figures are recorded and were
+not verified**: `HAP1_USP18KO_proteinGroups.txt` is not in the tree, checked by `find`, so the
+counts of observations, proteins, cells and refusals cannot be re-derived in this container and are
+not restated here as though they were.
+
+**What it needs is more than the scope row names.** The row says what it needs is a curation record
+for the proteome run. Read from the module's own refusal conditions rather than from the row, that
+is what it needs **to parse**: it raises when the mapping has no samples, when a sample's
+`mapping_key` names no column in the file, and when a key is not of the declared quantity's column
+family. **It sets `quant_ref` and it mints no `Contrast` and no `DifferentialResult`** — the string
+count for both in that module is zero.
+
+**And that is where the two halves of the Weeks 3–4 exit come apart, on a ground this document has
+not recorded before.** `bzk/query/` is one module, `graph.py`, and **`ProteinObservation` appears in
+it exactly twice, both inside `differential_table`**, in a traversal entered from a
+`DifferentialResult` by `RESULT_FOR_PROTEIN`. **A `ProteinObservation` with no `DifferentialResult`
+pointing at it is reached by no question in the query layer, and by nothing in `bzk/ui/`.** So a
+deposit ingested by the protein-groups adapter alone would be *stored* and would not be
+*cross-queried* — not because of the two-datasets-one-`Contrast` question, which is the blocker
+already recorded, but because nothing would reach its rows at all. **A Perseus table does not have
+this problem**, because the Perseus adapter mints the `Contrast` and the `DifferentialResult` in
+the same pass.
+
+**So, ruling on the three outcomes.** For Weeks 3–4, **outcome 1 for the first half and a second
+blocker for the second**: a protein-grain deposit reaches *ingested, resolved, stored*, and whether
+it reaches *cross-queried* depends on which adapter reads it — Perseus yes on this ground, the
+protein-groups adapter no. For Weeks 7–8, **outcome 3**, stated above. **No protein-grain-only
+deposit is excluded from either exit by grain as such**, and that is the finding rather than a route
+being kept open: what excludes the protein-groups path from the second half is the absence of a
+differential, not the absence of sites.
+
+**What a proteome curation record would have to carry, and how it differs from the shipped one.**
+`data/curation/curation_PXD018299.json` holds eighteen top-level keys and a `mapping` of **twelve**
+entries whose keys are the diGly table's columns — `Ratio mod/base WT_1` and its eleven siblings.
+`bzk/curation/loader.py` raises in exactly three places: two on the `basis`/`confidence` pairing and
+one carrying the owed-values set. **The difference is not structural**: a proteome record would
+carry the same eighteen keys with a different `file`, a different `content_hash`, and `mapping` keys
+naming the proteinGroups columns of whichever quantity family the adapter declares. **The shape is
+already there; what is absent is a record, not a format.**
+
+#### What is recorded about `PXD055843`
+
+**Two lines in the whole repository mention it**, by `grep -rn` excluding `.git`, `.venv` and
+`__pycache__`: its membership in a sixty-accession list, and its survey row. Nothing else.
+
+**Its row, cell by cell**, against the header row that names the columns: `#` 17, `Accession`
+`PXD055843`, `Files` 56, `Engine (filename route)` `unclassified`, `Site` `absent`, `SDRF` N,
+`Licence` CC0, `Skipped` 52, `C0 gates met` `abe`, `Archive read` —, `In widened 12` —.
+
+**`Skipped` is undefined where it is used, and that is the finding rather than a gap to fill.** The
+block preceding the table defines three columns — `Engine`, `C0 gates met` and `Archive read` — and
+**`Skipped` is not among them**. The nearest content elsewhere describes archives, not files: *"Up
+to three archives per candidate; any beyond that, and any that fails to read, is recorded as such —
+a skipped archive and an empty one otherwise produce the same blank column, which is the failure
+this amendment exists to prevent."* **Neither that passage nor the defect row about archives skipped
+by name hint is stated as this column's definition.** And the archive reading does not fit the
+number: a cap of three archives cannot produce 52 against 56 files, so the column is counting
+something the nearest content does not describe.
+
+**The distribution, measured over the whole table rather than a slice.** By `awk` over the sixty
+row-lines, taking the ninth pipe-delimited field: **51 rows carry 0; one each carries 2, 5, 8, 16,
+18, 27 and 52; two carry 6** — sixty rows in total. **`PXD055843`'s 52 is the maximum in the table,
+nearly twice the next value of 27**, and it is 52 of that deposit's 56 files.
+
+**No per-deposit ground is recorded for its gate failures.** A ground *is* recorded per deposit
+elsewhere — an `Excluded by` table carries twelve rows, each naming its failed gates and a reason,
+such as *"C0(d), C0(c) — Arabidopsis XL-MS; no processed output"*. **`PXD055843` is not among those
+twelve**, which follows from there being only two mentions of it in the repository. So what is
+recorded for it is the gate letters and nothing else.
+
+**And the gate letters carry less than they appear to.** The table-wide statement is that *"Every
+one of the sixty is CC0 with a resolvable organism, so C0(a), (b) and (e) never bind in this draw"*
+and that the gate is decided entirely by (c) and (d). **So an `abe` cell says only that (c) and (d)
+failed**: (a), (b) and (e) are true of all sixty by construction and distinguish nothing. The row's
+own `Engine` and `Site` cells are consistent with those two failures, and they are the whole of what
+is written down.
+
+**What the tree says about whether a high skip count can disturb a C0 verdict, and what it leaves
+open.** One line states that *"Defect 2 can only empty an archive read, so the cell carrying C0(c)
+for these rows never passes through the parser"*, with its instrument named, and the next states
+that *"Defect 2's precondition — a server ignoring `Range` — is not present today"*. **Both are
+scoped: the first is written about "all twelve", and `PXD055843`'s `In widened 12` cell is `—`.**
+So the tree establishes that this defect cannot have emptied C0(c) *for the widened twelve* and that
+its precondition does not obtain today; **it does not make that statement about this deposit**, and
+whether 52 skipped files of 56 bears on `Site absent` is not addressed anywhere.
+
+**Ruling: outcome 2 — the tree records the failures without establishing they are sound.** It
+records which gates failed and, table-wide, that only two of the five can bind. It records no
+per-deposit ground, no definition of the column on which this deposit is the table's extreme
+outlier, and no statement that the archive-reading defect is inapplicable here. **What would
+establish soundness** is a per-deposit ground of the kind the twelve-row table already carries, plus
+a definition of `Skipped` and a statement of whether an unread archive can leave `Site` reading
+`absent` for a deposit outside the widened twelve. **What it would cost** is re-reading one
+deposit's file listing — which is a fetch, and is not done here. **Nothing above reverses a verdict**:
+reporting that a ground is absent establishes what the verdict rests on.
+
+#### What this does not decide, from the two passages that say so
+
+The first records that *"**Ingested, resolved, stored** — reached by **any** second deposit and needs
+nobody. **(d) would not block this half.** A deposit could still be selected by hand or by the anchor
+laboratory's own next dataset; what (d) forecloses is the *survey's* route to a selection, not
+selection itself. So (d)'s true cost is narrower than it sounds — but it is the cost of abandoning
+the instrument three turns after building it, with the one route that could still discriminate
+untried."* The second records that a mapping is available at the enum's weakest basis, that *"**That
+is a worse basis than the walks were looking for, not a better one**, and whether a second deposit
+should be ingested on it is a decision nobody has made"*, and that *"**The survey's route was never
+blocked by this vocabulary.**"*
+
+**Together they establish** that selection by hand is not foreclosed, that what (d) forecloses is the
+survey's route rather than selection, and that the weakest-basis question is undecided. **They leave
+open** which route is taken, whether the untried discriminating route is run, and whether a deposit
+may be ingested on the weakest basis — three decisions, none of them taken here.
 
 ### Deposit and supplementary survey, 2026-08-07
 
