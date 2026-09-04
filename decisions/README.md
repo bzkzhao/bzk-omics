@@ -80,6 +80,7 @@ This exists because a project with one developer and a compressed timeline will 
 | [0027](0027-contrast-stays-evidence-with-an-experiment-anchor.md) | `Contrast` stays an evidence node and is scoped by an `Experiment` anchor (§11 Q1) |
 | [0028](0028-the-anchor-curation-record-is-one-supersession.md) | The anchor's curation record is one supersession; two of its four defects are not defects |
 | [0029](0029-how-an-experiment-id-reaches-the-contrast-mints.md) | How an `Experiment` id reaches the two `Contrast` mints; the two sites get different answers |
+| [0030](0030-what-a-reference-to-author-correspondence-must-contain.md) | What a reference to author correspondence must contain; attribution where verification is impossible |
 
 ## Queued
 
