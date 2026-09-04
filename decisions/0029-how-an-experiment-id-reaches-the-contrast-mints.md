@@ -56,7 +56,10 @@ untouched by it.
 
 ### B — `DeclaredRun` is not what Q1 says it is, and (a) is not the only loud option. Two grounds struck
 
-**The field list.** `DeclaredRun` has **ten** fields at `bzk/analysis/differential.py` l.33–42:
+**The field list.** `DeclaredRun` has **ten** fields at `bzk/analysis/differential.py` ~~l.33–42~~
+**l.33–43 — range corrected 2026-09-04: l.33–41 are the nine fields through `parameters_json`, l.42
+is the comment, and the line the short range omitted is l.43, which carries `label` — the field
+this finding turns on**:
 `quantity`, `test`, `fdr_method`, `localization_threshold`, `filters_applied`, `imputation`,
 `numerator`, `denominator`, `parameters_json`, **`label`**. l.55–56 enumerates **nine** and omits
 `label` — whose own comment reads *"Free-text, excluded from identity (§3). Never load-bearing."*
@@ -108,18 +111,43 @@ two of four options are eliminated. The choice between (a) and (b) rested entire
 struck grounds. It may well come out (a) again on the arity ground above — but that is a comparison
 this record has not made.
 
+**Made 2026-09-04, and not on the arity ground.** See *Q1 re-run* below: the arity ground was
+established not to carry, and (a) stands on a different one. This ruling is unchanged — both
+grounds named here are still struck — and the record is still held, acceptance being the
+reviewer's half of the round-trip rather than a consequence of the comparison landing.
+
 ### C — a guard of the named shape is writable, and the claim is narrowed. Ground struck
 
 l.180–184 rules the class *"is real and is not machine-checkable"* and stays open *"for a
 structural reason rather than for want of writing a guard."*
 
-**The named check is writable, and it is not vacuous.** Measured over `bzk/` by AST walk: **22**
-`evidence_id` call sites, **all 22 with a string-literal label** and none computed; **12 of
-`schema.IDENTITY`'s 24 labels carry non-empty `anchors`**; **14 call sites** name an anchored label
-and every one of them passes an anchor argument. So *for every anchored label, every `evidence_id`
-call for it passes anchor ids* has fourteen live subjects today, passes today, and **turns red the
-moment `schema.py` gains `Contrast`'s anchor without `differential.py` l.120 and `perseus.py` l.226
-being threaded** — which is the hazard l.112–117 describes.
+**The named check is writable, and it is not vacuous.** Measured over `bzk/` by AST walk —
+**matching both bare and attribute call forms, and excluding `bzk/ontology/invariants.py`, whose
+two calls recompute an already-minted digest for comparison rather than mint an id that is
+written**: **22** `evidence_id` minting call sites, **all 22 with a string-literal label** and none
+computed; **12 of `schema.IDENTITY`'s 24 labels carry non-empty `anchors`**; ~~**14 call sites**~~
+**15 call sites** name an anchored label and every one of them passes an anchor argument. So *for
+every anchored label, every `evidence_id` call for it passes anchor ids* has ~~fourteen~~
+**fifteen** live subjects today, passes today, and **turns red the moment `schema.py` gains
+`Contrast`'s anchor without `differential.py` l.120 and `perseus.py` l.226 being threaded** — which
+is the hazard l.112–117 describes.
+
+**Both figures were corrected 2026-09-04 at `b031825`, and they are two different defects.** The
+count of anchored sites was a plain miscount with no instrument behind it: the walk that produced
+this paragraph printed 22 rows, of which **seven** name an unanchored label — four `Dataset`, two
+`Contrast`, one `Project` — leaving **15**, and *fourteen* was written twice, once in figures and
+once in words. **The 22 is not wrong, but its instrument was unstated.** Run as this paragraph
+originally described it — an unrestricted *"AST walk over `bzk/`"* — the number is **24**, because
+`bzk/ontology/invariants.py` l.646 and l.652 call `keys.evidence_id` in the attribute form and the
+original walk matched bare-name calls only. **So the original 22 was reached by two errors that
+cancelled**, and a reader re-deriving it from the stated instrument would not have got it. **The
+exclusion is stated and kept rather than the figure changed**: the figure counts *minting* sites,
+and the guard this finding describes is about whether a mint supplies its anchors — a
+recomputation that deliberately reproduces an existing id in order to compare against it is not a
+site where an anchor can be forgotten. Pre-registered at `ed1f6db`, alone and before any measuring
+code existed, with all six expected figures — 22, 15, 24, 2, 12 and 0 non-literal labels —
+returned exactly. **Finding C's ruling is untouched by either correction**: the guard is
+non-vacuous at 14, 15 or 17 subjects, and *"it does not catch the class"* stands as written.
 
 **What it would not catch.** It is syntactic: an anchor argument present but resolving to `None`,
 or a dict missing a key, still renders `␀null` and passes. It reads only `bzk/`. It needs a literal
@@ -153,6 +181,86 @@ so the anchored figures do not depend on what the edge is eventually called.
 exists; `bzk/curation/loader.py` contains no `evidence_id("Contrast", …)` call — the only two in
 `bzk/` are `differential.py` l.120 and `perseus.py` l.226 — and l.357–359 hands
 `contrasts_of_interest` on as a tuple without materialising. **Ruling (c).**
+
+### Q1 re-run — (a) stands, on a ground read off the tree, 2026-09-04
+
+Finding B struck both grounds the (a)-versus-(b) choice rested on and left the comparison unmade.
+This makes it. **(b) was written out at full strength first, before either option was chosen**, and
+what follows immediately below is the case for the option this section does not take.
+
+#### (b) at its strongest
+
+`site_change_set` computes nothing — the module docstring says *"Nothing here computes anything:
+the caller passes the statistics it already has."* So `DeclaredRun` is not a declaration of intent
+that the function acts on. **It is the caller's supply of the material three evidence nodes are
+keyed from**, and that is measurable rather than interpretive: six of its ten fields are in
+`schema.IDENTITY["Analysis"].fields`, `imputation` supplies the `Imputation` child fold on that
+same identity, and `numerator` and `denominator` are `schema.IDENTITY["Contrast"].fields` entire —
+with `bzk/analysis/differential.py` l.119–120 building the contrast dict from exactly those two and
+minting the id from it.
+
+**On that description an `Experiment` id is not a foreign object smuggled into a statistics
+declaration. It is the one missing component of the `Contrast` key, and the other two components
+are already on the object.** Putting it anywhere else splits a single node's key across two
+parameters — `numerator` and `denominator` arriving on `run`, the anchor arriving as a sibling
+keyword — and an id whose components are assembled from scattered sources is an id no one site can
+be held responsible for, which is the concern ADR-0020 and I21 both exist for. **And this record's
+own Q2 decides the symmetric thing one layer over**: the adapter is to receive contrast ids
+*pre-keyed* rather than assemble them. Under (b) the analysis layer likewise receives the whole key
+in one object, and the two layers are treated alike.
+
+This is a stronger form of (b) than Finding B sketched, because it rests on what `site_change_set`
+does rather than on what `DeclaredRun` is named.
+
+#### The arity ground does not carry, and that is established rather than asserted
+
+Finding B offered a restatement of the second ground: a `DeclaredRun` is 1:N with `site_change_set`
+calls, so an `experiment_id` on it would be asserted once for calls that need not share an
+experiment. **The 1:N holds and is uninformative.** Re-measured at `b031825` by AST walk over
+`bzk/` and `tests/` matching `ast.Call` with a bare `ast.Name` callee — which excludes the `def` at
+l.62 by construction rather than by hand: **four** call sites
+(`bzk/sources/pxd018299_differential.py` l.322; `tests/test_analysis_differential.py` l.84, l.138,
+l.176) and **two** constructions (l.304, l.29). Production is 1:1; the test file is 1:3 from its
+module-level `RUN`. **But all three test callers take their `dataset` from the same `_attached()`
+helper**, so the tree holds no case of one `DeclaredRun` spanning two experiments, and nothing in
+it establishes whether that would be legitimate.
+
+**On its own the arity ground would therefore leave Q1 undecidable**, and it is not the ground
+taken.
+
+#### The ground that carries: no anchor in this function arrives on `DeclaredRun`
+
+Read off `site_change_set` whole — every node it mints, every anchor, and where each anchor comes
+from:
+
+| Node minted | Anchors supplied | Source of each anchor |
+|---|---|---|
+| `Analysis`, l.109 | `Dataset` | **the `dataset` keyword parameter** |
+| `Imputation`, l.115 | `Analysis` | an id minted six lines earlier |
+| `Contrast`, l.120 | none today | — |
+| `DifferentialResult`, l.145 | `Analysis`, `SiteObservation`, `Contrast` | two ids minted earlier in the call; one from `SiteResult.observation_id` |
+
+**The rule is exceptionless and it is already in the code: `DeclaredRun` supplies identifying
+fields and supplies no anchor.** Every anchor here is the `dataset` keyword parameter, an id minted
+earlier in the same call, or a value carried on `SiteResult`.
+
+**That answers (b) at its strongest on (b)'s own terms.** (b) says the anchor belongs beside the
+rest of the key it anchors — but no anchor in this function sits beside its fields. `Analysis`'s
+**twelve** identifying fields arrive on `run` while its anchor arrives as a keyword parameter, and
+`DifferentialResult`'s three anchors sit nowhere near its fields either. **Putting `experiment_id`
+on `DeclaredRun` would make `Contrast` the only node in this function whose anchor travels with its
+fields**, and it would do so in the one function where the separation is uniform across four node
+types.
+
+**Decision: (a) stands** — a required keyword-only `experiment_id: str` on `site_change_set` — **on
+the ground that an `Experiment` id is an anchor, and anchors do not travel on `DeclaredRun`.** The
+ground is read off the function under discussion rather than argued from what the dataclass is
+called, which is what Finding B struck the old one for. The four sites outcome (b) would have
+required rewriting — implied change 1, the options table, the ordering list and the *"under-reports
+(b)'s real cost"* sentence — are untouched, because (b) was not chosen.
+
+**This does not accept the record.** The record stays `Proposed`; acceptance is the reviewer's half
+of the round-trip. The three struck or narrowed grounds stay struck and narrowed.
 
 ## Scope
 
@@ -222,6 +330,12 @@ succeeds and always returns the wrong thing.
 Review finding B, 2026-09-03: a field with no default on a frozen dataclass raises `TypeError` on
 omission, so (b) with a required field is exactly as loud. Only (d) is quiet.** Costing the three
 test callers a line each is the point of it, not a price paid for it.
+
+**Ground supplied 2026-09-04 by the Q1 re-run in the Review, after (b) was argued at full
+strength: an `Experiment` id is an anchor, and in this function no anchor arrives on
+`DeclaredRun`** — `Analysis`'s comes from the `dataset` keyword parameter, `Imputation`'s and
+`DifferentialResult`'s from ids minted earlier in the same call. **(a) stands on that, not on the
+struck sentence above and not on the arity ground, which was established not to carry.**
 
 ## Q2 — whether `SampleMapping` widens
 
@@ -340,8 +454,9 @@ built is not expressible as an assertion over the tree; it is answered by readin
 which is what the determination at `ROADMAP.md` l.11189 did. ~~**So the class stays open, and it stays
 open for a structural reason rather than for want of writing a guard.**~~ — **narrowed by Review
 finding C, 2026-09-03: the class does stay open for a structural reason, but a guard over
-`schema.IDENTITY`'s anchored labels and the 22 `evidence_id` call sites is writable and non-vacuous,
-and it would catch the shape this instance took. It does not catch the class.**
+`schema.IDENTITY`'s anchored labels and the 22 `evidence_id` **minting** call sites — 22 under the
+exclusion the Review states, 24 without it — is writable and non-vacuous, and it would catch the
+shape this instance took. It does not catch the class.**
 
 ## Implied changes, described and not made
 
