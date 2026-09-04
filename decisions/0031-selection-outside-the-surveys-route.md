@@ -4,8 +4,122 @@
 |---|---|
 | Status | Proposed |
 | Date | 2026-09-04 |
+| Reviewed | 2026-09-04 — five findings, three grounds struck or narrowed, the worked example withdrawn; held `Proposed` |
 | Supersedes | — |
 | Superseded by | — |
+
+## Review
+
+Landed `Proposed` at `365eab5` and reviewed in the following turn, at `c95a52b`. **Three of the five
+findings struck or narrowed a ground and none reversed a decision. The decision is narrowed and its
+worked example is withdrawn.** R1 stands untouched; R2's artefact-scope argument stands and its
+reach narrows; R3's identification of its class is struck and replaced by a reading supplied here;
+R4's conclusion stands and its affordability ground is struck.
+
+**A reading is supplied to this record by the reviewer and is written in as decided, not as read.**
+It is marked as such at its site, and its origin is named there.
+
+### A — R3 substitutes a screening status for a laboratory. Ground struck
+
+**What the source conditions the clause on: nothing about screening.** The sentence reads *"A deposit
+could still be selected by hand or by the anchor laboratory's own next dataset; what (d) forecloses
+is the *survey's* route to a selection, not selection itself."* It names **two routes** — by hand,
+and the anchor laboratory's own next dataset — and **conditions neither on whether C0 screened the
+deposit**. The only condition in the sentence governs what (d) forecloses.
+
+**R3 says *"That is what the 'anchor laboratory's own next dataset' is"* of a deposit C0 never
+screened. That identification is not in the source**: the source names a laboratory and a dataset,
+and R3 substitutes a screening status for both. **Ruling (b) — the ground is struck.**
+
+**What survives, and what does not.** R3's first half — that selection outside the route remains
+available — **survives**, and on the source's own words rather than on the substitution. R3's second
+half — that the class it is available for is *a deposit C0 never screened* — **does not**. And R3's
+closing sentence, *"The two cases are separated by whether a C0 verdict exists, not by the strength
+of the ground offered"*, is where the substitution is carried and is the sentence that decides where
+any particular deposit falls.
+
+#### The reading, decided here and not read from the source
+
+**Origin: the reviewer. This is a decision about project intent and the tree does not settle it.**
+The anchor-laboratory clause means **any deposit of that laboratory not yet used**, on the ground
+that the project's interest is centralisation around that laboratory's work rather than around any
+one study. **It is written here as decided; nothing in the source says it**, and a reader must not
+take it for a reading of the sentence quoted above.
+
+**What would falsify it**: any source in the tree conditioning the clause on something else — a
+screening status, a date, or *"next"* read strictly as *not yet existing* — or a statement of
+project intent that centralisation is not the ground. **None was found**, which is why the question
+needed deciding rather than reading.
+
+#### The consequence, measured
+
+**`ROADMAP.md`'s two blocks on this deposit record, reviewer-supplied and not re-derivable in this
+container, that `PXD055843` is the anchor laboratory's own deposit** — PrimarySubmitter Adan
+Pinto-Fernandez, with the Contact List carrying that name under both `lab head` and
+`dataset submitter`. **So under the reading decided above, `PXD055843` falls under R3's clause, and
+under R3 as written it falls under R2**, since it carries a C0 verdict. **The sentence that decides
+between them is R3's last one**, quoted above. **Establishing that R3 reaches a deposit is not
+admitting it**, and nothing here selects, admits or scores anything.
+
+### B — a named route is not selection outside the criteria. R2's reach narrowed
+
+**Ruled separately from A and not inferred from it.** The source distinguishes *"the survey's route
+to a selection"* from *"selection itself"*, so the survey's route is **a** route and the
+anchor-laboratory clause names another. **(ii) was rejected for *"leave the criteria untouched,
+select outside them"*** — going around the instrument — and its objection is that *"the restriction
+would live in prose that the next ranking does not read."* **Using a route the document itself names
+is not going around the instrument, so that objection does not attach to it.**
+
+**Ruling (b) — R2's reach is narrowed, not struck.** **What survives**: R2's argument against hand
+selection **on the artefact-scope ground**, which is (ii)'s objection applied to a scope gap and is
+not disputed here. **What does not**: R2's reach over a deposit arriving by the anchor-laboratory
+clause, which is a named route and not an act outside the criteria.
+
+### C — the amendment was charged once, not paid once. Ground struck
+
+R4 concludes that a retroactive criteria change is *"affordable here, having been paid once."*
+
+**Measured: the re-draw the cost names was never run.** Instrument — `grep -n "re-draw\|redraw"` over
+`ROADMAP.md` returns 13 lines carrying *re-draw*, of which the only one recording a re-draw that
+happened is dated **2026-08-12**, which **predates the organism amendment of 2026-08-18** and is
+therefore not the re-draw that amendment's cost names; the others are the cost sentence itself, its
+consequence, and a statement that re-drawing is out of scope. **And the survey table still carries
+12 `yes` in its `In widened 12` column, counted over all sixty rows — not the five the amendment
+left.** The consequence recorded from that amendment reads *"**C3's cap of twelve now holds five.**
+The survey is under-drawn against its own size criterion and a re-draw is a separate turn."*
+
+**Ruling (b) — the affordability ground is struck.** The cost was **charged and is outstanding**, so
+a second retroactive amendment would add a second unpaid debt to a first still unpaid. **The
+conclusion survives**: that amending C0 to evaluate per artefact is the right answer, and that this
+record does not make the amendment, does not depend on the price. What must go is the claim that the
+price has been paid.
+
+### D — the carried defect is not minted twice, and it is not the defect the review expected
+
+**Ruling (c) on the substance, with the identification corrected.** The passage carrying *"whether
+(f) would pass or fail for any given row is unrecorded"* and calling it *"a defect in the record and
+is carried, not repaired here"* is **the no-row-was-evaluated claim**, which the defect register
+already carried before this record landed. **The defect minted at `365eab5` alongside this record is
+a different claim** — that gate f's *temporal reach* is unstated, whether it applies retroactively
+to the sixty-row draw or only prospectively — **and this record carries that one separately**, as
+its implied change *"Gate f applied to the sixty, or a recorded statement that it is not applied
+retroactively."* **Two neighbouring claims, both carried, neither minted twice, and the record is
+right to carry them as carried.**
+
+### E — every scope figure reproduces. No defect
+
+**Measured independently of the record; instrument stated with each.**
+
+| Figure | Instrument | Result |
+|---|---|---|
+| C0 gate rows | `awk` over the C0 table block matching `^\| [a-f] \|` | **6**, and gate f's row carries **Added 2026-08-18** |
+| `grep -c "C0(f)"` over `ROADMAP.md` | that command | **0** |
+| distinct `C0 gates met` values over the sixty rows | `awk` on the tenth pipe-delimited field of l.4573–4632 | `abcde` ×10, `abce` ×2, `abde` ×3, **`abe` ×45** — 60 rows, **zero cells containing an `f`** |
+| C0(c) and C0(d) wording | their own table rows, quoted to the cell terminator | *"Carries a site-grain processed table"* and *"MaxQuant"* |
+
+**Ruling (c) on all four.** **One figure the record did not give is worth recording**: `abe` is not a
+rare cell but **45 of 60**, so the reading of what an `abe` cell can mean governs three quarters of
+the table rather than one row.
 
 ## Scope
 
@@ -114,11 +228,24 @@ ground that a gate never ranged over some artefact it holds, while the criteria 
 Rejected on the repository's own recorded ground, quoted above and answered directly rather than
 distinguished away.
 
-**R3 — Selection outside the route remains available for a deposit C0 never screened.** That is
-what the *"anchor laboratory's own next dataset"* is, and it is not the same act: there is no
-verdict to work around, no instrument to leave unread, and nothing recorded that the selection
-contradicts. **The two cases are separated by whether a C0 verdict exists, not by the strength of
-the ground offered.**
+**Reach narrowed by Review finding B, 2026-09-04.** The artefact-scope argument above survives
+untouched. What does not is this rule's reach over a deposit arriving by the anchor-laboratory
+clause: the source distinguishes *"the survey's route to a selection"* from *"selection itself"*, so
+that clause is a route the document names, and (ii)'s objection — that the restriction would live in
+prose the next ranking does not read — does not attach to a named route.
+
+**R3 — Selection outside the route remains available for** ~~a deposit C0 never screened~~ —
+**the class re-decided by Review finding A, 2026-09-04: any deposit of the anchor laboratory not yet
+used. That reading is decided by the reviewer and not read from the source, which conditions the
+clause on no screening status at all.** ~~That is what the *"anchor laboratory's own next dataset"*
+is~~ — **identification struck by the same finding: the source names a laboratory and a dataset, and
+this substituted a screening status for both.** The rest of the sentence stands: it is not the same
+act — there is no verdict to work around, no instrument to leave unread, and nothing recorded that
+the selection contradicts. ~~**The two cases are separated by whether a C0 verdict exists, not by the strength of
+the ground offered.**~~ — **struck by Review finding A, 2026-09-04: this is the sentence that
+carried the substitution, and it is the sentence that decides where any particular deposit falls.
+Under the re-decided reading `PXD055843` falls under this clause; under the sentence as written it
+falls under R2.**
 
 **R4 — The right answer to the underlying problem is to amend C0's scope so a gate is evaluated per
 artefact, and this record does not make that amendment.** It is a criteria change and out of this
@@ -126,16 +253,25 @@ turn's scope. **Naming it and deferring the act is not rejecting it**, and the a
 already known from the one this project has made: *"a criteria change that binds every future draw;
 it excludes seven of twelve retroactively; and it leaves C3's cap of twelve holding five, so the
 survey is under-drawn until a re-draw, which is a separate turn."* **So the precedent is that a
-retroactive criteria change is affordable here, having been paid once.**
+retroactive criteria change is affordable here, ~~having been paid once~~ — **struck by Review
+finding C, 2026-09-04: it was charged once and the charge is outstanding. The re-draw that cost
+names was never run — the only recorded re-draw is dated 2026-08-12 and predates the 2026-08-18
+amendment, and the survey table still carries 12 `yes` in `In widened 12`, not the five the
+amendment left. A second retroactive amendment would add a second unpaid debt to a first still
+unpaid. The conclusion above survives; the price claim does not.**
 
 ### What the rule excludes
 
 **A rule that admits exactly one deposit is a selection wearing a rule's clothes**, so the
 exclusions are named rather than left to be inferred.
 
-- **`PXD055843` is excluded today**, by R2. It was screened, it failed (c) and (d), and the
+- ~~**`PXD055843` is excluded today**, by R2. It was screened, it failed (c) and (d), and the
   amendment R4 names is unmade. **The rule's first consequence is to exclude the deposit that
-  prompted it**, which is the strongest available evidence that it is a rule.
+  prompted it**, which is the strongest available evidence that it is a rule.~~ — **withdrawn by
+  Review finding A, 2026-09-04: under the re-decided reading of the anchor-laboratory clause this
+  deposit falls under R3 rather than R2, so this worked example does not hold. The three exclusions
+  below stand, so the rule still excludes — but not on this instance, and the record's strongest
+  evidence that it is a rule rather than a selection is withdrawn with it.**
 - **`PXD078284` is excluded under R2 and would remain excluded under R4's amendment.** Its recorded
   ground is *"C0(c), C0(d) — Arabidopsis XL-MS; no processed output"* — a deposit with no processed
   output holds no artefact of any grain for a per-artefact gate to range over.
