@@ -12,9 +12,18 @@
 
 Landed `Proposed` at `2028686` and reviewed at `c5dc140`. **The record is held, not accepted.**
 Finding B struck the ground Q1 rejects option (b) on *and* the sentence that selects (a) over it,
-and the argument for (b) that the correct field list makes available was never engaged — so Q1's
-comparison has to be run again against a `DeclaredRun` described as it is. Q2, Q3 and the
-measurement stand.
+and the argument for (b) that the correct field list makes available was never engaged — ~~so Q1's
+comparison has to be run again against a `DeclaredRun` described as it is~~ — **and that comparison
+was run on 2026-09-04, in the *Q1 re-run* section below. It argued (b) at full strength first and
+then took (a), on the ground that no anchor in `site_change_set` arrives on `DeclaredRun`. The
+record is still held and still `Proposed`: acceptance is the reviewer's half of the round-trip and
+not a consequence of the comparison landing, and both grounds Finding B struck are still struck.**
+Q2, Q3 and the measurement stand — *the measurement* being Finding D's six ids, which reproduce
+exactly and are **not** the two figures corrected at `c716256`.
+
+**That section is cited by its content and not by its line, deliberately.** This turn moves lines
+in this file, and `decisions/README.md` records the reason at the paragraph settling its own
+round-trip count: a within-file line number is *"a referent waiting to be lost"*.
 
 ### A — the ordering is stated twice at two scopes, and the numerals in the operative sentence are unqualified. Defect in the decision
 
@@ -132,7 +141,8 @@ every anchored label, every `evidence_id` call for it passes anchor ids* has ~~f
 `Contrast`'s anchor without `differential.py` l.120 and `perseus.py` l.226 being threaded** — which
 is the hazard l.112–117 describes.
 
-**Both figures were corrected 2026-09-04 at `b031825`, and they are two different defects.** The
+**Both figures were corrected 2026-09-04 at ~~`b031825`~~ `c716256`, and they are two different
+defects.** The
 count of anchored sites was a plain miscount with no instrument behind it: the walk that produced
 this paragraph printed 22 rows, of which **seven** name an unanchored label — four `Dataset`, two
 `Contrast`, one `Project` — leaving **15**, and *fourteen* was written twice, once in figures and
@@ -148,6 +158,12 @@ site where an anchor can be forgotten. Pre-registered at `ed1f6db`, alone and be
 code existed, with all six expected figures — 22, 15, 24, 2, 12 and 0 non-literal labels —
 returned exactly. **Finding C's ruling is untouched by either correction**: the guard is
 non-vacuous at 14, 15 or 17 subjects, and *"it does not catch the class"* stands as written.
+
+**Attribution corrected 2026-09-04.** `b031825` is the commit that **introduced** both figures, so
+the opening clause paired a 2026-09-04 date with a commit dated 2026-09-03; the corrections landed
+at `c716256`. **The slip is local to that one clause** — `ed1f6db` above is the right commit for
+the pre-registration, and every other commit named in this record resolves — which makes it a
+wrong reference rather than a failure of the convention.
 
 **What it would not catch.** It is syntactic: an anchor argument present but resolving to `None`,
 or a dict missing a key, still renders `␀null` and passes. It reads only `bzk/`. It needs a literal
@@ -261,6 +277,42 @@ required rewriting — implied change 1, the options table, the ordering list an
 
 **This does not accept the record.** The record stays `Proposed`; acceptance is the reviewer's half
 of the round-trip. The three struck or narrowed grounds stay struck and narrowed.
+
+### The `Reviewed` header row, decided in writing — the convention is not established, 2026-09-04
+
+The row reads *"2026-09-03 — four findings, two grounds struck, one defect in the decision; held
+`Proposed`"*, and nothing in it is false: the review happened on that date, there were four
+findings, two grounds are struck, Finding A is a defect in the decision, and the record is still
+held. What it does not say is that the record moved again on 2026-09-04 — a Q1 decision and three
+corrections since. **Three answers were available: carry a second date, leave the row on a stated
+ground, or rule the convention unestablished. The third is taken, and not because it is fewer
+lines.**
+
+**First ground: the row is not part of the format this directory documents.**
+`decisions/README.md`'s `## Format` block gives the header as `Status`, `Date`, `Supersedes` and
+`Superseded by` — four rows, and no `Reviewed`. The row is a convention invented in the records
+themselves and never written down, so there is no stated rule to read either answer out of.
+
+**Second ground: the four instances cannot discriminate.** Every `Reviewed` row in `decisions/` —
+ADR-0026, ADR-0027, ADR-0028 and this one — records exactly one review event, and none of the
+other three has been edited since its review. So no instance distinguishes *the row stamps the
+review event* from *the row logs the record's review history*; the difference has never been
+tested, and this is the first record to test it.
+
+**Third ground: a `Proposed` record that is held is the wrong place to set a directory-wide
+convention.** Deciding it here would settle, from inside the one record whose own review is
+incomplete, a question that governs every record in the directory including three `Accepted` ones
+whose header blocks would then be retrospectively either right or wrong.
+
+**Where a reader learns the record moved, meanwhile.** At the sites: every 2026-09-04 change in
+this record carries that date inline, in the same marked form the 2026-09-03 changes use, and the
+Review's opening paragraph now names the *Q1 re-run* section. **The information is not missing.
+What is unsettled is whether the header block is also meant to carry it.**
+
+**What would settle it**: a decision recorded where the format lives — `decisions/README.md`'s
+`## Format` section — stating whether an ADR's header block carries the review *event* or the
+record's review *history*, and whether `Reviewed` belongs in the documented template at all. That
+is a change to that file, and it is not this record's to make.
 
 ## Scope
 
