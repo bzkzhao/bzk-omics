@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.26 |
+| Version | 2.27 |
 | Last reviewed | 2026-09-04 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -11828,6 +11828,100 @@ turn that made no commit and is therefore recorded nowhere in the tree. A docume
 is what §5.3's `submitter_metadata` cell covers, and ADR-0026's R2 records that where a mapping
 composes several sources, `basis` records the weakest link. **Which value such a record would carry
 is the curation record's question. This turn writes none and does not draft one.**
+
+### `PXD055843`'s submitter and deposit-record fields — reviewer-supplied, 2026-09-04
+
+**Every item in this block was retrieved by the reviewer from one public web page: ProteomeCentral's
+dataset record for the accession, at `proteomecentral.proteomexchange.org/dataset/PXD055843`,
+retrieved 2026-09-04. The container has no network route to it, so nothing here was re-derived and
+nothing here is a measurement of this turn.** Each field below is **reviewer-supplied and not
+re-derivable in this container**. **Recording a fact is not acting on it**: no deposit is selected,
+admitted, scored, re-scored or ranked, no C0 gate is evaluated, no criteria change, no survey
+verdict moves, and no curation record is written or drafted.
+
+**This block sits beside the links block above it and does not edit it.**
+
+#### The submitter fields
+
+**Reviewer-supplied from the ProteomeCentral record; not re-derivable in this container.**
+
+| Field | Recorded |
+|---|---|
+| PrimarySubmitter | Adan Pinto-Fernandez |
+| Contact List, role `lab head` | Adan Pinto-Fernandez, affiliation COI-NDM (University of Oxford), `adan.pintofernandez@ndm.ox.ac.uk` |
+| Contact List, role `dataset submitter` | Adan Pinto-Fernandez, affiliation University of Oxford, `adan.pintofernandez@ndm.ox.ac.uk` |
+
+**The same name appears twice, under two roles, with one contact address.**
+
+#### Four further fields from the same record
+
+**All four reviewer-supplied from the same page; none re-derivable in this container.**
+
+| Field | Recorded |
+|---|---|
+| SpeciesList | scientific name Homo sapiens (Human); NCBI TaxID `NEWT:9606` |
+| Instrument | `timsTOF Pro` |
+| Publication List | Dataset with its publication pending |
+| Dataset History | revision 0, `ID requested`, 2024-09-13 03:41:43; revision 1, `announced`, 2026-05-13 17:27:16 |
+
+#### What these close
+
+**The block above records authorship. It records no submitter, and the two are different claims.**
+Measured here rather than imported: `grep -rn` over the repository excluding `.git`, `.venv` and
+`__pycache__` returns **zero** occurrences of `PrimarySubmitter`, of `lab head` and of
+`dataset submitter`, and **no line anywhere naming the submitter of any deposit**. The name itself
+is throughout the tree — `GLOSSARY.md`, `VISION.md`, `README.md` and `CLAUDE.md` all name the
+anchor laboratory, and several records name the 2021 anchor paper's authors — but **always as a
+laboratory or as an author, never as the party who deposited anything.**
+
+**So the earlier block was short of this and this block supplies it.** Being an author of a paper
+and being the submitter of a deposit are separate facts, and the clause about a deposit *"selected
+by hand or by the anchor laboratory's own next dataset"* is about a dataset's ownership rather than
+a paper's byline. **The PrimarySubmitter field and the two contact roles are about the deposit
+itself.** What follows from that is not decided here.
+
+#### Two source-to-source disagreements, recorded and not reconciled
+
+**Instrument.** The deposit record says **`timsTOF Pro`** (reviewer-supplied, this page). The
+paper's methods, as already recorded in the block above, say **timsTOF SCP** (reviewer-supplied,
+the preprint's methods section). **Two sources, two values, each attributed. No reconciliation is
+offered and none is taken.**
+
+**Announce date.** The block above records **AnnounceDate 2026-05-14** from this same record; the
+Dataset History field supplied here gives revision 1, `announced`, at **2026-05-13 17:27:16**.
+**A reconciliation is available** — a timestamp late on one day and an announce date on the next are
+consistent under a timezone shift — **and taking it is a decision this turn does not make.** Both
+values stand with their sources.
+
+#### Gate f: the field is recorded and the gate is not evaluated
+
+The C0 table's gate f row states, in its Meaning cell, *"The recorded organism set includes the
+anchor's organism"*, and adds that a deposit carrying several organisms passes if any is the
+anchor's. **The SpeciesList field above records this deposit's species as Homo sapiens, TaxID
+9606.**
+
+**That field is recorded and nothing is concluded from it. Gate f is not evaluated here, for this
+deposit or for any other.** Gate f was applied to no row of the sixty-row survey table, and
+evaluating it in a findings block would be applying a criterion outside the instrument that records
+criteria verdicts. **A later reader must not mistake the field's presence for a verdict**: the
+`C0 gates met` cell for this deposit reads `abe` and is unchanged by anything written here.
+
+#### What this block does not settle
+
+**The deposit's own record says its publication is pending.** That is a claim about the deposit and
+is independent of the ORA record's peer-review status already in the tree — **it corroborates it
+from the repository side rather than repeating it.** It does **not** settle what *"the associated
+paper"* refers to when a preprint and a later version both exist; that residue is recorded in the
+block above and is untouched here.
+
+**Twenty months separate the two Dataset History revisions** — `ID requested` on 2024-09-13 and
+`announced` on 2026-05-13, both reviewer-supplied. **Whether that bears on the survey's walk of this
+deposit, on its `unclassified` engine cell, its `absent` site cell, or its `Skipped` value of 52 of
+56 is raised here and not answered.** Nothing is re-run, re-walked or re-scored, and the `Skipped`
+column remains undefined where it is used.
+
+**The TaxID is recorded as a deposit field and is assigned to no node.** No curation record is
+written or drafted by this block, and nothing here states what organism any `Sample` would carry.
 
 ### Deposit and supplementary survey, 2026-08-07
 
