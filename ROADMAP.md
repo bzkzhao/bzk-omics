@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.25 |
+| Version | 2.26 |
 | Last reviewed | 2026-09-04 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -11728,6 +11728,106 @@ blocked by this vocabulary.**"*
 survey's route rather than selection, and that the weakest-basis question is undecided. **They leave
 open** which route is taken, whether the untried discriminating route is run, and whether a deposit
 may be ingested on the weakest basis — three decisions, none of them taken here.
+
+### Three public links between `PXD055843`, its paper, and the anchor laboratory — reviewer-supplied, 2026-09-04
+
+**Everything in this block was retrieved by the reviewer from public web sources. The container has
+no network route to any of them, so none of it was re-derived here and none of it is a measurement
+of this turn.** Every item below carries its source and is marked **not re-derivable in this
+container**. **Recording that a link exists is not acting on it**: no deposit is selected, admitted,
+scored or ranked by this block, no criteria change, no survey verdict moves, and no curation record
+is written or drafted.
+
+**What the tree held before this block, measured here rather than imported**: `grep -rn` over the
+repository excluding `.git`, `.venv` and `__pycache__` returns **two** lines naming `PXD055843`
+outside this document's own later sections — its membership in the sixty-accession list and its
+survey row — and **no line anywhere linking it to a paper, a DOI, an author or this laboratory**.
+`ONTOLOGY.md` §6 names USP24 in a list of cross-reactive DUBs — *"removal runs through USP18 and
+cross-reactive DUBs including USP5, USP14, USP16, USP24 and USP36"* — as domain background, with no
+connection to any deposit. **So the links below are new to the repository, and they arrive from
+outside it.**
+
+#### The three links
+
+**1. The accession names the paper. Reviewer-supplied; not re-derivable in this container.** Source:
+ProteomeCentral's dataset record for `PXD055843` at `proteomecentral.proteomexchange.org/dataset/PXD055843`.
+It gives Title *"USP24 is an ISG15 cross-reactive deubiquitinase that mediates IFN-I production by
+de-ISGylating the RNA helicase MOV10"*, HostingRepository PRIDE, AnnounceDate **2026-05-14**,
+ReviewLevel *"Peer-reviewed dataset"*, DatasetOrigin *"Original dataset"*, RepositorySupport
+*"Unsupported dataset by repository"*, and **no DigitalObjectIdentifier**.
+
+**2. The paper names its supplementary files by their row counts. Reviewer-supplied; not
+re-derivable in this container.** Source: the preprint at DOI `10.1101/2024.09.06.611391`, full text
+via Oxford University Research Archive at
+`ora.ox.ac.uk/objects/uuid:49f62049-8742-40b7-b994-ab34667d7ab2`. **From the paper's results
+section**: the analysis identified **7,610** unique proteins in the total proteome analysis
+(Supplementary Data S1), **8,169** unique Lys-ε-Gly-Gly remnant peptides (Supplementary Data S2),
+and **4,410** unique proteins enriched in the ISG15 interactome (Supplementary Data S3).
+
+**3. The paper carries the anchor laboratory. Reviewer-supplied; not re-derivable in this
+container.** Source: the same preprint and the ORA metadata record. Adán Pinto-Fernández and
+Benedikt M. Kessler are authors, affiliations 2 and 3 — Chinese Academy for Medical Sciences Oxford
+Institute, Nuffield Department of Medicine, University of Oxford; and Target Discovery Institute,
+NDM, Centre for Medicines Discovery, University of Oxford. Author contributions record that A.P.F.,
+S.D. and R.M. performed the proteomics experiment and that A.P.F. supervised the project.
+
+#### Design and processing, from the paper's methods section
+
+**All six items are reviewer-supplied from the preprint's methods section and are not re-derivable
+in this container.** Source as link 2 throughout.
+
+| | Recorded |
+|---|---|
+| Cells | HeLa, USP24 knockdown by siRNA against a scrambled control, with and without IFN-β, biological replicates, n=3 for all experiments |
+| Workflows | four — total proteome; GG-peptidome by di-Gly antibody enrichment; ISG15 interactome by ISG15 immunoprecipitation; and a refined ISGylome, being di-Gly enrichment after recombinant USP2 treatment to exclude ubiquitinated peptides |
+| Acquisition | diaPASEF on a timsTOF SCP with an Evosep One, Whisper 20 samples per day |
+| Search | DIA-NN version 1.8, library-free mode, UniProt proteome `UP000005640` (2022), label-free quantitation |
+| Downstream | Perseus v1.6.2.3; log2 transformed; filtered for identification in all three replicates of at least one group; missing values imputed from the lower end of the normal distribution at Perseus defaults |
+| Statistics | a two-sided Student's t-test with permutation-based FDR at 0.05 |
+
+#### What this block does not establish
+
+**The two kinds of fact come from two sections, and which is which matters.** The row counts naming
+Supplementary Data S1, S2 and S3 are in the **results** section; the design and processing facts are
+in the **methods** section. §5.3's `publication_methods` cell reaches *"a supplementary file the
+methods cite for the design"*, so the difference is load-bearing rather than cosmetic. **No claim is
+made here about whether the methods cite those files** — that was not established, and it is the
+question the cell's condition turns on.
+
+**`s0` is stated nowhere in that methods section.** The test and the FDR are recorded above; `s0` is
+not. Reviewer-supplied absence, not re-derivable in this container.
+
+**The paper is a preprint and the deposit's review level is a different claim.** The ORA record's
+peer review status says the paper is not peer reviewed; ProteomeCentral's *"Peer-reviewed dataset"*
+is a property of the deposit. Both reviewer-supplied, neither re-derivable here. **ADR-0026 already
+speaks to whether that bears on classification, and this is reported rather than decided**: its
+Decision opens *"`basis` is a vocabulary of warrants, not of containers."* and *"A source is
+classified by what it *asserts about the design*, never by who wrote it, what format it is in, or
+where it is hosted."* **Venue is where it is hosted, so ADR-0026 forecloses classifying by it**, and
+R2's ground — *"a reader told *basis: publication_methods* will go and check the paper"* — is
+satisfied by a publicly readable preprint as much as by a journal. **The residue, named rather than
+left implicit**: ADR-0026 settles that venue does not classify; it does not say what *"the
+associated paper"* in §5.3's cell refers to when a preprint and a later journal version both exist.
+That is a question about the cell's referent, not about venue, and this block does not answer it and
+does not amend anything.
+
+**The announce date raises a question this block does not answer.** AnnounceDate is 2026-05-14
+(reviewer-supplied). Whether the survey's walk of this deposit predates or postdates it, and whether
+that bears on the row's `Skipped` value of **52 of 56** — the table's maximum, measured in this
+document at `7b0cbff` — is raised here and **not** answered. **Nothing is re-run, re-scored or
+re-walked**, and the `Skipped` column remains undefined where it is used.
+
+**No file is checked against any count.** The supplementary files are not in the tree. The paper's
+claim about its own supplementary data is recorded above as the paper's claim; **nothing here
+verifies that any file in anyone's possession has 7,610 or 4,410 rows.**
+
+**A future curation record would face two facts with two different warrants, and this block raises
+it without resolving it.** The design is in the methods; **the sample-to-column mapping is not in
+the paper** — it is printed in the supplementary file's own header rows, established by a scratch
+turn that made no commit and is therefore recorded nowhere in the tree. A document beside the data
+is what §5.3's `submitter_metadata` cell covers, and ADR-0026's R2 records that where a mapping
+composes several sources, `basis` records the weakest link. **Which value such a record would carry
+is the curation record's question. This turn writes none and does not draft one.**
 
 ### Deposit and supplementary survey, 2026-08-07
 
