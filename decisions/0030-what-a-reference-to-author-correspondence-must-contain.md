@@ -4,8 +4,151 @@
 |---|---|
 | Status | Proposed |
 | Date | 2026-09-04 |
+| Reviewed | 2026-09-04 — five findings, four grounds narrowed, the decision unchanged; held `Proposed` |
 | Supersedes | — |
 | Superseded by | — |
+
+## Review
+
+Landed `Proposed` at `35c0688` and reviewed in the following turn. **Four of the five findings
+narrowed a ground and none touched the decision**, which is the ground for the status above: R1's
+universal, R3's falsifiability claim, R4's illustrative count and the Consequences' *binds* all
+hold at a narrower extent than they were written at. The four elements, the rejection of options
+(a), (c), (e) and (f), and the ruling that `authoritative` is not the defect are all unchanged.
+**The record is held, not accepted**, acceptance being the reviewer's half of the round-trip.
+
+**On the `Reviewed` row above.** ADR-0029's `Reviewed`-row section — read whole, seventy-two lines
+carrying three grounds, two paragraphs on where a reader learns the record moved and what would
+settle it, and two later markings — ruled the convention **unestablished**. That ruling is about
+whether the row records the review *event* or the record's review *history*, a question that arises
+only when a record moves **after** its review. **This is a first review and that question does not
+arise**, and the practice for a first is four for four: ADR-0026, ADR-0027, ADR-0028 and ADR-0029
+each gained the row at the commit that recorded their review, measured with
+`git log -S'| Reviewed |'`. **So the row is added on the settled half of the convention and not on
+the unsettled one**, and that is stated here rather than left to look like a formality.
+
+### A — the four-and-one split is wrong; the conclusion it illustrates is strengthened by it
+
+R4 closes that public inspectability is a property the enum records nowhere, that *"Four of five
+values happen to correlate with it"*, and that this one does not.
+
+**`submitter_metadata` sits on both sides at once, so the split is not four and one.**
+`ONTOLOGY.md` l.582 gives it *"Locally generated data, structured PRIDE metadata, or a design the
+submitter stated in a document deposited beside the data"*, and l.586 adds that *"For locally
+generated data the curation node is created automatically at ingestion with `basis =
+'submitter_metadata'`"*. **Structured PRIDE metadata and a document deposited beside the data are
+public; locally generated data is the lab's own and is deposited nowhere.** One value, two sides.
+
+**Ruling (b) — the count is struck and the conclusion survives on more than it had.** R4's argument
+runs on ADR-0026's Evidence Three and on the mapping axis, neither of which mentions a count; the
+count was doing work only for the closing clause about the correlation making the omission
+invisible. **And the replacement is better evidence than the count was**: a single value that
+covers a publicly inspectable case and a non-inspectable one under one label does not merely
+correlate imperfectly with inspectability — **it demonstrates the enum cannot express the
+distinction at all**, since the same `basis` is correct either way. The claim *"the enum records it
+nowhere"* is therefore established rather than illustrated.
+
+### B — element 4's falsifiability is real but names no agent, and option (a) is not in tension with it
+
+The Options table rejects (a), a `rationale` convention, because *"nothing can check the convention
+was followed"*. R3 says element 4 *"is what makes the rule falsifiable rather than decorative"*,
+and implied change 1 has the loader validating *"presence rather than content"*. **Whether a string
+is in the submitter's terms is content**, so the record appears to claim for element 4 what it
+denied (a).
+
+**The difference between them holds, and it is not the one the record leans on.** (a) fails a step
+earlier than content-checking: a convention inside free-text `rationale` cannot be **located**, so
+its omission is silent — the shipped record's 1,515-character `rationale` carries a DOI that
+`tests/test_curation_loader.py` refuses to extract because doing so *"would be inventing an
+identifier from prose"*. A named structured field makes omission **loud**: presence is machine-
+checkable and absence fails. **So presence-checking is a materially different guarantee, and it is
+a guarantee about omission and not about truth.**
+
+**Ruling (b) — the falsifiability claim is narrowed, and the missing half is the agent.** Element 4
+is not falsifiable by a machine and the record should never have implied it was. It is falsifiable
+by **the submitter**, who can say the words attributed to them are not what they said, and by **a
+reviewer** holding the record against the correspondence. That is a real check and it is the only
+one available for content that no third party can inspect — which is R2's own position applied to
+R3. **The decision survives on the four elements unchanged**; what changes is that R3 now names who
+does the falsifying. **Option (a)'s rejection stands untouched.**
+
+### C — *binds* is normative and nothing enforces it
+
+`## Consequences` says the rule *"binds the first one that does"*, while `## Scope` says the record
+decides and does not build and implied change 1 is described and not made.
+
+**Measured: nothing would stop a non-conforming record loading today.**
+`bzk/curation/loader.py`'s `_curation_analysis` raises `CurationInvalid` on exactly two conditions —
+a `basis` outside the closed enum, and a `confidence` that disagrees with the enum's pairing. **It
+reads no reference, and no field exists to hold one.** A record carrying
+`basis = 'author_correspondence'`, `confidence = 'authoritative'` and no reference at all would load
+cleanly.
+
+**Ruling (b) — the ground is narrowed to what it can carry.** *Binds* is true normatively: the rule
+applies to the first record adopting the value, and a record breaking it is wrong. It is false
+operationally: nothing enforces it, and the enforcement is implied change 1, which is described and
+not made. **The decision survives** — the rule is the rule whether or not a guard exists — but the
+record must not read as though landing it created an obstacle. **The precedent is exact and is
+named rather than borrowed**: ADR-0029's implied change 4 is its own named prerequisite, has no
+record, and is carried as a defect. **A record naming an obligation is not the same as an
+obligation existing.**
+
+### D — R1's universal is true of warrants and false of references simpliciter
+
+R1 states that no basis value has a structured reference today.
+
+**The curation record carries eighteen top-level keys** — read from
+`data/curation/curation_PXD018299.json`, an inventory this record did not hold — and **three of
+them name an external artefact in structured form**: `accession` = `PXD018299`, `file` =
+`HAP1_USP18KO_GlyGlyKSites.txt`, and `content_hash` = a `sha256:` digest. **So the record is not
+without structured external identifiers.**
+
+**They are not references to a warrant, and `OPERATIONS.md` §2 says so in its own words rather than
+by inference from the key names.** That section states each record *"identifies its input file by a
+`content_hash` — the SHA-256 of the raw table — alongside the bare filename it carries today"*, that
+*"the filename is not an identity"*, and that the hash *"lets a rebuild confirm it is replaying
+against the same bytes the curation was written for"*. **All three keys identify what was curated.
+None identifies what warranted it.**
+
+**And `sdrf` is the near miss that makes the distinction sharp.** Its warrant is a file inside the
+deposit `accession` already names — so `sdrf` is one field short of a structured reference to its
+own warrant, while `publication_methods` has its DOI in free text and `author_correspondence` has
+no identifier to hold. **Three different distances from the same rule.**
+
+**Ruling (b) — R1's universal is restated at its true extent: no basis value has a structured
+reference *to its warrant*.** The decision survives entirely, because everything R1 supports
+concerns warrants: the general-versus-specific split, the rejection of a reference field for the
+enum, and R2's attribution-not-verification ruling all read the same under the narrowed statement.
+
+### E — every figure reproduces at the commit the record names; one of them is self-inclusive after it
+
+**All five reproduce.** Instruments stated with each.
+
+| Figure as recorded | Reproduction | Ruling |
+|---|---|---|
+| 13 lines in four files | `git grep -c author_correspondence f345243`: `ONTOLOGY.md` 1, `ROADMAP.md` 10, `schema.py` 1, ADR-0026 1 — **13, four files** | **(c)** |
+| three files under `data/curation/`, one carrying a `basis` | JSON read: three files, `curation_PXD018299.json` alone carries one, `publication_methods` | **(c)** |
+| `Person` keys on `orcid` + `name`, `orcid` classifiable absent | `schema.IDENTITY["Person"]` = `('orcid','name')`, `authority=False`; `("Person","orcid")` is in `schema.ABSENCE` with value `curated` | **(c)** |
+| `CURATION_CITES` and `WAS_ASSOCIATED_WITH` declared and unemitted | `schema.REL_TABLES`: `Analysis`→`Publication` (no multiplicity), `Analysis`→`Person` (`MANY_ONE`); `grep -rn` over `bzk/` returns only the two `schema.py` declarations | **(c)** |
+| `basis` and `confidence` identifying on `Analysis`, `rationale` not | `schema.IDENTITY["Analysis"].fields` | **(c)** |
+
+**The sweep at HEAD returns 22 lines in five files**, the fifth being this record at nine lines, and
+13 + 9 = 22 accounts for the whole difference. **The figure is not wrong; the instrument became
+self-inclusive when the record landed.**
+
+**Ruled separately, and this is the finding: the qualification is insufficient, and not because it
+is remote.** The blanket *"measured at `f345243`"* sits six lines above the figure, so a reader
+meets it. **What it does not say is that the count now includes the record making it**, and no
+reader re-deriving 22 at HEAD can get from the commit name to that explanation without doing the
+subtraction themselves. **So this is not the shape carried as the `ROADMAP.md` self-inclusive
+defect** — that figure is not ref-scoped at all, and this one is — **but the ref-scoping alone does
+not discharge it.** What a self-inclusive figure needs is the self-inclusion said at the figure.
+**Marked at the site below, and the rule is invented here rather than borrowed**: nothing in this
+repository states how a self-inclusive count should be qualified, so it is announced instead of
+slipped in.
+
+**Ruling (b) on the qualification, (c) on every figure.** The decision is untouched: no figure moved
+and none was wrong.
 
 ## Scope
 
@@ -20,10 +163,19 @@ quotes it, cites it, or treats anything it contains as established.
 Every figure and line reference below was measured at `f345243`, and the instrument is stated
 beside each.
 
+**Review finding E, 2026-09-04 — sufficient for four of the five figures and not for the fifth.**
+The `author_correspondence` sweep counts files that mention the value, and **this record is one of
+them**: the same instrument returns 13 at `f345243` and **22 at any commit from `35c0688`**, the
+difference being this record's own nine lines. The commit name alone does not tell a reader that,
+so the self-inclusion is said at the figure below. **A new form, announced rather than borrowed** —
+nothing here states how a self-inclusive count should be qualified.
+
 ## The state of the tree, measured before the question was framed
 
 **`author_correspondence` is used by no curation record.** `grep -rn` over the repository
-(excluding `.git` and `.venv`) returns **13 lines** mentioning the value, in **four files**:
+(excluding `.git` and `.venv`) returns **13 lines** mentioning the value, in **four files**
+— **self-inclusive from `35c0688`, where this record joins the set and the same instrument returns
+22 in five; the figure below is the state before this record existed** —:
 `ROADMAP.md` (10), `ONTOLOGY.md` l.581 (1), `bzk/ontology/schema.py` l.32 (1) and ADR-0026 l.109
 (1). Reading every `*.json` under `data/curation/` — **three files** — the only one carrying a
 `basis` at all is `curation_PXD018299.json`, which carries `publication_methods` / `inferred`; both
@@ -87,7 +239,11 @@ can make it so, is the confidence the defect rather than the missing rule?
 ## Decision
 
 **R1 — The problem is general to the enum and its acute form is specific to this value, and the two
-must not be conflated.** No basis value has a structured reference today; the shipped record's DOI
+must not be conflated.** ~~No basis value has a structured reference today~~ — **narrowed by Review
+finding D, 2026-09-04: no basis value has a structured reference *to its warrant*. The record does
+carry structured external identifiers — `accession`, `file` and `content_hash` — and `OPERATIONS.md`
+§2 states they identify the *input*, not the warrant. `sdrf` is one field short, its warrant sitting
+inside the deposit `accession` already names.** The rest of the sentence stands: the shipped record's DOI
 sits in free text and `CURATION_CITES` goes unemitted for exactly that reason, which the test suite
 already records. **What is specific to `author_correspondence` is that the general fix has nothing
 to name.** A structured `publication` field closes `publication_methods` because a DOI exists;
@@ -116,7 +272,12 @@ announced instead of slipped in.
 4. **What was asserted**, in the submitter's terms rather than the curator's, so that the mapping
    step performed afterwards is visible as a separate act.
 
-**Element 4 is what makes the rule falsifiable rather than decorative.** A record supplying 1–3 and
+~~**Element 4 is what makes the rule falsifiable rather than decorative.**~~ — **narrowed by Review
+finding B, 2026-09-04: falsifiable, but not by a machine, and the claim named no agent. Whether a
+string is in the submitter's terms is content; implied change 1 checks presence. Element 4 is
+falsifiable by **the submitter**, who can deny the words attributed to them, and by **a reviewer**
+holding the record against the correspondence — the only checks available for content no third
+party can inspect, which is R2's own position applied to R3.** A record supplying 1–3 and
 paraphrasing the answer into the curator's own vocabulary has hidden the mapping step, and under
 ADR-0026's own widened `submitter_metadata` cell — *"Still `inferred`: it is prose about an
 experiment, and the curator does the mapping"* — a hidden mapping step is the difference between
@@ -131,8 +292,13 @@ table"* — `sdrf` and `author_correspondence` are both submitter-sourced and `a
 stated in ADR-0026's Decision: `inferred` is where *"the curator does the mapping."* **On that axis
 `author_correspondence` is correctly `authoritative`** — the submitter states the assignment and the
 curator performs no mapping step. **Public inspectability is a different property, and the enum
-records it nowhere.** Four of five values happen to correlate with it; this one does not, and the
-correlation is what makes the omission invisible.
+records it nowhere.** ~~Four of five values happen to correlate with it; this one does not, and the
+correlation is what makes the omission invisible.~~ — **count struck by Review finding A,
+2026-09-04: `submitter_metadata` sits on both sides at once, covering
+publicly deposited metadata *and* locally generated data that is deposited nowhere (`ONTOLOGY.md`
+l.582 and l.586), so the split is not four and one. The conclusion above is strengthened rather
+than weakened — one value correct on either side of the distinction shows the enum cannot express
+it, which is more than a correlation could show.**
 
 ## Options, each with its cost
 
@@ -197,7 +363,15 @@ not have one to make.
 ## Consequences
 
 **No record changes and no id moves.** Measured: zero curation records carry the value, so the rule
-binds the first one that does and disturbs nothing that exists.
+~~binds~~ **applies to** the first one that does and disturbs nothing that exists.
+
+**Narrowed by Review finding C, 2026-09-04: *binds* was normative and read as operative.** Nothing
+enforces it. `bzk/curation/loader.py`'s `_curation_analysis` raises on exactly two conditions — a
+`basis` outside the closed enum and a `confidence` disagreeing with the enum's pairing — and reads
+no reference, there being no field to hold one. **A record carrying the value with no reference at
+all would load cleanly today.** The enforcement is implied change 1, described and not made, and
+the precedent is ADR-0029's implied change 4: a record naming an obligation is not the same as an
+obligation existing.
 
 **`publication_methods` is left exactly as it stands.** The shipped record's DOI stays in
 `rationale` and `CURATION_CITES` stays unemitted; that defect is recorded in
