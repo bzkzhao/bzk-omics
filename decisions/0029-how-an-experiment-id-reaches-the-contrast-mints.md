@@ -288,6 +288,18 @@ corrections since. **Three answers were available: carry a second date, leave th
 ground, or rule the convention unestablished. The third is taken, and not because it is fewer
 lines.**
 
+**Tested 2026-09-04 and it stands.** The second ground below was put in question and came back
+holding, with the reading it needs now stated at its site. **And this decision does not rest on
+it.** The first ground reaches *the convention is not established* on its own — a rule absent from
+the documented format is not established, whatever practice shows — and the third reaches *change
+nothing here* on its own, being about which record has standing rather than about whether the
+convention exists. The second ground supports the finding without carrying it: it shows that
+practice cannot supply the missing rule, because no record has yet been edited after its review.
+**So this is ADR-0027's shape and not Finding B's** — ADR-0027's review struck a ground and the
+decision survived on the two that remained, whereas Finding B's two struck grounds were the whole
+of the choice they supported. **Had the second ground fallen, outcome 3 would still have stood**,
+and that was established before the ground was ruled on rather than read off the ruling.
+
 **First ground: the row is not part of the format this directory documents.**
 `decisions/README.md`'s `## Format` block gives the header as `Status`, `Date`, `Supersedes` and
 `Superseded by` — four rows, and no `Reviewed`. The row is a convention invented in the records
@@ -298,6 +310,31 @@ ADR-0026, ADR-0027, ADR-0028 and this one — records exactly one review event, 
 other three has been edited since its review. So no instance distinguishes *the row stamps the
 review event* from *the row logs the record's review history*; the difference has never been
 tested, and this is the first record to test it.
+
+**Reading stated 2026-09-04, this ground having been ruled unstated as to instrument rather than
+false.** *"Since its review"* has three candidate anchors — the date the record's own `Reviewed`
+row carries, the commit that landed the record, and the commit that recorded the review — and this
+ground takes **the third**. Measured: the review commit is the one `git log -S'| Reviewed |'` shows
+introducing the row, and `git log <that commit>..HEAD -- <path>` returns **no commits** for any of
+the three: ADR-0026 after `df017e0`, ADR-0027 after `b8a0c5a`, ADR-0028 after `9d29fcc`, each of
+which has exactly two commits in its whole history — its landing and its review. **The ground holds
+under that anchor and under neither other.** Anchored at the `Reviewed` row's date it is false for
+ADR-0026 and ADR-0027, each carrying two commits dated after their row's 2026-08-18; anchored at
+the landing commit it is false for all three, each having exactly one later commit — the review
+itself. **The anchor is selected by what this ground infers, not by which reading survives**: both
+failing anchors sit at a point before the `Reviewed` row existed in the file, so no edit either of
+them counts could test how a *later* edit treats that row, which is the only thing the sentence
+after it claims.
+
+**And the offset that would suggest otherwise belongs to the header block, not to `Reviewed`.**
+ADR-0026 and ADR-0027 each carry `Date` **and** `Reviewed` as 2026-08-18 against first commits
+dated 2026-08-27 — nine days of offset on *both* rows, because a header date is written by hand in
+the record before the commit that lands it. ADR-0028 carries 2026-08-30 on both rows against two
+commits both dated 2026-08-30, and this record carries `Date` 2026-08-31 against a landing commit
+of 2026-08-31 and `Reviewed` 2026-09-03 against a review commit of 2026-09-03 — no offset on either
+row in either case. **A conclusion drawn from the `Reviewed` offset alone would have to be
+withdrawn on reading the `Date` row beside it**, which is why that column is measured here and
+recorded even though it changes nothing.
 
 **Third ground: a `Proposed` record that is held is the wrong place to set a directory-wide
 convention.** Deciding it here would settle, from inside the one record whose own review is
