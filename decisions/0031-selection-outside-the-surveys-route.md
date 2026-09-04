@@ -2,15 +2,19 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-09-04 |
-| Reviewed | 2026-09-04 — five findings, three grounds struck or narrowed, the worked example withdrawn; held `Proposed` |
+| Reviewed | 2026-09-04 — five findings, three grounds struck or narrowed, the worked example withdrawn; ~~held `Proposed`~~ **Accepted 2026-09-04, the round-trip complete** |
 | Supersedes | — |
 | Superseded by | — |
 
 ## Review
 
-Landed `Proposed` at `365eab5` and reviewed in the following turn, at `c95a52b`. **Three of the five
+Landed `Proposed` at `365eab5` and reviewed ~~in the following turn, at `c95a52b`~~ —
+**corrected 2026-09-04: the Review was written at `b9abe32`, which is the only commit that changed
+this file; `c95a52b` is its parent and changed `ROADMAP.md` alone. The wrong SHA was the commit the
+review turn was *working at*, which a record cannot name as its own — its own SHA does not exist
+until it lands.** **Three of the five
 findings struck or narrowed a ground and none reversed a decision. The decision is narrowed and its
 worked example is withdrawn.** R1 stands untouched; R2's artefact-scope argument stands and its
 reach narrows; R3's identification of its class is struck and replaced by a reading supplied here;
@@ -83,9 +87,16 @@ R4 concludes that a retroactive criteria change is *"affordable here, having bee
 `ROADMAP.md` returns 13 lines carrying *re-draw*, of which the only one recording a re-draw that
 happened is dated **2026-08-12**, which **predates the organism amendment of 2026-08-18** and is
 therefore not the re-draw that amendment's cost names; the others are the cost sentence itself, its
-consequence, and a statement that re-drawing is out of scope. **And the survey table still carries
+consequence, and a statement that re-drawing is out of scope. ~~**And the survey table still carries
 12 `yes` in its `In widened 12` column, counted over all sixty rows — not the five the amendment
-left.** The consequence recorded from that amendment reads *"**C3's cap of twelve now holds five.**
+left.**~~ — **second ground struck 2026-09-04: the two are different quantities.** `In widened 12`
+records membership in the draw — the document's nearest statement is that *"exactly 12 rows are
+`site=present` — the same twelve marked In widened 12"*, and no definition block defines the column
+— while *holds five* counts survivors of those twelve under the gate added afterwards. **A
+membership column does not move when a gate later excludes some of its members**, and consequence 1
+of that same amendment closes *"Not amended, not re-scored."* — **so the column could not have moved
+at all, and a column that was never re-scored is not evidence that a re-score did not happen.
+Finding C's ruling survives on the date ground alone, which is untouched.** The consequence recorded from that amendment reads *"**C3's cap of twelve now holds five.**
 The survey is under-drawn against its own size criterion and a re-draw is a separate turn."*
 
 **Ruling (b) — the affordability ground is struck.** The cost was **charged and is outstanding**, so
@@ -256,8 +267,11 @@ survey is under-drawn until a re-draw, which is a separate turn."* **So the prec
 retroactive criteria change is affordable here, ~~having been paid once~~ — **struck by Review
 finding C, 2026-09-04: it was charged once and the charge is outstanding. The re-draw that cost
 names was never run — the only recorded re-draw is dated 2026-08-12 and predates the 2026-08-18
-amendment, and the survey table still carries 12 `yes` in `In widened 12`, not the five the
-amendment left. A second retroactive amendment would add a second unpaid debt to a first still
+amendment, ~~and the survey table still carries 12 `yes` in `In widened 12`, not the five the
+amendment left~~ — **that second ground struck 2026-09-04: a membership column and a survivor count
+are different quantities, and consequence 1 records *"Not amended, not re-scored."*, so the column
+could not have moved. This correction stands on the date ground alone.** A second retroactive
+amendment would add a second unpaid debt to a first still
 unpaid. The conclusion above survives; the price claim does not.**
 
 ### What the rule excludes
