@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.27 |
+| Version | 2.28 |
 | Last reviewed | 2026-09-04 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -11922,6 +11922,149 @@ column remains undefined where it is used.
 
 **The TaxID is recorded as a deposit field and is assigned to no node.** No curation record is
 written or drafted by this block, and nothing here states what organism any `Sample` would carry.
+
+### Four findings from a scratch reproduction, each split into what the tree holds and what it does not, 2026-09-04
+
+**Every finding below has two halves and they have different standing, so they are written
+separately and never in one sentence.** A **code half** is a fact about files in this repository,
+measured here at `a85e516` with its instrument stated — a measurement of this turn. A **file half**
+is a fact about two `.xlsx` files that are **not in the tree** and that this container cannot read;
+it is **reviewer-supplied and not re-derivable here**, and is labelled so at every site.
+
+**The two files, identified by their bytes. Reviewer-supplied; not re-derivable in this container.**
+`Supplementary_Data_S1_TP.xlsx`, SHA-256
+`a6e12e555709612590d1a1d2f499bcd416d2ee69d6e28cb2e167a162fe5c95c2`; and
+`Supplementary_Data_S3_ISG15_IP.xlsx`, SHA-256
+`2ea450f3a63721fa6e59898392e8d07d2e002abbb5cf16004340fe838d3f52e9`. Both are supplementary files of
+the paper the deposit names, recorded in the links block above. **Neither is in the repository and
+neither is to be put into it.**
+
+**This block records and repairs nothing.** No code changes, no defect is fixed, nothing is decided,
+no deposit is selected and no curation record is written.
+
+#### Finding 1 — the Perseus adapter does not narrow its sample descriptors
+
+**Code half, measured here.** Instrument: `grep -n "nodes: list\[Node\]"` over `bzk/adapters/`,
+returning seven lines of which three are the adapters' node-list constructions.
+`bzk/adapters/perseus.py` l.181 reads `nodes: list[Node] = list(mapping.samples)`.
+`bzk/adapters/maxquant_protein_groups.py` l.212 reads
+`nodes: list[Node] = [*sample_nodes(mapping), dataset]`. `bzk/adapters/maxquant_sites.py` l.311
+reads `nodes: list[Node] = sample_nodes(mapping) + seed.modifier_nodes() + list(resolved.nodes)`.
+**So two adapters route through the narrowing and one does not.**
+
+**Code half, what the narrowing is for.** `bzk/adapters/base.py` l.56–60 states it: *"`SampleMapping.samples`
+holds **descriptors**, not change-set nodes, and the curation loader's carry a `mapping_key` — the
+column header the curation was written against — which is not a DDL column and must not reach the
+graph."*
+
+**Code half, what a loader descriptor would do. Measured in memory at `a85e516`, writing nothing and
+touching no graph**: `bzk/curation/loader.py`'s `sample_mapping` builds each descriptor as
+`{**by_id[sample_id], "mapping_key": key}`, so a descriptor carries **thirteen** keys — the twelve a
+`Sample` node carries, including `__label__`, plus `mapping_key`. Passing the same mapping through
+`sample_nodes()` returns twelve, and **the single key the narrowing drops is `mapping_key`**. **So a
+loader-shaped descriptor handed to the Perseus adapter puts `mapping_key` into the change-set,
+which is exactly what the docstring above forbids.**
+
+**File half: none.** This finding is entirely re-derivable from the tree and nothing about either
+`.xlsx` bears on it.
+
+**Carried as defect 38 and not repaired here.** Its home is `HANDOFF.md` §8, which this turn does
+not touch. **Recording the finding in this document is not repairing the defect and does not move
+its home.**
+
+#### Finding 2 — the protein column that identity turns on
+
+**Code half, measured here.** `bzk/adapters/perseus.py` l.81 reads
+`PROTEIN_COLUMNS = ("Protein IDs", "Majority protein IDs", "Proteins", "Protein")`. Located by
+content search over `bzk/ontology/schema.py`, l.588 reads
+`RelTable("REPORTS_PROTEIN", "Dataset", "ProteinObservation", multiplicity="ONE_MANY")`.
+
+**Code half, what makes the group the identity.** `decisions/0022-protein-group-ambiguity.md`'s
+Decision states it: *"**`ProteinObservation` gains `candidate_proteins STRING[]` as an identifying
+field**, and `RESOLVES_TO_PROTEIN` becomes `MANY_MANY`, one edge per member. The observation is then
+keyable without choosing, and what it asserts is what the search reported."*
+
+**File half, reviewer-supplied and not re-derivable in this container.** Over
+`Supplementary_Data_S1_TP.xlsx`'s **7,610** data rows, normalising each cell by splitting on `;` and
+stripping: the `Protein.Group` column gives **7,610** distinct sets with none repeated; the
+`Protein.Ids` column gives **7,591** distinct sets, with **19** appearing twice. The file's protein
+columns are spelled `Protein.Group` and `Protein.Ids`, and **none of the four spellings in
+`PROTEIN_COLUMNS` appears in it**.
+
+**The consequence, and nothing is ruled.** With `candidate_proteins` identifying, a repeated set
+collides into one `ProteinObservation`, and a destination taking two `REPORTS_PROTEIN` edges is what
+that relationship's `ONE_MANY` forbids. **Which column should be used is a decision, it needs its own
+record, and this turn writes none.**
+
+#### Finding 3 — the annotation row the deposit does not carry
+
+**Code half, measured here.** `bzk/adapters/perseus.py`'s `sniff` at l.145–157 requires three things
+of a file's lines, and its last two statements are the test: *"if not lines or "\t" not in lines[0]:
+return False"* and *"return any(line.startswith(ANNOTATION_PREFIX) for line in lines[1:])"*. The
+constant it tests is `ANNOTATION_PREFIX = "#!{"`. **So a file returns true only if it decodes as
+UTF-8, its first line contains a tab, and some line after the first begins with that prefix.**
+
+**File half, reviewer-supplied and not re-derivable in this container.** Neither `.xlsx` contains any
+occurrence of the annotation prefix — **zero in both**. Each carries **three** header or annotation
+rows before its data; in `S1_TP` **11 of 29** columns carry a Perseus type prefix and **18** do not,
+and in `S3` **11 of 27** do and **16** do not.
+
+**The consequence, and nothing is ruled.** A file with no line carrying that prefix does not sniff as
+a Perseus matrix however well formed it otherwise is, so any conversion either supplies such a line
+or the adapter's test changes. **Both are decisions and this turn makes neither.**
+
+#### Finding 4 — where the header is, and what that costs
+
+**Code half, measured here.** `bzk/adapters/perseus.py`'s `_read` at l.286–305 takes its header from
+one line and no other: *"header = lines[0].split("\t")"*. Of the lines after it, it skips those that
+are blank or begin with the annotation prefix, right-pads a short row to the header's width, and
+raises when no data row survives.
+
+**File half, reviewer-supplied and not re-derivable in this container.** In both files the column
+identity of the quantitative columns spans **three** rows — a set label, a condition string, and a
+raw acquisition path — while the statistics and identifier columns are named on the third row alone.
+**So no single row of either file is a complete header.**
+
+**The consequence, and nothing is ruled.** A reader that takes one line as the whole header cannot
+receive the quantitative columns' identity from any single row of these files, so a conversion must
+choose which row becomes line 0 and what becomes of the other two. **That choice is a decision and
+this turn does not make it.**
+
+#### What this block does not establish
+
+**No file was read by this turn.** Every file-half figure above is reviewer-supplied from a container
+that no longer exists, and the pre-conversion state of those measurements was never committed. **A
+later reader can falsify any of them by re-measuring the named bytes and cannot confirm one from
+this repository.**
+
+**Nothing here decides the protein column, the annotation row, or whether the platform converts.**
+Those are one or more decisions needing their own records, and this turn writes none.
+
+**Nothing here bears on whether the deposit may be ingested.** That is settled elsewhere and this
+block does not reach it.
+
+**Whether the deposit's archive holds a tab-separated export is not established.** A reviewer
+reports that it does not, **from an inspection with no date recorded**; the archive is mutable and
+the deposit was announced in May 2026. **Recorded as reviewer-supplied, undated and unchecked, and
+recorded rather than omitted on a stated ground: an imported absence is weaker than an imported
+presence precisely because a later reader can falsify it by finding the thing and can never confirm
+it — so omitting it would destroy the only handle falsification has.** What would settle it is a
+dated listing of the deposit's files.
+
+**Two quantities that coincide, and the coincidence is not a verification.** The links block above
+records, reviewer-supplied, that the paper's **results section** claims **7,610** unique proteins in
+the total proteome analysis. Finding 2's file half records, reviewer-supplied, that
+`Supplementary_Data_S1_TP.xlsx` holds **7,610 data rows**. **These are two quantities, not one**: a
+count of a spreadsheet's data rows is not a count of proteins a paper claims to have identified, and
+in a table with one row per protein group they coincide **by construction rather than by agreement**.
+Each is recorded with its own source above. **Neither verifies the other and no comparison is made
+here.**
+
+**So no pre-registration was owed, on that reading — and it would not have been available in any
+case.** The first is the ruling: no figure in this block is compared to one recorded in this
+repository. The second is a separate fact and does not stand in for it: the measurements were made
+outside this container before the turn began, so there is no measuring code for a pre-registration
+commit to precede.
 
 ### Deposit and supplementary survey, 2026-08-07
 
