@@ -69,7 +69,16 @@ DECLARED = DeclaredAnalysis(
 
 @pytest.fixture
 def mapping() -> SampleMapping:
-    """Two Samples, as the curation loader hands them over. Ids are the shape `keys.py` mints."""
+    """Two Samples as **change-set nodes, already narrowed**. Ids are the shape `keys.py` mints.
+
+    **Corrected 2026-09-05: this read *"as the curation loader hands them over"*, and that was
+    false.** `bzk/curation/loader.py`'s `sample_mapping` builds each descriptor as
+    `{**by_id[sample_id], "mapping_key": key}`, so one the loader hands over carries `mapping_key`
+    — not a DDL column — and these carry none. **What the fixture returns is unchanged; only the
+    claim about it is.** The loader's shape is exercised by
+    `test_a_loader_shaped_descriptor_does_not_put_mapping_key_in_the_change_set`, which no fixture
+    of this shape could reach.
+    """
     return SampleMapping(
         curation_analysis_id="bzk:bc90e3eb515d6edd1351ce25ecd33209",
         samples=[
@@ -212,6 +221,47 @@ def test_samples_are_restaged_and_linked_to_the_dataset(
     assert len(_nodes(parsed, "Sample")) == 2
     produced = {e["from"] for e in parsed.edges if e["type"] == "PRODUCED"}
     assert produced == {s["id"] for s in mapping.samples}
+
+
+def test_a_loader_shaped_descriptor_does_not_put_mapping_key_in_the_change_set(
+    adapter: PerseusAdapter,
+) -> None:
+    """`base.py`'s narrowing is owed by every adapter emitting `Sample` nodes from a mapping.
+
+    **The `mapping` fixture above cannot reach this and no test using it could.** It hands over
+    change-set nodes that are already narrowed, so the divergence between this adapter and the two
+    MaxQuant ones is invisible to it. The descriptor here is built the way
+    `bzk/curation/loader.py`'s `sample_mapping` builds one — the `Sample` node's own keys plus
+    `mapping_key`, the column header the curation was written against.
+
+    **Synthetic rather than loaded from `data/curation/`**: a path tested against real data being
+    in a particular state stops guarding the day that data changes, and does it by going green
+    (`HANDOFF.md` §8).
+
+    **Asserted on the key that must not appear, never on a column count.** A count would pass for
+    the wrong reason the day `Sample` gains a column.
+    """
+    loader_shaped = SampleMapping(
+        curation_analysis_id="bzk:bc90e3eb515d6edd1351ce25ecd33209",
+        samples=[
+            {
+                NODE_TYPE_KEY: "Sample",
+                "id": "bzk:9924d6d24941af0f1b64171e0b550e76",
+                "replicate": 1,
+                "mapping_key": "Ratio mod/base KO_IFN_1",
+            },
+            {
+                NODE_TYPE_KEY: "Sample",
+                "id": "bzk:7b2ed3b2751c3364da982151935c9845",
+                "replicate": 2,
+                "mapping_key": "Ratio mod/base KO_IFN_2",
+            },
+        ],
+    )
+    samples = _nodes(adapter.parse(TABLE, loader_shaped), "Sample")
+    assert samples, "no Sample node reached the change-set, so the check below asserts nothing"
+    for node in samples:
+        assert "mapping_key" not in node
 
 
 def test_the_dataset_is_keyed_on_the_files_own_digest(

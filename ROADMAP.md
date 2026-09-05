@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.28 |
-| Last reviewed | 2026-09-04 |
+| Version | 2.29 |
+| Last reviewed | 2026-09-05 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
 
@@ -12065,6 +12065,41 @@ case.** The first is the ruling: no figure in this block is compared to one reco
 repository. The second is a separate fact and does not stand in for it: the measurements were made
 outside this container before the turn began, so there is no measuring code for a pre-registration
 commit to precede.
+
+### Finding 1's figures reproduced, 2026-09-05
+
+**This is a reproduction, not a measurement against a baseline, and no pre-registration was owed.
+Stated so the absence of a pre-registration commit is a ruling and not an omission.** Finding 1
+above states the instrument that produced each of its figures, and re-running a stated instrument is
+a reproduction. The expected values sit in the block being reproduced, so a pre-registration here
+would have been a transcription wearing a prediction's clothes. This project has drawn the same
+distinction twice before, for the six `Contrast` ids and for the five figures in ADR-0030's review,
+and both correctly owed nothing.
+
+**Run at `20dd4c4`, which is the state the figures are about.** Instrument A's readings are facts
+about the file contents at that commit; a later reader re-running it at a later commit is not
+re-running this.
+
+| Figure | Finding 1 records | Reproduced at `20dd4c4` | Reproduces |
+|---|---|---|---|
+| `grep -n "nodes: list\[Node\]"` over `bzk/adapters/`, lines returned | seven | seven | yes |
+| of which are the adapters' node-list constructions | three | three — `perseus.py` l.181, `maxquant_protein_groups.py` l.212, `maxquant_sites.py` l.311 | yes |
+| `bzk/adapters/perseus.py` l.181 | `nodes: list[Node] = list(mapping.samples)` | byte-identical | yes |
+| `bzk/adapters/maxquant_protein_groups.py` l.212 | `nodes: list[Node] = [*sample_nodes(mapping), dataset]` | byte-identical | yes |
+| `bzk/adapters/maxquant_sites.py` l.311 | `nodes: list[Node] = sample_nodes(mapping) + seed.modifier_nodes() + list(resolved.nodes)` | byte-identical | yes |
+| keys on one curation-loader descriptor | thirteen | thirteen | yes |
+| keys after `sample_nodes()` | twelve | twelve | yes |
+| keys the narrowing drops | one, `mapping_key` | one, `mapping_key` | yes |
+
+**Instrument for the last three rows, stated with its counts**: `load_path` over
+`data/curation/curation_PXD018299.json` in memory, then `sample_mapping()` and `sample_nodes()`,
+writing nothing and touching no graph — **twelve descriptors, every one of them thirteen keys, and
+every one of the twelve narrowed nodes twelve keys**, with `set(descriptor) - set(node)` equal to
+`{'mapping_key'}` and `set(node) - set(descriptor)` empty. Finding 1 reports the per-descriptor
+counts and not the uniformity across the twelve; the uniformity is recorded here as an addition to
+what it states, not as a correction of it.
+
+**All eight figures reproduce. Nothing was adjusted and nothing failed to reproduce.**
 
 ### Deposit and supplementary survey, 2026-08-07
 

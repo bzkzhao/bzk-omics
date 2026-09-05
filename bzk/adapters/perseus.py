@@ -50,7 +50,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from bzk.adapters.base import Edge, Node, ParsedObservations, SampleMapping
+from bzk.adapters.base import Edge, Node, ParsedObservations, SampleMapping, sample_nodes
 from bzk.ontology import invariants, schema
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.ontology.keys import evidence_id, protein_key
@@ -178,7 +178,7 @@ class PerseusAdapter:
         peptide_column = next((c for c in PEPTIDE_COUNT_COLUMNS if c in columns), None)
         readers = [self._contrast_reader(columns, c) for c in self.contrasts]
 
-        nodes: list[Node] = list(mapping.samples)
+        nodes: list[Node] = sample_nodes(mapping)
         edges: list[Edge] = []
 
         dataset = {
