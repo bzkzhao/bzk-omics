@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.36 |
+| Version | 2.37 |
 | Last reviewed | 2026-09-05 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -12395,6 +12395,43 @@ still writes `quantity: None` and `filters_applied: []` as constants, unchanged;
 state either is now refused rather than silently overridden. Whether the format should carry them is
 a format question this turn does not touch.
 
+### The analysis-record format gets a vocabulary and a read map, 2026-09-05
+
+**`bzk/curation/analysis_record.py` and `tests/test_analysis_record.py`.**
+`data/curation/analysis_*.json` was validated by nothing: every reader opened it with `json.loads`
+at a path of its own and no line asked what else the file held, so a key nobody read was dropped
+without a word — the defect `_check_known_keys` closed for `curation_*.json`, in the same directory,
+one commit earlier.
+
+**The read surface, measured.** Five readers — `bzk/sources/pxd055843_perseus.py` and four test
+modules, two of which reach the records by glob rather than by name. Two records, sixteen keys each,
+twelve shared, twenty in the union. **Nine of each record's sixteen keys are read by something that
+opens that record; seven are read by nothing.**
+
+**A union of two vocabularies guards less than either half, and by a measurable amount.** Four keys
+— `contrast`, `test`, `fdr_method`, `filters_applied` — are read off PXD055843's record and off
+nothing that opens PXD018299's, so one vocabulary recognises in each record four keys that record's
+readers would never look for. `STRUCTURAL_KEYS`' reasoning does not transfer whole: it rests on one
+loader with one read surface, and this format has neither.
+
+**So the check is split rather than picked.** `check_keys` refuses an undefined key when a record is
+opened — immediate, and deliberately the weaker half. `tests/test_analysis_record.py` derives from
+source which keys each reader reads off which record, and holds each record's remainder to `UNREAD`,
+a declared list with a ground per entry. A key added to a record must then be classified where it is
+added: read by something, or named with the reason it is carried for a human.
+
+**Nothing was deleted to make a guard pass.** Seven keys per record are carried, unread, named and
+grounded. Deriving the reads from source rather than from memory immediately earned itself: the
+name `analysis` in `tests/test_pxd055843_perseus.py` was bound both to the record and to a minted
+`Analysis` node, and four node fields were being counted as four record reads.
+
+**One claim in a committed record is false and is left standing.**
+`analysis_PXD055843_siUSP24_IFN_vs_siC_IFN.json`'s `rationale` says
+`bzk/sources/pxd055843_perseus.py` asserts the two records name the same bytes. It does not —
+`tests/test_pxd055843_perseus.py` does. No record is edited this turn, so it is reported here
+rather than repaired; and it is a claim of the kind neither half of this change can catch, since
+the key it concerns is read.
+
 ### A source module that ingests PXD055843's Perseus export, 2026-09-05
 
 **`bzk/sources/pxd055843_perseus.py` and `data/curation/analysis_PXD055843_siUSP24_IFN_vs_siC_IFN.json`.**
@@ -12430,9 +12467,12 @@ stated in no source, so a key could carry nothing but null — a second way of s
 **That option cost nothing, and the reason was established rather than assumed.** Measured:
 `load_path` is called on `curation_*.json` only — `bzk/rebuild.py` over its glob, and two
 `bzk/sources/` modules on a literal path — so **no `analysis_*.json` passes through the loader's
-`KNOWN_KEYS` check at all**. That format is read by `json.loads` at literal paths in
-`bzk/sources/pxd018299_baseline.py` and two test modules. Adding a key to it is unconstrained by
-that check.
+`KNOWN_KEYS` check at all**. ~~That format is read by `json.loads` at literal paths in
+`bzk/sources/pxd018299_baseline.py` and two test modules.~~ **Corrected 2026-09-05 by the
+measurement in the entry below**: `bzk/sources/pxd018299_baseline.py` reads no analysis record — it
+cites one in a fixture note — and there are four test readers, not two, one of which reaches the
+records by `rglob` rather than a literal path. The clause the sentence existed for, that no analysis
+record passes the loader's check, is unaffected. Adding a key to it is unconstrained by that check.
 
 **The module cannot succeed today and the reason is a missing seed, not a missing file.** The
 methods state that missing values were imputed and state no seed; I15 refuses a stochastic

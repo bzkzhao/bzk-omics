@@ -148,12 +148,15 @@ def test_the_change_set_carries_what_the_adapter_mints(tmp_path: Path) -> None:
     for edge_type in ("IMPUTATION_FOR", "PRODUCED", "REPORTS_PROTEIN", "WAS_GENERATED_BY"):
         assert edge_type in types
 
-    analysis = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "Analysis")
-    assert analysis["external_version"] == "1.6.2.3"
-    assert analysis["test"] == "perseus_s0"
-    assert analysis["fdr_method"] == "permutation"
-    assert analysis["quantity"] == "lfq"
-    assert analysis["parameters_observed"] is False
+    # `analysis_node`, not `analysis`: the name is bound to the *record* higher up this module, and
+    # `tests/test_analysis_record.py` derives what each reader reads off a record by that binding.
+    # Spelling both the same made four node fields read as four record reads (2026-09-05).
+    analysis_node = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "Analysis")
+    assert analysis_node["external_version"] == "1.6.2.3"
+    assert analysis_node["test"] == "perseus_s0"
+    assert analysis_node["fdr_method"] == "permutation"
+    assert analysis_node["quantity"] == "lfq"
+    assert analysis_node["parameters_observed"] is False
 
 
 def test_the_change_set_carries_no_per_sample_values(tmp_path: Path) -> None:

@@ -32,6 +32,7 @@ from typing import Any, cast
 
 import pytest
 
+from bzk.curation.analysis_record import read_record
 from bzk.sources.pxd018299_baseline import (
     EXPECTED_TARGETS,
     SIG_ADJ_P,
@@ -70,7 +71,12 @@ def _rows() -> list[dict[str, Any]]:
 
 
 def _record() -> dict[str, Any]:
-    return _json(ANALYSIS_RECORD)
+    """Through `analysis_record.read_record` rather than `_json`, so this record is checked too.
+
+    It is the only reader of `analysis_PXD018299_KOIFN_vs_WTIFN.json` that reads keys out of it, so
+    without this the format's refusal would cover one of the two committed records.
+    """
+    return read_record(ANALYSIS_RECORD)
 
 
 # --------------------------------------------------------------------------------------------

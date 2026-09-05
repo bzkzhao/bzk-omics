@@ -51,6 +51,7 @@ from typing import Any
 
 from bzk.adapters.base import ParsedObservations
 from bzk.adapters.perseus import DeclaredAnalysis, DeclaredContrast, PerseusAdapter
+from bzk.curation import analysis_record
 from bzk.curation.loader import LoadedCuration, load_path
 from bzk.ontology import store
 from bzk.ontology.invariants import NODE_TYPE_KEY
@@ -71,7 +72,12 @@ COLUMN_SUFFIX = "siUSP24_IFN_siCTRL_IFN"
 
 
 def _analysis_record() -> dict[str, Any]:
-    return dict(json.loads(ANALYSIS.read_text()))
+    """Through `analysis_record.read_record`, so a key this format does not define is refused here.
+
+    The record is opened by literal path — nothing globs it and `bzk/rebuild.py` does not replay it
+    — so this call site is where the format's vocabulary is enforced for this deposit.
+    """
+    return analysis_record.read_record(ANALYSIS)
 
 
 def declared() -> tuple[DeclaredAnalysis, DeclaredContrast]:
