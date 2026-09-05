@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.34 |
+| Version | 2.35 |
 | Last reviewed | 2026-09-05 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -12351,6 +12351,49 @@ subject is *inventing* an input, and a real file is not invented; but the clause
 content in the graph must be regenerable from `raw/` — is unaffected by the first ground lapsing,
 and the file is not in `raw/`. **Recording the lapse of one conjunct without the survival of the
 other would read as more decided than this is.**
+
+### A curation record's unknown keys are now an error, 2026-09-05
+
+**The defect, recorded here the day before it was fixed.** `bzk/curation/loader.py` read the keys it
+knew and never asked what else a record carried, so a record could state something the loader
+discarded without a word — the shape this repository refuses everywhere else, a check reporting
+success over something it never looked at.
+
+**The recognised set was written down nowhere and is now composed, not restated.** Measured by
+reading the module: **12** keys are read inline by a literal `record.get(...)`, **4** come through
+`_DATASET_FROM_RECORD`, and **14** are declared in `STRUCTURAL_KEYS`; their union is **23**, and
+`KNOWN_KEYS` is that union rather than a fourth hand-written list. Measured over the four files —
+`json.load` on two records under `data/curation/` and two twins under `tests/fixtures/` — they carry
+**18, 17, 19 and 20** top-level keys for a union of **21**, all inside the 23. **The check is *no
+key outside the known set*, never *exactly this set***: the four disagree among themselves on
+`corrections`, `note`, `synthetic` and `pending`.
+
+**Seven of the 23 are declared and read by no line.** `corrections`, `curated_at`, `curated_by`,
+`note`, `supersedes`, `synthetic` and `unresolved` appear in `STRUCTURAL_KEYS` and in no
+`record.get(...)`; `grep -rn` over `bzk/` finds each only at its own declaration. **A key read
+nowhere is a different defect from a key rejected nowhere**, and this turn fixed the second and
+changed nothing about the first.
+
+**The block comment said an accessor would be needed, and the correction is at its site.** It read
+that discovering an undeclared key *"would need the loader to read the record through one accessor,
+which it does not"*. A set difference is not that, and the difference is stated rather than glossed:
+an accessor makes declaring and reading one act so they cannot drift, while two sets can — so
+`tests/test_curation_loader.py::test_the_inline_key_reads_are_all_declared` parses the module's own
+AST and holds `_INLINE_KEYS` to every `record.get(<literal>)` whose receiver is `record`. That is
+the idiom this repository already uses for every mirror it keeps.
+
+**The `mapping` level shares the hole and was measured, not closed.** The comment rules that the
+*keys of* `mapping` are column headers and may be spelled anything; that is the outer level and says
+nothing about the keys **inside** an entry, which the loader reads through `_SAMPLE_FIELDS` and
+drops whatever is left. Measured: `data/curation/curation_PXD018299.json` carries a `note` inside its
+mapping entries and `_SAMPLE_FIELDS` does not name it, so **closing that level would refuse a record
+on disk** — and the narrowing that would have to separate a deliberate drop from an unrecognised key
+lives in `bzk/adapters/base.py`, out of scope here.
+
+**A record can no longer state a `quantity`, and that is the intended outcome.** `_curation_analysis`
+still writes `quantity: None` and `filters_applied: []` as constants, unchanged; a record trying to
+state either is now refused rather than silently overridden. Whether the format should carry them is
+a format question this turn does not touch.
 
 ### Deposit and supplementary survey, 2026-08-07
 

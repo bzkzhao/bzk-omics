@@ -53,9 +53,18 @@ from bzk.ontology.keys import evidence_id
 #
 # Declared here because this is the loader's contract and there is nowhere better; guarded against
 # `schema.NODE_TABLES` by `tests/test_curation_loader.py`, which also asserts each one still appears
-# in a record on disk so the list cannot rot into fiction. What the guard does *not* do is discover
+# in a record on disk so the list cannot rot into fiction. ~~What the guard does *not* do is discover
 # a **new** structural key someone adds without declaring it here — that would need the loader to
-# read the record through one accessor, which it does not.
+# read the record through one accessor, which it does not.~~ **Corrected 2026-09-05: a record
+# carrying an undeclared key is now refused, and not by an accessor.** `KNOWN_KEYS` below composes
+# this set with the other two places the loader reads keys, and `_check_known_keys` refuses any
+# record key outside it. **The set difference is not the accessor this sentence asked for and the
+# difference is stated rather than glossed**: an accessor makes declaring and reading one act, so
+# they cannot drift; two sets kept in step by a guard can, and
+# `test_the_inline_key_reads_are_all_declared` is that guard — the same shape as every other mirror
+# here, `schema.py` ↔ §4–§7 and `ABSENCE` ↔ §3. What is closed is a record stating something the
+# loader drops; what the guard rather than the type system now prevents is a *read* added without a
+# declaration.
 #
 # Note what is deliberately excluded: the keys of the `mapping` object are sample column headers
 # (`Intensity WT_1`), which are data and may be spelled anything the search engine emits.
@@ -86,6 +95,33 @@ _DATASET_FROM_RECORD = {
     "search_engine": "search_engine",
     "search_engine_version": "search_engine_version",
 }
+
+# Every top-level key this module reads inline — by a literal `record.get(...)` in `load` or one of
+# its helpers, rather than through either table above. Listed whole, overlap with `STRUCTURAL_KEYS`
+# included, so this is *the keys read inline* rather than *the leftovers*, and
+# `tests/test_curation_loader.py::test_the_inline_key_reads_are_all_declared` holds it to the
+# module's own source so the two cannot drift.
+_INLINE_KEYS: frozenset[str] = frozenset(
+    {
+        "accession",
+        "basis",
+        "confidence",
+        "content_hash",
+        "contrasts_of_interest",
+        "dataset",
+        "experiment",
+        "file",
+        "mapping",
+        "pending",
+        "project",
+        "rationale",
+    }
+)
+
+#: Every top-level key a record may carry — **composed from the three places the loader reads keys,
+#: never restated.** The recognised set was previously spread across those three and written down
+#: nowhere, which is why a record could state something no line read and see it dropped.
+KNOWN_KEYS: frozenset[str] = STRUCTURAL_KEYS | frozenset(_DATASET_FROM_RECORD) | _INLINE_KEYS
 
 # `Sample` columns the loader reads out of a `mapping` entry. `label` is not among them: it is not
 # a curator-supplied field but the mapping key itself, set in `load`. `model_system` is read even
@@ -225,6 +261,32 @@ def _pending_owed(record: Mapping[str, Any]) -> list[Owed]:
     return owed
 
 
+def _check_known_keys(record: Mapping[str, Any]) -> None:
+    """Refuse a record carrying a top-level key this module does not read.
+
+    **The module used to accept one and drop it.** Keys are read by name — some through
+    `STRUCTURAL_KEYS`, some through `_DATASET_FROM_RECORD`, the rest inline — and nothing asked what
+    else the record held, so a curator writing a field this format has no place for saw the record
+    load clean and the value go nowhere. That is the shape this repository refuses everywhere else:
+    a check that reports success over something it never looked at.
+
+    **Refused, not warned.** A warning is what the module already effectively emitted, which is
+    nothing. And the refusal names both halves — what it found and what it recognises — because a
+    curator meeting it needs to know whether the key is misspelled or simply has no home here.
+
+    This runs before every other check. A misspelled `basis` was reported as `basis=None is not in
+    the closed enum`, which describes the absence rather than the typo standing beside it.
+    """
+    unknown = sorted(set(record) - KNOWN_KEYS)
+    if unknown:
+        raise CurationInvalid(
+            f"record carries top-level key(s) {unknown} that this loader does not read, so their "
+            "values would be dropped without a word. It recognises "
+            f"{sorted(KNOWN_KEYS)}. A record stating something the loader discards is a claim the "
+            "graph never carries, so it is refused rather than half-loaded."
+        )
+
+
 def _curation_analysis(record: Mapping[str, Any]) -> dict[str, Any]:
     """The §5.3 curation `Analysis`, with the loader defaults settled in `HANDOFF.md` §8."""
     basis = record.get("basis")
@@ -263,8 +325,10 @@ def load(record: Mapping[str, Any]) -> LoadedCuration:
     """Build the change-set, or raise `CurationIncomplete` / `CurationInvalid`.
 
     Vocabulary is checked before completeness so a misspelled `basis` is reported as the wrong value
-    it is, rather than surfacing as a missing one.
+    it is, rather than surfacing as a missing one. **Unknown keys are checked before either**, since
+    a misspelled key name is otherwise reported as the absence of the key it was meant to be.
     """
+    _check_known_keys(record)
     analysis_props = _curation_analysis(record)
 
     project = {"title": (record.get("project") or {}).get("title")}

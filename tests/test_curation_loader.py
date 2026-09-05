@@ -458,3 +458,99 @@ def test_declared_structural_keys_are_all_really_used() -> None:
         walk(json.loads(path.read_text()))
     missing = loader.STRUCTURAL_KEYS - seen
     assert not missing, f"declared structural key(s) {sorted(missing)} appear in no record on disk"
+
+
+# ── Unknown keys ────────────────────────────────────────────────────────────────────────────────
+
+
+def test_an_unknown_top_level_key_is_refused_and_the_message_names_it(tmp_path: Path) -> None:
+    """A record could state something the loader never reads, and it was accepted and dropped.
+
+    Nothing in the module asked what else a record carried: keys are read by name — some from
+    `STRUCTURAL_KEYS`, some from `_DATASET_FROM_RECORD`, the rest inline — and whatever was not
+    read simply went nowhere. So a curator writing `quantity` into a curation record, which is a
+    field this format has no place for, would see it load clean and the value vanish.
+
+    Refused rather than warned, because a warning is what the module already effectively did.
+    Built in `tmp_path` from a copy of the real record: a committed record that cannot load is a
+    trap for the next reader.
+    """
+    record = _record(REAL_RECORD)
+    record["quantity"] = "lfq"
+    bad = tmp_path / "curation_bad.json"
+    bad.write_text(json.dumps(record), encoding="utf-8")
+    with pytest.raises(CurationInvalid) as exc:
+        load_path(bad)
+    assert "quantity" in str(exc.value)
+    assert "recognises" in str(exc.value)
+
+
+def test_every_record_and_fixture_on_disk_still_loads() -> None:
+    """The check is *no key outside the known set*, never *exactly this set*.
+
+    The four files do not agree on their key sets — `corrections` is in one real record and not the
+    other, `note` and `synthetic` are in the fixtures and neither real record, `pending` is in one
+    fixture alone — so a check written as an equality would refuse three of the four.
+    """
+    records = sorted(CURATION_DIR.glob("curation_*.json")) + sorted(
+        FIXTURES.glob("curation_synthetic_*.json")
+    )
+    assert len(records) == 4, f"expected the two records and the two twins, found {records}"
+    for path in records:
+        record = _record(path)
+        unknown = set(record) - loader.KNOWN_KEYS
+        assert not unknown, f"{path.name} carries {sorted(unknown)}, which the loader would refuse"
+
+
+def test_a_key_inside_a_mapping_entry_is_still_accepted_and_dropped() -> None:
+    """Recorded because it is measured, not because it is wanted — the level was left alone.
+
+    The block comment above `STRUCTURAL_KEYS` rules that the *keys of* `mapping` are column headers
+    and may be spelled anything. That is the outer level; it says nothing about the keys **inside**
+    an entry, which the loader reads through `_SAMPLE_FIELDS` and drops whatever is left.
+
+    A committed record exercises the hole: `data/curation/curation_PXD018299.json` carries a `note`
+    in one of its mapping entries, and `_SAMPLE_FIELDS` does not name it. Closing this level would
+    refuse a record on disk, and the narrowing that would have to distinguish a deliberate drop from
+    an unrecognised key lives in `bzk/adapters/base.py`, which this turn does not touch.
+    """
+    entry_keys = {key for entry in _record(REAL_RECORD)["mapping"].values() for key in entry}
+    assert "note" in entry_keys
+    assert "note" not in loader._SAMPLE_FIELDS
+    loaded_record = load_path(REAL_RECORD)
+    for sample in _nodes(loaded_record, "Sample"):
+        assert "note" not in sample
+
+
+def test_the_inline_key_reads_are_all_declared() -> None:
+    """`_INLINE_KEYS` against the module's own source — the mirror that replaces an accessor.
+
+    The block comment above `STRUCTURAL_KEYS` said discovering an undeclared key would need the
+    loader to read the record through one accessor. `KNOWN_KEYS` does it by set difference instead,
+    and the difference between the two is real: an accessor makes declaring and reading one act, so
+    they cannot drift, while two sets can. This is what keeps them in step, and it is the idiom this
+    repository already uses for every other mirror — `schema.py` against §4–§7, `ABSENCE` against §3.
+
+    Parsed rather than grepped, and only calls whose receiver is the name `record` are counted, so
+    `entry.get(...)` and `experiment_block.get(...)` are not mistaken for record reads.
+    """
+    import ast
+
+    source = (REPO_ROOT / "bzk" / "curation" / "loader.py").read_text()
+    reads = {
+        node.args[0].value
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "get"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "record"
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, str)
+    }
+    assert reads, "no `record.get('...')` call was parsed, so the comparison below asserts nothing"
+    undeclared = sorted(reads - loader._INLINE_KEYS)
+    stale = sorted(loader._INLINE_KEYS - reads)
+    assert not undeclared, f"`record.get` reads {undeclared}, which `_INLINE_KEYS` does not declare"
+    assert not stale, f"`_INLINE_KEYS` declares {stale}, which no `record.get` call reads"
