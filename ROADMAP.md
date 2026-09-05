@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.35 |
+| Version | 2.36 |
 | Last reviewed | 2026-09-05 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -12394,6 +12394,59 @@ lives in `bzk/adapters/base.py`, out of scope here.
 still writes `quantity: None` and `filters_applied: []` as constants, unchanged; a record trying to
 state either is now refused rather than silently overridden. Whether the format should carry them is
 a format question this turn does not touch.
+
+### A source module that ingests PXD055843's Perseus export, 2026-09-05
+
+**`bzk/sources/pxd055843_perseus.py` and `data/curation/analysis_PXD055843_siUSP24_IFN_vs_siC_IFN.json`.**
+The module locates the deposit by digest, builds a change-set with the Perseus adapter and writes it
+with `store.write_change_set`. **It was not run against the real deposit** — those bytes are in no
+content store in this container and no `.xlsx` is in the tree — so its change-set path is driven over
+a synthetic workbook of the deposit's shape and its deposit-absent path is exercised as itself.
+
+**The anchor's precedent was not followed, for its own reason.**
+`bzk/sources/pxd018299_differential.py` transcribes its parameters rather than reading the analysis
+record, citing `pxd018299_baseline.py`: *"the record is the artefact this run is checked **against**,
+so taking its parameters as input would make the comparison circular."* That reason is about a run
+whose output is a figure compared with a recorded baseline. **This module compares nothing; it
+ingests.** There is no baseline and therefore no circle, so it reads the record. A precedent is
+followed for its reason or not at all.
+
+**`_adapter_for` cannot serve it, measured.** That function constructs `MaxQuantSiteAdapter` and
+returns it only if it sniffs, and `MaxQuantSiteAdapter.sniff` requires three MaxQuant column names in
+the first tab-split line of a UTF-8 decode. The module constructs the Perseus adapter directly and
+`bzk/rebuild.py` is unchanged.
+
+**The three values with no key in the `analysis_*.json` format went three different ways.**
+`column_suffix` stays in the module, on its own docstring's ground — *"it never reaches the graph and
+exists only to find the columns"* — so it is a fact about this file's column spelling rather than
+about the analysis, and the deposit's other export spells it differently. `external_version` goes in
+the record: it lands on `Analysis` under §5.4's external-analysis columns, alongside `test`,
+`fdr_method` and `quantity`, every one of which already has a key there, and it is a different field
+from the curation record's `search_engine_version`, which is DIA-NN's and lands on `Dataset`.
+`parameters_json` goes in **neither**: its only known content is `s0`, which `ROADMAP.md` records as
+stated in no source, so a key could carry nothing but null — a second way of saying an absence
+`unresolved` already states.
+
+**That option cost nothing, and the reason was established rather than assumed.** Measured:
+`load_path` is called on `curation_*.json` only — `bzk/rebuild.py` over its glob, and two
+`bzk/sources/` modules on a literal path — so **no `analysis_*.json` passes through the loader's
+`KNOWN_KEYS` check at all**. That format is read by `json.loads` at literal paths in
+`bzk/sources/pxd018299_baseline.py` and two test modules. Adding a key to it is unconstrained by
+that check.
+
+**The module cannot succeed today and the reason is a missing seed, not a missing file.** The
+methods state that missing values were imputed and state no seed; I15 refuses a stochastic
+imputation without one. **The check is not re-implemented in the module** — one home for one rule —
+so the refusal arrives from `invariants.validate` inside the parse, before anything reaches the
+graph, and a test holds it there: *"I15 — Imputation … uses stochastic method … without a seed; the
+result is irreproducible."* Running this for real needs the seed as much as it needs the bytes.
+
+**What the graph will not hold.** `ParsedObservations.cells` is left empty by
+`bzk/adapters/perseus.py`, a carried finding not repaired here, so the export's eighteen
+quantitative columns reach no columnar store through this path. The graph would get the
+`ProteinObservation`s and their `DifferentialResult`s and none of the per-sample values they were
+computed from — the half of I11 this route does not satisfy. Recorded as a test rather than only as
+a sentence.
 
 ### Deposit and supplementary survey, 2026-08-07
 

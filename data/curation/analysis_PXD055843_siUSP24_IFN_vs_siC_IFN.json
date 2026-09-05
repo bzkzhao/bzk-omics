@@ -1,0 +1,31 @@
+{
+  "dataset": "PXD055843",
+  "file": "Supplementary_Data_S1_TP.xlsx",
+  "content_hash": "sha256:a6e12e555709612590d1a1d2f499bcd416d2ee69d6e28cb2e167a162fe5c95c2",
+  "contrast": "siUSP24_IFN_vs_siC_IFN",
+  "quantity": "lfq",
+  "localization_threshold": null,
+  "filters_applied": [
+    "presence>=3_in_either_group"
+  ],
+  "presence_rule": ">=3 replicates (all three) in at least one group",
+  "imputation": {
+    "method": "downshifted_normal",
+    "downshift_sd": null,
+    "width_sd": null,
+    "seed": null,
+    "scope": null
+  },
+  "test": "perseus_s0",
+  "fdr_method": "permutation",
+  "external_tool": "perseus",
+  "external_version": "1.6.2.3",
+  "protein_adjusted": "not_applied",
+  "rationale": "Written 2026-09-05 beside data/curation/curation_PXD055843.json, which carries this file's mapping and its Dataset. This record carries the analysis Perseus performed on it, which the curation format has no place for: a curation record produces exactly one Analysis, whose kind is 'curation'. Every value below is labelled by where it came from and the three kinds are kept apart. MEASURED means read off the export itself. IMPORTED means reviewer-supplied from the associated paper's methods section, recorded in ROADMAP.md's 'Three public links between PXD055843, its paper, and the anchor laboratory' block, and not re-derivable in this container. SUPPLIED means chosen by this turn.\n\nfile and content_hash: copied from curation_PXD055843.json, which measured the digest from the bytes. The two records name the same file, and bzk/sources/pxd055843_perseus.py asserts they agree rather than trusting it.\n\ncontrast: the id of the single entry in curation_PXD055843.json's contrasts_of_interest, whose arms are the file's own condition strings. The module reads the arms from there rather than restating them, so there is one home for the two values that are identifying on Contrast.\n\ntest = perseus_s0: MEASURED as far as the file goes, and the residue is named. The export's stamped column names read \"Student's T-test Difference/q-value/p-value siUSP24_IFN_siCTRL_IFN\", and the methods say a two-sided Student's t-test (IMPORTED). ONTOLOGY.md section 5's vocabulary for this column is 'perseus_s0' | 'moderated_t_ebayes' | 'welch_t'; perseus_s0 is Perseus' own two-sample test and is what a Perseus export's Student's T-test columns are. welch_t would be false — Welch does not assume equal variance and Student's t does. What distinguishes perseus_s0 from a plain Student's t is s0, and s0 is stated nowhere; see unresolved.\n\nfdr_method = permutation: IMPORTED, the methods state permutation-based FDR at 0.05.\n\nquantity = lfq: IMPORTED, the methods state label-free quantitation. curation_PXD055843.json's unresolved already records that nothing distinguishes schema.QUANTITY_VALUES' 'lfq' from its 'intensity' for this file, and the same caveat holds here; quantity is identifying on Analysis, so the choice is recorded rather than left implicit.\n\nfilters_applied and presence_rule: IMPORTED. The methods state the matrix was filtered for identification in all three replicates of at least one group. Written in the token style data/curation/analysis_PXD018299_KOIFN_vs_WTIFN.json uses.\n\nimputation: the method is IMPORTED — the methods state missing values were imputed from the lower end of the normal distribution at Perseus defaults. The three parameters and the seed are null because 'at Perseus defaults' names a convention rather than values, and no source states a seed. I15 refuses a stochastic imputation without one, so this record cannot be ingested as it stands; that is the invariant working and is recorded in unresolved rather than repaired by inventing a number.\n\nexternal_tool = perseus, external_version = 1.6.2.3: the version is IMPORTED, the methods state Perseus v1.6.2.3. It lands on Analysis under section 5.4's external-analysis columns and is a different field from the curation record's search_engine_version, which is DIA-NN's and lands on Dataset. The declaration lives here rather than in the module because it is a fact about the analysis, alongside test, fdr_method and quantity, and every one of those already has a key in this format.\n\nlocalization_threshold = null: determined by quantity. A protein-grain quantity has no residues to localise (section 6.4), and bzk/adapters/perseus.py writes null for the same reason.\n\nprotein_adjusted = not_applied: SUPPLIED, and it restates what the adapter writes on every row — there is no matched proteome above a protein to correct against (I4).\n\nNo parameters_json key. Its only known content for this analysis is s0, which is stated nowhere, so a key here could carry nothing but null — a second way of saying the absence that unresolved already states. The adapter's default of None stands.",
+  "unresolved": [
+    "s0. ROADMAP.md's links block records it as stated nowhere in the methods section — a reviewer-supplied absence, not re-derivable here. It is the parameter that separates perseus_s0 from a plain Student's t-test, so the test value above names a family whose one distinguishing parameter is unknown. Settled by: the Perseus session parameters, or the submitters.",
+    "The imputation seed, and the values behind 'at Perseus defaults'. I15 requires a stochastic imputation to record a seed, without which the analysis is irreproducible from its own inputs, so this record cannot be ingested until one exists — bzk/sources/pxd055843_perseus.py will build a change-set that invariants.validate refuses, by design. Settled by: the Perseus session, or the submitters.",
+    "Which of DIA-NN's quantities the eighteen columns hold. Carried over from curation_PXD055843.json's unresolved; the methods' 'label-free quantitation' is the ground for 'lfq' and the file's column names state no quantity.",
+    "The number of values imputed and the number of values total. data/curation/analysis_PXD018299_KOIFN_vs_WTIFN.json carries both; nothing states them for this analysis and this turn measured no matrix. Settled by: the Perseus session, or a recomputation from the deposit."
+  ]
+}
