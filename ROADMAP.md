@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.32 |
+| Version | 2.33 |
 | Last reviewed | 2026-09-05 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -12193,6 +12193,39 @@ total 16 → **38**. Five of its tests fail on those pins and a sixth — the sw
 fails collaterally because it cannot tell a caught mutation from an already-red tree, which
 `HANDOFF.md` §8 already records. **No pin was moved and no code was changed**: both are outside this
 turn's scope, and the record is committed with the signal left loud rather than silenced.
+
+### The rebuild tests said one deposit while pointing at the export, 2026-09-05
+
+**Five tests in `tests/test_rebuild.py` named one record and were handed the whole of
+`data/curation/`.** Their expectations agreed with it by coincidence — the export held one record —
+and a second one made the coincidence visible. **Nothing regressed and no number was wrong**; the
+subject was.
+
+**The shape taken: scope each test to the record it names, and add one directory-wide assertion that
+carries no count.** The five now receive a temporary directory holding only
+`curation_PXD018299.json`, so `EXPECTED_NODES`, `EXPECTED_EDGES`, `curation_records == 1`,
+`(16, 38)` and the id total `16` are the same integers asserted against the subject the comment
+beside them already names. **No count was re-measured and
+`tests/fixtures/pxd018299_curation_ids.json` was not regenerated** — its value is that it predates
+the module it guards, and a fixture regenerated from a rebuild would still pass while testing
+nothing but itself.
+
+**What the scoping stopped covering is covered by the new test rather than lost.**
+`test_every_record_in_the_export_reaches_the_graph` replays the real export and compares the graph
+against `bzk/curation/loader.py`'s own output per label — every id the loader produced is held, and
+no id of those labels is held that no record produced. **It pins no count, so it does not move when
+a deposit is curated**, which is the property the five expectations could not have.
+
+**The two alternatives, and what each costs.** Making the expectations plural — counts covering both
+deposits, and a second committed pin — costs an edit to every count on every future deposit and a
+new fixture each time, and it re-introduces the same coincidence one deposit later. Leaving them
+scoped with no directory-wide guard costs the guarantee that the export as a whole reaches the
+graph, which is the half I9 is actually about.
+
+**The collateral sweep failure cleared, confirmed by name rather than assumed.**
+`test_every_classified_instance_re_runs_its_recorded_evidence` runs a mutation and asks whether
+`pytest -q` stays green, which it cannot answer against an already-red tree; it passes alone and in
+the suite. **Nothing under `bzk/` and nothing under `data/curation/` changed.**
 
 ### Deposit and supplementary survey, 2026-08-07
 

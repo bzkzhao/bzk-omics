@@ -31,8 +31,17 @@ CURATION_DIR = Path(__file__).resolve().parents[1] / "data" / "curation"
 MINTED_IDS = Path(__file__).parent / "fixtures" / "pxd018299_curation_ids.json"
 PENDING_RECORD = Path(__file__).parent / "fixtures" / "curation_synthetic_pending.json"
 
+PXD018299_RECORD = "curation_PXD018299.json"
+
 # What data/curation/curation_PXD018299.json produces. Stated once here so a change shows up as one
 # edit rather than as three tests disagreeing.
+#
+# **These numbers describe one record and, since 2026-09-05, the tests that use them are handed a
+# curation directory holding only that record** (`_only` below). Until then they were handed the
+# whole export and agreed with it by coincidence: the export held one record. A second one made the
+# coincidence visible, and scoping is what makes the sentence above true rather than lucky. No
+# number here was re-measured — they are the same integers, now asserted against the subject they
+# name.
 EXPECTED_NODES = {"Project": 1, "Experiment": 1, "Sample": 12, "Dataset": 1, "Analysis": 1}
 EXPECTED_EDGES = {
     "CONTAINS": 1,
@@ -86,6 +95,24 @@ def _seed_cache(home: Path, fx: dict[str, Any]) -> Path:
     return seq
 
 
+def _only(tmp_path: Path, name: str) -> Path:
+    """A curation directory holding one named record, copied out of `data/curation/`.
+
+    **The subject of a test that says *what this record produces* is that record, not whichever
+    directory it happens to live in.** This is `HANDOFF.md` §8's live-data rule applied one level
+    out: a test whose fixture is live project data stops guarding when that data changes, and a
+    *directory* of live project data is the same hazard with a wider mouth — every count below moved
+    the day a second deposit was curated, none of them because anything regressed.
+
+    Every other test in this module already builds its own curation directory
+    (`_curation_dir_with_deposit`); these five were the ones still pointing at the export.
+    """
+    directory = tmp_path / "curation"
+    directory.mkdir()
+    shutil.copy(CURATION_DIR / name, directory / name)
+    return directory
+
+
 def test_rebuild_creates_schema_and_leaves_the_archive_alone(tmp_path: Any) -> None:
     """Reconstruction only. The drift check moved to `bzk.drift` (2026-08-07) and rebuild does no
     network work of its own — so this asserts the archive is *untouched*, which is the property
@@ -93,7 +120,7 @@ def test_rebuild_creates_schema_and_leaves_the_archive_alone(tmp_path: Any) -> N
     fx = _fx()
     home = tmp_path / "home"
     _seed_cache(home, fx)
-    report = rebuild(home=home, curation_dir=CURATION_DIR)
+    report = rebuild(home=home, curation_dir=_only(tmp_path, PXD018299_RECORD))
     assert report.tables_created == 57  # 24 node + 33 rel tables (ADR-0023 dropped two)
     assert report.curation_records == 1  # data/curation/curation_PXD018299.json
     # Statements issued, not the graph's size — the two agree here only because this replay finds
@@ -130,7 +157,7 @@ def test_rebuild_puts_the_curation_record_in_the_graph(tmp_path: Any) -> None:
     fx = _fx()
     home = tmp_path / "home"
     _seed_cache(home, fx)
-    rebuild(home=home, curation_dir=CURATION_DIR)
+    rebuild(home=home, curation_dir=_only(tmp_path, PXD018299_RECORD))
     conn = open_graph(home)
     assert store.count_nodes(conn) == EXPECTED_NODES
     assert store.count_edges(conn) == EXPECTED_EDGES
@@ -146,9 +173,10 @@ def test_rebuild_is_reproducible(tmp_path: Any) -> None:
     fx = _fx()
     home = tmp_path / "home"
     _seed_cache(home, fx)
-    rebuild(home=home, curation_dir=CURATION_DIR)
+    curation = _only(tmp_path, PXD018299_RECORD)
+    rebuild(home=home, curation_dir=curation)
     first = store.ids_by_label(open_graph(home))
-    rebuild(home=home, curation_dir=CURATION_DIR)
+    rebuild(home=home, curation_dir=curation)
     second = store.ids_by_label(open_graph(home))
     assert first == second
     assert sum(len(v) for v in second.values()) == 16
@@ -164,7 +192,7 @@ def test_rebuilt_ids_match_the_committed_pin(tmp_path: Any) -> None:
     fx = _fx()
     home = tmp_path / "home"
     _seed_cache(home, fx)
-    rebuild(home=home, curation_dir=CURATION_DIR)
+    rebuild(home=home, curation_dir=_only(tmp_path, PXD018299_RECORD))
     pinned = json.loads(MINTED_IDS.read_text())
     assert store.ids_by_label(open_graph(home)) == {
         "Project": [pinned["project"]],
@@ -173,6 +201,45 @@ def test_rebuilt_ids_match_the_committed_pin(tmp_path: Any) -> None:
         "Analysis": [pinned["analysis"]],
         "Sample": sorted(pinned["samples"].values()),
     }
+
+
+def test_every_record_in_the_export_reaches_the_graph(tmp_path: Any) -> None:
+    """What the four tests above stopped covering when they were scoped to one record.
+
+    They say what one named record produces; this says that **every** record in `data/curation/`
+    reaches the graph, and says it without pinning how many there are. So it does not move when a
+    deposit is curated, which is the whole reason the counts above had to be scoped.
+
+    **Compared against `bzk/curation/loader.py`'s own output, not against a committed number.** The
+    thing under test is `bzk/rebuild.py`; the loader is not it, so this is the same independence
+    `test_rebuilt_ids_match_the_committed_pin` has, one notch weaker — the pin predates the module
+    it guards, this only predates nothing. It is a different guarantee and not a replacement:
+    the pin catches the identity model moving, this catches a record not arriving.
+
+    Asserted as two empty differences rather than as an equality so the failure names the ids that
+    are missing or spurious, per label, instead of printing two lists to be diffed by eye.
+    """
+    from bzk.curation.loader import load_path
+    from bzk.ontology.invariants import NODE_TYPE_KEY
+
+    fx = _fx()
+    home = tmp_path / "home"
+    _seed_cache(home, fx)
+    records = sorted(CURATION_DIR.glob("curation_*.json"))
+    assert records, "data/curation/ holds no record, so the comparison below asserts nothing"
+    expected: dict[str, set[str]] = {}
+    for record in records:
+        for node in load_path(record).nodes:
+            expected.setdefault(str(node[NODE_TYPE_KEY]), set()).add(str(node["id"]))
+
+    rebuild(home=home, curation_dir=CURATION_DIR)
+    stored = store.ids_by_label(open_graph(home))
+    for label, ids in sorted(expected.items()):
+        held = set(stored.get(label, []))
+        missing = sorted(ids - held)
+        spurious = sorted(held - ids)
+        assert not missing, f"{label}: the loader produced ids the graph does not hold: {missing}"
+        assert not spurious, f"{label}: the graph holds {label} ids no record produced: {spurious}"
 
 
 def test_replay_stops_on_a_record_it_cannot_load(tmp_path: Any) -> None:
@@ -206,10 +273,11 @@ def test_replay_is_idempotent_within_one_graph(tmp_path: Any) -> None:
     fx = _fx()
     home = tmp_path / "home"
     _seed_cache(home, fx)
-    rebuild(home=home, curation_dir=CURATION_DIR)
+    curation = _only(tmp_path, PXD018299_RECORD)
+    rebuild(home=home, curation_dir=curation)
     conn = open_graph(home)
     before = store.ids_by_label(conn)
-    replay_ingestion(conn, CURATION_DIR, home=home)
+    replay_ingestion(conn, curation, home=home)
     assert store.ids_by_label(conn) == before
     assert store.count_nodes(conn) == EXPECTED_NODES
 
