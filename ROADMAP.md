@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.31 |
+| Version | 2.32 |
 | Last reviewed | 2026-09-05 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -12159,6 +12159,40 @@ refusal rather than passing.
 **The sweep fired on one of this turn's own assertions and it was strengthened, not pinned.**
 `tests/test_tautology_sweep.py` was not edited; the sweep closed at **34 modules, 1,251 asserts, 144
 distinct matches** — the same 144, none new and none gone.
+
+### A second curation record, and what writing one costs, 2026-09-05
+
+**`data/curation/curation_PXD055843.json` is the repository's second curation record.** Its eighteen
+`mapping` keys are the composed column names **read off the file** with
+`bzk/adapters/spreadsheet.py` and the adapter's header composition, not transcribed; all eighteen
+carry their `Set` label, which they would not have before the merged-span fix landed the same day.
+
+**`basis` is `submitter_metadata`, decided by applying ADR-0026's R1 to each source before any
+weakest-link reasoning.** The paper's methods section asserts the design and asserts **no**
+sample-to-condition assignment, so by R1 it is not a `basis` at all and is recorded in `rationale` as
+the intermediate R1 gives it a home for. Only the file's own header rows survive R1, so R2 selects
+nothing. Between the enum's two `inferred` cells the choice rests on ADR-0026's opening — `basis` is
+a vocabulary of warrants, not of containers — and on R2's reader test: a reader sent to the paper
+finds no mapping there, and one sent to the submitter's own document finds it printed. **Neither
+cell's literal wording fits**, since l.583 requires a methods citation that was never established
+and l.582 says *deposited beside the data* of a document deposited beside the paper. That residue is
+in the record's `unresolved`, and no `ONTOLOGY.md` amendment and no ADR follow from it here.
+
+**It loads and it parses.** The loader produces 1 `Project`, 1 `Experiment`, 1 `Dataset`, 1 curation
+`Analysis` and **18 distinct `Sample`s**, with 18 `SAMPLE_GENERATED_BY` edges — I8 satisfied for
+every column including the six USP2 ones. The `Dataset` id the record mints and the one the adapter
+mints by hashing the bytes are **the same id**, which is the convergence `bzk/rebuild.py` asserts,
+here on a real file. Handed the file, the adapter parses and validates 7,610 rows into 25,326 nodes
+and 43,301 edges, with 0 refusals.
+
+**Writing the record turned the suite red, and that is the pins working rather than a defect in the
+record.** `bzk/rebuild.py` globs `data/curation/curation_*.json`, so a second record joins the
+replay: `tests/test_rebuild.py` reports `curation_records` 1 → **2**, `Project` 1 → **2**,
+`Experiment` 1 → **2**, `Dataset` 1 → **2**, `Analysis` 1 → **2**, `Sample` 12 → **30**, and the id
+total 16 → **38**. Five of its tests fail on those pins and a sixth — the sweep's re-run check —
+fails collaterally because it cannot tell a caught mutation from an already-red tree, which
+`HANDOFF.md` §8 already records. **No pin was moved and no code was changed**: both are outside this
+turn's scope, and the record is committed with the signal left loud rather than silenced.
 
 ### Deposit and supplementary survey, 2026-08-07
 

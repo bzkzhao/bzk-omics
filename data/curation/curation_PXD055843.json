@@ -1,0 +1,225 @@
+{
+  "accession": "PXD055843",
+  "file": "Supplementary_Data_S1_TP.xlsx",
+  "content_hash": "sha256:a6e12e555709612590d1a1d2f499bcd416d2ee69d6e28cb2e167a162fe5c95c2",
+  "project": {
+    "title": "USP24 and ISG15 cross-reactivity"
+  },
+  "experiment": {
+    "title": "HeLa USP24 knockdown total proteome, plus or minus IFN-beta",
+    "modality": "proteomics",
+    "organism_taxid": 9606
+  },
+  "search_engine": "diann",
+  "search_engine_version": "1.8",
+  "acquisition_mode": "dia",
+  "instrument": null,
+  "basis": "submitter_metadata",
+  "confidence": "inferred",
+  "curated_by": null,
+  "curated_at": "2026-09-05",
+  "rationale": "Written 2026-09-05. Every value below names where it came from, and the three sources are kept apart because they carry different warrants. MEASURED HERE means read off the file whose digest this record carries, with `bzk/adapters/spreadsheet.py` and `bzk/adapters/perseus.py`'s header composition. IMPORTED means reviewer-supplied from outside this repository and not re-derivable in this container; the two blocks that carry those facts are `ROADMAP.md` sections 'Three public links between PXD055843, its paper, and the anchor laboratory' and 'PXD055843's submitter and deposit-record fields', both dated 2026-09-04. SUPPLIED BY THIS TURN means neither, and is labelled at each site.\n\nBASIS = submitter_metadata, decided by applying ADR-0026 rather than by resemblance. Two sources carry different parts of this record and ADR-0026's R1 is applied to each before any weakest-link reasoning. R1: 'A source that does not assert a sample-to-condition assignment is not a basis. It may still be useful: it converts one design question into another... the parameter file is an intermediate that appears in rationale.' The paper's methods section (IMPORTED) asserts the design - HeLa, siUSP24 against a scrambled control, plus or minus IFN-B, biological replicates n=3, diaPASEF on a timsTOF, DIA-NN 1.8 label-free, Perseus v1.6.2.3, two-sided Student's t-test with permutation FDR at 0.05 - and asserts NO sample-to-condition assignment: it does not say which column is which condition. By R1 the methods section is therefore NOT a basis for this record, and it is recorded here as the intermediate R1 gives it a home for. The file's own header rows (MEASURED HERE) do assert the assignment: row 1 carries a merged Set label, row 2 a condition string, and both are read per column. One source survives R1, so R2's weakest-link rule selects nothing - there is no chain to be thinnest anywhere.\n\nWHICH ENUM VALUE COVERS THE SURVIVOR. Two cells are candidates. Section 5.3 l.583 publication_methods reaches 'a supplementary file the methods cite for the design' - and ROADMAP.md's links block records, in its own words, that 'No claim is made here about whether the methods cite those files', so that cell's stated condition is NOT established; the row counts naming Supplementary Data S1 are in the paper's RESULTS section, not its methods. Section 5.3 l.582 submitter_metadata covers 'a design the submitter stated in a document deposited beside the data'. The document here is the paper's supplementary file rather than the deposit's archive, so that cell's location clause does not fit either, and the residue is recorded in unresolved rather than papered over. What decides between them is ADR-0026's own opening - 'basis is a vocabulary of warrants, not of containers. A source is classified by what it asserts about the design, never by who wrote it, what format it is in, or where it is hosted' - together with R2's reader test, 'a reader told basis: publication_methods will go and check the paper, which is not where the load is'. A reader sent to the paper would find no mapping there; ROADMAP.md records that 'the sample-to-column mapping is not in the paper'. A reader sent to the submitter's own document finds it printed in the header rows. submitter_metadata is the value that sends a reader where the load actually is, and its confidence in the enum is 'inferred', which is what this record states. The two candidate values carry the same confidence, so this choice is about which label a reader is sent to check and not about how strong the claim is.\n\nPROJECT AND EXPERIMENT TITLES ARE SUPPLIED BY THIS TURN. Both are identifying (section 3), so the loader refuses without them, and changing either later re-mints every downstream id. They are curator prose, not read from any source, exactly as the anchor record's own unresolved block describes for PXD018299.\n\nCELL LINE HeLa, source_type cell_line, organism_taxid 9606: IMPORTED. The cell line is from the paper's methods; the taxid is from the ProteomeCentral record's SpeciesList, 'Homo sapiens (Human); NCBI TaxID NEWT:9606', and the two agree. model_system is omitted rather than nulled: section 3 l.145 classifies its absence as determined by source_type, 'exactly one of this and cell_line is present'. That is the anchor record's precedent, not a gap - PXD018299's mapping entries carry the same eight of the nine identifying fields and omit the same one, and its unresolved block states the same ground.\n\nGENOTYPE AND TREATMENT ARE READ OFF THE FILE, and splitting one condition string into two fields is the curation act. genotype takes the file's own tokens siC and siUSP24 verbatim. treatment is 'none' where the file says (-IFN-B) and 'IFN-B' where it says (+IFN-B) or (+ IFN-B). The six columns the file labels 'NO USP2 TREATRMENT' and 'WITH USP2 TREATMENT' - the misspelling and the trailing space are the file's - take 'IFN-B, no USP2 treatment' and 'IFN-B, with USP2 treatment'. That composition is SUPPLIED BY THIS TURN from the file's own words, and it is load-bearing: without it those six columns would carry an identity tuple identical to the plain siUSP24 (+ IFN-B) arm of the same set and three Samples would silently collide into three others. Whether a bench step performed on the material belongs on the treatment axis beside a biological condition is a modelling question and is in unresolved.\n\nREPLICATE is the file's Set number, read off row 1 through the merged ranges. replicate_type is 'unspecified' and not 'biological': the methods state biological replicates n=3 (IMPORTED) but nothing states that the file's Set axis IS that axis, and replicate_type is identifying. The anchor record uses the same value for the same reason.\n\nDATASET FIELDS. acquisition_mode 'dia' and search_engine 'diann' 1.8 are IMPORTED from the methods - diaPASEF, and DIA-NN version 1.8 in library-free mode against UniProt UP000005640 (2022) with label-free quantitation. instrument is left null deliberately: two sources disagree, the deposit record says timsTOF Pro and the methods say timsTOF SCP, and ROADMAP.md records both and states that 'No reconciliation is offered and none is taken'. It is non-identifying on Dataset, so a null forks no id, and unresolved names both values.\n\nIMPUTATION IS NOT UNRESOLVED, AND THE REASON IS STATED HERE RATHER THAN THERE. Measured here: all 136,980 quantitative cells of this file parse as float and none is empty, over 7,610 rows and 18 columns. From the file alone that is evidence of NEITHER - a dense matrix is equally consistent with nothing having been missing and with everything missing having been filled. The methods settle it (IMPORTED): 'filtered for identification in all three replicates of at least one group; missing values imputed from the lower end of the normal distribution at Perseus defaults'. A filter that requires completeness in only one group leaves the other groups able to carry gaps, so a matrix dense after that filter is explicable only by the filling the methods describe. The method is therefore stated and does not belong in unresolved; what does belong there is the seed, because I15 requires one for a stochastic method and 'Perseus defaults' names a convention rather than values. This record carries no imputation field - that is an analysis record's, and this turn writes none.\n\nCONTRAST. The arms are the file's own condition strings. The order rests on the suffix Perseus wrote into the statistics column names, 'siUSP24_IFN_siCTRL_IFN' (MEASURED HERE), read under Perseus' numerator-first convention; the file states no ordering in words, so unresolved carries it. The suffix itself cannot reach the adapter through this record: DeclaredContrast takes column_suffix from the caller and its docstring records that the suffix 'never reaches the graph and exists only to find the columns', while contrasts_of_interest is carried verbatim onto LoadedCuration.contrasts and read by nothing. It is written into the contrast's note so it is not lost.",
+  "unresolved": [
+    "The IFN-B exposure time is stated nowhere - not in the file, not in the methods section as recorded in ROADMAP.md's links block. timepoint_h is therefore null on all eighteen entries. For the six untreated arms that null is determined: ONTOLOGY.md section 3 l.146 classifies Sample.timepoint_h as determined by treatment, NULL where treatment = 'none'. For the twelve treated arms it is NOT determined by that rule and the null is contingent in ADR-0021's sense. It loads anyway because bzk/curation/loader.py's _check_identifying tests membership of schema.ABSENCE by (label, field) and never evaluates the condition - which is ONTOLOGY.md section 11 Q14, already open, and is not repaired or restated here. Settled by: the exposure time, from the submitters or from a methods sentence naming it.",
+    "The s0 of the t-test. The methods state a two-sided Student's t-test with permutation-based FDR at 0.05 and state no s0 (IMPORTED, and recorded in ROADMAP.md's links block as a reviewer-supplied absence). Perseus' s0 changes which proteins are called significant, so a reproduction cannot be attempted without it. Settled by: the Perseus session parameters, or the submitters.",
+    "The imputation seed, and the values behind 'Perseus defaults'. The method is stated by the methods section and is recorded in rationale rather than here. I15 requires a stochastic imputation to record a seed, without which the analysis is irreproducible from its own inputs; 'at Perseus defaults' names a convention, not a downshift and width. Settled by: the Perseus session, or the submitters.",
+    "Whether the file's Set 1/2/3 axis is the biological replicate axis or an acquisition batch. The methods state biological replicates n=3 for all experiments (IMPORTED) and the file has exactly three Sets, but nothing states that the two are the same axis. replicate_type is identifying on Sample, so this is recorded as 'unspecified' rather than assumed; the anchor record does the same. Settled by: the submitters, or a methods sentence tying the Set labels to the replicate structure.",
+    "Which arm of the contrast is the numerator. The statistics columns carry the Perseus suffix 'siUSP24_IFN_siCTRL_IFN' (MEASURED HERE) and Perseus writes numerator first, so siUSP24 (+ IFN-B) is recorded as numerator and siC (+IFN-B) as denominator. The file states no ordering in words, and both are identifying on Contrast, so getting it backwards mints a different Contrast and reverses every log2 fold change's meaning without failing. Settled by: a figure legend or methods sentence naming the direction, or the submitters.",
+    "Whether the USP2 treatment belongs on the treatment axis at all. Six columns carry it, it is a bench step performed on the material rather than a biological condition applied to cells, and the methods describe recombinant USP2 treatment as part of the refined ISGylome workflow rather than the total proteome one (IMPORTED). Recording it in treatment is what keeps those six Samples distinct from the plain siUSP24 (+ IFN-B) arm; whether the schema should carry a separate axis is a modelling question this record raises and does not decide. Settled by: an ONTOLOGY.md decision, which this turn does not make.",
+    "Which of DIA-NN's quantities the eighteen columns hold. The methods say label-free quantitation (IMPORTED) and the values measured here span 1.697 to 22.48 across all 136,980 cells, which is a log2 range and not a raw-intensity one, but the file's column names state no quantity and DIA-NN reports both a raw and a MaxLFQ quantity. Nothing here distinguishes schema.QUANTITY_VALUES' 'lfq' from its 'intensity'. An analysis record would use 'lfq', on the methods' phrase; quantity is identifying on Analysis, so the choice is recorded here rather than left implicit. This record carries no quantity field - a curation Analysis consumes none (section 3, I16).",
+    "The instrument. The deposit's ProteomeCentral record says timsTOF Pro; the paper's methods say timsTOF SCP. Both IMPORTED, both recorded in ROADMAP.md, and that block states that no reconciliation is offered. instrument is left null here rather than resolved silently. Settled by: the raw files' own instrument metadata, or the submitters.",
+    "Whether this file is in the deposit's own archive. It is the associated paper's Supplementary Data S1 (IMPORTED); whether PXD055843's archive also holds it is not established, and a reviewer's report that the archive holds no tab-separated export is recorded in ROADMAP.md as undated and unchecked. The record ties this file's digest to the accession PXD055843, so a Dataset carrying external_accession PXD055843 will carry the digest of a file that has not been shown to be in that deposit. Settled by: a dated listing of the deposit's files.",
+    "Whether ONTOLOGY.md section 5.3's two inferred cells cover this source at all. l.582 submitter_metadata says 'deposited beside the data' and this document is deposited beside the paper; l.583 publication_methods requires the methods to cite the file for the design and ROADMAP.md records that this was not established. The value chosen applies ADR-0026's own ground that containers do not classify, and the residue is that neither cell's literal wording fits. Recorded, not repaired: no ONTOLOGY.md amendment and no ADR is written by this turn.",
+    "project.title and experiment.title are supplied by this turn and read from no source. Both are identifying (section 3), so the loader refuses without them and a later correction re-mints every id anchored on them. Settled by: the submitters, or a title the curator commits to."
+  ],
+  "contrasts_of_interest": [
+    {
+      "id": "siUSP24_IFN_vs_siC_IFN",
+      "numerator": "siUSP24 (+ IFN-B)",
+      "denominator": "siC (+IFN-B)",
+      "note": "The only contrast the file's statistics columns carry. Perseus wrote the suffix 'siUSP24_IFN_siCTRL_IFN' into all six of them, measured here off the composed header; an adapter needs that string as DeclaredContrast.column_suffix and takes it from the caller, since nothing reads it out of this record. The arms above are the file's own condition strings verbatim, and their order rests on Perseus' numerator-first convention rather than on any statement - see unresolved."
+    }
+  ],
+  "mapping": {
+    "Set 1 | siC (-IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP01_S1-A5_460.d": {
+      "genotype": "siC",
+      "treatment": "none",
+      "timepoint_h": null,
+      "replicate": 1,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 1 | siUSP24 (-IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP02_S1-B5_461.d": {
+      "genotype": "siUSP24",
+      "treatment": "none",
+      "timepoint_h": null,
+      "replicate": 1,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 1 | siC (+IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP03_S1-C5_462.d": {
+      "genotype": "siC",
+      "treatment": "IFN-B",
+      "timepoint_h": null,
+      "replicate": 1,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 1 | siUSP24 (+ IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP04_S1-D5_463.d": {
+      "genotype": "siUSP24",
+      "treatment": "IFN-B",
+      "timepoint_h": null,
+      "replicate": 1,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 2 | siC (-IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP05_S1-E5_464.d": {
+      "genotype": "siC",
+      "treatment": "none",
+      "timepoint_h": null,
+      "replicate": 2,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 2 | siUSP24 (-IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP06_S1-F5_465.d": {
+      "genotype": "siUSP24",
+      "treatment": "none",
+      "timepoint_h": null,
+      "replicate": 2,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 2 | siC (+IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP07_S1-G5_466.d": {
+      "genotype": "siC",
+      "treatment": "IFN-B",
+      "timepoint_h": null,
+      "replicate": 2,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 2 | siUSP24 (+ IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP08_S1-H5_467.d": {
+      "genotype": "siUSP24",
+      "treatment": "IFN-B",
+      "timepoint_h": null,
+      "replicate": 2,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 3 | siC (-IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP09_S1-A6_468.d": {
+      "genotype": "siC",
+      "treatment": "none",
+      "timepoint_h": null,
+      "replicate": 3,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 3 | siUSP24 (-IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP10_S1-B6_469.d": {
+      "genotype": "siUSP24",
+      "treatment": "none",
+      "timepoint_h": null,
+      "replicate": 3,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 3 | siC (+IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP11_S1-C6_470.d": {
+      "genotype": "siC",
+      "treatment": "IFN-B",
+      "timepoint_h": null,
+      "replicate": 3,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 3 | siUSP24 (+ IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP12_S1-D6_471.d": {
+      "genotype": "siUSP24",
+      "treatment": "IFN-B",
+      "timepoint_h": null,
+      "replicate": 3,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 1 | siUSP24 (+ IFN-B) NO USP2 TREATRMENT | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP13_S1-E6_472.d": {
+      "genotype": "siUSP24",
+      "treatment": "IFN-B, no USP2 treatment",
+      "timepoint_h": null,
+      "replicate": 1,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 2 | siUSP24 (+ IFN-B) NO USP2 TREATRMENT | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP14_S1-F6_473.d": {
+      "genotype": "siUSP24",
+      "treatment": "IFN-B, no USP2 treatment",
+      "timepoint_h": null,
+      "replicate": 2,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 3 | siUSP24 (+ IFN-B) NO USP2 TREATRMENT | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP15_S1-G6_474.d": {
+      "genotype": "siUSP24",
+      "treatment": "IFN-B, no USP2 treatment",
+      "timepoint_h": null,
+      "replicate": 3,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 1 | siUSP24 (+ IFN-B) WITH USP2 TREATMENT | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP16_S1-H6_475.d": {
+      "genotype": "siUSP24",
+      "treatment": "IFN-B, with USP2 treatment",
+      "timepoint_h": null,
+      "replicate": 1,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 2 | siUSP24 (+ IFN-B) WITH USP2 TREATMENT | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP17_S1-A7_476.d": {
+      "genotype": "siUSP24",
+      "treatment": "IFN-B, with USP2 treatment",
+      "timepoint_h": null,
+      "replicate": 2,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Set 3 | siUSP24 (+ IFN-B) WITH USP2 TREATMENT | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP18_S1-B7_477.d": {
+      "genotype": "siUSP24",
+      "treatment": "IFN-B, with USP2 treatment",
+      "timepoint_h": null,
+      "replicate": 3,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    }
+  }
+}
