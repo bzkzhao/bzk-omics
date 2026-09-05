@@ -49,14 +49,14 @@ ARCHITECTURE = ROOT / "ARCHITECTURE.md"
 #: The counts at `fdc8ef3`, pinned so a parser that stops matching fails loudly instead of
 #: comparing two empty sets. A legitimate addition moves these in the same commit — the same
 #: discipline `tests/test_tautology_sweep.py`'s floor carries, and for the same reason.
-EXPECTED_FILES = 30
-EXPECTED_WRITTEN_ROWS = 30
+EXPECTED_FILES = 31
+EXPECTED_WRITTEN_ROWS = 31
 EXPECTED_QUEUED_ROWS = 1
 EXPECTED_SEED_LINES = 18
 EXPECTED_SEED_STRUCK = 17
 
 #: The three status values `decisions/README.md` names, and their counts here.
-EXPECTED_STATUSES = {"Accepted": 19, "Proposed": 8, "Superseded": 3}
+EXPECTED_STATUSES = {"Accepted": 19, "Proposed": 9, "Superseded": 3}
 
 #: Supersessions recorded on one side only, with the reason each is permitted.
 #:
