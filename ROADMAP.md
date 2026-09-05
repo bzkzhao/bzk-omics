@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.33 |
+| Version | 2.34 |
 | Last reviewed | 2026-09-05 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -12226,6 +12226,131 @@ graph, which is the half I9 is actually about.
 `test_every_classified_instance_re_runs_its_recorded_evidence` runs a mutation and asks whether
 `pytest -q` stays green, which it cannot answer against an already-red tree; it passes alone and in
 the suite. **Nothing under `bzk/` and nothing under `data/curation/` changed.**
+
+### What a curation record would have to carry for the replay to reach the Perseus adapter, 2026-09-05
+
+**This block decides nothing.** It does not say what the record format should carry, whether the
+Perseus adapter should be wired into the replay, or whether either curation record should be
+superseded. It records what is there, measured at `3d2de53`.
+
+#### What the replay can build, and where the second record's path ends
+
+**One adapter, constructed unconditionally and then tested.** Instrument: `grep -n "Adapter"` over
+`bzk/rebuild.py` returns **two** lines — the import of `MaxQuantSiteAdapter` at l.63 and its
+construction at l.184. `_adapter_for` builds that one adapter and returns
+`adapter if adapter.sniff(path) else None` (l.192). **There is no registry and no second candidate**:
+the dispatch is one construction plus a content test, and `bzk/adapters/perseus.py` and
+`bzk/adapters/maxquant_protein_groups.py` are imported nowhere in that module.
+
+**Three fields are read off the record to build it**, all from the `Dataset` node the loader
+produced: `search_engine` (l.186), `search_engine_version` (l.187) and `acquisition_mode` (l.188).
+The loader routes them there from the record's flat keys of the same names.
+
+**`data/curation/curation_PXD055843.json` would not reach an adapter, and it diverges before
+`_adapter_for` is called.** The path ends at `bzk/rebuild.py` l.253–254: `_deposit_for` returns
+`None` unless the record's `content_hash` resolves in the content-addressed store, and the branch
+then increments `skipped` and logs *"names a deposit that is not in the content store; sites not
+ingested"* before `continue`. Measured here: `~/.bzk-omics` does not exist, so `raw/` holds nothing.
+**A second divergence would follow even with the bytes in `raw/`**: `MaxQuantSiteAdapter.sniff`
+(l.248–259) requires `Amino acid`, `Positions within proteins` and `Localization prob` in the first
+tab-split line, an `.xlsx` is a ZIP container, and the decode uses `errors="replace"`, so it returns
+`False` rather than raising — `_adapter_for` returns `None` and l.267–270 skips the record with
+*"no adapter recognises …"*.
+
+#### The gap, field by field
+
+**Both curation records were read as JSON, not described.** Instrument: `json.load` over
+`data/curation/curation_PXD018299.json` and `data/curation/curation_PXD055843.json`; the first
+carries **18** top-level keys and the second **17**, differing only in `corrections`.
+
+**On the slot column.** `schema.NODE_TABLES`' single `Analysis` table is discriminated by `kind`, so
+its DDL columns answer *yes* for fields a curation record cannot supply. The constraint is
+`bzk/curation/loader.py`: `_curation_analysis` (l.228–259) writes a fixed dict and reads only
+`basis`, `confidence` and `rationale` from the record — it sets `"quantity": None` and
+`"filters_applied": []` as constants — and unknown top-level keys are never read, so a record could
+carry one and the loader would drop it silently. **The DDL column is reported separately below only
+to show where the two diverge.**
+
+| `DeclaredAnalysis` field | In either record? | Slot the loader reads? | From the file? | Outside the repository? |
+|---|---|---|---|---|
+| `quantity` | no | **no** — hardcoded `None` (l.257); `Analysis.quantity` exists in the DDL | no column names one | *label-free quantitation* — **imported**, methods, § *Three public links* |
+| `filters_applied` | no | **no** — hardcoded `[]` (l.258); DDL column exists | nothing states a filter | *identification in all three replicates of at least one group* — **imported**, same block |
+| `test` | no | **no**; DDL column exists | **yes** — the stamped column names read `Student's T-test …` | *two-sided Student's t-test* — **imported**, same block |
+| `fdr_method` | no | **no**; DDL column exists | no — a q-value column exists and names no method | *permutation-based FDR at 0.05* — **imported**, same block |
+| `external_version` | no — `search_engine_version` is the **search engine's** and the loader routes it to `Dataset` | **no**; `Analysis.external_version` exists in the DDL | nothing names a Perseus version | *Perseus v1.6.2.3* — **imported**, same block |
+| `parameters_json` | no | **no**; DDL column exists | nothing — `s0` appears in no column | **nothing gives it**: § *Three public links* records `s0` as stated nowhere in the methods, an **imported absence** |
+| `imputation` | no | **no** | — | **neither a gap nor a value the record carries: the code supplies a default and states its ground.** `bzk/adapters/perseus.py` l.212–216: *"Perseus imputes by default, and I15 requires an `Analysis` producing results to declare an `Imputation` — including `method='none'` where nothing was imputed. The default is `none` because that is the only claim an undeclared file supports; a downshifted-normal run must state its seed or I15 rejects it, which is the invariant working rather than obstructing."* |
+
+| `DeclaredContrast` field | In either record? | Slot the loader reads? | From the file? | Outside the repository? |
+|---|---|---|---|---|
+| `column_suffix` | **no** — both records' `contrasts_of_interest` entries carry exactly `id`, `numerator`, `denominator`, `note` | entries are carried verbatim onto `LoadedCuration.contrasts` (l.359) and read by nothing | **yes** — Perseus writes it into the statistics column names | — |
+| `numerator` | **yes**, both | same — carried, read by nothing | the condition strings are there; which arm is numerator is not | — |
+| `denominator` | **yes**, both | same | as above | — |
+
+**The control: `DeclaredSiteAnalysis`, the shape the format already satisfies.**
+
+| Field | Where it comes from |
+|---|---|
+| `search_engine` | the record's `search_engine`, via `Dataset`, at `bzk/rebuild.py` l.186 |
+| `external_version` | the record's `search_engine_version`, via `Dataset`, l.187 |
+| `acquisition_mode` | the record's `acquisition_mode`, via `Dataset`, l.188 |
+| `localization_threshold` | dataclass default `0.75`; not passed by `_adapter_for` |
+| `quantity` | dataclass default `"intensity_multiplicity_summed"`; not passed |
+| `fasta_release` | dataclass default `None`; not passed, and no record has a key for it |
+
+**What differs between the two lists is not their length.** Every field the site adapter takes from
+a record is a **`Dataset`** fact — a property of how the file was produced — and the curation record
+carries it because `Dataset` has a column for it. Every field `DeclaredAnalysis` needs is an
+**`Analysis`** fact about an analysis performed on the file afterwards. A `curation_*.json` produces
+exactly one `Analysis`, whose `kind` is `curation` and whose analysis fields the loader fixes as
+constants; **there is no second `Analysis` for a record to describe.** Four of
+`DeclaredSiteAnalysis`' six fields have defaults and two of `DeclaredAnalysis`' seven do.
+
+**The fields do have a home in the tree, and the replay does not read it.**
+`data/curation/analysis_PXD018299_KOIFN_vs_WTIFN.json` carries `quantity`, `filters_applied`,
+`test`, `fdr_method` and `imputation` — the `DeclaredAnalysis` set less `external_version` and
+`parameters_json` — plus a `contrast` naming an entry by id. `replay_ingestion` globs
+`curation_*.json` (l.228), so that file is never loaded by the replay; it is read by
+`bzk/sources/pxd018299_baseline.py`, `bzk/sources/pxd018299_differential.py` and
+`tests/test_pxd018299_baseline.py`. **No `analysis_*.json` exists for PXD055843.**
+
+**Measured, not inherited:** `grep -rn` over `bzk/` and `tests/` finds `DeclaredAnalysis(` and
+`DeclaredContrast(` constructed **only in `tests/test_perseus.py`** — two of each — while
+`DeclaredSiteAnalysis(` is constructed in `bzk/rebuild.py`, `bzk/sources/pxd018299_sites.py` and
+three test modules. `HANDOFF.md` l.1052's claim that the first two have no constructor outside
+`tests/` holds at this commit.
+
+#### The contrast suffix
+
+`bzk/adapters/perseus.py` l.184–189 states what it is for: *"Perseus builds the suffix from its own
+group names, which are not the platform's condition labels, so the mapping is declared. `numerator`
+and `denominator` are identifying on `Contrast` (§3); the suffix is not — **it never reaches the
+graph and exists only to find the columns**."*
+
+**What that implies, stated and not decided.** The two arms are identifying on a node the graph
+holds; the suffix is neither identifying nor stored, and its referent is the file's column naming
+rather than the experiment's design. A curation record is where a curator states the design. **So
+the suffix is a different kind of fact from the two values beside it in the same entry.** Whether
+that makes a curation record the wrong place for it is not decided here.
+
+#### Both grounds in `bzk/rebuild.py` l.36–38, treated separately
+
+> `perseus.py` still stays out: it has no real input (`HANDOFF.md` §8) and inventing one to make the
+> replay look fuller would put content in the graph that `raw/` cannot regenerate, which is the one
+> thing I9 forbids. The MaxQuant site table is the opposite case — it *is* in `raw/`, by digest.
+
+**The sentence gives two grounds joined by *and*, and only the first has lapsed.**
+
+**First ground — no real input — no longer holds.** `data/curation/curation_PXD055843.json` names
+`Supplementary_Data_S1_TP.xlsx` and a `content_hash`, and that digest was measured from real bytes
+when the record was written. **Measured here only that the record names them**; the bytes are not
+attached to this turn and `raw/` is empty.
+
+**Second ground — I9 — is untouched by a real input arriving, and is what would govern next.** Its
+subject is *inventing* an input, and a real file is not invented; but the clause it rests on —
+content in the graph must be regenerable from `raw/` — is unaffected by the first ground lapsing,
+and the file is not in `raw/`. **Recording the lapse of one conjunct without the survival of the
+other would read as more decided than this is.**
 
 ### Deposit and supplementary survey, 2026-08-07
 
