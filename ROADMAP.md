@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.29 |
+| Version | 2.30 |
 | Last reviewed | 2026-09-05 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -12100,6 +12100,36 @@ counts and not the uniformity across the twelve; the uniformity is recorded here
 what it states, not as a correction of it.
 
 **All eight figures reproduce. Nothing was adjusted and nothing failed to reproduce.**
+
+### The Perseus adapter reads a spreadsheet with a multi-row header, 2026-09-05
+
+**What was built, and nothing about whether it should have been.** Four changes, one commit, guarded
+against synthetic workbooks built in `tmp_path` and thrown away. **No deposit file is in the tree,
+none was fetched, and nothing was ingested.** The export shape the fixtures model — three header
+rows, no `#!{` annotation row, protein columns spelled `Protein.Group` and `Protein.Ids` — is
+**reviewer-supplied and not re-derivable in this container**, and is labelled so at every site in the
+code and the tests.
+
+1. **A spreadsheet reader with one home**, `bzk/adapters/spreadsheet.py`. It is where the `openpyxl`
+   call that sat in `bzk/sources/protein_groups.py` now lives, and that module calls it. Its
+   measurement is unchanged: `rows` returns cells exactly as `openpyxl` yields them, and
+   `load_workbook` is still called with `read_only=True` and nothing else.
+2. **`sniff` accepts a spreadsheet, by the column-type stamp.** Before this a workbook never reached
+   the annotation test — the file was read with `errors="strict"`, an `.xlsx` is a ZIP container, and
+   `sniff` returned `False` at the decode gate. The tab-separated `#!{` path is unchanged; the two
+   containers carry different markers and the addition is additive.
+3. **The protein column is chosen by reading the rows, not by name order.** The candidate distinct on
+   every data row is the identity; the widest survivor wins, measured; where none survives the file
+   is refused and every candidate is named with what it holds. `PROTEIN_COLUMNS` becomes where to
+   look rather than what is chosen, and gains the two spellings above.
+4. **A stated header-composition rule.** The named row is the first leading row carrying a stamped
+   cell; a column stamped there takes that name, and any other column takes every non-empty header
+   cell above it, joined. A column no header row names is an error naming the column, and two columns
+   composing to one name is an error naming both.
+
+**The tautology sweep fired on two of this turn's own assertions and both were rewritten rather than
+pinned.** `tests/test_tautology_sweep.py` was not edited. The sweep closed at **34 modules, 1,228
+asserts, 144 distinct matches** — the same 144 as before, with none new and none gone.
 
 ### Deposit and supplementary survey, 2026-08-07
 

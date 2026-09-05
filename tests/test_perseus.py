@@ -97,6 +97,55 @@ def _nodes(parsed: object, label: str) -> list[dict[str, object]]:
     return [n for n in parsed.nodes if n[NODE_TYPE_KEY] == label]  # type: ignore[attr-defined]
 
 
+# ── The spreadsheet shape ───────────────────────────────────────────────────────────────────────
+#
+# **The shape modelled below is reviewer-supplied and not re-derivable in this container.** The
+# deposit's export is a one-sheet workbook with three header rows and no `#!{` annotation row
+# anywhere: rows 1 and 2 carry a set label and a condition string for the quantitative columns, and
+# row 3 carries a raw acquisition path for those columns and the Perseus type-stamped names for the
+# statistics and identifier columns, whose protein spellings are `Protein.Group` and `Protein.Ids`.
+# No such file is in the tree and none is fetched — every workbook here is built in `tmp_path` by
+# `openpyxl` and thrown away, which is the synthetic twin `HANDOFF.md` §8 requires.
+
+
+def _sheet(path: Path, sheet_rows: list[list[object]]) -> Path:
+    import openpyxl
+
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    for row in sheet_rows:
+        sheet.append(row)
+    workbook.save(path)
+    return path
+
+
+#: Row 3's stamped names, in column order. The two protein spellings are the deposit's.
+_STAMPED = [
+    "T: Protein.Group",
+    "T: Protein.Ids",
+    "N: Peptides",
+    "N: Student's T-test Difference KO_IFN_WT_IFN",
+    "N: -Log Student's T-test p-value KO_IFN_WT_IFN",
+    "N: Student's T-test q-value KO_IFN_WT_IFN",
+]
+
+
+def _deposit_shaped(path: Path) -> Path:
+    """Three header rows, a stamp on the third, and `Protein.Ids` repeating where `Protein.Group`
+    does not — which is the pair's behaviour the reviewer measured on the deposit's own file."""
+    return _sheet(
+        path,
+        [
+            [None, None, None, None, None, None, "1", "2"],
+            [None, None, None, None, None, None, "siC (-IFN-B)", "siUSP24 (+ IFN-B)"],
+            [*_STAMPED, "/raw/2024_A.d", "/raw/2024_B.d"],
+            ["P20591", "P20591;Q9NRZ9", 7, 3.42, 4.51, 0.0012, 100.0, 200.0],
+            ["P19525", "P20591;Q9NRZ9", 12, 4.95, 5.02, 0.0009, 110.0, 210.0],
+            ["O43593", "O43593", 4, -1.87, 2.30, 0.0210, 120.0, 220.0],
+        ],
+    )
+
+
 # ── The contract ────────────────────────────────────────────────────────────────────────────────
 
 
@@ -457,3 +506,130 @@ def test_re_ingesting_the_same_export_converges(
     before = store.ids_by_label(conn)
     store.write_change_set(conn, adapter.parse(TABLE, mapping).nodes, parsed.edges)
     assert store.ids_by_label(conn) == before
+
+
+# ── The spreadsheet path ────────────────────────────────────────────────────────────────────────
+
+
+def test_a_spreadsheet_sniffs_on_the_type_stamp(adapter: PerseusAdapter, tmp_path: Path) -> None:
+    """The marker for a workbook is the Perseus column-type stamp, not the `#!{` annotation row.
+
+    `ROADMAP.md` § *Classification uses the established method and not a new one* states the rule
+    and forbids the alternative in the same sentence: *"Perseus versus raw search-engine output is
+    decided by the type-prefix stamp (`C:`/`N:`/`T:`/`M:`), **never** by the presence of a
+    statistics column"* — the alternative having produced a recorded false positive on a `Q-value`
+    column that raw MaxQuant also carries.
+
+    Before this, a workbook could not reach the annotation test at all: `sniff` read the file with
+    `errors="strict"` and a `.xlsx` is a ZIP container, so it returned `False` at the decode gate.
+    """
+    assert adapter.sniff(_deposit_shaped(tmp_path / "deposit.xlsx"))
+
+
+def test_a_spreadsheet_with_no_type_stamp_does_not_sniff(
+    adapter: PerseusAdapter, tmp_path: Path
+) -> None:
+    """A workbook of raw search-engine output carries no stamp, and the stamp is the whole test.
+
+    Same columns, same data, stamps removed — so what separates the two files is the marker and not
+    their content, which is what keeps this adapter off search-engine output.
+    """
+    book = _sheet(
+        tmp_path / "unstamped.xlsx",
+        [
+            [name.split(": ", 1)[1] for name in _STAMPED],
+            ["P20591", "P20591;Q9NRZ9", 7, 3.42, 4.51, 0.0012],
+        ],
+    )
+    assert not adapter.sniff(book)
+
+
+def test_the_tab_separated_annotation_row_path_still_sniffs(adapter: PerseusAdapter) -> None:
+    """The spreadsheet path is additive: `#!{` keeps deciding a tab-separated export."""
+    assert adapter.sniff(TABLE)
+    assert not adapter.sniff(NOT_PERSEUS)
+
+
+def test_the_composed_header_names_every_column(tmp_path: Path) -> None:
+    """A column identified across three rows gets one name, and a stamped cell is that name.
+
+    The rule: the **named row** is the first of the leading rows carrying a type-stamped cell. A
+    column whose cell in that row is stamped takes it, stripped. Any other column takes every
+    non-empty header cell above it, joined — so the quantitative columns, whose row-3 cell is an
+    acquisition path rather than a stamped name, keep the set label and the condition string that
+    identify them.
+    """
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    header, _ = adapter._read(
+        _deposit_shaped(tmp_path / "d.xlsx").read_bytes(), tmp_path / "d.xlsx"
+    )
+    assert header[0] == "Protein.Group"
+    assert header[3] == "Student's T-test Difference KO_IFN_WT_IFN"
+    assert header[6] == "1 | siC (-IFN-B) | /raw/2024_A.d"
+    assert "" not in header
+
+
+def test_the_identity_column_is_the_one_distinct_on_every_row(
+    mapping: SampleMapping, tmp_path: Path
+) -> None:
+    """`candidate_proteins` is identifying (ADR-0022) and `REPORTS_PROTEIN` is `ONE_MANY`, so a set
+    repeating across rows collides into one observation taking two edges.
+
+    `Protein.Ids` repeats here and `Protein.Group` does not, so the accession sets that reach the
+    graph are the ones `Protein.Group` names — asserted on the sets themselves, not on a count of
+    them.
+    """
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    parsed = adapter.parse(_deposit_shaped(tmp_path / "d.xlsx"), mapping)
+    observed = [n["candidate_proteins"] for n in _nodes(parsed, "ProteinObservation")]
+    assert ["uniprot:P20591"] in observed
+    assert ["uniprot:P19525"] in observed
+    assert ["uniprot:O43593"] in observed
+    # The set `Protein.Ids` carries on two of the three rows never becomes an identity, which is
+    # the half that would have gone unnoticed: it collides rather than raising.
+    assert ["uniprot:P20591", "uniprot:Q9NRZ9"] not in observed
+
+
+def test_a_file_whose_only_protein_column_repeats_is_refused_by_name(
+    mapping: SampleMapping, tmp_path: Path
+) -> None:
+    """Refuse rather than guess, and name what was found (`HANDOFF.md` §8).
+
+    Falling through to no column, or silently letting two rows converge, would produce a graph
+    quietly missing a protein — the `ran cleanly and was wrong` class this adapter refuses.
+    """
+    book = _sheet(
+        tmp_path / "repeats.xlsx",
+        [
+            [_STAMPED[1], *_STAMPED[2:]],
+            ["P20591;Q9NRZ9", 7, 3.42, 4.51, 0.0012],
+            ["P20591;Q9NRZ9", 12, 4.95, 5.02, 0.0009],
+        ],
+    )
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    with pytest.raises(PerseusError) as exc:
+        adapter.parse(book, mapping)
+    assert "Protein.Ids" in str(exc.value)
+    assert "1 distinct over 2 rows" in str(exc.value)
+
+
+def test_a_column_the_header_rows_do_not_name_is_refused_by_position(
+    mapping: SampleMapping, tmp_path: Path
+) -> None:
+    """A column that composes to nothing is an error naming what it found, never a blank name.
+
+    A blank would become a dictionary key, collide with the next blank, and silently shift which
+    column a later lookup reads.
+    """
+    book = _sheet(
+        tmp_path / "orphan.xlsx",
+        [
+            [None, None, None, None, None, None],
+            [*_STAMPED[:5], None],
+            ["P20591", "P20591", 7, 3.42, 4.51, "orphan"],
+        ],
+    )
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    with pytest.raises(PerseusError) as exc:
+        adapter.parse(book, mapping)
+    assert "column 6" in str(exc.value)

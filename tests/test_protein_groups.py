@@ -140,3 +140,47 @@ def test_the_supplementary_digests_are_well_formed() -> None:
     for supp in (SUPP_DATA_2, SUPP_DATA_3):
         assert re.fullmatch(r"sha256:[0-9a-f]{64}", supp.expected_content_hash), supp.filename
         assert supp.url.startswith("https://static-content.springer.com/")
+
+
+# ── The reading, on a cold container ────────────────────────────────────────────────────────────
+
+
+def test_measure_perseus_export_reads_a_titled_stamped_workbook(tmp_path: Path) -> None:
+    """The Excel reading itself, which the re-measurement above cannot check on a cold container.
+
+    `test_re_measuring_reproduces_the_pinned_numbers` skips when `raw/` is empty, so on a fresh
+    session nothing exercised `measure_perseus_export`'s reading of a workbook at all. This does,
+    against a synthetic export of the shape that function's docstring names — title in row 1,
+    `C:`/`N:`/`T:`-stamped header in row 2, data after — with values computed by hand rather than
+    transcribed from a run, so it says what the reading should produce and not what it did.
+    """
+    import openpyxl
+
+    from bzk.sources.protein_groups import measure_perseus_export
+
+    book = tmp_path / "supp.xlsx"
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    for row in (
+        ["Supplementary Data 2"],
+        ["T: Protein IDs", "T: Majority protein IDs", "N: Peptides"],
+        ["P20591;Q9NRZ9", "P20591", 7],
+        ["P19525", "P19525", 12],
+        ["O43593;O43593-2;P05161", "O43593;P05161", 4],
+    ):
+        sheet.append(row)
+    workbook.save(book)
+
+    majority, protein_ids = measure_perseus_export(book, "synthetic")
+
+    assert majority.column == "T: Majority protein IDs"
+    assert majority.rows == 3
+    assert majority.multi_accession == 1
+    assert majority.max_size == 2
+    assert majority.distinct_gene_multi == 1
+
+    assert protein_ids.column == "T: Protein IDs"
+    assert protein_ids.rows == 3
+    assert protein_ids.multi_accession == 2
+    assert protein_ids.max_size == 3
+    assert protein_ids.isoform_only == 0

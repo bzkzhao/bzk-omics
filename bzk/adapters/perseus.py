@@ -50,6 +50,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from bzk.adapters import spreadsheet
 from bzk.adapters.base import Edge, Node, ParsedObservations, SampleMapping, sample_nodes
 from bzk.ontology import invariants, schema
 from bzk.ontology.invariants import NODE_TYPE_KEY
@@ -68,18 +69,70 @@ _UNRESOLVED = ResolvedProteins(nodes=[], edges=[], protein_id={})
 #: precision it cannot check against a real export.
 ANNOTATION_PREFIX = "#!{"
 
+#: Perseus' column-type stamp, and the marker for a **spreadsheet** export — where the annotation
+#: rows above are the marker for a tab-separated one. `ROADMAP.md` § *Classification uses the
+#: established method and not a new one*: *"Perseus versus raw search-engine output is decided by
+#: the type-prefix stamp (`C:`/`N:`/`T:`/`M:`), **never** by the presence of a statistics column"*,
+#: the alternative being forbidden there on a recorded false positive — a `Q-value` column that raw
+#: MaxQuant also carries. **Four, and `bzk/sources/protein_groups.py`'s docstring names three**: that
+#: docstring describes the two files it reads, and this is the set.
+TYPE_PREFIXES = ("C: ", "N: ", "T: ", "M: ")
+
+#: How many leading rows of a sheet may carry header content. **Imported, and labelled as such:**
+#: the shape on record in this repository is a title row plus a stamped header row
+#: (`bzk/sources/protein_groups.py`), and the deposit's export has three header rows —
+#: reviewer-supplied, from a file not in this tree and not re-derivable here. The bound exists so a
+#: *data* cell that happens to begin with a stamp cannot silently extend the header; eight is above
+#: both shapes on record and far below any plausible data row count.
+HEADER_SCAN_ROWS = 8
+
+#: What joins the header rows' cells for a column the stamped row does not name. **An invented
+#: convention, labelled here rather than in a summary**: no file states a separator, so one is
+#: chosen, and it is chosen visible so a composed name reads as composed.
+HEADER_JOIN = " | "
+
 #: Perseus' conventional two-sample-test column names, per contrast suffix.
 DIFFERENCE = "Student's T-test Difference {suffix}"
 Q_VALUE = "Student's T-test q-value {suffix}"
 P_VALUE = "Student's T-test p-value {suffix}"
 MINUS_LOG_P = "-Log Student's T-test p-value {suffix}"
 
-#: Where the observed accession set lives, **widest first**. `Protein IDs` before
-#: `Majority protein IDs` deliberately: the majority subset is MaxQuant's own inference (§6.3), and
-#: an observation records what was observed. `Protein` last — it is a single razor pick, usable only
-#: when nothing better is in the file.
-PROTEIN_COLUMNS = ("Protein IDs", "Majority protein IDs", "Proteins", "Protein")
+#: **Where to look for the observed accession set, not what is chosen.** `_identity_column` decides
+#: among the candidates present in a file by reading the rows; this tuple only says which names are
+#: candidates at all. Its order survives as the tie-break when more than one candidate is usable,
+#: and there it keeps its old meaning — `Protein IDs` before `Majority protein IDs` because the
+#: majority subset is MaxQuant's own inference (§6.3) and an observation records what was observed;
+#: `Protein` late, being a single razor pick usable only when nothing better is in the file.
+#: **The last two are the deposit's spellings and their position is not a width claim** — which of
+#: that pair is wider is not measured anywhere in this repository.
+PROTEIN_COLUMNS = (
+    "Protein IDs",
+    "Majority protein IDs",
+    "Proteins",
+    "Protein",
+    "Protein.Group",
+    "Protein.Ids",
+)
 PEPTIDE_COUNT_COLUMNS = ("Peptides", "Razor + unique peptides")
+
+
+def _is_stamped(cell: str) -> bool:
+    """True for a cell whose text is a column name Perseus wrote."""
+    return cell.startswith(TYPE_PREFIXES)
+
+
+def _strip_stamp(cell: str) -> str:
+    """A stamped cell's name, without the stamp.
+
+    The stamp is the *format* marker and the name under it is the *identity*, so the two are read
+    at different moments: `sniff` tests for the stamp, and everything downstream — `PROTEIN_COLUMNS`,
+    the contrast columns — matches the stripped name. `bzk/sources/protein_groups.py` matches with
+    the stamp intact and keeps doing so; it is measuring two named files, not recognising a format.
+    """
+    for prefix in TYPE_PREFIXES:
+        if cell.startswith(prefix):
+            return cell[len(prefix) :]
+    return cell
 
 
 class PerseusError(ValueError):
@@ -143,14 +196,38 @@ class PerseusAdapter:
     # ── sniff ───────────────────────────────────────────────────────────────────────────────────
 
     def sniff(self, path: Path) -> bool:
-        """True for a tab-separated file carrying at least one Perseus annotation row.
+        """True for a Perseus export in either container, by the marker that container carries.
 
         Content, not name (`ARCHITECTURE.md` §3): the MaxQuant site table this group also produces
-        is `.txt` and tab-separated too, so a suffix distinguishes nothing.
+        is `.txt` and tab-separated too, so a suffix distinguishes nothing. That ground is unchanged
+        and it is what the second container had to preserve.
+
+        **Two containers, two markers, and the markers are not interchangeable.** A tab-separated
+        export carries `#!{...}` annotation rows between the header and the data; a **spreadsheet**
+        export carries none — `openpyxl` has nowhere to put them — and is told by Perseus'
+        column-type stamp instead, which is what `bzk/sources/protein_groups.py` has always used to
+        recognise one. Before this the spreadsheet case never reached any test: the file was read
+        with `errors="strict"` and an `.xlsx` is a ZIP container, so `sniff` returned `False` at the
+        decode gate with the annotation test never running.
+
+        **What it still refuses** is the point of the widening. A file carrying neither marker is
+        not a Perseus export, so a DIA-NN, FragPipe or Spectronaut report that has been through no
+        Perseus step is refused in either container — the stamp is a fact about who wrote the
+        header, not about the numbers under it.
         """
         try:
-            lines = path.read_text(encoding="utf-8", errors="strict").splitlines()
-        except (OSError, UnicodeDecodeError):
+            raw = path.read_bytes()
+        except OSError:
+            return False
+        if spreadsheet.looks_like_a_workbook(raw):
+            try:
+                rows = spreadsheet.text_rows(raw)
+            except spreadsheet.SpreadsheetError:
+                return False
+            return any(_is_stamped(cell) for row in rows[:HEADER_SCAN_ROWS] for cell in row)
+        try:
+            lines = raw.decode("utf-8").splitlines()
+        except UnicodeDecodeError:
             return False
         if not lines or "\t" not in lines[0]:
             return False
@@ -174,7 +251,7 @@ class PerseusAdapter:
         raw = path.read_bytes()
         header, rows = self._read(raw, path)
         columns = {name: i for i, name in enumerate(header)}
-        protein_column = self._one_of(columns, PROTEIN_COLUMNS, "protein accession")
+        protein_column = self._identity_column(columns, rows, path)
         peptide_column = next((c for c in PEPTIDE_COUNT_COLUMNS if c in columns), None)
         readers = [self._contrast_reader(columns, c) for c in self.contrasts]
 
@@ -288,8 +365,15 @@ class PerseusAdapter:
 
         Bytes in, decoded here, split with `splitlines()` — see the module docstring on CRLF. The
         caller passes the bytes it hashed, so the `Dataset` digest and the parsed content are the
-        same read of the same file.
+        same read of the same file. **That property is what keeps the workbook branch below inside
+        this method rather than in front of it**: both containers are read from the bytes that were
+        hashed, so no conversion sits between the digest and the parse.
+
+        The tab-separated path is unchanged, including its one-line header. A multi-row header is a
+        property of the spreadsheet container and is handled where that container is read.
         """
+        if spreadsheet.looks_like_a_workbook(raw):
+            return self._read_workbook(raw, path)
         lines = raw.decode("utf-8").splitlines()
         header = lines[0].split("\t")
         rows = []
@@ -304,14 +388,125 @@ class PerseusAdapter:
             raise PerseusError(f"{path} has a header and annotation rows but no data")
         return header, rows
 
-    @staticmethod
-    def _one_of(columns: dict[str, int], candidates: tuple[str, ...], what: str) -> int:
-        for name in candidates:
-            if name in columns:
-                return columns[name]
-        raise PerseusError(
-            f"no {what} column: expected one of {list(candidates)}, found {sorted(columns)}"
+    def _read_workbook(
+        self, raw: bytes, path: Path
+    ) -> tuple[list[str], list[tuple[int, list[str]]]]:
+        """Header and data rows from a spreadsheet export, whose header spans several rows.
+
+        **The rule, stated here because it is a rule and not a heuristic.** The **named row** is the
+        first of the leading rows carrying a type-stamped cell. Every row above it is a qualifier
+        row, and every row below it is data. A column whose cell in the named row is stamped takes
+        that cell as its name, stripped; any other column takes every non-empty header cell above
+        it, joined by `HEADER_JOIN`, in row order.
+
+        **Why that shape and not "take the stamped row".** The deposit's export — reviewer-supplied,
+        not re-derivable here — puts a raw acquisition path in the named row for its quantitative
+        columns, whose identity is the set label and condition string in the rows above. Taking the
+        named row alone would name those columns by their instrument file; joining every row for
+        every column would prefix the stamped names with a title cell, which is what the other
+        export shape on record carries in row 1. Reading the stamp as *Perseus named this column*
+        and the joined qualifiers as *the file named it across rows* separates the two cases by what
+        the file says rather than by which file it is.
+
+        **It refuses rather than guesses, twice.** A column no header row names would otherwise
+        become an empty dictionary key that a second empty one silently overwrites, shifting which
+        column a later lookup reads; and two columns composing to one name is the same failure with
+        a different spelling. Both name what was found.
+        """
+        rows = spreadsheet.text_rows(raw)
+        named = next(
+            (i for i, row in enumerate(rows[:HEADER_SCAN_ROWS]) if any(map(_is_stamped, row))),
+            None,
         )
+        if named is None:
+            raise PerseusError(
+                f"{path}: no column-type stamp in the first {HEADER_SCAN_ROWS} rows, so no row "
+                f"names the columns. Expected one of {list(TYPE_PREFIXES)} to start a header cell."
+            )
+        header = self._compose_header(rows[: named + 1], path)
+        data = []
+        for line_no, row in enumerate(rows[named + 1 :], start=named + 2):
+            if not any(cell.strip() for cell in row):
+                continue
+            fields = list(row[: len(header)])
+            fields += [""] * (len(header) - len(fields))
+            data.append((line_no, fields))
+        if not data:
+            raise PerseusError(f"{path} has a {named + 1}-row header but no data rows under it")
+        return header, data
+
+    @staticmethod
+    def _compose_header(header_rows: list[list[str]], path: Path) -> list[str]:
+        """One name per column from the header rows, or an error naming the columns it could not."""
+        width = max(len(row) for row in header_rows)
+        header: list[str] = []
+        unnamed: list[str] = []
+        for i in range(width):
+            cells = [row[i] if i < len(row) else "" for row in header_rows]
+            if _is_stamped(cells[-1]):
+                header.append(_strip_stamp(cells[-1]).strip())
+                continue
+            composed = HEADER_JOIN.join(cell.strip() for cell in cells if cell.strip())
+            if not composed:
+                unnamed.append(f"column {i + 1}")
+            header.append(composed)
+        if unnamed:
+            raise PerseusError(
+                f"{path}: {', '.join(unnamed)} is named by no header row — every header cell above "
+                f"it is empty across {len(header_rows)} rows, and a blank name would collide with "
+                "the next blank one rather than fail. Refused rather than half-read."
+            )
+        repeated = sorted({name for name in header if header.count(name) > 1})
+        if repeated:
+            raise PerseusError(
+                f"{path}: the header rows compose to one name for more than one column — "
+                f"{repeated}. A later lookup would silently read whichever came last."
+            )
+        return header
+
+    @staticmethod
+    def _identity_column(
+        columns: dict[str, int], rows: list[tuple[int, list[str]]], path: Path
+    ) -> int:
+        """The column whose accession set identifies the row, chosen by reading the rows.
+
+        **Why not by name order.** `candidate_proteins` is identifying (ADR-0022) and
+        `RESOLVES_TO_PROTEIN` names every member, so two rows carrying the same set converge on one
+        `ProteinObservation` — and `REPORTS_PROTEIN` is `ONE_MANY` (§4), so that one destination
+        would then take two edges from one `Dataset`. A column that repeats across rows is therefore
+        not the row's identity, whatever it is called and however wide it is.
+
+        So: candidates are the names of `PROTEIN_COLUMNS` present in the file; survivors are those
+        distinct on every data row; the widest survivor wins, measured as accessions named rather
+        than assumed from position, with `PROTEIN_COLUMNS` order breaking a tie. Where no candidate
+        survives the file is refused and every candidate is named with what it was found to hold.
+        """
+        present = [name for name in PROTEIN_COLUMNS if name in columns]
+        if not present:
+            raise PerseusError(
+                f"no protein accession column: expected one of {list(PROTEIN_COLUMNS)}, "
+                f"found {sorted(columns)}"
+            )
+        seen: dict[str, tuple[int, int, int]] = {}
+        for name in present:
+            index = columns[name]
+            sets = [
+                tuple(sorted(a.strip() for a in row[index].split(";") if a.strip()))
+                for _, row in rows
+            ]
+            seen[name] = (len(sets), len(set(sets)), sum(len(s) for s in sets))
+        survivors = [name for name in present if seen[name][0] == seen[name][1]]
+        if not survivors:
+            found = "; ".join(
+                f"{name}: {seen[name][1]} distinct over {seen[name][0]} rows" for name in present
+            )
+            raise PerseusError(
+                f"{path}: no protein column names a set that is distinct on every data row, so "
+                "`candidate_proteins` would collide and one ProteinObservation would take two "
+                f"REPORTS_PROTEIN edges, which its ONE_MANY forbids (ONTOLOGY.md §4). Found {found}."
+            )
+        widest = max(survivors, key=lambda name: (seen[name][2], -present.index(name)))
+        return columns[widest]
 
     def _contrast_reader(
         self, columns: dict[str, int], declared: DeclaredContrast

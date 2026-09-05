@@ -49,9 +49,9 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-import openpyxl
 import requests
 
+from bzk.adapters import spreadsheet
 from bzk.adapters.maxquant import drop_decoys_and_contaminants, read_table
 from bzk.http import BytesSession
 from bzk.provenance.raw_store import StoredFile, store, verify
@@ -140,11 +140,15 @@ def summarise(artefact: str, column: str, groups: Sequence[Sequence[str]]) -> Gr
 
 
 def measure_perseus_export(path: Path, artefact: str) -> list[GroupStats]:
-    """A Perseus Excel export: title in row 1, `C:`/`N:`/`T:`-prefixed header in row 2, data after."""
-    workbook = openpyxl.load_workbook(path, read_only=True)
-    sheet = workbook.worksheets[0]
-    rows = list(sheet.iter_rows(min_row=2, values_only=True))
-    workbook.close()
+    """A Perseus Excel export: title in row 1, `C:`/`N:`/`T:`-prefixed header in row 2, data after.
+
+    Read through `bzk/adapters/spreadsheet.py` since 2026-09-05, which is where the `openpyxl` call
+    that used to sit here now lives — `bzk/adapters/perseus.py` needed the same call, and one format
+    read from two places is what `bzk/adapters/maxquant.py` exists to refuse. `rows` and not
+    `text_rows` deliberately: what is passed to `_split` below is unchanged, so the measurement is
+    unchanged, which is the only thing that matters about this edit.
+    """
+    rows = spreadsheet.rows(path, min_row=2)
     header = [str(v) for v in rows[0]]
     data = [r for r in rows[1:] if r[header.index("T: Protein IDs")]]
     return [
