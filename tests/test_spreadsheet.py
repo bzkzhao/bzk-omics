@@ -87,3 +87,32 @@ def test_a_truncated_workbook_is_refused_and_the_refusal_names_what_it_found(
     with pytest.raises(SpreadsheetError) as exc:
         rows(broken)
     assert "not a readable workbook" in str(exc.value)
+
+
+def test_merged_spans_reads_ranges_a_read_only_open_cannot_see(tmp_path: Path) -> None:
+    """The ranges need their own read, and this asserts both halves of why.
+
+    A worksheet opened with `read_only=True` has no `merged_cells` at all — the streaming reader
+    never builds it — so the spans cannot come from the same open that `rows` does. Opened without
+    the flag the ranges are there, and the *values* are identical either way, which is what makes a
+    second read for the ranges alone safe for the caller that reads only values.
+    """
+    from bzk.adapters.spreadsheet import merged_spans
+
+    book = _workbook(
+        tmp_path / "merged.xlsx",
+        [["Set 1", None, None, None, "Set 2", None], ["a", "b", "c", "d", "e", "f"]],
+    )
+    workbook = openpyxl.load_workbook(book)
+    workbook.worksheets[0].merge_cells("A1:D1")
+    workbook.worksheets[0].merge_cells("E1:F1")
+    workbook.save(book)
+
+    streaming = openpyxl.load_workbook(book, read_only=True)
+    with pytest.raises(AttributeError) as exc:
+        streaming.worksheets[0].merged_cells  # noqa: B018
+    assert "merged_cells" in str(exc.value)
+    streaming.close()
+
+    assert merged_spans(book) == [(0, 0, 0, 3), (0, 4, 0, 5)]
+    assert text_rows(book)[0] == ["Set 1", "", "", "", "Set 2", ""]

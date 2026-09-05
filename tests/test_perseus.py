@@ -108,13 +108,15 @@ def _nodes(parsed: object, label: str) -> list[dict[str, object]]:
 # `openpyxl` and thrown away, which is the synthetic twin `HANDOFF.md` §8 requires.
 
 
-def _sheet(path: Path, sheet_rows: list[list[object]]) -> Path:
+def _sheet(path: Path, sheet_rows: list[list[object]], merges: list[str] | None = None) -> Path:
     import openpyxl
 
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     for row in sheet_rows:
         sheet.append(row)
+    for span in merges or []:
+        sheet.merge_cells(span)
     workbook.save(path)
     return path
 
@@ -633,3 +635,137 @@ def test_a_column_the_header_rows_do_not_name_is_refused_by_position(
     with pytest.raises(PerseusError) as exc:
         adapter.parse(book, mapping)
     assert "column 6" in str(exc.value)
+
+
+# ── Merged header cells ─────────────────────────────────────────────────────────────────────────
+#
+# **Reviewer-supplied and not re-derivable in this container.** The deposit's `S1_TP`, at
+# `a6e12e555709612590d1a1d2f499bcd416d2ee69d6e28cb2e167a162fe5c95c2`, carries three merged ranges in
+# its first header row — `A1:D1`, `E1:H1`, `I1:L1`, holding `Set 1`, `Set 2`, `Set 3` — so that row
+# reads as nine non-empty cells of 29 and nine of the eighteen quantitative columns compose without
+# the set they are displayed under. The fixtures below carry that shape; the file does not enter the
+# tree and none of its own figures is re-measured here.
+
+
+def _merged_shaped(path: Path) -> Path:
+    """One merged qualifier spanning four columns, above a condition row and a stamped row."""
+    return _sheet(
+        path,
+        [
+            ["Set 1", None, None, None, None, None],
+            ["siC (-IFN-B)", "siUSP24 (-IFN-B)", "siC (+IFN-B)", "siUSP24 (+ IFN-B)", None, None],
+            [
+                "/raw/A.d",
+                "/raw/B.d",
+                "/raw/C.d",
+                "/raw/D.d",
+                "T: Protein.Group",
+                "N: Student's T-test Difference X",
+            ],
+            ["100.0", "110.0", "120.0", "130.0", "P20591", "3.42"],
+        ],
+        merges=["A1:D1"],
+    )
+
+
+def test_a_merged_qualifier_reaches_every_column_it_covers(tmp_path: Path) -> None:
+    """A merged span is header information the file states, so every column it covers carries it.
+
+    Read as a streaming reader reads it, a merged range yields its value in the top-left cell and
+    nothing in the rest, so three of these four columns would compose without the set they are
+    displayed under — unique, because the acquisition path differs, and wrong.
+    """
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    book = _merged_shaped(tmp_path / "merged.xlsx")
+    header, _ = adapter._read(book.read_bytes(), book)
+    assert header[0] == "Set 1 | siC (-IFN-B) | /raw/A.d"
+    assert header[1] == "Set 1 | siUSP24 (-IFN-B) | /raw/B.d"
+    assert header[2] == "Set 1 | siC (+IFN-B) | /raw/C.d"
+    assert header[3] == "Set 1 | siUSP24 (+ IFN-B) | /raw/D.d"
+    assert header[4] == "Protein.Group"
+
+
+def test_an_unmerged_blank_does_not_inherit_its_neighbour(tmp_path: Path) -> None:
+    """A blank cell is not evidence of a span, and forward-filling would treat it as one.
+
+    Same visual shape as the merged fixture and no merge recorded, so a reader that carried the last
+    non-empty value rightwards would produce the merged answer here too — by accident, and wrong the
+    day a header row has a genuinely empty column.
+    """
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    book = _sheet(
+        tmp_path / "unmerged.xlsx",
+        [
+            ["Set 1", None, None],
+            ["siC (-IFN-B)", "siUSP24 (-IFN-B)", None],
+            ["/raw/A.d", "/raw/B.d", "T: Protein.Group"],
+            ["100.0", "110.0", "P20591"],
+        ],
+    )
+    header, _ = adapter._read(book.read_bytes(), book)
+    assert header[0] == "Set 1 | siC (-IFN-B) | /raw/A.d"
+    assert header[1] == "siUSP24 (-IFN-B) | /raw/B.d"
+
+
+def test_a_span_that_makes_two_names_identical_is_still_refused(tmp_path: Path) -> None:
+    """Recovering a span must not turn a refusal into a silent pass.
+
+    Both columns here are named by the span and by nothing else, so they compose to one name. Before
+    the span was read the second column was named by nothing and refused for that; after it, the two
+    collide and refuse for that. Either way the file does not load, and the message says which.
+    """
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    book = _sheet(
+        tmp_path / "collide.xlsx",
+        [
+            ["Set 1", None, None],
+            [None, None, None],
+            [None, None, "T: Protein.Group"],
+            ["100.0", "110.0", "P20591"],
+        ],
+        merges=["A1:B1"],
+    )
+    with pytest.raises(PerseusError) as exc:
+        adapter._read(book.read_bytes(), book)
+    assert "compose to one name" in str(exc.value)
+    assert "Set 1" in str(exc.value)
+
+
+def test_a_column_no_span_reaches_is_still_refused(tmp_path: Path) -> None:
+    """The other refusal, unchanged: a span covering some columns does not name the rest."""
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    book = _sheet(
+        tmp_path / "orphan_span.xlsx",
+        [
+            ["Set 1", None, None, None],
+            [None, None, None, None],
+            [None, None, "T: Protein.Group", None],
+            ["100.0", "110.0", "P20591", "x"],
+        ],
+        merges=["A1:B1"],
+    )
+    with pytest.raises(PerseusError) as exc:
+        adapter._read(book.read_bytes(), book)
+    assert "column 4" in str(exc.value)
+    assert "named by no header row" in str(exc.value)
+
+
+def test_the_unmerged_fixture_composes_exactly_as_before(tmp_path: Path) -> None:
+    """Reading spans changes nothing about a sheet that records none — every name, verbatim.
+
+    Asserted column by column rather than as one list comparison: a whole-list equality names only
+    that the list moved, where these name which column did, and the width is asserted beside them so
+    the enumeration cannot be short by one.
+    """
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    book = _deposit_shaped(tmp_path / "d.xlsx")
+    header, _ = adapter._read(book.read_bytes(), book)
+    assert len(header) == 8
+    assert header[0] == "Protein.Group"
+    assert header[1] == "Protein.Ids"
+    assert header[2] == "Peptides"
+    assert header[3] == "Student's T-test Difference KO_IFN_WT_IFN"
+    assert header[4] == "-Log Student's T-test p-value KO_IFN_WT_IFN"
+    assert header[5] == "Student's T-test q-value KO_IFN_WT_IFN"
+    assert header[6] == "1 | siC (-IFN-B) | /raw/2024_A.d"
+    assert header[7] == "2 | siUSP24 (+ IFN-B) | /raw/2024_B.d"

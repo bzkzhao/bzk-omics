@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.30 |
+| Version | 2.31 |
 | Last reviewed | 2026-09-05 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
@@ -12130,6 +12130,35 @@ code and the tests.
 **The tautology sweep fired on two of this turn's own assertions and both were rewritten rather than
 pinned.** `tests/test_tautology_sweep.py` was not edited. The sweep closed at **34 modules, 1,228
 asserts, 144 distinct matches** — the same 144 as before, with none new and none gone.
+
+### Merged header cells no longer lose their span, 2026-09-05
+
+**The defect.** A header cell merged across several columns is read as a value in the first and
+nothing in the rest, so a composed column name silently omitted a qualifier the file displays.
+**Reviewer-supplied and not re-derivable in this container**: the deposit's `S1_TP` carries three
+merged ranges in its first header row, so that row reads as nine non-empty cells of 29 and nine of
+its eighteen quantitative columns composed without the set they sit under. Nothing collided and
+nothing refused, because the acquisition path in the third row keeps every name unique.
+
+**The fix reads the ranges; it does not forward-fill.** `bzk/adapters/spreadsheet.py` gains
+`merged_spans`, and `bzk/adapters/perseus.py` puts the ranges back into the header rows before the
+composition rule runs, so that rule is unchanged. Carrying the last non-empty value rightwards would
+have produced the same nine names by accident and the wrong answer on a header row with a genuinely
+empty column — a blank cell is not evidence of a span.
+
+**Two facts about `openpyxl`, measured here.** A worksheet opened with `read_only=True` has no
+`merged_cells` at all; touching it raises `AttributeError`. Opened without the flag the ranges are
+there, and the **cell values are identical under both flags** — which is what makes a second read
+for the ranges alone safe. `rows` keeps `read_only=True` and `bzk/sources/protein_groups.py`, its
+only other caller, never calls the new function.
+
+**The two refusals are unchanged and are now asserted against a span.** A column no range reaches is
+still unnamed and refused; a range that gives two columns one name is caught by the duplicate
+refusal rather than passing.
+
+**The sweep fired on one of this turn's own assertions and it was strengthened, not pinned.**
+`tests/test_tautology_sweep.py` was not edited; the sweep closed at **34 modules, 1,251 asserts, 144
+distinct matches** — the same 144, none new and none gone.
 
 ### Deposit and supplementary survey, 2026-08-07
 

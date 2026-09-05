@@ -121,6 +121,46 @@ def _is_stamped(cell: str) -> bool:
     return cell.startswith(TYPE_PREFIXES)
 
 
+def _spanned(
+    header_rows: list[list[str]], spans: list[tuple[int, int, int, int]]
+) -> list[list[str]]:
+    """The header rows with each merged range's value reaching every cell that range covers.
+
+    **A merged span is header information the file states, and reading cells loses it.** The value
+    sits in the range's top-left cell and every other cell it covers reads empty, so a column the
+    file displays under `Set 1` composes without it — unique, because a later header row differs,
+    and wrong. Measured on the deposit's own export, reviewer-supplied and not re-derivable here:
+    three ranges in its first header row leave that row reading as nine non-empty cells of 29, and
+    nine of eighteen quantitative columns compose without the set above them.
+
+    **Read, never forward-filled.** Carrying the last non-empty value rightwards across blanks would
+    give the same answer on that shape by accident and the wrong one on the next: a blank cell is not
+    evidence of a span, and a header row with a genuinely empty column would silently inherit its
+    neighbour. The ranges come from the file, so a blank no range covers stays blank and its column
+    still refuses.
+
+    **Header rows only, and a range reaching below them is clipped there.** Rows under the named row
+    are data, which the composition does not read; a merged cell in the data region is out of scope
+    and this function neither reads one nor claims to.
+
+    Only an empty cell is written, so a file that somehow carries a value inside a merged range keeps
+    it rather than having the range's origin written over it.
+    """
+    filled = [list(row) for row in header_rows]
+    last = len(filled) - 1
+    for top, left, bottom, right in spans:
+        if top > last or left >= len(filled[top]):
+            continue
+        value = filled[top][left]
+        if not value.strip():
+            continue
+        for r in range(top, min(bottom, last) + 1):
+            for c in range(left, right + 1):
+                if c < len(filled[r]) and not filled[r][c].strip():
+                    filled[r][c] = value
+    return filled
+
+
 def _strip_stamp(cell: str) -> str:
     """A stamped cell's name, without the stamp.
 
@@ -408,10 +448,17 @@ class PerseusAdapter:
         and the joined qualifiers as *the file named it across rows* separates the two cases by what
         the file says rather than by which file it is.
 
+        **A merged qualifier reaches every column it covers**, since 2026-09-05. Reading cells alone
+        gives a merged range's value in its top-left and nothing in the rest, so a column displayed
+        under a spanning label composed without it. `_spanned` puts the ranges back before the rule
+        above runs, which is why the rule itself did not change.
+
         **It refuses rather than guesses, twice.** A column no header row names would otherwise
         become an empty dictionary key that a second empty one silently overwrites, shifting which
         column a later lookup reads; and two columns composing to one name is the same failure with
-        a different spelling. Both name what was found.
+        a different spelling. Both name what was found. **Recovering spans does not soften either**:
+        a column no range reaches is still unnamed, and a range that gives two columns one name is
+        caught by the second refusal rather than passing.
         """
         rows = spreadsheet.text_rows(raw)
         named = next(
@@ -423,7 +470,9 @@ class PerseusAdapter:
                 f"{path}: no column-type stamp in the first {HEADER_SCAN_ROWS} rows, so no row "
                 f"names the columns. Expected one of {list(TYPE_PREFIXES)} to start a header cell."
             )
-        header = self._compose_header(rows[: named + 1], path)
+        header = self._compose_header(
+            _spanned(rows[: named + 1], spreadsheet.merged_spans(raw)), path
+        )
         data = []
         for line_no, row in enumerate(rows[named + 1 :], start=named + 2):
             if not any(cell.strip() for cell in row):

@@ -52,13 +52,8 @@ def looks_like_a_workbook(raw: bytes) -> bool:
     return raw.startswith(ZIP_MAGIC)
 
 
-def rows(source: Path | bytes, *, min_row: int = 1) -> list[tuple[Any, ...]]:
-    """Every cell of the workbook's **first** sheet, as `openpyxl` yields it.
-
-    First sheet and not a named one: both callers read single-sheet exports, and a name would be a
-    convention neither file states. `min_row` is 1-based and matches `openpyxl`'s own, so a caller
-    skipping a title row asks for what it means rather than slicing afterwards.
-    """
+def _load(source: Path | bytes, *, read_only: bool) -> Any:
+    """The workbook, with the `openpyxl` import and the failure wrapping in one place."""
     try:
         import openpyxl
     except ImportError as exc:  # pragma: no cover - openpyxl is pinned in the dev group
@@ -68,12 +63,55 @@ def rows(source: Path | bytes, *, min_row: int = 1) -> list[tuple[Any, ...]]:
         ) from exc
     handle: Any = io.BytesIO(source) if isinstance(source, bytes) else source
     try:
-        workbook = openpyxl.load_workbook(handle, read_only=True)
+        return openpyxl.load_workbook(handle, read_only=read_only)
     except Exception as exc:
         raise SpreadsheetError(f"not a readable workbook: {type(exc).__name__}: {exc}") from exc
+
+
+def rows(source: Path | bytes, *, min_row: int = 1) -> list[tuple[Any, ...]]:
+    """Every cell of the workbook's **first** sheet, as `openpyxl` yields it.
+
+    First sheet and not a named one: both callers read single-sheet exports, and a name would be a
+    convention neither file states. `min_row` is 1-based and matches `openpyxl`'s own, so a caller
+    skipping a title row asks for what it means rather than slicing afterwards.
+    """
+    workbook = _load(source, read_only=True)
     try:
         sheet = workbook.worksheets[0]
         return list(sheet.iter_rows(min_row=min_row, values_only=True))
+    finally:
+        workbook.close()
+
+
+def merged_spans(source: Path | bytes) -> list[tuple[int, int, int, int]]:
+    """The first sheet's merged ranges, as 0-based inclusive `(top, left, bottom, right)`.
+
+    **A separate read, because the streaming one cannot answer.** A worksheet opened with
+    `read_only=True` has no `merged_cells` at all — measured: touching it raises
+    `AttributeError: 'ReadOnlyWorksheet' object has no attribute 'merged_cells'` — so the ranges
+    cannot come from the open that `rows` does. Opened without the flag they are there, and the cell
+    *values* are identical under both flags, which is what makes reading the ranges separately safe
+    for a caller that reads only values.
+
+    **A function rather than a flag on `rows`, for the reason this module is already split in two.**
+    `bzk/sources/protein_groups.py` calls `rows` and its measurement is pinned; nothing it calls
+    changes here, and it never calls this.
+
+    **The cost, stated rather than argued away.** The workbook is opened a second time and that open
+    is not streaming, so the first sheet is materialised in full. The alternative — reading
+    `xl/worksheets/*.xml` out of the container by hand — would reimplement a pinned library's
+    container parse to save a read, which buys a new failure surface for a saving nobody has
+    measured a need for.
+
+    Sorted, because `openpyxl` holds the ranges in a set and their order is otherwise arbitrary.
+    """
+    workbook = _load(source, read_only=False)
+    try:
+        sheet = workbook.worksheets[0]
+        return sorted(
+            (r.min_row - 1, r.min_col - 1, r.max_row - 1, r.max_col - 1)
+            for r in sheet.merged_cells.ranges
+        )
     finally:
         workbook.close()
 
