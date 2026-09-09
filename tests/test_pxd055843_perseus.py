@@ -20,6 +20,7 @@ from typing import Any
 
 import pytest
 
+from bzk.adapters.perseus import PerseusAdapter
 from bzk.curation.loader import load_path
 from bzk.ontology.invariants import NODE_TYPE_KEY, InvariantError
 
@@ -162,17 +163,31 @@ def test_the_change_set_carries_what_the_adapter_mints(tmp_path: Path) -> None:
 def test_the_change_set_carries_no_per_sample_values(tmp_path: Path) -> None:
     """`ParsedObservations.cells` is empty, so the columnar half of I11 gets nothing from here.
 
-    A carried finding, not this turn's to repair — recorded as a test so what the graph will *not*
-    hold is checkable rather than only stated. The eighteen quantitative columns of the real export
-    reach no store through this path.
+    **The assertion is unchanged and its reason is not** (2026-09-09). It held because
+    `bzk/adapters/perseus.py` retained no per-sample values from any file; that adapter now retains
+    them where the declared imputation method is `none`, and this run still gets none because *this
+    record* declares `downshifted_normal`. The seed supplied below is what I15 wants and it does not
+    change the answer — an export is the far side of the draw, so there is no pre-imputation matrix
+    for the mask to be reconstructed against.
+
+    So the reason is asserted alongside the emptiness. Without it this test would keep passing on
+    the day the withholding started coming from a placement failure instead, which is a different
+    fact about a different defect.
     """
     from bzk.sources import pxd055843_perseus
 
     declaration, contrast = pxd055843_perseus.declared()
     seeded = replace(declaration, imputation=dict(declaration.imputation) | {"seed": 0})
     book = _synthetic_export(tmp_path / "export.xlsx", contrast.column_suffix)
-    parsed = pxd055843_perseus.build(book, load_path(CURATION), seeded, contrast)
+    adapter = PerseusAdapter(seeded, [contrast])
+    parsed = pxd055843_perseus.build(book, load_path(CURATION), seeded, contrast, adapter=adapter)
     assert not parsed.cells
+    report = adapter.report
+    assert report is not None
+    because = report.withheld_because
+    assert because is not None
+    assert "downshifted_normal" in because
+    assert "A seed does not lift this" in because
 
 
 def test_an_absent_deposit_refuses_and_names_what_it_looked_for(tmp_path: Path) -> None:

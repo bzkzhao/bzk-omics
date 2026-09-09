@@ -39,13 +39,55 @@ Three details that produce numbers rather than errors when got wrong, so each is
    least half the peptides. An observation records what was observed, so it takes the wider column.
    The two differ on 52-72% of rows, so this is not a formality.
 
+**Per-sample values are retained only where the declaration says nothing was imputed** (I11,
+since 2026-09-09). `ParsedObservations.cells` was empty here until then, so the columnar half of
+I11 got nothing from this route. Filling it unconditionally was not available:
+`bzk/quant/store.py` is *"measured values and nulls, never imputed"*, its `Cell` is *"one
+per-observation-per-sample measurement"* whose `value=None` is *"a cell the search engine reported
+nothing for"*, and `Cell` has four columns — `observation_id`, `sample_id`, `quantity`, `value` —
+with none of them separating a measured number from a generated one. A post-imputation value written
+there is a claim the file does not support and one nothing downstream could detect.
+
+**The MaxQuant precedent does not transfer, and it is its own reason that stops it.** Those adapters
+read search-engine output, where a blank means the search reported nothing —
+`maxquant.cell_value` exists to hold three spellings of that blank apart from a reported `0`. A
+Perseus table is analysis output, and its blanks are whatever its own pipeline left. The deposit
+this adapter was written for has none: **136,980 of 136,980 quantitative cells populated across
+eighteen columns — reviewer-supplied, not re-derivable in this container** — and that paper's
+methods state that missing values were imputed before the statistics. In a file with no blanks,
+*nothing was missing* and *nothing survived to be missing* read identically, and only the
+declaration tells them apart.
+
+**So the licence is `Imputation.method`, which the caller already declares.**
+`DeclaredAnalysis.imputation` defaults to `{"method": "none"}` because that is *"the only claim an
+undeclared file supports"*, and I15 makes the declaration mandatory. `none` says every number in
+the file reached Perseus from the search engine, and the cells are emitted. Any other method says
+some of them were generated, and the cells are withheld — **including where the seed and the
+parameters are stated**. A seed reproduces a draw *given the matrix it drew into*, and the
+pre-imputation matrix is exactly what an external export does not contain; `store.py`'s *"the mask
+stays reconstructible because I15 makes the `Imputation` seed mandatory"* is true of a run this
+platform performed and not of one it received. Where no seed is stated the question never arises —
+`invariants.validate` refuses the change-set before cells matter.
+
+**Withheld is said, never silent.** `cells` empty is *"a different state from reporting nulls"*
+(`base.py`), so `PerseusIngestReport` carries how many cells were not retained and why.
+
+**What a reader may conclude from a `Cell` this adapter wrote.** The file stated this number for
+this sample under the declared `quantity`, and the analysis that produced the file declared that
+nothing was imputed. It is not the search engine's own report — Perseus' filtering and any
+normalisation sit between — and the declaration is *stated*, not observed (`parameters_observed =
+false`, I19), so it carries exactly the standing every other declared field on this `Analysis` has.
+
 I13 holds: `search_engine`, `acquisition_mode` and the rest are recorded on the `Dataset`, never
 branched on. The `-Log` detection above is a branch on *file content*, which is what an adapter is
-for, not a branch on recorded pipeline metadata.
+for, not a branch on recorded pipeline metadata. **`Imputation.method` is not pipeline metadata in
+I13's sense** — that list is `acquisition_mode`, `search_engine`, `library_type` and `test` — and
+the branch on it is inside `adapters/`, which I13 exempts by name.
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -56,6 +98,7 @@ from bzk.ontology import invariants, schema
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.ontology.keys import evidence_id, protein_key
 from bzk.provenance.raw_store import content_hash
+from bzk.quant import store as quant_store
 from bzk.resolve.nodes import ResolvedProteins
 
 #: `perseus.py` resolves nothing (ADR-0017: no network in the parse path), so every protein it
@@ -175,6 +218,33 @@ def _strip_stamp(cell: str) -> str:
     return cell
 
 
+def _cell_value(row: list[str], columns: dict[str, int], name: str) -> float | None:
+    """One value from a Perseus quantitative column, or `None` where the column holds nothing.
+
+    Blank, unparseable and a literal `NaN` are all absences; a reported `0` stays `0`, because
+    reading a zero as absence is an interpretation an adapter has no licence to make (I19).
+
+    **This is not `maxquant.cell_value` and does not call it.** That module's first line is
+    *"MaxQuant table reading — the guarded entry point every MaxQuant reader uses"*, and what it
+    shares is *"what two readers of one deposit must not disagree about"* — its `0` rule rests on
+    measured MaxQuant prevalences in a named file. Routing a Perseus reader through it would put
+    this adapter behind an entry point for another tool's format. The two agree on every spelling
+    and the grounds are different, which is why `tests/test_perseus.py` asserts the agreement
+    rather than leaving it to hold by coincidence.
+    """
+    index = columns.get(name)
+    if index is None:
+        return None
+    text = row[index].strip()
+    if not text:
+        return None
+    try:
+        value = float(text)
+    except ValueError:
+        return None
+    return None if math.isnan(value) else value
+
+
 class PerseusError(ValueError):
     """A Perseus table cannot be ingested. Never downgraded to a warning (`CLAUDE.md`)."""
 
@@ -216,6 +286,57 @@ class DeclaredAnalysis:
     imputation: dict[str, object] = field(default_factory=lambda: {"method": "none"})
 
 
+@dataclass(frozen=True)
+class PerseusIngestReport:
+    """What one parse read and emitted, named for what it counts.
+
+    `cells_withheld` is the number of per-sample values this file could have yielded and did not —
+    rows times mapped samples — and `withheld_because` is the sentence saying why. An adapter that
+    retains nothing and reports nothing is the shape `base.py` warns about, where `cells` empty and
+    `cells` unmet look the same from outside.
+    """
+
+    rows_read: int
+    observations_emitted: int
+    results_emitted: int
+    cells: int
+    cells_withheld: int
+    withheld_because: str | None
+
+
+def _sample_columns(
+    mapping: SampleMapping, columns: Mapping[str, int]
+) -> tuple[list[tuple[str, str]], list[str]]:
+    """`(Sample.id, column name)` per placed sample, and the mapping keys that placed nothing.
+
+    The curation maps each sample to a **column name**, so the column comes from the mapping rather
+    than from a run label — the same rule `maxquant_protein_groups._sample_columns` follows, for the
+    same reason.
+
+    **It returns the unplaced keys instead of raising, and the divergence from MaxQuant is
+    deliberate.** That adapter raises because it is a *search-output* adapter, whose contract in
+    `base.py` is *"ingest raw quantification, retaining the matrix (I11)"* — a sample it cannot
+    place is that contract unmet. This is an *analysis-output* adapter, whose contract is *"ingest
+    results computed elsewhere"*; the matrix is a file it may or may not carry, so an unplaceable
+    sample is a fact about the mapping to report rather than a reason to reject results that are
+    otherwise complete. The caller decides, and `PerseusIngestReport` is what it decides on.
+
+    A descriptor with no `mapping_key` at all places nothing and is counted as unplaced. That is
+    what the loader-shaped descriptor carries when a curation record was written without column
+    headers, and it is not the same state as a key naming a column the file lacks — both are
+    reported, and both withhold.
+    """
+    placed: list[tuple[str, str]] = []
+    unplaced: list[str] = []
+    for sample in mapping.samples:
+        key = str(sample.get("mapping_key", ""))
+        if key and key in columns:
+            placed.append((str(sample["id"]), key))
+        else:
+            unplaced.append(key)
+    return placed, unplaced
+
+
 class PerseusAdapter:
     """`ObservationAdapter` for a Perseus result table (`ARCHITECTURE.md` §3)."""
 
@@ -232,6 +353,31 @@ class PerseusAdapter:
             raise PerseusError("at least one contrast must be declared; the file does not name one")
         self.declared = declared
         self.contrasts = list(contrasts)
+        self.report: PerseusIngestReport | None = None
+
+    def _withheld_because(self, unplaced: list[str]) -> str | None:
+        """Why this file's per-sample values may not be retained, or `None` if they may.
+
+        Two conditions and the imputation one is checked first, because it is a fact about the
+        numbers and the other is a fact about the mapping: a file whose values are generated stays
+        unretainable however well its columns are placed.
+        """
+        method = str(self.declared.imputation.get("method", "none"))
+        if method != "none":
+            return (
+                f"the declared imputation method is {method!r}, so some of this file's values were "
+                "generated rather than measured. `bzk/quant/store.py` holds measured values and "
+                "nulls only, and `Cell` has no field that would mark a generated one. A seed does "
+                "not lift this: it reproduces a draw given the pre-imputation matrix, which an "
+                "external export does not contain."
+            )
+        if unplaced:
+            return (
+                f"{len(unplaced)} sample descriptor(s) name no column in this file — {unplaced}. "
+                "Retaining the rest would put a matrix in the store with fewer samples than the "
+                "analysis used, and a recomputation over it would silently run on the subset."
+            )
+        return None
 
     # ── sniff ───────────────────────────────────────────────────────────────────────────────────
 
@@ -295,8 +441,13 @@ class PerseusAdapter:
         peptide_column = next((c for c in PEPTIDE_COUNT_COLUMNS if c in columns), None)
         readers = [self._contrast_reader(columns, c) for c in self.contrasts]
 
+        placed, unplaced = _sample_columns(mapping, columns)
+        withheld = self._withheld_because(unplaced)
+        samples = [] if withheld else placed
+
         nodes: list[Node] = sample_nodes(mapping)
         edges: list[Edge] = []
+        cells: list[quant_store.Cell] = []
 
         dataset = {
             "label": path.name,
@@ -358,6 +509,13 @@ class PerseusAdapter:
             # hashing, so the file's ordering — which is MaxQuant's ranking, an inference — cannot
             # fork an id (I7).
             observation: dict[str, object] = {"candidate_proteins": protein_ids}
+            if samples:
+                # I11's witness at the node (ADR-0004) — the columnar *table*, not a join key. Set
+                # only where cells follow, because §4 gives the null its own meaning: *"`NULL` means
+                # no values are retained, which is I11's violation state"*. Setting it while
+                # withholding would make the violation unreadable from the graph, which is the one
+                # thing that column is for. Not identifying (§3), so it cannot fork an id.
+                observation["quant_ref"] = quant_store.quant_ref("ProteinObservation")
             if peptide_column is not None and row[columns[peptide_column]].strip():
                 observation["n_peptides"] = int(row[columns[peptide_column]])
             observation_id = evidence_id("ProteinObservation", observation, {"Dataset": dataset_id})
@@ -366,6 +524,17 @@ class PerseusAdapter:
             for protein_id in protein_ids:
                 edges.append(
                     {"type": "RESOLVES_TO_PROTEIN", "from": observation_id, "to": protein_id}
+                )
+            # I11's columnar half. Empty unless `_withheld_because` returned None, which is the one
+            # place the licence is decided; the loop below has no second opinion about it.
+            for sample_id, name in samples:
+                cells.append(
+                    quant_store.Cell(
+                        observation_id=observation_id,
+                        sample_id=sample_id,
+                        quantity=self.declared.quantity,
+                        value=_cell_value(row, columns, name),
+                    )
                 )
 
             for declared, reader in zip(self.contrasts, readers, strict=True):
@@ -396,7 +565,21 @@ class PerseusAdapter:
         # Held to the same contract as the curation loader's output: a batch that cannot pass
         # validation never leaves this module half-written.
         invariants.validate(nodes, edges)
-        return ParsedObservations(nodes=nodes, edges=edges)
+        self.report = PerseusIngestReport(
+            rows_read=len(rows),
+            observations_emitted=sum(1 for n in nodes if n[NODE_TYPE_KEY] == "ProteinObservation"),
+            results_emitted=sum(1 for n in nodes if n[NODE_TYPE_KEY] == "DifferentialResult"),
+            cells=len(cells),
+            # What I11 did not get, counted rather than left as the absence of a number: every row
+            # times every mapped sample is the matrix this file could have yielded.
+            cells_withheld=len(rows) * len(mapping.samples) if withheld else 0,
+            withheld_because=withheld,
+        )
+        return ParsedObservations(
+            nodes=nodes,
+            edges=edges,
+            cells=[("ProteinObservation", cells)] if cells else [],
+        )
 
     # ── internals ───────────────────────────────────────────────────────────────────────────────
 

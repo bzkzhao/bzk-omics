@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 2.37 |
-| Last reviewed | 2026-09-05 |
+| Version | 2.38 |
+| Last reviewed | 2026-09-09 |
 | Depends on | `VISION.md`, `ONTOLOGY.md`, `ARCHITECTURE.md` |
 | Authoritative for | Scope, milestones, deferrals |
 
@@ -12394,6 +12394,45 @@ lives in `bzk/adapters/base.py`, out of scope here.
 still writes `quantity: None` and `filters_applied: []` as constants, unchanged; a record trying to
 state either is now refused rather than silently overridden. Whether the format should carry them is
 a format question this turn does not touch.
+
+### The Perseus adapter retains per-sample values, conditionally, 2026-09-09
+
+**`bzk/adapters/perseus.py`.** Both MaxQuant adapters populate `ParsedObservations.cells`; this one
+populated nothing, so I11's columnar half got nothing from the analysis-output route. Filling it
+unconditionally was never available, and the reason is one field: `Cell` is
+`(observation_id, sample_id, quantity, value)` and has no column separating a measured number from
+a generated one, while `bzk/quant/store.py` says *"Values are measured values and nulls, never
+imputed"*.
+
+**The MaxQuant precedent does not transfer, for its own reason.** Those adapters read search-engine
+output, where a blank means the search reported nothing — that is what `maxquant.cell_value` exists
+for. A Perseus table is analysis output. On this deposit's export the reviewer measured **136,980 of
+136,980 quantitative cells populated across eighteen columns**, and the paper's methods state that
+missing values were imputed before the statistics. In a file with no blanks, *nothing was missing*
+and *nothing survived to be missing* are the same reading. (136,980 is 7,610 rows × 18 columns; that
+row count is the measured one, not the paper's protein count, which the § *Deposit and supplementary
+survey* block already keeps apart.)
+
+**So the licence is the one declared fact that settles it, and the tree already carried it.**
+`DeclaredAnalysis.imputation` defaults to `{"method": "none"}` because that is *"the only claim an
+undeclared file supports"*. `none` emits the cells; any other method withholds them, **including
+where the seed is stated** — a seed reproduces a draw given the pre-imputation matrix, and an export
+is the far side of that draw, so `store.py`'s *"the mask stays reconstructible because I15 makes the
+`Imputation` seed mandatory"* is true of a run this platform performed and not of one it received.
+A second condition is placement: a mapping that does not name a column for every sample withholds
+the whole matrix rather than a subset, since a partial matrix would let a recomputation run on
+fewer samples without saying so.
+
+**Withholding is reported, never silent.** `PerseusIngestReport` carries `cells_withheld` and the
+sentence saying why, and `quant_ref` is written only where cells follow — §4 gives its null the
+meaning *"no values are retained, which is I11's violation state"*, so setting it while withholding
+would make the violation unreadable from the graph.
+
+**What this changes for PXD055843: nothing, and now for a stated reason.** That record declares
+`downshifted_normal`, so `bzk/sources/pxd055843_perseus.py` withholds; supplying the seed
+`unresolved` asks for would get the change-set past I15 and would still withhold. The module writes
+cells through `bzk/quant/store.py` the way `bzk/rebuild.py` does, and prints the count withheld with
+the adapter's reason.
 
 ### The analysis-record format gets a vocabulary and a read map, 2026-09-05
 

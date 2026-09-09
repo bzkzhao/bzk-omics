@@ -30,6 +30,7 @@ What the adapter must get right, and why each is a test rather than a comment:
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -769,3 +770,229 @@ def test_the_unmerged_fixture_composes_exactly_as_before(tmp_path: Path) -> None
     assert header[5] == "Student's T-test q-value KO_IFN_WT_IFN"
     assert header[6] == "1 | siC (-IFN-B) | /raw/2024_A.d"
     assert header[7] == "2 | siUSP24 (+ IFN-B) | /raw/2024_B.d"
+
+
+# ── Per-sample values: I11's columnar half ──────────────────────────────────────────────────────
+
+#: The `Sample` ids the `mapping` fixture uses. Reused so a placed mapping and an unplaced one
+#: differ in the one thing under test — whether a descriptor names a column — and in nothing else.
+SAMPLE_IDS = (
+    "bzk:9924d6d24941af0f1b64171e0b550e76",
+    "bzk:7b2ed3b2751c3364da982151935c9845",
+)
+
+#: What `_deposit_shaped`'s two quantitative columns compose to. Written out rather than derived
+#: from the sheet, so a change to either the sheet or the composition rule fails here by name.
+DEPOSIT_COLUMNS = ("1 | siC (-IFN-B) | /raw/2024_A.d", "2 | siUSP24 (+ IFN-B) | /raw/2024_B.d")
+
+#: A stochastic imputation with everything I15 asks for, including the seed. It is here to be
+#: refused: a seed reproduces a draw given the matrix it drew into, and an export is what came out.
+SEEDED = {
+    "method": "downshifted_normal",
+    "downshift_sd": 1.8,
+    "width_sd": 0.3,
+    "seed": 0,
+    "scope": "whole_matrix",
+}
+
+
+def _placed(keys: tuple[str, ...] = DEPOSIT_COLUMNS) -> SampleMapping:
+    """A loader-shaped mapping whose descriptors carry `mapping_key`, as the curation loader's do."""
+    return SampleMapping(
+        curation_analysis_id="bzk:bc90e3eb515d6edd1351ce25ecd33209",
+        samples=[
+            {NODE_TYPE_KEY: "Sample", "id": sid, "replicate": i + 1, "mapping_key": key}
+            for i, (sid, key) in enumerate(zip(SAMPLE_IDS, keys, strict=True))
+        ],
+    )
+
+
+def _why(adapter: PerseusAdapter) -> str:
+    """The report's withheld reason, with the two conditions mypy needs stated as assertions."""
+    report = adapter.report
+    assert report is not None, "parse set no report"
+    because = report.withheld_because
+    assert because is not None, "cells were not withheld, so there is no reason to read"
+    return because
+
+
+def test_a_placed_mapping_retains_one_cell_per_observation_per_sample(tmp_path: Path) -> None:
+    """The values the file states, under the declared quantity, keyed on observation and sample.
+
+    `DECLARED` leaves `imputation` at its default of `method='none'`, which is the licence: the
+    caller states that nothing in this file was generated, so every number in it is one the search
+    engine reported and `Cell`'s contract is met.
+
+    Asserted as the whole matrix against a literal display rather than as a count — a count passes
+    for six cells carrying the wrong sample's values, which is the failure this route would produce
+    if the column placement were off by one.
+    """
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    parsed = adapter.parse(_deposit_shaped(tmp_path / "d.xlsx"), _placed())
+    assert len(parsed.cells) == 1
+    label, batch = parsed.cells[0]
+    assert label == "ProteinObservation"
+    proteins = {
+        str(node["id"]): str(cast("list[str]", node["candidate_proteins"])[0])
+        for node in _nodes(parsed, "ProteinObservation")
+    }
+    assert {(proteins[c.observation_id], c.sample_id): c.value for c in batch} == {
+        ("uniprot:P20591", SAMPLE_IDS[0]): 100.0,
+        ("uniprot:P20591", SAMPLE_IDS[1]): 200.0,
+        ("uniprot:P19525", SAMPLE_IDS[0]): 110.0,
+        ("uniprot:P19525", SAMPLE_IDS[1]): 210.0,
+        ("uniprot:O43593", SAMPLE_IDS[0]): 120.0,
+        ("uniprot:O43593", SAMPLE_IDS[1]): 220.0,
+    }
+    assert {c.quantity for c in batch} == {"lfq"}
+
+
+def test_quant_ref_is_written_only_where_the_cells_follow(tmp_path: Path) -> None:
+    """§4: *"`NULL` means no values are retained, which is I11's violation state"*.
+
+    Setting it while withholding would make the violation unreadable from the graph alone, which is
+    the one thing that column exists for.
+    """
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    book = _deposit_shaped(tmp_path / "d.xlsx")
+    retained = _nodes(adapter.parse(book, _placed()), "ProteinObservation")
+    assert retained, "no ProteinObservation reached the change-set"
+    for node in retained:
+        assert node["quant_ref"] == "protein_values"
+    withheld = _nodes(
+        adapter.parse(book, _placed(("no such column", "nor this one"))), "ProteinObservation"
+    )
+    assert withheld, "no ProteinObservation reached the change-set"
+    for node in withheld:
+        assert "quant_ref" not in node
+
+
+def test_a_seeded_imputation_still_withholds_every_cell(tmp_path: Path) -> None:
+    """The ruling's sharpest edge, and the one a reader is most likely to expect to go the other way.
+
+    `ARCHITECTURE.md` makes a seed mandatory so an imputation is reproducible, and
+    `bzk/quant/store.py` says *"the mask stays reconstructible because I15 makes the `Imputation`
+    seed mandatory"*. That holds for a run this platform performed, where the pre-imputation matrix
+    is what the store contains and the seeded draw sits on top. An external export is the other side
+    of that draw: there is no pre-imputation matrix to reconstruct the mask against, so the seed
+    buys nothing here and the cells stay out.
+    """
+    adapter = PerseusAdapter(
+        declared=replace(DECLARED, imputation=dict(SEEDED)), contrasts=[CONTRAST]
+    )
+    parsed = adapter.parse(_deposit_shaped(tmp_path / "d.xlsx"), _placed())
+    assert not parsed.cells
+    because = _why(adapter)
+    assert "downshifted_normal" in because
+    assert "A seed does not lift this" in because
+
+
+def test_one_unplaced_sample_withholds_the_whole_matrix(tmp_path: Path) -> None:
+    """Not the placed half. A matrix missing a sample is not the matrix the analysis ran on, and a
+    recomputation over it would run on the subset without saying so."""
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    parsed = adapter.parse(
+        _deposit_shaped(tmp_path / "d.xlsx"),
+        _placed((DEPOSIT_COLUMNS[0], "Intensity KO_IFN_2")),
+    )
+    assert not parsed.cells
+    because = _why(adapter)
+    assert "Intensity KO_IFN_2" in because
+    assert "name no column" in because
+
+
+def test_an_unplaceable_mapping_is_reported_and_not_raised(
+    adapter: PerseusAdapter, mapping: SampleMapping, tmp_path: Path
+) -> None:
+    """The divergence from `maxquant_protein_groups`, which raises on the same input.
+
+    `base.py` gives the two adapter classes different contracts — *"retaining the matrix (I11)"* for
+    a search-output adapter, *"ingest results computed elsewhere"* for this one — so a mapping this
+    adapter cannot place is a fact to report rather than a reason to reject results that are
+    otherwise complete. The `mapping` fixture carries no `mapping_key` at all, which is the shape a
+    curation record written without column headers produces.
+    """
+    parsed = adapter.parse(_deposit_shaped(tmp_path / "d.xlsx"), mapping)
+    assert not parsed.cells
+    assert parsed.nodes, "results were rejected along with the matrix"
+    assert "name no column" in _why(adapter)
+
+
+def test_the_report_counts_what_it_read(tmp_path: Path) -> None:
+    """`cells_withheld` is zero when nothing was withheld, not the size of a matrix that was kept."""
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    adapter.parse(_deposit_shaped(tmp_path / "d.xlsx"), _placed())
+    report = adapter.report
+    assert report is not None
+    assert report.rows_read == 3
+    assert report.observations_emitted == 3
+    assert report.results_emitted == 3
+    assert report.cells == 6
+    assert report.cells_withheld == 0
+    assert report.withheld_because is None
+
+
+def test_the_value_reader_agrees_with_the_maxquant_one_on_every_spelling() -> None:
+    """Two readers of one convention, held to each other rather than left to agree by coincidence.
+
+    `perseus._cell_value` deliberately does not call `maxquant.cell_value` — that module is *"the
+    guarded entry point every MaxQuant reader uses"* and routing a Perseus reader through it would
+    put this adapter behind another tool's format. What that leaves is two implementations of one
+    rule, which is the shape `maxquant.py` itself was written to remove, so the agreement is
+    asserted here instead.
+
+    **Both readers are held to the same literal, rather than one to the other.** Comparing the two
+    outputs would pass while both were wrong in the same way, and it is the *rule* — three spellings
+    of nothing, and a reported `0` that stays — that this asserts. Which is also why it is not a
+    loop over pairs: the expected value is written out per spelling.
+    """
+    from bzk.adapters import maxquant, perseus
+
+    spellings = ("", "   ", "NaN", "nan", "not-a-number", "0", "1500.5", "-1.87")
+    columns = {"v": 0}
+    for reader in (perseus._cell_value, maxquant.cell_value):
+        assert {text: reader([text], columns, "v") for text in spellings} == {
+            "": None,
+            "   ": None,
+            "NaN": None,
+            "nan": None,
+            "not-a-number": None,
+            "0": 0.0,
+            "1500.5": 1500.5,
+            "-1.87": -1.87,
+        }, reader
+    assert perseus._cell_value(["1.0"], columns, "absent") is None
+
+
+def test_a_descriptor_with_no_mapping_key_does_not_place_onto_an_unnamed_column(
+    mapping: SampleMapping, tmp_path: Path
+) -> None:
+    """What makes `_sample_columns`' `key and` conjunct load-bearing rather than defensive.
+
+    `_read_workbook` refuses a column no header row names; the tab-separated `_read` does not — it
+    splits the first line and keeps whatever it finds — so `columns` can carry `""`. A descriptor
+    with no `mapping_key` has `key == ""`, and without the conjunct both samples would place onto
+    that one column and the store would take one column's values under two sample ids.
+
+    The asymmetry between the two readers is not repaired here; this asserts that it cannot reach
+    the matrix.
+    """
+    header = [
+        "Protein IDs",
+        "",
+        "Student's T-test Difference KO_IFN_WT_IFN",
+        "-Log Student's T-test p-value KO_IFN_WT_IFN",
+        "Student's T-test q-value KO_IFN_WT_IFN",
+    ]
+    rows = [
+        ["P20591", "100.0", "3.42", "4.51", "0.0012"],
+        ["P19525", "110.0", "4.95", "5.02", "0.0009"],
+    ]
+    path = tmp_path / "unnamed.txt"
+    lines = ["\t".join(header), "#!{Type}\tT\tN\tN\tN\tN", *("\t".join(r) for r in rows)]
+    path.write_text("\n".join(lines) + "\n")
+
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    parsed = adapter.parse(path, mapping)
+    assert not parsed.cells
+    assert "name no column" in _why(adapter)

@@ -34,11 +34,21 @@ The check is **not** re-implemented here — one home for one rule — so the re
 needs the seed as much as it needs the bytes, and both are recorded in the analysis record's
 `unresolved`.
 
-**What the graph will not hold.** `ParsedObservations.cells` is left empty by
-`bzk/adapters/perseus.py` — a carried finding, not repaired here — so the export's eighteen
-quantitative columns reach no columnar store through this path. The graph gets the
-`ProteinObservation`s and their `DifferentialResult`s and none of the per-sample values they were
-computed from, which is the half of I11 this route does not satisfy.
+**What the graph will not hold, and the reason is now the record's rather than the adapter's.**
+~~`ParsedObservations.cells` is left empty by `bzk/adapters/perseus.py`~~ **Corrected 2026-09-09**:
+that adapter retains per-sample values where the declared imputation method is `none`, and this run
+does not qualify. The record declares `downshifted_normal`, so the export's eighteen quantitative
+columns are post-imputation and `bzk/quant/store.py` holds measured values and nulls only. Supplying
+the seed `unresolved` asks for would let the change-set past I15 and would **not** release the
+cells: a seed reproduces a draw given the pre-imputation matrix, and this file is what came out the
+other side. So the graph gets the `ProteinObservation`s and their `DifferentialResult`s and none of
+the per-sample values they were computed from, `quant_ref` is null on every observation — which is
+where I11's unmet state is readable (`ONTOLOGY.md` §4) — and `main` prints the count withheld and
+the adapter's reason rather than a bare zero.
+
+The write path below is nonetheless the real one: `bzk/quant/store.py` directly, the way
+`bzk/rebuild.py` writes cells, because a change-set is graph content by definition (`ONTOLOGY.md`
+§2) and these values are one-per-entity-per-sample.
 """
 
 from __future__ import annotations
@@ -56,6 +66,7 @@ from bzk.curation.loader import LoadedCuration, load_path
 from bzk.ontology import store
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.provenance.raw_store import verify
+from bzk.quant import store as quant
 from bzk.rebuild import open_graph
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -138,14 +149,20 @@ def build(
     curation: LoadedCuration,
     declaration: DeclaredAnalysis,
     contrast: DeclaredContrast,
+    *,
+    adapter: PerseusAdapter | None = None,
 ) -> ParsedObservations:
     """One export into a change-set, refusing rather than half-reading.
 
     `sniff` is called before `parse` even though `parse` calls it too: a file that is not a Perseus
     export at all is a different failure from one that is and cannot be parsed, and an operator who
     put the wrong bytes in the store should be told which.
+
+    `adapter` exists because `PerseusIngestReport` lives on the adapter and is set by the parse, so
+    a caller that wants to say how many cells were withheld must hold the instance that read the
+    file. Defaulted, so nothing that only wants the change-set has to construct one.
     """
-    adapter = PerseusAdapter(declaration, [contrast])
+    adapter = adapter or PerseusAdapter(declaration, [contrast])
     if not adapter.sniff(deposit):
         raise SystemExit(
             f"{deposit} does not sniff as a Perseus export. A workbook is recognised by Perseus' "
@@ -160,20 +177,32 @@ def main() -> int:  # pragma: no cover - convenience entry point
     curation = load_path(CURATION)
     declaration, contrast = declared()
     deposit = locate(home=home)
-    parsed = build(deposit, curation, declaration, contrast)
+    adapter = PerseusAdapter(declaration, [contrast])
+    parsed = build(deposit, curation, declaration, contrast, adapter=adapter)
 
     nodes = Counter(str(node[NODE_TYPE_KEY]) for node in parsed.nodes)
     conn = open_graph(home)
     written = store.write_change_set(conn, parsed.nodes, parsed.edges)
+
+    # I11's columnar half, written the way `bzk/rebuild.py` writes it — through `bzk/quant/store.py`
+    # and not through `write_change_set`, which carries graph content only (`ONTOLOGY.md` §2).
+    quant_connection = quant.connect(home)
+    cells = 0
+    for label, batch in parsed.cells:
+        cells += quant.write_cells(quant_connection, label, batch).cells_staged
+    quant_connection.close()
+
     print(f"[PXD055843] {deposit.name} via {PerseusAdapter.name}")
     print(f"[PXD055843]   nodes by label: {dict(sorted(nodes.items()))}")
     print(
         f"[PXD055843]   wrote {written.nodes_staged:,} node statement(s), "
-        f"{written.edges_staged:,} edge statement(s)"
+        f"{written.edges_staged:,} edge statement(s), {cells:,} quantitative cell(s)"
     )
-    print(
-        f"[PXD055843]   per-sample values retained: {len(parsed.cells)} (see the module docstring)"
-    )
+    report = adapter.report
+    if report is not None and report.withheld_because is not None:
+        print(
+            f"[PXD055843]   {report.cells_withheld:,} cell(s) withheld: {report.withheld_because}"
+        )
     return 0
 
 
