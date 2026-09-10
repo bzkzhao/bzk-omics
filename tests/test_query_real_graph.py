@@ -101,11 +101,18 @@ def test_an_analysis_that_stored_no_results_now_says_none_found_not_not_stored(
 
     The ingestion and curation analyses produced no `DifferentialResult` and never will. While the
     table was empty that read `NOT_STORED`; now that it holds 1,362 rows belonging to a different
-    analysis, the honest answer for these two is `NONE_FOUND`. Asserted because the transition is
-    invisible at the call site: both return `[]`.
+    analysis, the honest answer for ~~these two~~ **these three, since 2026-09-10** is `NONE_FOUND`.
+    Asserted because the transition is invisible at the call site: every one of them returns `[]`.
     """
     others = gq._rows(conn, "MATCH (a:Analysis) WHERE a.test IS NULL RETURN a.id ORDER BY a.id")
-    assert len(others) == 2
+    # Was 2 until 2026-09-10. The class is unchanged — an `Analysis` that ran no test — and only its
+    # membership grew, by the curation `Analysis` of `data/curation/curation_PXD055843.json`, which
+    # joined the export on 2026-09-05. The three are now the two curation analyses, neither of which
+    # carries a `test` key at all, and the PXD018299 ingestion analysis, which carries `test = None`.
+    # That record's deposit is not in the content store, so `bzk/rebuild.py` writes its declared
+    # nodes (l.245) before it finds the deposit absent (l.253) and skips the ingestion — the
+    # curation `Analysis` is declared, so it arrives whether or not anything is ingested.
+    assert len(others) == 3
     for (analysis_id,) in [(str(r[0]),) for r in others]:
         rows, absence = gq.differential_table(conn, analysis_id)
         assert rows == []
@@ -139,7 +146,7 @@ def test_every_site_carries_a_keying_basis_and_only_the_promoted_ones_a_displace
 
 
 def test_only_the_analysis_that_imputed_satisfies_i15(conn: kuzu.Connection) -> None:
-    """**Read *no analysis has one* until 2026-08-09.** One does now, and two still do not.
+    """**Read *no analysis has one* until 2026-08-09.** One does now, and ~~two~~ **three** do not.
 
     I15 requires an `Analysis` that produced results to declare its imputation — *including*
     `method = 'none'`. The `welch_t` run declares `downshifted_normal` with its seed, which is what
@@ -148,7 +155,12 @@ def test_only_the_analysis_that_imputed_satisfies_i15(conn: kuzu.Connection) -> 
     reported rather than excused.
     """
     analyses = [str(r[0]) for r in gq._rows(conn, "MATCH (a:Analysis) RETURN a.id ORDER BY a.id")]
-    assert len(analyses) == 3
+    # Was 3 until 2026-09-10. The fourth is the curation `Analysis` of
+    # `data/curation/curation_PXD055843.json`, declared by the record and written by
+    # `bzk/rebuild.py` whether or not that deposit is ingested. It declares no `Imputation` — the
+    # curation loader emits none for either record — so it joins the loop below rather than the
+    # satisfied one, and the count of analyses satisfying I15 is unchanged at 1.
+    assert len(analyses) == 4
     satisfied = [a for a in analyses if gq.imputation_state(conn, a).satisfies_i15]
     assert len(satisfied) == 1
     state = gq.imputation_state(conn, satisfied[0])
@@ -198,7 +210,15 @@ def test_nothing_in_the_real_graph_is_unprovenanced(conn: kuzu.Connection) -> No
     # I5, and the totals matter: `DifferentialResult: (0, 0)` is 0 of 0, which the bare count
     # would have shown as a pass.
     assert gq.unprovenanced(conn) == {
-        "Dataset": (0, 1),
+        # Was `(0, 1)` until 2026-09-10. The second `Dataset` is PXD055843's, declared by
+        # `data/curation/curation_PXD055843.json`; its deposit is not in the content store, so no
+        # adapter ran over it and **it is the one with no observations behind it** — no
+        # `SiteObservation`, no `ProteinObservation`, and it contributes nothing to the 2,029 below.
+        # It is nonetheless provenanced, which is why the first number stays 0: provenance here is
+        # `Analysis -USED-> Dataset` (`bzk/query/graph.py` l.245) and the record's own curation
+        # `Analysis` supplies that edge. PXD018299 still contributes one `Dataset` and not two —
+        # the adapter keys on the same digest the record cites, so the two ids converge (I7).
+        "Dataset": (0, 2),
         "SiteObservation": (0, 2029),
         # Was `(0, 0)` until 2026-08-09 — 0 of 0, which the bare count would have shown as a pass
         # and which the totals exist to distinguish. It is now 0 of 1,362, and the same first
