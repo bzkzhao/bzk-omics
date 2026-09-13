@@ -37,8 +37,8 @@ FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
 SEARCHED_DIRS = (CURATION_DIR, FIXTURE_DIR)
 NOTEBOOK = REPO_ROOT / "colab_reproducefigure.ipynb"
 
-# The four records that cite the deposit, as repo-relative paths, named explicitly so the
-# parametrised checks below have a fixed list. A hardcoded list alone would leave a *fifth* record
+# The five records that cite the deposit, as repo-relative paths, named explicitly so the
+# parametrised checks below have a fixed list. A hardcoded list alone would leave a *sixth* record
 # citing this file silently unguarded, so `test_the_citing_records_are_exactly_these` discovers
 # citers from disk and asserts the two sets match — that is what makes adding a citer fail here
 # until it is listed.
@@ -47,6 +47,7 @@ CITING_RECORDS = (
     "data/curation/analysis_PXD018299_KOIFN_vs_WTIFN.json",
     "data/curation/resolution_PXD018299.json",
     "tests/fixtures/pxd018299_welch_baseline.json",
+    "tests/fixtures/pxd018299_platform_targets.json",
 )
 
 

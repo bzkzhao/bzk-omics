@@ -1,0 +1,385 @@
+{
+  "dataset": "PXD018299",
+  "file": "HAP1_USP18KO_GlyGlyKSites.txt",
+  "content_hash": "sha256:a4a503e39581334c3553d3631456ad8aca22e193ba928810f6d46fde15622009",
+  "path": "platform",
+  "note": "Which of the fourteen published ISGylation targets the PLATFORM path recovers, and every tested site behind each verdict. The sibling file pxd018299_welch_baseline.json records the notebook transcription's answer to the same question; `path` distinguishes them and they are not interchangeable. A change in these rows means the pipeline moved and needs explaining, not regenerating: the recovery membership of this path is the thing under dispute, so a diff here is the finding. No representative site is picked per target \u2014 which site represents a target is an open question and this file does not answer it. `population` is recorded here, unlike in the baseline fixture, because no analysis record holds this path's counts: data/curation/analysis_PXD018299_KOIFN_vs_WTIFN.json holds the notebook's, measured over a different population, so these counts have no other home and CLAUDE.md's single-source-of-truth rule is not engaged. `n_values_imputed` and `n_values_total` deliberately carry that record's own field names so the two paths' imputation can be compared field-for-field; the values differ because the populations do \u2014 these count the tested matrix of this path, at the replicate width of both arms. A site's statistics are null where the arithmetic produced NaN, because a bare NaN is not JSON. Regenerate with `python -m bzk.sources.pride && python -m bzk.sources.pxd018299_differential`.",
+  "generated_by": "python -m bzk.sources.pxd018299_differential",
+  "generated_under": {
+    "python": "3.12.14",
+    "numpy": "2.5.1",
+    "scipy": "1.18.0"
+  },
+  "population": {
+    "rows_in_file": 2341,
+    "after_decoys": 2298,
+    "after_localization": 2056,
+    "ingested": 2029,
+    "refused": 27,
+    "after_presence_rule": 1362,
+    "tested": 1362,
+    "significant_up": 516,
+    "n_values_imputed": 3997,
+    "n_values_total": 8172,
+    "targets_present": 13,
+    "targets_recovered": 12
+  },
+  "targets": [
+    {
+      "gene": "ADAR",
+      "status": "recovered",
+      "sites": [
+        {
+          "site": "uniprot:P55265#sv4#K763#unimod:121",
+          "observation": "bzk:e22c9f4c57b34b4ce8e5dd9bebff8c23",
+          "log2fc": 0.3056991123633175,
+          "p": 0.6684622566358256,
+          "adj_p": 0.6934086774851443
+        },
+        {
+          "site": "uniprot:P55265#sv4#K996#unimod:121",
+          "observation": "bzk:5d10c7fbc291dac05cd6259c17db5608",
+          "log2fc": 1.4771936849011809,
+          "p": 0.3656783483879976,
+          "adj_p": 0.4109355697231458
+        },
+        {
+          "site": "uniprot:P55265#sv4#K637#unimod:121",
+          "observation": "bzk:c3792f731b4385268ddab25eb8730a88",
+          "log2fc": 2.7933507153743236,
+          "p": 0.14654366913068398,
+          "adj_p": 0.21346789022031185
+        },
+        {
+          "site": "uniprot:P55265#sv4#K798#unimod:121",
+          "observation": "bzk:3e69434b4a2957fd89e49782afe6341d",
+          "log2fc": 1.3434394450917857,
+          "p": 0.00013203820277276227,
+          "adj_p": 0.001948019761956441
+        }
+      ]
+    },
+    {
+      "gene": "EIF2AK2",
+      "status": "recovered",
+      "sites": [
+        {
+          "site": "uniprot:P19525#sv2#K426#unimod:121",
+          "observation": "bzk:dc652a9f5d419d348444fb4e765ae728",
+          "log2fc": 5.013089966956347,
+          "p": 2.450550627220884e-05,
+          "adj_p": 0.0007585568077897373
+        },
+        {
+          "site": "uniprot:P19525#sv2#K283#unimod:121",
+          "observation": "bzk:addf612c880752816b6900b8bd183710",
+          "log2fc": 2.2502876810043517,
+          "p": 0.0822160517246768,
+          "adj_p": 0.1383013565380131
+        },
+        {
+          "site": "uniprot:P19525#sv2#K291#unimod:121",
+          "observation": "bzk:e254484c974c8b39bb16961dae2660d3",
+          "log2fc": 1.5238255698094108,
+          "p": 0.15562736681712203,
+          "adj_p": 0.22125727933707745
+        },
+        {
+          "site": "uniprot:P19525#sv2#K440#unimod:121",
+          "observation": "bzk:1005794e959c51697a297204ab42dca9",
+          "log2fc": 2.115336028649903,
+          "p": 0.15519148731491916,
+          "adj_p": 0.2210991691662342
+        },
+        {
+          "site": "uniprot:P19525#sv2#K444#unimod:121",
+          "observation": "bzk:e64dd37912cf2f3e697260aeea35fabf",
+          "log2fc": 1.7489671036613927,
+          "p": 0.029582461976583353,
+          "adj_p": 0.062352359271402175
+        },
+        {
+          "site": "uniprot:P19525#sv2#K521#unimod:121",
+          "observation": "bzk:246bf98056451888d9981abb027bed1f",
+          "log2fc": 3.090866163194459,
+          "p": 0.0007575895396325649,
+          "adj_p": 0.005493127038833783
+        },
+        {
+          "site": "uniprot:P19525#sv2#K304#unimod:121",
+          "observation": "bzk:7d4f8220cb5f48b6c6370bcaf5d75392",
+          "log2fc": 5.2346150827404045,
+          "p": 2.8059086350021805e-05,
+          "adj_p": 0.0008131165023133978
+        }
+      ]
+    },
+    {
+      "gene": "DDX58",
+      "status": "recovered",
+      "sites": [
+        {
+          "site": "uniprot:O95786-2#sv2#K213#unimod:121",
+          "observation": "bzk:3a237765f65a4d81e5122c16e75565ac",
+          "log2fc": 2.7361191441649417,
+          "p": 3.704085820805644e-05,
+          "adj_p": 0.0009342527570254235
+        },
+        {
+          "site": "uniprot:O95786-2#sv2#K413#unimod:121",
+          "observation": "bzk:1d2b6c2e3bea0b34c494f651799b2763",
+          "log2fc": 2.2000956022248097,
+          "p": 0.062448487492711854,
+          "adj_p": 0.10960675253231127
+        },
+        {
+          "site": "uniprot:O95786-2#sv2#K267#unimod:121",
+          "observation": "bzk:28208b75a7f2725c927921997642ff6c",
+          "log2fc": 2.7920096884313494,
+          "p": 0.014103120635453317,
+          "adj_p": 0.034924455100886216
+        },
+        {
+          "site": "uniprot:O95786-2#sv2#K127#unimod:121",
+          "observation": "bzk:de6ebfeb1b64af18024f42c7e89f3623",
+          "log2fc": 3.4344318889626635,
+          "p": 0.02384318040703413,
+          "adj_p": 0.0529762018179127
+        }
+      ]
+    },
+    {
+      "gene": "DDX60",
+      "status": "recovered",
+      "sites": [
+        {
+          "site": "uniprot:Q8IY21#sv3#K1352#unimod:121",
+          "observation": "bzk:4d91599fc1c6d95a7335be09e72cdbd6",
+          "log2fc": 2.261456952061714,
+          "p": 0.09189023048194649,
+          "adj_p": 0.15042607441876335
+        },
+        {
+          "site": "uniprot:Q8IY21#sv3#K728#unimod:121",
+          "observation": "bzk:70ed18056952aee8837c2c79e38118a9",
+          "log2fc": 2.8642092419137875,
+          "p": 0.00015966730033829877,
+          "adj_p": 0.0020973799802210262
+        },
+        {
+          "site": "uniprot:Q8IY21#sv3#K534#unimod:121",
+          "observation": "bzk:641d60a44816ee5462dfd460817e18b8",
+          "log2fc": 2.59948248164838,
+          "p": 0.03567531532718076,
+          "adj_p": 0.07156079451490456
+        },
+        {
+          "site": "uniprot:Q8IY21#sv3#K434#unimod:121",
+          "observation": "bzk:53cda71b4aad622af1ddc5021fb9d917",
+          "log2fc": 0.9259800226013049,
+          "p": 0.4147981259534967,
+          "adj_p": 0.4559766324040859
+        }
+      ]
+    },
+    {
+      "gene": "DHX58",
+      "status": "recovered",
+      "sites": [
+        {
+          "site": "uniprot:Q96C10#sv1#K39#unimod:121",
+          "observation": "bzk:82b6198e72bb3632ae0993013299139e",
+          "log2fc": 3.0376718504117335,
+          "p": 0.006325741116321633,
+          "adj_p": 0.019920759102027372
+        }
+      ]
+    },
+    {
+      "gene": "OAS1",
+      "status": "absent_from_tested",
+      "sites": []
+    },
+    {
+      "gene": "OAS2",
+      "status": "recovered",
+      "sites": [
+        {
+          "site": "uniprot:P29728#sv3#K100#unimod:121",
+          "observation": "bzk:2ac71bbe263a1ec7578d73add7eede33",
+          "log2fc": 4.6498900724450145,
+          "p": 5.60276361446547e-06,
+          "adj_p": 0.00038696239163996956
+        },
+        {
+          "site": "uniprot:P29728#sv3#K399#unimod:121",
+          "observation": "bzk:7c83372e38629ce8613174e7afaeea89",
+          "log2fc": 2.718737981645379,
+          "p": 0.19157580201952445,
+          "adj_p": 0.25560172126796993
+        },
+        {
+          "site": "uniprot:P29728#sv3#K212#unimod:121",
+          "observation": "bzk:f10a1dd12e6383fa38f7452e15d89a70",
+          "log2fc": 3.276830848592052,
+          "p": 0.19199354303150973,
+          "adj_p": 0.2558661503022664
+        },
+        {
+          "site": "uniprot:P29728#sv3#K433#unimod:121",
+          "observation": "bzk:dee78bdcc2de338fd26d5d661e7793d0",
+          "log2fc": 1.0134089756562616,
+          "p": 0.03591855764196785,
+          "adj_p": 0.07194275810052972
+        },
+        {
+          "site": "uniprot:P29728#sv3#K388#unimod:121",
+          "observation": "bzk:9e735844eb6929c1f1be5dfe61ab27e9",
+          "log2fc": 3.2262180563513674,
+          "p": 0.0017370470819643882,
+          "adj_p": 0.008389567821402471
+        },
+        {
+          "site": "uniprot:P29728#sv3#K425#unimod:121",
+          "observation": "bzk:e0844f0528443685144c13e68df32932",
+          "log2fc": 5.735141635632893,
+          "p": 0.007072405406806918,
+          "adj_p": 0.021139700946168582
+        },
+        {
+          "site": "uniprot:P29728#sv3#K470#unimod:121",
+          "observation": "bzk:753025a7b1b6bc237c4078ea02737b06",
+          "log2fc": 4.376040984408657,
+          "p": 0.0008951147195928907,
+          "adj_p": 0.005854089917725862
+        }
+      ]
+    },
+    {
+      "gene": "IFIH1",
+      "status": "recovered",
+      "sites": [
+        {
+          "site": "uniprot:Q9BYX4#sv3#K726#unimod:121",
+          "observation": "bzk:d4e128239c8d8b4a1c8800fb8af6a685",
+          "log2fc": 6.073008557494749,
+          "p": 7.263631309439534e-05,
+          "adj_p": 0.0013371295485225148
+        }
+      ]
+    },
+    {
+      "gene": "STAT1",
+      "status": "recovered",
+      "sites": [
+        {
+          "site": "uniprot:P42224#sv2#K592#unimod:121",
+          "observation": "bzk:b3018d4cc5a105b0f41cf91aa8299bb2",
+          "log2fc": 1.2808240869128191,
+          "p": 0.33879039802469885,
+          "adj_p": 0.38645939875179214
+        },
+        {
+          "site": "uniprot:P42224#sv2#K410#unimod:121",
+          "observation": "bzk:48b049f120c17e52163352b6b52d59b1",
+          "log2fc": 5.574156563729826,
+          "p": 1.0432348193468134e-05,
+          "adj_p": 0.00047362860798345327
+        },
+        {
+          "site": "uniprot:P42224#sv2#K379#unimod:121",
+          "observation": "bzk:725f9ac5062a459cb3c9edbccc0c6222",
+          "log2fc": 5.996516216747889,
+          "p": 4.6717253246957205e-05,
+          "adj_p": 0.001097049981419926
+        },
+        {
+          "site": "uniprot:P42224#sv2#K201#unimod:121",
+          "observation": "bzk:0df8b33a40e8239ac5098d2e430203b8",
+          "log2fc": 1.2737864547353013,
+          "p": 0.16371663520355068,
+          "adj_p": 0.23056951277513718
+        }
+      ]
+    },
+    {
+      "gene": "PSMB9",
+      "status": "tested_not_recovered",
+      "sites": [
+        {
+          "site": "uniprot:P28065#sv2#K53#unimod:121",
+          "observation": "bzk:7fcef771b9641fab7ca8912e777ccb6a",
+          "log2fc": 1.4007282630495936,
+          "p": 0.0658237329669327,
+          "adj_p": 0.11479119628804396
+        }
+      ]
+    },
+    {
+      "gene": "PSMB10",
+      "status": "recovered",
+      "sites": [
+        {
+          "site": "uniprot:P40306#sv1#K31#unimod:121",
+          "observation": "bzk:439e2d949b6faa1396c1a8e980d86fd2",
+          "log2fc": 3.0321181375279096,
+          "p": 0.0011557129567676102,
+          "adj_p": 0.006755712648572897
+        }
+      ]
+    },
+    {
+      "gene": "PSMA7",
+      "status": "recovered",
+      "sites": [
+        {
+          "site": "uniprot:O14818#sv1#K28#unimod:121",
+          "observation": "bzk:d4cd58f7e49ca0c78d0957f288751ca7",
+          "log2fc": 3.535472539780738,
+          "p": 0.000851049932308661,
+          "adj_p": 0.005854089917725862
+        },
+        {
+          "site": "uniprot:O14818#sv1#K115#unimod:121",
+          "observation": "bzk:e2eed3a144fa9152f6934bdd91ae1116",
+          "log2fc": 3.7545984154180587,
+          "p": 0.005878604274250076,
+          "adj_p": 0.019092568148153372
+        }
+      ]
+    },
+    {
+      "gene": "PSME2",
+      "status": "recovered",
+      "sites": [
+        {
+          "site": "uniprot:Q9UL46#sv4#K15#unimod:121",
+          "observation": "bzk:87516320c695d6997699cd38b6a86c14",
+          "log2fc": 3.883939989570628,
+          "p": 0.018223201815987057,
+          "adj_p": 0.042354950295860706
+        }
+      ]
+    },
+    {
+      "gene": "TAP1",
+      "status": "recovered",
+      "sites": [
+        {
+          "site": "uniprot:A0A140T9T7#sv1#K458#unimod:121",
+          "observation": "bzk:409f56a654ea82094424dc520407dbdc",
+          "log2fc": 2.6054972667662,
+          "p": 0.0011764953624375796,
+          "adj_p": 0.006818666738893546
+        },
+        {
+          "site": "uniprot:A0A140T9T7#sv1#K449#unimod:121",
+          "observation": "bzk:2515263702b205bcf1d46cccd0c43063",
+          "log2fc": 2.3787326751153692,
+          "p": 0.0006035565694148511,
+          "adj_p": 0.0048450756604302096
+        }
+      ]
+    }
+  ]
+}

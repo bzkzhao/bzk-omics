@@ -137,6 +137,8 @@ class Populations:
     after_presence_rule: int
     tested: int
     significant_up: int
+    n_values_imputed: int
+    n_values_total: int
     targets_present: int
     targets_recovered: int
 
@@ -228,9 +230,13 @@ def platform_target_fixture(
             "unlike in the baseline fixture, because no analysis record holds this path's counts: "
             "data/curation/analysis_PXD018299_KOIFN_vs_WTIFN.json holds the notebook's, measured "
             "over a different population, so these counts have no other home and CLAUDE.md's "
-            "single-source-of-truth rule is not engaged. A site's statistics are null where the "
-            "arithmetic produced NaN, because a bare NaN is not JSON. Regenerate with `python -m "
-            "bzk.sources.pride && python -m bzk.sources.pxd018299_differential`."
+            "single-source-of-truth rule is not engaged. `n_values_imputed` and `n_values_total` "
+            "deliberately carry that record's own field names so the two paths' imputation can be "
+            "compared field-for-field; the values differ because the populations do — these count "
+            "the tested matrix of this path, at the replicate width of both arms. A site's "
+            "statistics are null where the arithmetic produced NaN, because a bare NaN is not "
+            "JSON. Regenerate with `python -m bzk.sources.pride && python -m "
+            "bzk.sources.pxd018299_differential`."
         ),
         "generated_by": "python -m bzk.sources.pxd018299_differential",
         "generated_under": {
@@ -339,6 +345,8 @@ def main() -> int:
         after_presence_rule=int(keep.sum()),
         tested=int(np.sum(~np.isnan(result.p_value))),
         significant_up=int(up.sum()),
+        n_values_imputed=imputed.n_values_imputed,
+        n_values_total=imputed.n_values_total,
         targets_present=len(present),
         targets_recovered=len(recovered),
     )
