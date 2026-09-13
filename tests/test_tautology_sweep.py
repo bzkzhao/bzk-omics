@@ -742,6 +742,11 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "{row.gene for row in rederived.targets} == set(expected)",
             1,
         ),
+        (
+            "test_pxd018299_platform_targets.py",
+            "{row['gene'] for row in _rows()} == set(EXPECTED_TARGETS)",
+            1,
+        ),
         ("test_raw_store.py", "again.path.read_bytes() == PAYLOAD", 1),
         ("test_raw_store.py", "content_hash(PAYLOAD) == f'sha256:{sha256_hex(PAYLOAD)}'", 1),
         (

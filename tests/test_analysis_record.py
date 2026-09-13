@@ -94,6 +94,9 @@ MENTIONS = {
     # analysis nobody here has repeated.
     "bzk/curation/analysis_record.py": "names a record in prose",
     "tests/test_analysis_record.py": "this module — it classifies both records' keys",
+    # Asserts that the platform fixture's note names the record it is *not* duplicating. The name
+    # appears only inside that assertion; nothing here opens the record or reads a key out of it.
+    "tests/test_pxd018299_platform_targets.py": "asserts a fixture note cites the record",
 }
 
 #: Per record, every key that record carries which no reader **of that record** reads, and why it is

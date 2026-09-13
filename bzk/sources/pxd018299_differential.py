@@ -61,11 +61,16 @@ which is the shape `HANDOFF.md` §8 catalogues three times over.
 
 from __future__ import annotations
 
+import json
+import math
+import platform
 import sys
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
+import scipy
 
 from bzk.adapters import maxquant
 from bzk.analysis import DeclaredRun, SiteResult, site_change_set
@@ -79,6 +84,19 @@ from bzk.stats import benjamini_hochberg, downshifted_normal, presence_filter, w
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CURATION = REPO_ROOT / "data" / "curation" / "curation_PXD018299.json"
+# Named `platform_targets`, never `welch_baseline`: `pxd018299_baseline.py` writes the notebook
+# transcription's per-target rows and this writes the platform path's, and the two are the pair the
+# whole slice exists to compare. A reader who mistook one for the other would be comparing a file
+# with itself, which is the shape `HANDOFF.md` §8 catalogues.
+FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "pxd018299_platform_targets.json"
+
+# The three `status` values a target can carry in the fixture. Three rather than a boolean because
+# "tested and did not clear the thresholds" and "never reached the tested population at all" are
+# different findings, and collapsing them is the silent-miss failure `HANDOFF.md` §6 records.
+STATUS_RECOVERED = "recovered"
+STATUS_TESTED_NOT_RECOVERED = "tested_not_recovered"
+STATUS_ABSENT_FROM_TESTED = "absent_from_tested"
+STATUS_VALUES = (STATUS_RECOVERED, STATUS_TESTED_NOT_RECOVERED, STATUS_ABSENT_FROM_TESTED)
 
 # Declared in `data/curation/analysis_PXD018299_KOIFN_vs_WTIFN.json`, which is a curation record —
 # a human statement of what was done — and therefore a legitimate input. Transcribed here rather
@@ -121,6 +139,108 @@ class Populations:
     significant_up: int
     targets_present: int
     targets_recovered: int
+
+
+@dataclass(frozen=True)
+class TestedSite:
+    """One tested row as the fixture records it. Every field is read, none is recomputed.
+
+    `site` is the `ModificationSite` key the adapter minted — `{ProteinSequence.id}#{residue}
+    {position}#{modification_type}` (§4) — so it names the sequence the row *resolved to*, after
+    the I17 promotion and the residue-drift check, rather than the accession the search reported.
+    `observation` is the `SiteObservation` the row became, which is what `RESULT_FOR_SITE` attaches
+    to in the graph; both are carried because they answer different questions and neither is
+    derivable from the other outside the adapter.
+
+    The three statistics are `null` where the arithmetic produced NaN. `json` writes a bare `NaN`,
+    which is not JSON and which no reader outside Python accepts; a NaN row is in the tested
+    population (it cleared the presence rule) and is never significant, since every comparison
+    against NaN is false. That is the module's own behaviour, recorded, not changed.
+    """
+
+    site: str | None
+    observation: str
+    log2fc: float | None
+    p: float | None
+    adj_p: float | None
+
+
+def _json_float(value: float) -> float | None:
+    """NaN as JSON `null`. See `TestedSite` for why the fixture may not carry a bare `NaN`."""
+    number = float(value)
+    return None if math.isnan(number) else number
+
+
+def platform_target_fixture(
+    pops: Populations,
+    *,
+    recovered: set[str],
+    present: set[str],
+    genes: list[set[str]],
+    tested: list[TestedSite],
+) -> dict[str, Any]:
+    """The committed record of which published targets the *platform* path recovers.
+
+    **`status` is read off `recovered` and `present` — the sets `main` already built — and is
+    never recomputed here.** A second computation of the same membership could disagree with the
+    figure the module prints three lines earlier, and a fixture that disagreed with the run that
+    wrote it would be worse than no fixture at all.
+
+    Every tested site for a target is recorded, in the order the rows were tested. No representative
+    site is picked. `pxd018299_baseline.py` picks one by largest log2 fold change because the
+    notebook did, and whether that rule is right is an open question on this project (`HANDOFF.md`
+    §5 expects a different rule to admit a different set); answering it silently inside a fixture
+    would settle it where nobody would look.
+    """
+    targets: list[dict[str, Any]] = []
+    for target in EXPECTED_TARGETS:
+        if target in recovered:
+            status = STATUS_RECOVERED
+        elif target in present:
+            status = STATUS_TESTED_NOT_RECOVERED
+        else:
+            status = STATUS_ABSENT_FROM_TESTED
+        targets.append(
+            {
+                "gene": target,
+                "status": status,
+                "sites": [
+                    asdict(site)
+                    for site, symbols in zip(tested, genes, strict=True)
+                    if target in symbols
+                ],
+            }
+        )
+    return {
+        "dataset": PXD018299_SITES.accession,
+        "file": PXD018299_SITES.filename,
+        "content_hash": PXD018299_SITES.expected_content_hash,
+        "path": "platform",
+        "note": (
+            "Which of the fourteen published ISGylation targets the PLATFORM path recovers, and "
+            "every tested site behind each verdict. The sibling file "
+            "pxd018299_welch_baseline.json records the notebook transcription's answer to the "
+            "same question; `path` distinguishes them and they are not interchangeable. A change "
+            "in these rows means the pipeline moved and needs explaining, not regenerating: the "
+            "recovery membership of this path is the thing under dispute, so a diff here is the "
+            "finding. No representative site is picked per target — which site represents a target "
+            "is an open question and this file does not answer it. `population` is recorded here, "
+            "unlike in the baseline fixture, because no analysis record holds this path's counts: "
+            "data/curation/analysis_PXD018299_KOIFN_vs_WTIFN.json holds the notebook's, measured "
+            "over a different population, so these counts have no other home and CLAUDE.md's "
+            "single-source-of-truth rule is not engaged. A site's statistics are null where the "
+            "arithmetic produced NaN, because a bare NaN is not JSON. Regenerate with `python -m "
+            "bzk.sources.pride && python -m bzk.sources.pxd018299_differential`."
+        ),
+        "generated_by": "python -m bzk.sources.pxd018299_differential",
+        "generated_under": {
+            "python": platform.python_version(),
+            "numpy": np.__version__,
+            "scipy": scipy.__version__,
+        },
+        "population": asdict(pops),
+        "targets": targets,
+    }
 
 
 def _intensity_columns(header: list[str], arm: str) -> list[int]:
@@ -278,6 +398,37 @@ def main() -> int:
                 adj_p_value=float(adjusted[i]),
             )
         )
+
+    # ── the per-target record into `tests/fixtures/` ────────────────────────────────────────────
+    #
+    # Placed here — after the loop above, before `open_graph` — deliberately. The fixture must not
+    # depend on a successful graph write, and nothing below it feeds these values; but the loop
+    # above is also the module's structural check that every tested row has a `SiteObservation`,
+    # and writing the fixture ahead of it would mean either duplicating that check or recording a
+    # row the module is about to refuse.
+    #
+    # The resolved site id comes off the adapter's own `MEASURED_AT` edges rather than being
+    # re-keyed here, for the reason `SiteIngestReport.observation_of_row` exists: the adapter is
+    # the only place that knows which sequence a row resolved to, and a second derivation of that
+    # identity outside it is a second source of truth for identity.
+    site_of_observation = {
+        str(edge["from"]): str(edge["to"]) for edge in parsed.edges if edge["type"] == "MEASURED_AT"
+    }
+    tested_sites = [
+        TestedSite(
+            site=site_of_observation.get(r.observation_id),
+            observation=r.observation_id,
+            log2fc=_json_float(r.log2fc),
+            p=_json_float(r.p_value),
+            adj_p=_json_float(r.adj_p_value),
+        )
+        for r in results
+    ]
+    fixture = platform_target_fixture(
+        pops, recovered=recovered, present=present, genes=genes, tested=tested_sites
+    )
+    FIXTURE_PATH.write_text(json.dumps(fixture, indent=2) + "\n")
+    print(f"[4b] wrote {FIXTURE_PATH}")
 
     # The slice of the ingestion change-set the results attach to. Taken from the adapter's output
     # rather than re-keyed: `store.write_change_set` reads endpoint labels off the batch's own
