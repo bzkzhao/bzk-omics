@@ -22,6 +22,15 @@ Two kinds of check here, and they are not equally strong — saying so is the po
 `raw/` does not survive a container (`HANDOFF.md` §3), so the re-derivation skips rather than fails
 when the deposit is absent. A test that went red on every fresh session would teach sessions to
 ignore it.
+
+**The candidate sites are a second record of the same run, and the checks below are what keeps the
+two from drifting apart.** Each entry's scalar fields are the row `idxmax` selected; each entry's
+`sites` is every row it selected *from*. Nothing marks which site is the selection, so the guards
+re-derive the link — the selected row must appear among the candidates, and must be the largest
+`log2fc` among them. That is the `idxmax` rule asserted against the recorded population rather than
+restated as a sentence. What is deliberately **not** here is a pinned list of which sites exist:
+membership is being recorded for the first time and a list written today would be written from
+prose, which is the `Protein names` failure in a different costume.
 """
 
 from __future__ import annotations
@@ -153,6 +162,103 @@ def test_fixture_records_the_environment_it_was_generated_under() -> None:
 
 
 # --------------------------------------------------------------------------------------------
+# Offline: the candidates each selection was made from
+# --------------------------------------------------------------------------------------------
+
+
+def test_every_target_records_the_candidates_it_was_selected_from() -> None:
+    """A target with sites must record them; only a target with none may record none.
+
+    The exception is stated rather than left silent, and it is not reachable today:
+    `test_every_target_was_detected` pins all fourteen at `n_sites > 0`, so an empty `sites` here
+    means the record was written without them, not that the deposit lost a gene. Both failures are
+    real and they are different, which is why the branch exists instead of a blanket non-empty.
+    """
+    for row in _rows():
+        if row["n_sites"] == 0:
+            assert row["sites"] == [], row["gene"]
+            continue
+        assert row["sites"], row["gene"]
+
+
+def test_every_recorded_site_carries_the_six_fields() -> None:
+    """Exactly six, no more: a field marking the selection is the thing this must not grow.
+
+    The entry's own `position`, `log2fc`, `p` and `adj_p` already identify the selected row among
+    the candidates — `test_the_pinned_row_is_one_of_the_recorded_candidates` is that link. A flag
+    beside it would be a second, derived claim about the same fact, free to disagree with the first.
+
+    `protein` is the sixth, and it is not that: it is the accession the candidate's **own** row
+    reported, which is what a `position` is read against. It says nothing about which row won.
+    """
+    for row in _rows():
+        gene = row["gene"]
+        for site in row["sites"]:
+            assert {"protein", "position", "loc_prob", "log2fc", "p", "adj_p"} == set(site), gene
+
+
+def test_the_pinned_row_is_one_of_the_recorded_candidates() -> None:
+    """The selection must be one of the candidates. This is the guard against the two drifting apart.
+
+    Both records come out of the same `hits` frame, so equality is exact rather than approximate:
+    the entry's floats and the matching candidate's floats are the same Python floats, written by
+    the same `json.dumps`. A tolerance here would hide exactly the swap it is meant to catch — a
+    regenerated `sites` beside a stale pinned row, or the reverse.
+    """
+    for row in _rows():
+        if row["n_sites"] == 0:
+            continue
+        assert any(
+            site["position"] == row["position"]
+            and site["log2fc"] == row["log2fc"]
+            and site["p"] == row["p"]
+            and site["adj_p"] == row["adj_p"]
+            for site in row["sites"]
+        ), row["gene"]
+
+
+def test_the_pinned_row_is_the_largest_log2fc_among_the_recorded_candidates() -> None:
+    """`hits.loc[hits["log2fc"].idxmax()]`, asserted against the recorded population.
+
+    This is the one check that makes `sites` more than a list beside a row: it re-runs the selection
+    rule over what is committed instead of trusting the sentence in the fixture note. A candidate
+    set that quietly excluded the losers would still satisfy the membership check above and fails
+    here the moment it excludes a winner.
+
+    Candidates whose `log2fc` is null are skipped, not treated as losers: `max` over `None` raises,
+    and a NaN never wins a comparison in the run either, so dropping them records the pipeline's own
+    behaviour rather than changing it.
+    """
+    for row in _rows():
+        if row["n_sites"] == 0:
+            continue
+        values = [site["log2fc"] for site in row["sites"] if site["log2fc"] is not None]
+        assert row["log2fc"] == max(values), row["gene"]
+
+
+def test_n_sites_counts_the_recorded_candidates() -> None:
+    """`n_sites` was the only trace of the candidate population before `sites` existed.
+
+    Now there are two records of it and they must agree. A `sites` list truncated by a serialisation
+    bug, or an `n_sites` left behind by a hand-edit, shows up here and nowhere else.
+    """
+    for row in _rows():
+        assert row["n_sites"] == len(row["sites"]), row["gene"]
+
+
+def test_no_recorded_statistic_is_a_bare_nan() -> None:
+    """`json` writes a bare `NaN`, which is not JSON and which no reader outside Python accepts.
+
+    Checked by re-serialising the rows rather than by reading the file text: `json.loads` accepts a
+    bare `NaN` and `json.dumps` writes it back, so a round trip reproduces the token exactly when
+    the committed file carries one. The file text cannot be used — the fixture's own note spells
+    the word while explaining the rule, and a check that the note's wording could break is a check
+    that gets loosened rather than obeyed.
+    """
+    assert "NaN" not in json.dumps(_fixture()["targets"])
+
+
+# --------------------------------------------------------------------------------------------
 # Re-derivation: needs the deposit in raw/
 # --------------------------------------------------------------------------------------------
 
@@ -186,6 +292,12 @@ def test_rederivation_reproduces_the_fixture_rows(rederived: Baseline) -> None:
 
     Verdicts and identifiers exactly; floats to `FLOAT_RTOL`. A failure here means the seeded
     imputation or the test moved under a dependency upgrade, which is the reason pandas is pinned.
+
+    The candidate sites are compared **positionally**, because their order is part of what is
+    recorded — `sites` is in the order the rows were tested, and a run that produced the same set in
+    a different order would be a run whose row order moved. `None` is compared identically rather
+    than approximately: `pytest.approx(None)` is not a comparison, and a null that became a number
+    or the reverse is a change in the record, not a tolerance question.
     """
     expected = {row["gene"]: row for row in _rows()}
     assert {row.gene for row in rederived.targets} == set(expected)
@@ -200,3 +312,13 @@ def test_rederivation_reproduces_the_fixture_rows(rederived: Baseline) -> None:
             assert getattr(row, field) == pytest.approx(want[field], rel=FLOAT_RTOL), (
                 f"{row.gene}.{field}"
             )
+        assert len(row.sites) == len(want["sites"]), row.gene
+        for index, (site, recorded) in enumerate(zip(row.sites, want["sites"], strict=True)):
+            assert site.position == recorded["position"], f"{row.gene}.sites[{index}].position"
+            for field in ("loc_prob", "log2fc", "p", "adj_p"):
+                value, pinned = getattr(site, field), recorded[field]
+                where = f"{row.gene}.sites[{index}].{field}"
+                if value is None or pinned is None:
+                    assert value is pinned, where
+                    continue
+                assert value == pytest.approx(pinned, rel=FLOAT_RTOL), where

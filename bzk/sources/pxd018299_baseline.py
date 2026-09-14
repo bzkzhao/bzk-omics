@@ -29,6 +29,7 @@ memory and never persisted (`ROADMAP.md` § Deposit and supplementary survey).
 from __future__ import annotations
 
 import json
+import math
 import platform
 import sys
 from dataclasses import asdict, dataclass
@@ -71,12 +72,56 @@ FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "pxd018299_welch_baseline.json
 
 
 @dataclass(frozen=True)
+class CandidateSite:
+    """One row the target's selection was made from, as the fixture records it.
+
+    Six fields, read off the tested frame and none recomputed. Recording them is what makes the
+    selection checkable: a `TargetRow` alone says which site won and nothing about what it won
+    against, so the two paths cannot be compared site by site from committed data.
+
+    `protein` is the accession that row's own search reported — `res["protein"]`, the razor pick
+    for that row, not the target's. `hits` is selected by gene symbol, so a target's candidates
+    need not share one accession, and without this a `position` would be a number with no frame to
+    read it against. `TargetRow.protein` names the accession for the **selected** row; this names
+    it for every row, the selected one included.
+
+    `position` is the deposit's own `Position` for that row, in the coordinate frame of the
+    `protein` beside it — not resolved, not promoted, not converted to canonical coordinates. The
+    platform path keys sites against the sequence the row *resolved to*, and the difference between
+    the two keyings is a finding; a record that harmonised them would erase it.
+
+    `log2fc`, `p` and `adj_p` are `null` where the arithmetic produced NaN: `json` writes a bare
+    `NaN`, which is not JSON and which no reader outside Python accepts. The row is in the tested
+    population either way — it cleared the presence rule — and is never significant, since every
+    comparison against NaN is false. That is the pipeline's own behaviour, recorded, not changed.
+    `protein` and `position` are `null` on the same principle where the deposit has no value: the
+    unguarded `str()` that builds `TargetRow.protein` would write the string `"nan"`, which reads
+    as an accession and is not one.
+
+    **Nothing marks which of these the selection picked.** `TargetRow`'s own fields identify it
+    among them, and a second marker would be a derived claim that could disagree with the first.
+    """
+
+    protein: str | None
+    position: int | None
+    loc_prob: float | None
+    log2fc: float | None
+    p: float | None
+    adj_p: float | None
+
+
+@dataclass(frozen=True)
 class TargetRow:
     """One published target, at its best site by log2 fold change.
 
     `recovered` is the claim; the floats are the diagnostics behind it. A target the deposit does
     not contain at all keeps `n_sites = 0` and leaves the rest null rather than being dropped —
     a missing row and a row that failed the thresholds are different findings.
+
+    `sites` is every candidate that survived to the tested population for this target — every row
+    the selection chose among, in the order the rows were tested — and `n_sites` is its length. The
+    scalar fields above are the selected row's; they are not removed or recomputed, and the
+    selection rule is untouched.
     """
 
     gene: str
@@ -89,6 +134,7 @@ class TargetRow:
     p: float | None = None
     adj_p: float | None = None
     n_candidate_proteins: int | None = None
+    sites: tuple[CandidateSite, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -119,6 +165,32 @@ def benjamini_hochberg(p: Any) -> Any:
     res_[order] = np.clip(adj, 0, 1)
     out[ok] = res_
     return out
+
+
+def _json_float(value: Any) -> float | None:
+    """NaN as JSON `null`. See `CandidateSite` for why the fixture may not carry a bare `NaN`."""
+    number = float(value)
+    return None if math.isnan(number) else number
+
+
+def _candidate_sites(hits: Any) -> tuple[CandidateSite, ...]:
+    """Every row the selection is made from, in the order the rows were tested.
+
+    Read off `hits` — the same frame `idxmax` indexes into, one line later — so the two records
+    cannot come from different populations. No filter, no re-ordering, nothing recomputed: this
+    records rows that already exist, which is the whole of what it does.
+    """
+    return tuple(
+        CandidateSite(
+            protein=None if pd.isna(row.protein) else str(row.protein),
+            position=None if pd.isna(row.position) else int(row.position),
+            loc_prob=_json_float(row.loc_prob),
+            log2fc=_json_float(row.log2fc),
+            p=_json_float(row.p),
+            adj_p=_json_float(row.adj_p),
+        )
+        for row in hits.itertuples()
+    )
 
 
 def derive(path: Path) -> Baseline:
@@ -191,6 +263,7 @@ def derive(path: Path) -> Baseline:
                 p=float(best["p"]),
                 adj_p=float(best["adj_p"]),
                 n_candidate_proteins=int(best["n_candidate_proteins"]),
+                sites=_candidate_sites(hits),
             )
         )
 
@@ -211,7 +284,11 @@ def deposit_path() -> Path:
 
 
 def as_fixture(baseline: Baseline) -> dict[str, Any]:
-    """The committed fixture: provenance, then the fourteen rows. No counts — see the docstring."""
+    """The committed fixture: provenance, then the fourteen rows. No counts — see the docstring.
+
+    `asdict` carries `TargetRow.sites` through as a list of objects; nothing is flattened, dropped
+    or re-ordered here, and no field is added that `derive` did not produce.
+    """
     return {
         "dataset": PXD018299_SITES.accession,
         "file": PXD018299_SITES.filename,
@@ -223,6 +300,19 @@ def as_fixture(baseline: Baseline) -> dict[str, Any]:
             "data/curation/analysis_PXD018299_KOIFN_vs_WTIFN.json and are read from there, not "
             "restated here. ADAR and PSMB9 are pinned as recovered=false on purpose — a change "
             "that raises the count to 13 or 14 must fail and be explained, not quietly pass. "
+            "Each target's `sites` carries every candidate that survived to the tested population "
+            "for that target — every row the selection chose among, in the order the rows were "
+            "tested — and no site is marked as the selection: the entry's own position, log2fc, p "
+            "and adj_p identify it among them, and a second marker could disagree with the first. "
+            "The pinned row remains the `hits.loc[hits['log2fc'].idxmax()]` selection, unchanged. "
+            "Each site carries the accession its own row reported — the razor pick for that row, "
+            "which need not be the target's, since candidates are selected by gene symbol — and "
+            "the entry's own `protein` names the selected row's. Positions are recorded exactly as "
+            "the baseline reports them, in the coordinate frame of the accession beside them, and "
+            "are not resolved or converted to canonical coordinates — the platform path keys sites "
+            "against the sequence the row resolved to, and the difference between the two keyings "
+            "is the finding. A site's statistics are null where the arithmetic produced NaN, "
+            "because a bare NaN is not JSON. "
             "Regenerate with `python -m bzk.sources.pride && python -m bzk.sources.pxd018299_"
             "baseline`."
         ),

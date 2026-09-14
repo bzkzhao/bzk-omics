@@ -720,6 +720,49 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "m['multi_fraction'] == pytest.approx(m['multi_accession'] / m['rows'], abs=5e-05)",
             1,
         ),
+        # ── the four added with the baseline's per-target candidate sites ─────────────────────
+        # **None is an instance, and the reason is the same for all four: the fixture now carries
+        # two records of one run — each entry's selected row, and the `sites` it was selected
+        # from — and every one of these compares one against the other.** A call appears on one
+        # side because counting or maximising is how the comparison is written, not because the
+        # call re-derives the side it is compared to.
+        #
+        # **What each is exposed to, since "not an instance" is not "not vacuous":**
+        #
+        # `row['n_sites'] == len(row['sites'])` — the weakest of the four and pinned as such.
+        # `derive()` sets both from the same `hits` frame, so it cannot fail while the generator
+        # is correct; what it catches is a hand-edit to one record and not the other, or a write
+        # that truncated `sites`. It is not load-bearing for the selection rule and is not
+        # claimed to be.
+        #
+        # `row['log2fc'] == max(values)` — the strongest. The left side was chosen by
+        # `hits.loc[hits['log2fc'].idxmax()]` when the fixture was written; the right re-runs
+        # that rule at assert time over the *other* record. A candidate set that quietly dropped
+        # the losers would still satisfy the membership check beside it and reddens here the
+        # moment it drops a winner. Neither side is computed from the other.
+        #
+        # `len(row.sites) == len(want['sites'])` and
+        # `value == pytest.approx(pinned, rel=FLOAT_RTOL)` — both inside the re-derivation test,
+        # which the module's own docstring already classifies: the fixture was written by the
+        # function being compared to it, so this half is a determinism and dependency-drift check
+        # and not a regression check. The second is the same shape as the `getattr(...)` entry
+        # directly above, one level down into `sites`.
+        #
+        # **Occurrences read off `sweep()` rather than counted by eye: one each.** The two inside
+        # the re-derivation test were **not** exercised in the turn that wrote them — the deposit
+        # is not in `raw/`, so that test skips — and no mutation confirms them here.
+        (
+            "test_pxd018299_baseline.py",
+            "row['n_sites'] == len(row['sites'])",
+            1,
+        ),
+        ("test_pxd018299_baseline.py", "row['log2fc'] == max(values)", 1),
+        ("test_pxd018299_baseline.py", "len(row.sites) == len(want['sites'])", 1),
+        (
+            "test_pxd018299_baseline.py",
+            "value == pytest.approx(pinned, rel=FLOAT_RTOL)",
+            1,
+        ),
         (
             "test_pxd018299_baseline.py",
             "getattr(row, field) == pytest.approx(want[field], rel=FLOAT_RTOL)",
