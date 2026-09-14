@@ -790,6 +790,34 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "{row['gene'] for row in _rows()} == set(EXPECTED_TARGETS)",
             1,
         ),
+        # ── tests/test_pxd018299_refusals.py, classified individually 2026-09-14 ──────────────
+        # **Two matches, neither an instance, and the distinction is which key of the file each
+        # side reads.** `pxd018299_refusals.py` writes one JSON object holding `counts` and
+        # `refusals`; `_counts()` reads the first off disk and the other side recomputes the same
+        # summary from the second. Both sides come out of the same file, which is exactly why they
+        # are worth comparing — `refusal_fixture` builds them from one list, so a file whose halves
+        # disagree was not produced by a single run of it. Neither call re-derives the other side
+        # at assert time, which is the call-equals-its-own-expression class `INSTANCES` records.
+        #
+        # **No mutation confirms either one here, and that is a property of the container rather
+        # than of the assertions.** The fixture is generated from the deposit, `raw/` does not
+        # survive a container (`HANDOFF.md` §3), and this run was explicitly forbidden from
+        # hand-writing the file — so both assertions error on a missing fixture rather than
+        # passing, and there is no green state to mutate away from. The same is already true of
+        # the two `test_pxd018299_baseline.py` entries inside its re-derivation test, recorded
+        # directly above in the same terms.
+        #
+        # **The residual exposure is emptiness, and it is accepted rather than closed.** A fixture
+        # carrying `counts: {}` and `refusals: []` satisfies both. No guard forces a non-empty
+        # record, deliberately: a deposit that refused nothing is a legitimate outcome
+        # (`HANDOFF.md` §3 — report it even if it is zero), and a floor written today would be a
+        # floor written from `ROADMAP.md`'s 27 rather than from a measurement, which is the one
+        # thing the fixture exists to stop. The vocabulary and deposit-row checks in that module
+        # are vacuous on an empty file for the same reason and say so.
+        #
+        # **Occurrences read off `sweep()`: one each.**
+        ("test_pxd018299_refusals.py", "_counts() == recounted", 1),
+        ("test_pxd018299_refusals.py", "len(_refusals()) == sum(_counts().values())", 1),
         ("test_raw_store.py", "again.path.read_bytes() == PAYLOAD", 1),
         ("test_raw_store.py", "content_hash(PAYLOAD) == f'sha256:{sha256_hex(PAYLOAD)}'", 1),
         (
