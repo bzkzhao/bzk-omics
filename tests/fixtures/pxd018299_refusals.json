@@ -1,0 +1,152 @@
+{
+  "dataset": "PXD018299",
+  "file": "HAP1_USP18KO_GlyGlyKSites.txt",
+  "content_hash": "sha256:a4a503e39581334c3553d3631456ad8aca22e193ba928810f6d46fde15622009",
+  "note": "Every row the PXD018299 ingestion refused, individually: its MaxQuant `id`, the reason slug, and the detail the adapter constructed. This is the only record of refusal MEMBERSHIP anywhere \u2014 a refusal is not an entity, nothing is written to the graph, and query.refusals answers NOT_RETAINED, so after an ingestion the counts survive on the adapter's report and which rows they were does not. The accession sits inside `detail` and is deliberately not lifted into a field of its own: it is not a field on adapters.base.Refusal, and parsing it back out of a sentence written for a human would record a derivation as a measurement. No gene symbol is recorded because none is available where a Refusal is constructed. `counts` is computed from `refusals` below, never restated from the adapter's report or from any document. The refusals are in the order the parse returned them and are not grouped or sorted. A change in these rows means the reference data moved \u2014 UniProt amended a sequence, or the deposit's bytes changed \u2014 and needs explaining, not regenerating: which rows drifted is the finding, so a diff here is the result rather than noise. Regenerate with `python -m bzk.sources.pride && python -m bzk.sources.pxd018299_refusals`.",
+  "generated_by": "python -m bzk.sources.pxd018299_refusals",
+  "generated_under": {
+    "python": "3.12.14"
+  },
+  "counts": {
+    "no_razor_pick": 1,
+    "residue_mismatch": 15,
+    "unresolved_protein": 11
+  },
+  "refusals": [
+    {
+      "row": "12",
+      "reason": "residue_mismatch",
+      "detail": "A0A087WY75 position 122: the search reported 'K', uniprot:A0A087WY75#sv3 has 'L'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "39",
+      "reason": "unresolved_protein",
+      "detail": "A0A087WV88 has no usable sequence: no sequence_version, so no ProteinSequence can be keyed (I2). Without a sequence version the site's position has no meaning (I2)."
+    },
+    {
+      "row": "52",
+      "reason": "unresolved_protein",
+      "detail": "A0A087WY00 has no usable sequence: no sequence_version, so no ProteinSequence can be keyed (I2). Without a sequence version the site's position has no meaning (I2)."
+    },
+    {
+      "row": "83",
+      "reason": "residue_mismatch",
+      "detail": "S4R418 position 123: the search reported 'K', uniprot:S4R418#sv3 has 'D'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "98",
+      "reason": "residue_mismatch",
+      "detail": "A0A087X279 position 255: the search reported 'K', uniprot:A0A087X279#sv2 has 'nothing (past the end)'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "106",
+      "reason": "unresolved_protein",
+      "detail": "A0A096LP26 has no usable sequence: no sequence_version, so no ProteinSequence can be keyed (I2). Without a sequence version the site's position has no meaning (I2)."
+    },
+    {
+      "row": "107",
+      "reason": "unresolved_protein",
+      "detail": "A0A096LP26 has no usable sequence: no sequence_version, so no ProteinSequence can be keyed (I2). Without a sequence version the site's position has no meaning (I2)."
+    },
+    {
+      "row": "108",
+      "reason": "unresolved_protein",
+      "detail": "A0A096LP26 has no usable sequence: no sequence_version, so no ProteinSequence can be keyed (I2). Without a sequence version the site's position has no meaning (I2)."
+    },
+    {
+      "row": "109",
+      "reason": "unresolved_protein",
+      "detail": "A0A096LP26 has no usable sequence: no sequence_version, so no ProteinSequence can be keyed (I2). Without a sequence version the site's position has no meaning (I2)."
+    },
+    {
+      "row": "180",
+      "reason": "unresolved_protein",
+      "detail": "H0YAC6 has no usable sequence: no sequence_version, so no ProteinSequence can be keyed (I2). Without a sequence version the site's position has no meaning (I2)."
+    },
+    {
+      "row": "235",
+      "reason": "residue_mismatch",
+      "detail": "A6NNN6 position 730: the search reported 'K', uniprot:A6NNN6#sv6 has 'A'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "236",
+      "reason": "residue_mismatch",
+      "detail": "A6NNN6 position 739: the search reported 'K', uniprot:A6NNN6#sv6 has 'L'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "414",
+      "reason": "unresolved_protein",
+      "detail": "E7EQR4 has no usable sequence: no sequence_version, so no ProteinSequence can be keyed (I2). Without a sequence version the site's position has no meaning (I2)."
+    },
+    {
+      "row": "415",
+      "reason": "unresolved_protein",
+      "detail": "E7EQR4 has no usable sequence: no sequence_version, so no ProteinSequence can be keyed (I2). Without a sequence version the site's position has no meaning (I2)."
+    },
+    {
+      "row": "534",
+      "reason": "residue_mismatch",
+      "detail": "H0YI20 position 195: the search reported 'K', uniprot:H0YI20#sv1 has 'P'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "536",
+      "reason": "residue_mismatch",
+      "detail": "H0YI20 position 209: the search reported 'K', uniprot:H0YI20#sv1 has 'nothing (past the end)'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "539",
+      "reason": "unresolved_protein",
+      "detail": "F8W8V9 has no usable sequence: no sequence_version, so no ProteinSequence can be keyed (I2). Without a sequence version the site's position has no meaning (I2)."
+    },
+    {
+      "row": "1319",
+      "reason": "no_razor_pick",
+      "detail": "`Protein` is empty (candidates 'P31946-2;P31946;Q4VY20;Q4VY19;A0A0J9YWE8;P31947-2;P31947'). MaxQuant declined to pick, and a ModificationSite key composes exactly one ProteinSequence (\u00a74); choosing for it would invent the inference it withheld."
+    },
+    {
+      "row": "1459",
+      "reason": "residue_mismatch",
+      "detail": "P49411 position 88: the search reported 'K', uniprot:P49411#sv3 has 'G'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "1460",
+      "reason": "residue_mismatch",
+      "detail": "P49411 position 286: the search reported 'K', uniprot:P49411#sv3 has 'I'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "1552",
+      "reason": "unresolved_protein",
+      "detail": "Q5SQP8 has no usable sequence: no sequence_version, so no ProteinSequence can be keyed (I2). Without a sequence version the site's position has no meaning (I2)."
+    },
+    {
+      "row": "1921",
+      "reason": "residue_mismatch",
+      "detail": "Q6ZW33 position 534: the search reported 'K', uniprot:Q6ZW33#sv2 has 'Q'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "2144",
+      "reason": "residue_mismatch",
+      "detail": "Q9BYK8 position 1441: the search reported 'K', uniprot:Q9BYK8#sv7 has 'V'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "2146",
+      "reason": "residue_mismatch",
+      "detail": "Q9BYK8 position 2152: the search reported 'K', uniprot:Q9BYK8#sv7 has 'V'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "2147",
+      "reason": "residue_mismatch",
+      "detail": "Q9BYK8 position 1196: the search reported 'K', uniprot:Q9BYK8#sv7 has 'E'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "2148",
+      "reason": "residue_mismatch",
+      "detail": "Q9BYK8 position 1322: the search reported 'K', uniprot:Q9BYK8#sv7 has 'L'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "2215",
+      "reason": "residue_mismatch",
+      "detail": "Q9NZL4 position 248: the search reported 'K', uniprot:Q9NZL4#sv2 has 'V'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    }
+  ]
+}
