@@ -2,10 +2,10 @@
   "dataset": "PXD018299",
   "file": "HAP1_USP18KO_GlyGlyKSites.txt",
   "content_hash": "sha256:a4a503e39581334c3553d3631456ad8aca22e193ba928810f6d46fde15622009",
-  "note": "Per-site rows for the fourteen published ISGylation targets, at each target's best site by log2 fold change, under the welch_t + BH baseline (HANDOFF.md \u00a75). Rows only: n_sites_tested, n_significant_up and n_expected_recovered live in data/curation/analysis_PXD018299_KOIFN_vs_WTIFN.json and are read from there, not restated here. ADAR and PSMB9 are pinned as recovered=false on purpose \u2014 a change that raises the count to 13 or 14 must fail and be explained, not quietly pass. Regenerate with `python -m bzk.sources.pride && python -m bzk.sources.pxd018299_baseline`.",
+  "note": "Per-site rows for the fourteen published ISGylation targets, at each target's best site by log2 fold change, under the welch_t + BH baseline (HANDOFF.md \u00a75). Rows only: n_sites_tested, n_significant_up and n_expected_recovered live in data/curation/analysis_PXD018299_KOIFN_vs_WTIFN.json and are read from there, not restated here. ADAR and PSMB9 are pinned as recovered=false on purpose \u2014 a change that raises the count to 13 or 14 must fail and be explained, not quietly pass. Each target's `sites` carries every candidate that survived to the tested population for that target \u2014 every row the selection chose among, in the order the rows were tested \u2014 and no site is marked as the selection: the entry's own position, log2fc, p and adj_p identify it among them, and a second marker could disagree with the first. The pinned row remains the `hits.loc[hits['log2fc'].idxmax()]` selection, unchanged. Each site carries the accession its own row reported \u2014 the razor pick for that row, which need not be the target's, since candidates are selected by gene symbol \u2014 and the entry's own `protein` names the selected row's. Positions are recorded exactly as the baseline reports them, in the coordinate frame of the accession beside them, and are not resolved or converted to canonical coordinates \u2014 the platform path keys sites against the sequence the row resolved to, and the difference between the two keyings is the finding. A site's statistics are null where the arithmetic produced NaN, because a bare NaN is not JSON. Regenerate with `python -m bzk.sources.pride && python -m bzk.sources.pxd018299_baseline`.",
   "generated_by": "python -m bzk.sources.pxd018299_baseline",
   "generated_under": {
-    "python": "3.12.3",
+    "python": "3.12.14",
     "pandas": "3.0.5",
     "numpy": "2.5.1",
     "scipy": "1.18.0"
@@ -22,7 +22,41 @@
       "log2fc": 2.4551929786728337,
       "p": 0.17362003554254957,
       "adj_p": 0.24138275922245264,
-      "n_candidate_proteins": 6
+      "n_candidate_proteins": 6,
+      "sites": [
+        {
+          "protein": "H0YCK3",
+          "position": 758,
+          "loc_prob": 1.0,
+          "log2fc": 0.45705748212917285,
+          "p": 0.27100578643165674,
+          "adj_p": 0.32095861872827564
+        },
+        {
+          "protein": "H0YCK3",
+          "position": 965,
+          "loc_prob": 0.995254,
+          "log2fc": 2.4551929786728337,
+          "p": 0.17362003554254957,
+          "adj_p": 0.24138275922245264
+        },
+        {
+          "protein": "H0YCK3",
+          "position": 632,
+          "loc_prob": 0.999956,
+          "log2fc": 2.142885398100642,
+          "p": 0.19969653288859707,
+          "adj_p": 0.26031039958987373
+        },
+        {
+          "protein": "H0YCK3",
+          "position": 793,
+          "loc_prob": 1.0,
+          "log2fc": 1.1696093517536816,
+          "p": 0.005451515906833756,
+          "adj_p": 0.01788981950333273
+        }
+      ]
     },
     {
       "gene": "EIF2AK2",
@@ -32,9 +66,67 @@
       "position": 426,
       "loc_prob": 0.996807,
       "log2fc": 4.947441100814093,
-      "p": 2.1926735208401303e-05,
-      "adj_p": 0.0009011490135487267,
-      "n_candidate_proteins": 2
+      "p": 2.192673520840131e-05,
+      "adj_p": 0.0009011490135487259,
+      "n_candidate_proteins": 2,
+      "sites": [
+        {
+          "protein": "P19525",
+          "position": 426,
+          "loc_prob": 0.996807,
+          "log2fc": 4.947441100814093,
+          "p": 2.192673520840131e-05,
+          "adj_p": 0.0009011490135487259
+        },
+        {
+          "protein": "P19525",
+          "position": 283,
+          "loc_prob": 0.927908,
+          "log2fc": 1.3294113723491812,
+          "p": 0.3534762098497416,
+          "adj_p": 0.3948251734714823
+        },
+        {
+          "protein": "P19525",
+          "position": 291,
+          "loc_prob": 0.999998,
+          "log2fc": 1.0965258374807334,
+          "p": 0.2399775746894282,
+          "adj_p": 0.295406593731391
+        },
+        {
+          "protein": "P19525",
+          "position": 440,
+          "loc_prob": 0.909676,
+          "log2fc": 2.645702049183811,
+          "p": 0.12079136351671188,
+          "adj_p": 0.1887365054948623
+        },
+        {
+          "protein": "P19525",
+          "position": 444,
+          "loc_prob": 0.986796,
+          "log2fc": 1.2129064714328166,
+          "p": 0.0773835958233527,
+          "adj_p": 0.13136104229272835
+        },
+        {
+          "protein": "P19525",
+          "position": 521,
+          "loc_prob": 0.898286,
+          "log2fc": 2.930736673589731,
+          "p": 0.004609505714452338,
+          "adj_p": 0.016335232879824652
+        },
+        {
+          "protein": "P19525",
+          "position": 304,
+          "loc_prob": 1.0,
+          "log2fc": 4.786573763236412,
+          "p": 0.007010854364242922,
+          "adj_p": 0.02104787063500877
+        }
+      ]
     },
     {
       "gene": "DDX58",
@@ -46,7 +138,41 @@
       "log2fc": 3.0918580648893084,
       "p": 0.00025762477996894243,
       "adj_p": 0.0030537420039422054,
-      "n_candidate_proteins": 3
+      "n_candidate_proteins": 3,
+      "sites": [
+        {
+          "protein": "O95786-2",
+          "position": 213,
+          "loc_prob": 1.0,
+          "log2fc": 2.574724214486764,
+          "p": 0.003161084246247111,
+          "adj_p": 0.012746307444544802
+        },
+        {
+          "protein": "O95786-2",
+          "position": 413,
+          "loc_prob": 0.907779,
+          "log2fc": 2.1275507586500204,
+          "p": 0.08112145706684892,
+          "adj_p": 0.13652632003294646
+        },
+        {
+          "protein": "O95786-2",
+          "position": 267,
+          "loc_prob": 1.0,
+          "log2fc": 3.0918580648893084,
+          "p": 0.00025762477996894243,
+          "adj_p": 0.0030537420039422054
+        },
+        {
+          "protein": "O95786-2",
+          "position": 127,
+          "loc_prob": 0.999997,
+          "log2fc": 3.0281753043901354,
+          "p": 0.00039441648848265756,
+          "adj_p": 0.003772541753073599
+        }
+      ]
     },
     {
       "gene": "DDX60",
@@ -58,7 +184,41 @@
       "log2fc": 2.6264715857243672,
       "p": 0.0011417053470548068,
       "adj_p": 0.007201123175231006,
-      "n_candidate_proteins": 1
+      "n_candidate_proteins": 1,
+      "sites": [
+        {
+          "protein": "Q8IY21",
+          "position": 1352,
+          "loc_prob": 1.0,
+          "log2fc": 2.0662775344797275,
+          "p": 0.12888487333312243,
+          "adj_p": 0.19677811901462713
+        },
+        {
+          "protein": "Q8IY21",
+          "position": 728,
+          "loc_prob": 1.0,
+          "log2fc": 2.419110073928479,
+          "p": 0.002045339337001794,
+          "adj_p": 0.009664404083771363
+        },
+        {
+          "protein": "Q8IY21",
+          "position": 534,
+          "loc_prob": 1.0,
+          "log2fc": 2.6264715857243672,
+          "p": 0.0011417053470548068,
+          "adj_p": 0.007201123175231006
+        },
+        {
+          "protein": "Q8IY21",
+          "position": 434,
+          "loc_prob": 1.0,
+          "log2fc": 1.5366709155992453,
+          "p": 0.12363519609705648,
+          "adj_p": 0.19122429092626844
+        }
+      ]
     },
     {
       "gene": "DHX58",
@@ -68,9 +228,19 @@
       "position": 39,
       "loc_prob": 1.0,
       "log2fc": 3.0571042230231207,
-      "p": 0.013261095989485387,
-      "adj_p": 0.03204570647722743,
-      "n_candidate_proteins": 3
+      "p": 0.01326109598948539,
+      "adj_p": 0.03204570647722744,
+      "n_candidate_proteins": 3,
+      "sites": [
+        {
+          "protein": "C9JE76",
+          "position": 39,
+          "loc_prob": 1.0,
+          "log2fc": 3.0571042230231207,
+          "p": 0.01326109598948539,
+          "adj_p": 0.03204570647722744
+        }
+      ]
     },
     {
       "gene": "OAS1",
@@ -82,7 +252,25 @@
       "log2fc": 3.3896846647835233,
       "p": 0.0030492892898760704,
       "adj_p": 0.012404653176270996,
-      "n_candidate_proteins": 6
+      "n_candidate_proteins": 6,
+      "sites": [
+        {
+          "protein": "H0YI20",
+          "position": 195,
+          "loc_prob": 1.0,
+          "log2fc": 3.3896846647835233,
+          "p": 0.0030492892898760704,
+          "adj_p": 0.012404653176270996
+        },
+        {
+          "protein": "H0YI20",
+          "position": 209,
+          "loc_prob": 1.0,
+          "log2fc": 2.4625809109085566,
+          "p": 0.18563794257147623,
+          "adj_p": 0.25098541891423776
+        }
+      ]
     },
     {
       "gene": "OAS2",
@@ -92,9 +280,67 @@
       "position": 425,
       "loc_prob": 1.0,
       "log2fc": 6.15779568607239,
-      "p": 0.020770649846475888,
-      "adj_p": 0.04469427783866095,
-      "n_candidate_proteins": 3
+      "p": 0.020770649846475885,
+      "adj_p": 0.044694277838660944,
+      "n_candidate_proteins": 3,
+      "sites": [
+        {
+          "protein": "A0A087X0V5",
+          "position": 100,
+          "loc_prob": 0.999748,
+          "log2fc": 4.615330268693345,
+          "p": 0.0053952297219704345,
+          "adj_p": 0.01779002606165311
+        },
+        {
+          "protein": "A0A087X0V5",
+          "position": 399,
+          "loc_prob": 0.997786,
+          "log2fc": 3.1353878935978337,
+          "p": 0.0969957056261686,
+          "adj_p": 0.15839560004273376
+        },
+        {
+          "protein": "A0A087X0V5",
+          "position": 212,
+          "loc_prob": 0.89676,
+          "log2fc": 3.4551383325841414,
+          "p": 0.18751647849609532,
+          "adj_p": 0.2522848903445509
+        },
+        {
+          "protein": "A0A087X0V5",
+          "position": 433,
+          "loc_prob": 0.999964,
+          "log2fc": 0.13845865385484757,
+          "p": 0.7991279451929402,
+          "adj_p": 0.8123290499097103
+        },
+        {
+          "protein": "A0A087X0V5",
+          "position": 388,
+          "loc_prob": 1.0,
+          "log2fc": 2.6728978690146867,
+          "p": 0.026188868400913785,
+          "adj_p": 0.05406860968657125
+        },
+        {
+          "protein": "A0A087X0V5",
+          "position": 425,
+          "loc_prob": 1.0,
+          "log2fc": 6.15779568607239,
+          "p": 0.020770649846475885,
+          "adj_p": 0.044694277838660944
+        },
+        {
+          "protein": "A0A087X0V5",
+          "position": 470,
+          "loc_prob": 0.976888,
+          "log2fc": 3.8194729920669275,
+          "p": 0.0054153112803246506,
+          "adj_p": 0.01781352394843635
+        }
+      ]
     },
     {
       "gene": "IFIH1",
@@ -104,9 +350,19 @@
       "position": 726,
       "loc_prob": 1.0,
       "log2fc": 6.380078132866519,
-      "p": 7.940808984315807e-05,
-      "adj_p": 0.0015378327258358077,
-      "n_candidate_proteins": 1
+      "p": 7.940808984315804e-05,
+      "adj_p": 0.001537832725835807,
+      "n_candidate_proteins": 1,
+      "sites": [
+        {
+          "protein": "Q9BYX4",
+          "position": 726,
+          "loc_prob": 1.0,
+          "log2fc": 6.380078132866519,
+          "p": 7.940808984315804e-05,
+          "adj_p": 0.001537832725835807
+        }
+      ]
     },
     {
       "gene": "STAT1",
@@ -118,7 +374,41 @@
       "log2fc": 5.818079150569869,
       "p": 3.671912804027628e-05,
       "adj_p": 0.000917978201006907,
-      "n_candidate_proteins": 3
+      "n_candidate_proteins": 3,
+      "sites": [
+        {
+          "protein": "P42224",
+          "position": 592,
+          "loc_prob": 1.0,
+          "log2fc": 1.160716943666678,
+          "p": 0.38692874238641967,
+          "adj_p": 0.4266455659834218
+        },
+        {
+          "protein": "P42224",
+          "position": 410,
+          "loc_prob": 0.999991,
+          "log2fc": 5.24948652798729,
+          "p": 4.365714858769256e-05,
+          "adj_p": 0.001053132970317145
+        },
+        {
+          "protein": "P42224",
+          "position": 379,
+          "loc_prob": 1.0,
+          "log2fc": 5.818079150569869,
+          "p": 3.671912804027628e-05,
+          "adj_p": 0.000917978201006907
+        },
+        {
+          "protein": "P42224",
+          "position": 201,
+          "loc_prob": 1.0,
+          "log2fc": 1.0605412762359983,
+          "p": 0.15983768358681402,
+          "adj_p": 0.22893418222069714
+        }
+      ]
     },
     {
       "gene": "PSMB9",
@@ -128,9 +418,19 @@
       "position": 30,
       "loc_prob": 1.0,
       "log2fc": 0.8915600286589154,
-      "p": 0.32457814821297404,
-      "adj_p": 0.36914388237621115,
-      "n_candidate_proteins": 4
+      "p": 0.3245781482129739,
+      "adj_p": 0.36914388237621104,
+      "n_candidate_proteins": 4,
+      "sites": [
+        {
+          "protein": "A2ACR0",
+          "position": 30,
+          "loc_prob": 1.0,
+          "log2fc": 0.8915600286589154,
+          "p": 0.3245781482129739,
+          "adj_p": 0.36914388237621104
+        }
+      ]
     },
     {
       "gene": "PSMB10",
@@ -141,8 +441,18 @@
       "loc_prob": 1.0,
       "log2fc": 2.892934770587214,
       "p": 0.0020783864605448256,
-      "adj_p": 0.009717989924859267,
-      "n_candidate_proteins": 1
+      "adj_p": 0.009717989924859269,
+      "n_candidate_proteins": 1,
+      "sites": [
+        {
+          "protein": "P40306",
+          "position": 31,
+          "loc_prob": 1.0,
+          "log2fc": 2.892934770587214,
+          "p": 0.0020783864605448256,
+          "adj_p": 0.009717989924859269
+        }
+      ]
     },
     {
       "gene": "PSMA7",
@@ -152,9 +462,27 @@
       "position": 115,
       "loc_prob": 1.0,
       "log2fc": 3.1822793464418524,
-      "p": 0.004500359098780322,
-      "adj_p": 0.016156641673166952,
-      "n_candidate_proteins": 3
+      "p": 0.004500359098780323,
+      "adj_p": 0.01615664167316696,
+      "n_candidate_proteins": 3,
+      "sites": [
+        {
+          "protein": "O14818",
+          "position": 28,
+          "loc_prob": 1.0,
+          "log2fc": 3.064747619770351,
+          "p": 0.011458745504605695,
+          "adj_p": 0.029123428962722422
+        },
+        {
+          "protein": "O14818",
+          "position": 115,
+          "loc_prob": 1.0,
+          "log2fc": 3.1822793464418524,
+          "p": 0.004500359098780323,
+          "adj_p": 0.01615664167316696
+        }
+      ]
     },
     {
       "gene": "PSME2",
@@ -164,9 +492,19 @@
       "position": 15,
       "loc_prob": 1.0,
       "log2fc": 4.055357501239058,
-      "p": 8.357808923318527e-05,
-      "adj_p": 0.0015666759149141373,
-      "n_candidate_proteins": 4
+      "p": 8.357808923318526e-05,
+      "adj_p": 0.001566675914914138,
+      "n_candidate_proteins": 4,
+      "sites": [
+        {
+          "protein": "A0A087X1Z3",
+          "position": 15,
+          "loc_prob": 1.0,
+          "log2fc": 4.055357501239058,
+          "p": 8.357808923318526e-05,
+          "adj_p": 0.001566675914914138
+        }
+      ]
     },
     {
       "gene": "TAP1",
@@ -176,9 +514,27 @@
       "position": 458,
       "loc_prob": 0.999989,
       "log2fc": 2.798472114467046,
-      "p": 0.007658585005011775,
-      "adj_p": 0.02198445591209017,
-      "n_candidate_proteins": 2
+      "p": 0.007658585005011774,
+      "adj_p": 0.021984455912090167,
+      "n_candidate_proteins": 2,
+      "sites": [
+        {
+          "protein": "A0A140T9T7",
+          "position": 458,
+          "loc_prob": 0.999989,
+          "log2fc": 2.798472114467046,
+          "p": 0.007658585005011774,
+          "adj_p": 0.021984455912090167
+        },
+        {
+          "protein": "A0A140T9T7",
+          "position": 449,
+          "loc_prob": 1.0,
+          "log2fc": 2.178125365317012,
+          "p": 0.055809220478261215,
+          "adj_p": 0.10044198711728948
+        }
+      ]
     }
   ]
 }
