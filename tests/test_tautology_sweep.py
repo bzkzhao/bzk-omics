@@ -891,6 +891,67 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_stats.py", "got.p_value[0] == pytest.approx(1.0)", 1),
         ("test_stats.py", "welch_t(a, b).log2fc[0] == pytest.approx(2.0)", 1),
         ("test_store.py", "store.ids_by_label(conn) == {'Protein': sorted([MX1, USP18])}", 1),
+        # ── tests/test_target_recovery_rules.py, classified individually 2026-09-14 ────────────
+        # **Six expressions over six occurrences, all `PINNED`, none an instance — and the module
+        # arrived with three more that were removed rather than pinned.** This is the second time
+        # the net has caught new code in the turn that wrote it, and it did so three times in that
+        # turn: `len(counts) == len(PATH_VALUES) * len(RULE_VALUES)` compared `totals()`' key count
+        # against the two tuples `totals()` itself iterates to build those keys; `totals([empty])
+        # == {(p, r): 0 for p in PATH_VALUES for r in RULE_VALUES}` restated the same construction
+        # on its right-hand side; and `source_for(path).fixture == module.FIXTURE_PATH` compared
+        # `source_for()`'s output against the very attribute its body reads. None could fail. The
+        # first is now checked from the printed report, the second reads
+        # `not any(totals([empty]).values())`, and the third was replaced by the provenance loop
+        # whose two matches are pinned below — a moved constant rather than a restated one.
+        #
+        # `seen == expected`: `seen` is the gene order `bzk/target_recovery_rules.py`'s `compare()`
+        # produced; `expected` is read straight out of the committed fixture by `load()`. Two
+        # surfaces — a computation and a file on disk — so neither produced the other. Made to fail
+        # by having `compare()` iterate `reversed(load(path)["targets"])`, and this is the first
+        # assertion in its test, so the failure names it.
+        #
+        # `len(seen) == len(set(seen))`: the closest call in this group, because both sides derive
+        # from `seen`. It is not the class `INSTANCES` records all the same — `set(seen)` is not
+        # the expression that produced `seen`, it is a *different* function of it, and the
+        # assertion fails exactly when that function loses an element.
+        #
+        # **Measured to the stricter standard: the failure names *this* assertion and not the line
+        # above it.** The obvious mutation — `compare()` visiting each path's targets twice — does
+        # not qualify: it reddens `seen == expected` first, and was confirmed doing exactly that,
+        # which would have left this entry resting on an earlier line's failure. The mutation that
+        # discriminates duplicates a target inside a *copy* of `pxd018299_welch_baseline.json`, so
+        # `expected` carries the duplicate too, `seen == expected` stays green, and this line fires
+        # on `15 == 14`. The committed fixture is not touched.
+        #
+        # `read(source_for(path)) == moved`: `moved` is a value **the test invents** — the module
+        # constant plus one, or a renamed path — and is then written onto the owning module before
+        # the call. So the right-hand side is an input the test chose, not an expression the call
+        # produced, which is what distinguishes this from the third removal above. Made to fail by
+        # binding the thresholds at import in `bzk/target_recovery_rules.py`, which leaves
+        # `source_for()` returning the pre-move value.
+        #
+        # `set(MODULES) == set(PATH_VALUES)`: two module-level constants declared separately in
+        # `bzk/target_recovery_rules.py`. Neither is built from the other — `MODULES` is a literal
+        # keyed by the two path constants — so the pair can disagree, and does the moment a third
+        # path is added to one and not the other. Made to fail by adding a key to `PATH_VALUES`.
+        #
+        # `source_for(other) == untouched`: the negative half of the provenance check. `untouched`
+        # is read *before* any move, so this compares the same call across a state change rather
+        # than against its own expression. Made to fail by pointing both `MODULES` entries at the
+        # baseline module, so the untouched path follows the moved one.
+        #
+        # **This entry stood at a count of 2 and the second occurrence was worthless.** The same
+        # assertion was repeated after the restore loop, where nothing between it and the in-loop
+        # copy touches `other`'s module — so no mutation could redden one without the other, and
+        # the attempt to find one is what surfaced it. It now reads `source_for(path) == before`,
+        # which checks what that position can actually check: that the restore happened. Made to
+        # fail by replacing the `finally` body with `pass`, which leaves the last attribute moved.
+        ("test_target_recovery_rules.py", "seen == expected", 1),
+        ("test_target_recovery_rules.py", "len(seen) == len(set(seen))", 1),
+        ("test_target_recovery_rules.py", "read(source_for(path)) == moved", 1),
+        ("test_target_recovery_rules.py", "set(MODULES) == set(PATH_VALUES)", 1),
+        ("test_target_recovery_rules.py", "source_for(other) == untouched", 1),
+        ("test_target_recovery_rules.py", "source_for(path) == before", 1),
     }
 )
 
