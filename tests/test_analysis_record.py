@@ -93,6 +93,10 @@ MENTIONS = {
     # The format module: its docstring names PXD055843's record as the example of a record for an
     # analysis nobody here has repeated.
     "bzk/curation/analysis_record.py": "names a record in prose",
+    # Names PXD055843's record to say where the digest it ranks by comes from. It opens no
+    # record and reads no key: the bytes are located through `bzk/sources/pxd055843_perseus.py`'s
+    # `locate`, which is the declared reader, so a second spelling of the digest never exists.
+    "bzk/pxd055843_depletion_ranking.py": "names a record in prose",
     "tests/test_analysis_record.py": "this module — it classifies both records' keys",
     # Asserts that the platform fixture's note names the record it is *not* duplicating. The name
     # appears only inside that assertion; nothing here opens the record or reads a key out of it.

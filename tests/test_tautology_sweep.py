@@ -818,6 +818,109 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         # **Occurrences read off `sweep()`: one each.**
         ("test_pxd018299_refusals.py", "_counts() == recounted", 1),
         ("test_pxd018299_refusals.py", "len(_refusals()) == sum(_counts().values())", 1),
+        # ── tests/test_pxd055843_depletion_ranking.py, classified individually 2026-09-15 ──────
+        # **Ten expressions over eleven occurrences, all `PINNED`, none an instance.** The module
+        # under test reports an ordering and pins no answer, so every assertion in it is a relation
+        # between two things with separate origins: a value the module computed and either a
+        # constant the test wrote into its own synthetic workbook or a different function of the
+        # same output. Nothing here compares a call to the expression that produced it.
+        #
+        # **Nine were made to fail, each by a mutation chosen so the failure names *that* line and
+        # not an earlier one in the same test.** Every mutation was confirmed applied by reading
+        # the file back, and reverted with the suite green again afterwards.
+        #
+        # `differences == sorted(differences)` — `sorted` is a different function of the list, not
+        # the expression that built it, and it fails exactly when the module stops ordering. Made
+        # to fail by `found.sort(..., reverse=True)`: `l.258`, `[2.75, 1.25, ...] == [-3.1, ...]`.
+        # **Count 2, and only one of the two was confirmed.** The other occurrence is inside the
+        # artefact test, which skips in this container — the bytes are in no content store here and
+        # are not to be put into the tree — so there is no green state to mutate away from, exactly
+        # as recorded for the two `test_pxd018299_refusals.py` entries above.
+        #
+        # `[row.rank ...] == list(range(1, len(...) + 1))` — the ranks are a field the module
+        # assigns; the range is built from the row count. Made to fail by `enumerate(found,
+        # start=0)`, which leaves the sortedness assertion above it green: `l.259`,
+        # `[0, 1, 2, 3, 4] == [1, 2, 3, 4, 5]`.
+        #
+        # `ranked.data_rows == len(DATA)` — a count the module accumulates against the length of
+        # the list this test file writes into the workbook. Made to fail by deleting the
+        # increment: `l.269`, `0 == 7`.
+        #
+        # `len(rows) + without_difference == data_rows` — the partition. Both sides are the
+        # module's own bookkeeping, which is the point: it fails for a row that fell out of both
+        # branches. Made to fail by deleting `without_difference += 1`, which leaves the count
+        # above it green: `l.270`, `(5 + 0) == 7`.
+        #
+        # `without_difference == sum(...)` — the module's exclusion count against the test's own
+        # recount over its own data. Made to fail by returning a NaN instead of `None`, which
+        # keeps the partition above it green because the row merely moves from one side to the
+        # other: `l.271`, `1 == 2`.
+        #
+        # `set(ranked.columns) == {the four marks}` — the module's discovery report against the
+        # four constants imported from it. Made to fail by dropping `GENE_MARK` from `columns`:
+        # `l.148`.
+        #
+        # The two `rank(_book(..., label_rows=N)).contrast == SUFFIX` — `SUFFIX` is written by this
+        # test file *into* the workbook, so the right side is an input the test chose. They are two
+        # entries rather than one because they are two files, and the mutation for each leaves the
+        # other green. `label_rows=1`: `contrast_of` returning the whole column name — `l.227`,
+        # `"Student's T-...FN_siCTRL_IFN" == 'siUSP24_IFN_siCTRL_IFN'`. `label_rows=0`:
+        # `header_row` returning `max(index, 1)`, which reads a data row as the header — `l.228`
+        # goes red on the `RankingError` raised inside the call on that line while `l.227` stays
+        # green. **Recorded as it is and not dressed up: that line reddens by raising rather than
+        # by comparing**, which is weaker than the others here and is the strongest available,
+        # since a header row read off the wrong index cannot reach a comparison at all.
+        #
+        # `sheet.max_column == width` — the only one inside a helper rather than a test. It is the
+        # builder checking `openpyxl`'s view of what it wrote against the width it meant to write,
+        # and it guards every file below. Made to fail by appending one extra cell per data row:
+        # `l.129` on all sixteen tests.
+        #
+        # **Occurrences read off `sweep()` rather than from the failure text: one each, except
+        # `differences == sorted(differences)` at two.**
+        (
+            "test_pxd055843_depletion_ranking.py",
+            "[row.rank for row in artefact.rows] == list(range(1, len(artefact.rows) + 1))",
+            1,
+        ),
+        (
+            "test_pxd055843_depletion_ranking.py",
+            "[row.rank for row in ranked.rows] == list(range(1, len(ranked.rows) + 1))",
+            1,
+        ),
+        ("test_pxd055843_depletion_ranking.py", "differences == sorted(differences)", 2),
+        (
+            "test_pxd055843_depletion_ranking.py",
+            "len(artefact.rows) + artefact.without_difference == artefact.data_rows",
+            1,
+        ),
+        (
+            "test_pxd055843_depletion_ranking.py",
+            "len(ranked.rows) + ranked.without_difference == ranked.data_rows",
+            1,
+        ),
+        (
+            "test_pxd055843_depletion_ranking.py",
+            "rank(_book(tmp_path / 'no-label.xlsx', label_rows=0)).contrast == SUFFIX",
+            1,
+        ),
+        (
+            "test_pxd055843_depletion_ranking.py",
+            "rank(_book(tmp_path / 'one-label.xlsx', label_rows=1)).contrast == SUFFIX",
+            1,
+        ),
+        ("test_pxd055843_depletion_ranking.py", "ranked.data_rows == len(DATA)", 1),
+        (
+            "test_pxd055843_depletion_ranking.py",
+            "ranked.without_difference == sum((1 for row in DATA if row[1] in (None, 'NaN')))",
+            1,
+        ),
+        (
+            "test_pxd055843_depletion_ranking.py",
+            "set(ranked.columns) == {GENE_MARK, DIFFERENCE_MARK, Q_VALUE_MARK, MINUS_LOG_P_MARK}",
+            1,
+        ),
+        ("test_pxd055843_depletion_ranking.py", "sheet.max_column == width", 1),
         ("test_raw_store.py", "again.path.read_bytes() == PAYLOAD", 1),
         ("test_raw_store.py", "content_hash(PAYLOAD) == f'sha256:{sha256_hex(PAYLOAD)}'", 1),
         (
