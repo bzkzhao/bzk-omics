@@ -15,9 +15,9 @@ A diGly site stays ambiguous between ubiquitin, NEDD8 and ISG15 until knockout, 
 |---|---|
 | Phase | Implementation under way — ingestion, rebuild, query and a minimal interface run end to end |
 | v0.1 target | One laboratory — the Pinto-Fernández group, CAMS Oxford Institute |
-| Last updated | 2026-08-09 |
+| Last updated | 2026-09-17 |
 | Working software | `python -m bzk.rebuild` builds the graph from PXD018299; `streamlit run bzk/ui/app.py` reads it. Install with `uv sync --frozen` — see [`OPERATIONS.md`](OPERATIONS.md) §4.1 |
-| Validation | Published result reproduced — see [`ROADMAP.md`](ROADMAP.md) § Measured findings |
+| Validation | Published result reproduced, and recall measured against the publication's own claim set — see [`ROADMAP.md`](ROADMAP.md) § Measured findings, and within it § *The published-claim cascade* |
 | Timeline | 8 weeks part-time from a working environment |
 | Blocking | Nothing for the rebuild path. The statistical layer waits on the collaborator meeting ([`ROADMAP.md`](ROADMAP.md) § Measured findings) |
 
@@ -102,6 +102,18 @@ One line each. Each is enforced by a numbered invariant in [`ONTOLOGY.md`](ONTOL
 ## Changelog
 
 Append at the top. Do not edit past entries.
+
+### 2026-09-17 — the publication's own claim set became the denominator
+The reproduction had only ever been scored against a list of targets this repository maintains. The
+anchor article's Supplementary Data 1 — its significant peptide table — is now pinned as a third
+supplementary artefact beside the two already in the content store, and the test that checks their
+digests discovers the module's declarations rather than listing them, so the next one added is
+guarded too. Every row of that table was then walked through the platform path and placed at exactly
+one stage, committed as a fixture, a module that re-derives the table from it alone, and their
+tests; what the cascade measures is recall of published claims, and why its converse is not
+measurable is recorded with it. Four documents were corrected where they contradicted a committed
+fixture or the code, among them two that had described the localisation threshold as recorded but
+not applied.
 
 ### 2026-08-09 — the rehearsal's findings closed
 The four open items the rehearsal recorded. `query.gene_symbols` said *present but unattributable*
