@@ -199,6 +199,10 @@ Two findings dominate.
 
 **Reproduction status: 12 of 14 published ISGylation targets recovered from PXD018299.** This is now a regression test — any future change to the ingestion or statistics layer must not reduce that number without explanation.
 
+That figure counts a list of targets this repository maintains. For the recovery measured against
+the publication's own claim set — every row of its Supplementary Data 1, with the stage that loses
+each one — see § *The published-claim cascade*.
+
 ### Independent re-derivation, 2026-08-07
 
 **The finding is the reproduction, not the values.** Every number below was already recorded above or in `data/curation/analysis_PXD018299_KOIFN_vs_WTIFN.json`; none is new, and none is added as a table row. What was never true until now is that they come back from `raw/` on demand. The baseline had been measured once, in a Colab session, and nobody had repeated it — so "12 of 14" rested on a notebook run that no longer existed anywhere, against a file nobody still had. Re-fetched from PRIDE into the content-addressed store and re-derived end to end, it reproduces.
@@ -12590,6 +12594,65 @@ open item.
 traced to them first: `resolving-merge-conflicts` and `codebase-design`. Every other vendored skill
 is manual-only and loads on `/name`. The reasoning for that split is in `.claude/skills/README.md`
 and is not repeated here.
+
+---
+
+### The published-claim cascade: 512 of 798, and the 36 the reconstruction itself drops, 2026-09-17
+
+**Every site-level claim the anchor publication makes, walked through the platform path and placed
+at exactly one stage.** The denominator is the 798 data rows of Supplementary Data 1 — the
+significant GlyGly peptide table, pinned as `SUPP_DATA_1` — not the fourteen curated targets. Each
+row joined to exactly one deposit row on `(Protein, Position)`; none was absent and none ambiguous.
+
+| stage | rule | lost | surviving |
+|---|---|---|---|
+| published rows | — | — | 798 |
+| join | exactly one deposit row | 0 | 798 |
+| decoy / contaminant | `Reverse` or `Potential contaminant` is `+` | **3** | 795 |
+| localisation | deposit `Localization prob < 0.75` | **33** | 762 |
+| ingestion | the three refusal reasons | **6** | 756 |
+| presence rule | ≥ 2 non-missing in either arm | **7** | 749 |
+| significance | `adj p < 0.05` **and** `log2FC > 1.0` | **237** | **512** |
+
+**Recall is 512 of 798 — 64.2%.** The arithmetic ceiling is the platform's own significant-up
+count, 516 (`tests/fixtures/pxd018299_platform_targets.json`), so the cascade lands four short of
+the most it could have reached. The significance stage splits **179** failing the adjusted *p*
+alone, **14** the fold change alone and **44** both; counting overlap, **223** fail the *p*-value
+and **58** the fold change. Nothing is left over: 3 + 33 + 6 + 7 + 237 + 512 = 798.
+
+**36 published claims are dropped by choices of this reconstruction rather than by anything the
+publication did.** The localisation cut costs 33 and the contaminant drop 3, and both run *before*
+ingestion: these rows were significant in the publication and never reach the platform's test at
+all. Two of the 33 are OAS2 sites, so the cut also moves a curated target's site count. Neither
+threshold is the publication's — § *The platform made an invisible analytical choice* records the
+same 0.75 as a decision the graph did not carry, and § *Three analysis choices* records the class.
+
+**The figure is one-directional by construction.** Supplementary Data 1 is the *significant* set,
+and no published table lists what the publication tested and did not call. So recall of published
+claims is measurable and its converse is not: a platform-significant site with no S1 row may be
+non-significant there, undetected, or below a cut-off the publication does not state, and the
+published record does not distinguish them. The four platform-significant rows outside S1 are
+therefore not scoreable as disagreements.
+
+**The curated fourteen is this repository's list, not the publication's denominator.**
+`EXPECTED_TARGETS` in `bzk/sources/pxd018299_baseline.py` cites Pinto-Fernández et al. and names no
+table, figure or supplementary file it was read from. S1 itself carries rows for all fourteen —
+and, besides them, four significant rows on two symbols the list omits: **DDX3X** at three sites
+(`A0A0D9SFB3` 215, 264, 335) and **DHX9** at one (`Q08211` 857). All four are recovered by the
+platform path. S1 carries no recovered count at any grain, so *"12 of 14"* is a figure this
+repository computes against a denominator it chose, and the cascade above is the figure against the
+publication's own claim set.
+
+**Home, and what it cost to produce.** The per-row record is
+`tests/fixtures/pxd018299_published_cascade.json`; the table above, the significance split, the
+recall figure and the fold-change control partitions are re-derived from it by
+`python -m bzk.published_cascade`, which reads no deposit, no store, no graph and no network — a
+clone reproduces every figure here. The fixture itself did not come free: generating it needs both
+artefacts in the content store, a platform run that must reproduce
+`pxd018299_platform_targets.json` byte for byte before anything is written, and live UniProt
+lookups for the accessions the deposit path never attempts (6 requests on the committed run). It is
+written by `python -m bzk.sources.pxd018299_published_cascade`, and its `generated_under` records
+the UTC time, the commit and both sides' network conditions.
 
 ---
 
