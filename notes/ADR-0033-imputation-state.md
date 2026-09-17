@@ -68,7 +68,9 @@ version rather than refining it.** That version read *"an earlier draft put it i
 `filters_applied`. Wrong home: it is a cell-value interpretation … it belongs in
 the FragPipe adapter's cell-value reader, on the MaxQuant model."* It cited
 `maxquant.cell_value` and then prescribed the behaviour that function exists to
-forbid. Read at `019c711`, `bzk/adapters/maxquant.py:94`:
+forbid. Read at `019c711` and re-derived unchanged at `d09bdae` (2026-09-18;
+nothing under `bzk/adapters/`, `bzk/curation/` or in `ONTOLOGY.md` moved between
+them), `bzk/adapters/maxquant.py:93`–`:96`:
 
 > **A reported `0` stays `0`**: MaxQuant writes zero for an undetected intensity,
 > and reading that convention as absence is an interpretation the adapter has no
@@ -97,6 +99,26 @@ the `Analysis` in **`filters_applied`**.
 - `bzk/curation/loader.py:318` records that *"§3 does not classify
   `filters_applied`'s absence, so a null here would be refused"*, and defaults it
   to `[]`. The field cannot go unstated.
+- **The live values, measured at `d09bdae` across `bzk/` and `data/curation/`,
+  already include parameterised tokens** — so a named filter is expressible in
+  the form it would need, not merely in principle. In committed code:
+  `("reverse", "potential_contaminant", "localization_prob")`
+  (`maxquant_sites.py:100`), `("reverse", "potential_contaminant")`
+  (`maxquant_protein_groups.py:78`), and the differential's run declaration
+  (`pxd018299_differential.py:470`–`475`), which builds
+  `localization_prob>=0.75` and `presence>=2_in_either_group` from the values it
+  ran at. In committed records: `["reverse", "potential_contaminant"]`
+  (`analysis_PXD018299_KOIFN_vs_WTIFN.json`) and `["presence>=3_in_either_group"]`
+  (`analysis_PXD055843_siUSP24_IFN_vs_siC_IFN.json`). The suite adds
+  `only_identified_by_site` (`tests/test_perseus.py:64`). Two adapters carrying
+  **different** tuples, and `invariants.py:499` checking only that the field is
+  not null while the adjacent `quantity` branch checks enum membership, are the
+  same fact from two other directions.
+
+  **This settles expressibility and nothing else.** Every value observed above is
+  a row **removal** — including the two parameterised ones, which remove rows on
+  a threshold and on a presence count. So it leaves the question below exactly
+  where it was.
 
 **Open, and narrower than the question it replaces.** Whether this is one entry
 or two. The zero-to-missing reinterpretation removes no row; the valid-value
