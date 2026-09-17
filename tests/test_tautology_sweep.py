@@ -1083,6 +1083,27 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_target_recovery_rules.py", "set(MODULES) == set(PATH_VALUES)", 1),
         ("test_target_recovery_rules.py", "source_for(other) == untouched", 1),
         ("test_target_recovery_rules.py", "source_for(path) == before", 1),
+        # ── tests/test_published_cascade.py, classified individually 2026-09-17 ─────────────────
+        # **One match, `PINNED`, and it is the closest call in the module.** The fixture's
+        # `summary` block was written by `bzk/sources/pxd018299_published_cascade.py` using the
+        # same `bzk/published_cascade.py` functions the test's `derived` calls — so at generation
+        # time the two sides were one computation. It is not the class `INSTANCES` records all the
+        # same, because what the test compares is **two stored surfaces** of the committed fixture:
+        # the `summary` a reader quotes and the `rows` the module re-reads. Either can be edited
+        # without the other, and the module's stage definitions can move without the fixture being
+        # regenerated; the call re-derives from the rows *now*, not from the run.
+        #
+        # **Measured to the stricter standard.** Mutation: a temporary copy of the fixture with
+        # `summary.recovered` set to 513 and the rows untouched. This test is the **only** one in
+        # the module that fails; every figure test stays green, because each reads the rows. The
+        # converse mutation (one recovered row moved to `presence`, summary untouched) fails this
+        # test and four figure tests together, so it establishes nothing about this line on its
+        # own and is not the evidence. The committed fixture was not touched.
+        #
+        # Five further matches arrived with the module and were removed rather than pinned: four
+        # compared against the name `PUBLISHED_ROWS`, which the net cannot tell from a computed
+        # value, and one against `list(range(...))`. Each now compares against a literal.
+        ("test_published_cascade.py", "fixture['summary'] == derived", 1),
     }
 )
 
