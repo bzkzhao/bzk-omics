@@ -30,9 +30,9 @@ from typing import Any, cast
 
 import pytest
 
+from bzk.sources import protein_groups
 from bzk.sources.protein_groups import (
-    SUPP_DATA_2,
-    SUPP_DATA_3,
+    SupplementaryFile,
     _base,
     measure_all,
     summarise,
@@ -134,10 +134,23 @@ def test_re_measuring_reproduces_the_pinned_numbers() -> None:
 
 
 def test_the_supplementary_digests_are_well_formed() -> None:
-    """A truncated paste would compare equal to nothing and the fetch would raise on every run."""
+    """A truncated paste would compare equal to nothing and the fetch would raise on every run.
+
+    **Every declaration the module holds, found by discovery rather than listed here.** This read a
+    hard-coded `(SUPP_DATA_2, SUPP_DATA_3)` until `SUPP_DATA_1` was declared beside them, which the
+    tuple did not reach — a new declaration was checked by nothing. Iterating the module's own
+    `SupplementaryFile` instances guards the next one as well. The name floor stops the discovery
+    from passing vacuously if it ever finds nothing.
+    """
     import re
 
-    for supp in (SUPP_DATA_2, SUPP_DATA_3):
+    declared = {
+        name: value
+        for name, value in vars(protein_groups).items()
+        if isinstance(value, SupplementaryFile)
+    }
+    assert {"SUPP_DATA_1", "SUPP_DATA_2", "SUPP_DATA_3"} <= set(declared), sorted(declared)
+    for supp in declared.values():
         assert re.fullmatch(r"sha256:[0-9a-f]{64}", supp.expected_content_hash), supp.filename
         assert supp.url.startswith("https://static-content.springer.com/")
 

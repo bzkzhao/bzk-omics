@@ -81,6 +81,11 @@ class SupplementaryFile:
         return SPRINGER_ESM + self.filename
 
 
+SUPP_DATA_1 = SupplementaryFile(
+    label="BJC Supplementary Data 1 (GlyGly peptides up in USP18-/- +IFN)",
+    filename="41416_2020_1167_MOESM3_ESM.xlsx",
+    expected_content_hash="sha256:e2680e30fd6ea73a327f9e1736eab815245cd16fb1f0c4a8e8f517fa2b88a0db",
+)
 SUPP_DATA_2 = SupplementaryFile(
     label="BJC Supplementary Data 2 (proteins up in USP18-/- +IFN)",
     filename="41416_2020_1167_MOESM4_ESM.xlsx",
