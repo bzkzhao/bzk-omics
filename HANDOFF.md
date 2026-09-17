@@ -613,13 +613,24 @@ deposit or the archive has moved and that is the finding, not a setup problem.
    over all 2,845 (34m30s, 0 drifts); the line now reads *"drift-checked 0 day(s) ago over 2,845
    sequence(s), 0 drift(s)"*.
 
-   **The ingested population is 1,967, and it is not the notebook's 1,375 nor the file's 2,341.**
+   **The ingested population is 2,029, and it is not the notebook's 1,375 nor the file's 2,341.**
    2,341 rows → 43 decoys and contaminants → 242 below the localisation threshold → 2,056
-   considered → 89 refused (40 residue drift, 48 unresolvable proteins, 1 no razor pick) → 1,967.
-   Any comparison against the notebook is between two different populations and must say so.
+   considered → 27 refused → 2,029. Any comparison against the notebook is between two different
+   populations and must say so.
 
-   **Slice 4b** — the statistics path and the 12-of-14 re-derivation through the graph. Not started;
-   ROADMAP's v0.1 exit criterion.
+   **This read 1,967 and 89 refused until 2026-09-17, and was superseded on 2026-08-07 by I17's
+   promotion pass under ADR-0024** — `ROADMAP.md` § *Validity-conditional promotion* records the
+   move, and l.121–122 and l.590 of this file already carried 2,029 / 27. The split it gave (40
+   residue drift, 48 unresolvable proteins, 1 no razor pick) is that superseded population's, not
+   this one's: `tests/fixtures/pxd018299_refusals.json` holds the 27 records, 15 residue mismatch,
+   11 unresolved protein, 1 no razor pick, and `tests/fixtures/pxd018299_platform_targets.json`
+   carries `ingested` 2,029 and `refused` 27.
+
+   **Slice 4b** — the statistics path and the re-derivation through the graph. **Done 2026-08-09**,
+   and this line read *"Not started"* until 2026-09-17: l.236 and l.296 of this file record the
+   1,362 `DifferentialResult`s it writes under one `Analysis`, and `ROADMAP.md` l.72 records that
+   they have been in the graph since that date. ROADMAP's v0.1 exit criterion still governs what
+   the slice has to report, which is the population at every step rather than a number.
 
 *Only then* the Weeks 5–6 work below.
 
