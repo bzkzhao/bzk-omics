@@ -83,6 +83,7 @@ This exists because a project with one developer and a compressed timeline will 
 | [0030](0030-what-a-reference-to-author-correspondence-must-contain.md) | What a reference to author correspondence must contain; attribution where verification is impossible |
 | [0031](0031-selection-outside-the-surveys-route.md) | Selection outside the survey's route; C0's gates range over the site-grain table only |
 | [0032](0032-what-the-perseus-adapter-reads-and-whether-the-platform-converts.md) | What the Perseus adapter reads from an export it was not written for; the platform does not convert |
+| [0033](0033-frame-is-a-query-set-repair.md) | The frame is a query-set repair, not an admissibility criterion; C0 screens its candidates unamended |
 
 ## Queued
 

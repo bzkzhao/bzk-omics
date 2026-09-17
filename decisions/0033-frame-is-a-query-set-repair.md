@@ -1,8 +1,8 @@
-# ADR-0034 — The frame is a query-set repair, and C0 is the instrument that screens it
+# ADR-0033 — The frame is a query-set repair, and C0 is the instrument that screens it
 
 | | |
 |---|---|
-| Status | **Proposed** |
+| Status | Proposed |
 | Date | 2026-09-18 |
 | Supersedes | — |
 | Superseded by | — |
@@ -14,9 +14,12 @@ Cites ADR-0031 (selection outside the survey's route) as the record it extends
 and does not supersede.
 
 **Every quotation from `ROADMAP.md`, `ONTOLOGY.md` and `decisions/` in this record
-was read at `019c711` (2026-09-17 21:17:46 +0100, *"Refresh the README's status
-table and changelog"*), from a clone taken that evening.** Quotations are cited by
-content rather than by line, because line numbers in `ROADMAP.md` move.
+was re-derived at `fda3cb9` (2026-09-18 00:05:25 +0100, *"notes: add two ADR
+drafts for verification"*).** The draft was written against `019c711`; nothing in
+`ROADMAP.md`, `ONTOLOGY.md` or `decisions/` moved between the two, so every
+quotation held, and the pin is updated to the commit they were checked at.
+Quotations are cited by content rather than by line, because line numbers in
+`ROADMAP.md` move.
 
 **Two statements in this record are reviewer-supplied and were not re-derived
 here**, and are marked again at their sites: `PXD026748`'s submitter and lab head,
@@ -30,9 +33,10 @@ prediction and not a screening.
 Two candidates for the second deposit arrived this week by a route ADR-0031 does
 not name.
 
-**Neither was screened by C0.** `PXD026748` appears nowhere in the repository —
-zero hits across `*.md`, `*.json` and `*.py`. `PXD065158` is row 10 of the
-sixty-row table and carries an `abe` cell, so it *was* screened.
+**Neither was screened by C0.** `PXD026748` appears nowhere in the repository
+outside this record — zero hits across `*.md`, `*.json` and `*.py`, measured at
+`fda3cb9` — and no row of the sixty-row table names it. `PXD065158` is row 10 of
+that table and carries an `abe` cell, so it *was* screened.
 
 **Neither is an anchor-laboratory deposit.** `PXD026748`'s PRIDE record names
 **Denzel Eggermont as submitter and Francis Impens as lab head**, both VIB-UGent;
@@ -51,17 +55,39 @@ spoke to. Whether R2 generalises to those is not decided."*
 `FRAME-SPEC v1` and `FRAME v1` were built to give the thesis's §5 countable a
 denominator. They produced a finding about the survey instead.
 
-**C0 never screened `PXD026748` because the draw's query set could not reach it,
-not because a gate excluded it.** The 450-deposit pool was built from *"what a
-diGly deposit is actually **titled** — the remnant by its chemistry"*.
-`PXD026748` is titled *Proteome-wide identification of ISG15 sites targeted by
-SARS-CoV-2 PLpro* and carries no chemistry term anywhere in its title.
-`ROADMAP.md` says the same thing of an earlier round in its own words: *"what
-limited that draw was its **query set**, not its gate."*
+**C0 never screened `PXD026748`, and the repository does not establish why — the
+draft's reason is corrected here against the current tree.** It said the draw's
+query set could not reach the deposit, because the pool was built from *"what a
+diGly deposit is actually *titled* — the remnant by its chemistry"* and this
+deposit's title carries no chemistry term. **That quotation stops one clause
+early.** The same sentence continues through the sub-proteome, the enrichment,
+the measurement *"and the anchor domain (`ISG15`, `ISGylome`)"* — thirteen terms,
+not three — and `PXD026748` is titled *Proteome-wide identification of ISG15 sites
+targeted by SARS-CoV-2 PLpro*.
 
-`PXD065158` is in the pool by luck rather than construction — it too is titled by
-its biology, and it was reachable only because the pool was wider than the title
-route alone.
+**Two mechanisms are consistent with what the repository records, and it does not
+distinguish them.**
+
+- **Reach.** The pool is *"450 of 450 distinct accessions the thirteen terms reach
+  on page 0"*, at `size` 100 and no pagination, and the three truncated terms are
+  `diGly`, `GlyGly` and `ubiquitin remnant`. **`ISG15` is not among them**: it
+  returns 45 records and all 45 are on page 0. So a deposit whose title names
+  ISG15 is within the reach of the query set as it now stands, and the earlier
+  round's *"what limited that draw was its **query set**, not its gate"* is about
+  the four-term draw whose terms *"never named the remnant chemistry"* — not this
+  one.
+- **Coverage.** Full classification covers *"60 of 450 = 13.3%"*. A pool member
+  outside the sixty was never screened because the cap stopped short of it, not
+  because C0 refused it.
+
+**Which of the two applies to `PXD026748` cannot be settled from this
+repository**, because the 450-accession pool is nowhere enumerated in it — only
+the sixty classified rows are — and re-running the draw is a PRIDE query, not a
+read. It is recorded here as open rather than asserted in either direction.
+
+`PXD065158` is in the pool by the query set's own construction rather than by
+luck: its title, *Proteome-wide identification of ISG15 sites in HeLa cells*,
+names the same anchor-domain term.
 
 **That makes the frame a repair to the query set, not an admissibility
 criterion.** It does not gate, rank, score or admit. It enlarges the set of
@@ -73,7 +99,16 @@ deposits C0 can be applied to.
 
 **R1 — `FRAME v1` is recorded as a query-set repair and licenses nothing on its
 own.** It admits no deposit, excludes none, and amends no criterion. Its output
-is a list of candidates that the survey's own route could not reach.
+is a list of candidates that the survey's own route did not reach.
+
+**R1's name is left standing and is flagged for review.** Context above records
+that the repository cannot say whether `PXD026748` was missed by the query set's
+reach or by the classification cap, and *query-set repair* asserts the first. What
+R1 decides — that the frame licenses nothing, admits nobody and amends no
+criterion — holds under either mechanism, since both leave the candidate
+unscreened and neither makes the frame a gate. Whether the instrument is better
+named a **coverage** repair is a reviewer's call, and this record is `Proposed`
+precisely so that call can be made against it.
 
 **R2 — The eleven Frame B members are offered to C0 unamended, and C0's verdicts
 are recorded per deposit.** This is the existing instrument applied to candidates
