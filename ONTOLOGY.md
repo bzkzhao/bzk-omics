@@ -481,7 +481,7 @@ CREATE NODE TABLE Analysis(
                                 -- bare 'intensity' is invalid there. Per-multiplicity consumption
                                 -- (the ___n split) is deferred — extend the enum when a
                                 -- per-multiplicity analysis is actually run. See I16.
-  localization_threshold DOUBLE,-- recorded, never hard-coded; see §6.4
+  localization_threshold DOUBLE,-- the value the analysis applied, recorded; see §6.4
   filters_applied STRING[],     -- e.g. ['reverse','potential_contaminant']
   test STRING,                  -- 'perseus_s0' | 'moderated_t_ebayes' | 'welch_t'; per analysis (§5.4, I16)
   fdr_method STRING,            -- 'permutation' | 'BH'; the FDR control step
@@ -811,7 +811,9 @@ for a silence would be worse than the conflict.
 
 ### 6.4 Site localisation
 
-`localization_prob` is retained on every `SiteObservation` and is not a modelling problem — but it is a filtering decision that must be recorded rather than silently inherited. Field convention treats ≥ 0.75 as class I. In PXD018299 the median is 1.00 and the minimum 0.35, so a threshold materially changes the set. The threshold applied is recorded on the `Analysis`, never hard-coded.
+`localization_prob` is retained on every `SiteObservation` and is not a modelling problem — but it is a filtering decision that must be recorded rather than silently inherited. Field convention treats ≥ 0.75 as class I. In PXD018299 the median is 1.00 and the minimum 0.35, so a threshold materially changes the set. The adapter **applies** a threshold and **records the value it applied** on the `Analysis` it emits (I16), so the filtering is declared rather than silently inherited.
+
+**The value is a declared parameter, not a constant read from the data, and this sentence read *"never hard-coded"* until 2026-09-17.** Two literals exist and both are defaults of a declaration a caller may override: `DeclaredSiteAnalysis.localization_threshold` in `bzk/adapters/maxquant_sites.py` (l.168) and `LOC_THRESHOLD` in `bzk/sources/pxd018299_baseline.py` (l.50), the second being the notebook transcription's own copy of the parameter it reproduces. What the invariant requires is that a run's threshold is recorded on its `Analysis`; where the number came from is the declaration's business.
 
 ### 6.5 Imputation
 
