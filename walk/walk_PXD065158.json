@@ -81,17 +81,6 @@
       "limit_of_this_pass": "Design.xlsx maps RUN to condition. The requirement is a column-to-condition mapping and is satisfied in the 'any grain' sense, but the last hop — from a quantitative column in the FragPipe site table to a run — is not in this file. It lives in the archive, so the mapping chain is complete only if the processed table's column names carry the run identifiers. Unverified.",
       "sole_carrier": "Design.xlsx. An sdrf.tsv and an experiment_annotation.tsv exist inside Search_GlyGly.zip, but both were opened and neither carries a biological condition — see archive_analysis.three_condition_mappings_now_exist. R3 passes on one non-standard spreadsheet and nothing else."
     },
-
-    "recurring_error_shape": {
-      "instances_today": [
-        "A file-count argument was advanced against this deposit's identity from a number with no derivation.",
-        "Source 8 was recorded as exhausted with the SDRF positively absent, from a listing containing two unopened archives.",
-        "R3 was recorded as resting on three carriers including a community standard, on the strength of two filenames."
-      ],
-      "shape": "Content asserted from a name or a count, without opening the thing. Three instances in one session, each caught only by opening the artefact afterwards.",
-      "the_project's_own_words_for_it": "Read the artefact, not the prose about it. The principle was already in learnings; what was missing was a rule that makes following it checkable rather than a matter of remembering.",
-      "structural_fix": "The container rung proposed under source 8. With it, none of the three would have been recordable: each was a determination at a grain the ladder would have refused."
-    },
     {
       "id": "R4",
       "verdict": "FAIL",
@@ -111,6 +100,17 @@
       "consequence_for_the_adapter_decision": "The build target is identified and bounded: one TSV in a documented format, with the search fully parameterised alongside it. The re-search alternative is dead. What remains open is the I15 question, which is about ingestion policy rather than about this file."
     }
   ],
+
+  "recurring_error_shape": {
+    "instances_today": [
+      "A file-count argument was advanced against this deposit's identity from a number with no derivation.",
+      "Source 8 was recorded as exhausted with the SDRF positively absent, from a listing containing two unopened archives.",
+      "R3 was recorded as resting on three carriers including a community standard, on the strength of two filenames."
+    ],
+    "shape": "Content asserted from a name or a count, without opening the thing. Three instances in one session, each caught only by opening the artefact afterwards.",
+    "the_project's_own_words_for_it": "Read the artefact, not the prose about it. The principle was already in learnings; what was missing was a rule that makes following it checkable rather than a matter of remembering.",
+    "structural_fix": "The container rung proposed under source 8. With it, none of the three would have been recordable: each was a determination at a grain the ladder would have refused."
+  },
 
   "sources": [
     {
