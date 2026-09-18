@@ -12,13 +12,43 @@ labelled as such.
 |---|---|
 | unique projects returned by the term set | 95 |
 | term-confirmed locally across the four fields | 73 |
-| after the conditional-term rule (secondary enzymes need a modifier co-hit) | **53** |
+| after the conditional-term rule — FRAME-SPEC §2: `USP16`, `USP24`, `USP36` need a modifier co-hit. **Removed 0** | ~~53~~ **73** — corrected 2026-09-18, see *Correction* below |
 | **Frame B — site-directed enrichment, judged** | **11** |
 | undecided between A and B | 5 |
 
-Frame A is not yet 53: the §5 membership test (ISG15 as subject, not mention)
+Frame A is not yet ~~53~~ 73: the §5 membership test (ISG15 as subject, not mention)
 has been applied only to the B candidates. The remaining rows are term-confirmed
 and unjudged.
+
+**Correction, 2026-09-18 — the 53 was published in error. The frame is 73.**
+
+The 53 above was not produced by the conditional-term rule FRAME-SPEC §2
+registers. It came from a **third rule, written down nowhere**: every analysis
+behind this document treated a **six-term** secondary set — the three
+cross-reactive DUBs `USP16`, `USP24`, `USP36` **plus** `TRIM25`, `ARIH1`, `HHARI` —
+as conditional, and dropped any row whose terms fell entirely inside it.
+FRAME-SPEC §2 puts `TRIM25`, `ARIH1` and `HHARI` in *conjugation machinery*, not
+in the conditional row. **That rule was never registered.**
+
+Re-derived against `frame_raw.tsv`:
+
+| rule | drops | keeps |
+|---|---|---|
+| FRAME-SPEC §2 — a conditional term with no modifier co-hit | 0 | **73** |
+| `frame.py` — no co-hit from modifier, machinery or removal | 0 | 73 |
+| the unregistered six-term rule | 20 | 53 |
+
+**The registered spec governs.** FRAME-SPEC was written before the query ran;
+amending §2 now to fit a rule devised after seeing the results would be
+amending a pre-registration to match its own output. So the count is 73, the
+conditional-term rule removed **zero** deposits, and the 53 is struck rather
+than deleted — the error is part of the record.
+
+**What the correction does not move.** None of the twenty rows the unregistered
+rule dropped is among Frame B's eleven or the five undecided, so both figures
+stand. All twenty match on `TRIM25`, `ARIH1` or `HHARI` alone; not one matches on
+a conditional DUB. Whether those twenty belong in the frame is a FRAME-SPEC
+question, left to its own turn.
 
 ---
 
