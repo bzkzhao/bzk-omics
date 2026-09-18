@@ -1,6 +1,20 @@
-# ADR-0033 — Declaring an imputation whose parameters were never recorded
+# ADR-0034 — Declaring an imputation whose parameters were never recorded
 
-**Status:** Proposed, 2026-09-17. `/Users/bzk/bzk-omics`. Number is a guess.
+| | |
+|---|---|
+| Status | Proposed |
+| Date | 2026-09-18 |
+| Supersedes | — |
+| Superseded by | — |
+
+Lands `Proposed` per `decisions/README.md`. It becomes `Accepted` only once the
+round-trip completes. Numbered 0034 on landing: 0033 went to the frame record,
+which landed first.
+
+**Every check in this record was re-derived at `59d9433` (2026-09-18).** The
+draft's own citations were written against `019c711`; nothing under
+`bzk/adapters/`, `bzk/curation/`, `bzk/ontology/` or in `ONTOLOGY.md` moved
+between the two.
 
 **Fourth version, and much smaller than the first three.** Each was written
 against a wider read of the repository, and each time the problem shrank. The
@@ -40,14 +54,61 @@ I15 requires a declaration. PXD065158 can make one:
 `method`** — and this method requires all four present. That is the whole
 conflict.
 
-**Decision: amend those four rows so `method` is joined by the parent's
-`parameters_observed`.** The rows read: *determined by `method` and
+**The four rows already exist, in both homes, and the act this record proposes
+is amending a determiner rather than adding a classification.** Measured at
+`59d9433`:
+
+- `ONTOLOGY.md:156`–`:159` carry the four rows — `downshift_sd` (*"`method` —
+  NULL unless downshifted normal"*), `width_sd` (*"`method` — as
+  `downshift_sd`"*), `seed` (*"`method` — stochastic methods only (I15)"*) and
+  `scope` (*"`method` — NULL when nothing is imputed"*), each `determined`.
+- `bzk/ontology/schema.py`'s `ABSENCE` carries exactly the same four keys,
+  `("Imputation", …)`, each mapped to `"determined"`.
+
+So nothing is missing and nothing needs adding. **What is wrong is the
+determiner cell.** For an external analysis whose method *is* stated —
+imputation from a normal distribution around the detection limit — `method`
+determines those four fields to be **non-null**. They are null anyway, because
+the publication never stated them. That null is contingent on what a paper
+happened to record, and ADR-0021 calls a contingent null on an identifying
+field *"a defect to redesign rather than a state to declare"*.
+
+**Decision: amend those four determiner cells so `method` is joined by the
+parent's `parameters_observed`.** The rows read: *determined by `method` and
 `Analysis.parameters_observed` — NULL where the method would require the field
-but the analysis was run outside the platform.* No new field.
+but the analysis was run outside the platform.* No new field, no new row, and no
+change of `Kind`: all four stay `determined`.
 
 `parameters_observed` is REQUIRED on every `Analysis` (I19, `:495`), never null,
 and `Imputation` already anchors to its `Analysis`. Replay reproduces the null
-every time, which is `determined`'s own test at `:136`.
+every time, which is `determined`'s own test at `:136`. Where
+`parameters_observed` is `false`, the null is fixed by a recorded fact — the
+analysis was not observed, so its parameters are not recoverable from it — which
+is outside the moment of ingest and is exactly what ADR-0021 requires of a
+`determined` absence.
+
+**This decides the parent-field question rather than leaving it open: a
+`determined` absence may name a field of the node's anchor, and this is the
+instance.** The ground is not that the guard permits it — it does, and that is
+recorded below as a fact about the guard rather than as a licence. The ground is
+that §3's own test for `determined` is whether *something outside the moment of
+ingest forces the null*, and it does not say that something must live on the same
+node. `Imputation` anchors to exactly one `Analysis` (`IMPUTATION_FOR`,
+`MANY_ONE`), that `Analysis` always carries `parameters_observed` (I19), and the
+fold at `:169` already draws the child's identity and the parent's together. A
+determiner that names `Analysis.parameters_observed` is therefore as reproducible
+on replay as one naming `method`, which is the property `determined` is asking
+about. What would fail the test is a determiner naming something *contingent* —
+a value read at ingest time, or a field that may be absent — and
+`parameters_observed` is neither.
+
+**No code change is required, and the draft's claim that it is has been struck.**
+`tests/test_schema.py::test_schema_absence_matches_ontology_table` parses §3's
+table with four capture groups and then discards the fourth:
+`documented = {(label, field): kind for label, field, kind, _why in rows}`. It
+compares `schema.ABSENCE == documented` — a `(node, field) → kind` mapping.
+**The determiner prose is not compared**, so amending it moves no code and
+breaks no test. `schema.ABSENCE` is already correct and stays untouched.
 
 **Why not the `Software.container_digest` route.** ADR-0021 removed that field
 from identity entirely, reasoning that without a digest there is no evidence two
@@ -166,22 +227,61 @@ matrix for this deposit enters the store at all.
 
 ---
 
+## Implied changes, described and not made
+
+Following ADR-0031's section of the same name. **Nothing below is done in this
+record**, and `ONTOLOGY.md` is not edited here.
+
+1. **The four determiner cells at `ONTOLOGY.md:156`–`:159`**, each gaining
+   `Analysis.parameters_observed` beside `method`, in the wording the Decision
+   gives. `Kind` stays `determined` on all four, so `schema.ABSENCE` does not
+   move with them.
+2. **The I15 clause-(b) rationale, in all three of its homes or in none.** The
+   single-source rule binds them together, and there are three rather than the
+   two the draft named — measured at `59d9433`:
+   - `:83`, *Configuration belongs in identity* — *"§6.5 and I15 make the seed
+     mandatory precisely because it materially determines the result, and two
+     runs differing only in seed produce different numbers."*
+   - `:853`, §6.5 — *"A seed is mandatory for stochastic methods: without it,
+     the analysis is not reproducible even from the same inputs, which defeats
+     I9."*
+   - `:962`, I15 itself — *"Stochastic methods record a seed; without one the
+     analysis is irreproducible from its own inputs and I9 fails."*
+
+   Two further places state the *requirement* or the *classification* without the
+   rationale, and are listed so a later edit does not miss them: the DDL comment
+   at `:839` (*"REQUIRED where the method is stochastic"*) and §3's `seed` row at
+   `:158`, which is one of the four cells in 1.
+3. **Neither before the other is decided**, and this record fixes no ordering
+   between 1 and 2. What it does fix is that 1 alone is enough for PXD065158 to
+   be declarable; 2 is a documentation-consistency question that the amendment
+   surfaces rather than creates.
+
+---
+
 ## Open before commit
 
-1. **§6.5** (`:853`) restates I15 clause (b). Both homes or neither.
-2. ~~Whether a `determined` absence may name a **parent** field.~~ **Answered:
-   yes, mechanically.** `tests/test_schema.py` checks the node exists, the field
-   is a real column, the field is identifying for that node, the kind is
-   `determined` or `curated`, and the reason is non-empty. It never parses the
-   reason, so a parent-field determiner passes. Its own docstring says it
-   *"cannot check that a `determined` classification is TRUE — that a null is
-   genuinely forced by the data rather than merely customary. That stays a
-   modelling judgement."* **The guard will not catch this row if it is wrong**,
-   which is the reason to argue it in the ADR rather than rely on the test.
-3. **`schema.ABSENCE` must be amended in step.**
-   `test_schema_absence_matches_ontology_table` checks the code-side mirror
-   agrees with §3 in both directions, so a row added to the document without an
-   entry here fails. And the data-half check requires that any identifying field
-   absent in committed data already be declared — so the four rows must land
-   *before* PXD065158's curation record does, not alongside it.
+1. ~~**§6.5** (`:853`) restates I15 clause (b). Both homes or neither.~~
+   **Re-measured: three homes, not two** — `:83`, `:853` and `:962`. Carried into
+   *Implied changes* 2 rather than left here, since it is an edit to describe
+   rather than a question to answer.
+2. ~~Whether a `determined` absence may name a **parent** field.~~ **Decided in
+   the Decision above**, on the modelling ground rather than on the guard's
+   silence. The mechanical fact stands and is recorded there as a fact about the
+   guard: `tests/test_schema.py` checks the node exists, the field is a real
+   column, the field is identifying for that node, the kind is `determined` or
+   `curated`, and the reason is non-empty — it never parses the reason. Its own
+   docstring says it *"cannot check that a `determined` classification is TRUE —
+   that a null is genuinely forced by the data rather than merely customary. That
+   stays a modelling judgement."* **The guard will not catch this row if it is
+   wrong**, which is why the argument is in the record.
+3. ~~**`schema.ABSENCE` must be amended in step.**~~ **Struck — measured false at
+   `59d9433`.** `ABSENCE` already carries all four `("Imputation", …)` keys as
+   `determined`, so no row is being added to §3 and none is missing from the
+   mirror. `test_schema_absence_matches_ontology_table` compares
+   `(node, field) → kind` and discards the determiner text, so amending a
+   determiner needs no code change and breaks no test. What the struck item got
+   right, and what survives: the data-half check requires that any identifying
+   field absent in committed data already be classified — and all four already
+   are, so PXD065158's curation record is not blocked on an ordering either.
 4. Generalising to unrecorded transformations as a class. Left open.
