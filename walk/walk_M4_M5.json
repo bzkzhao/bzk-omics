@@ -1,0 +1,127 @@
+{
+  "record": "M4 and M5 — requirement-1 determinations",
+  "walked_at": "2026-09-17",
+  "walker": "reviewer-chat",
+  "standard_version": "WALK-STANDARD v1",
+  "method_of_discovery": "Supplementary listings retrieved as screenshots by the user after cell.com and PMC refused automated fetches. iScience Table S1 (mmc2.xlsx) and the Nature Communications 'Description of Additional Supplementary Files' PDF then supplied and opened. Table S1 read at G4 with openpyxl; counts computed, not eyeballed.",
+  "M4": {
+    "candidate": "iScience 2024, HERC5-dependent ISGylome",
+    "publication": "Zhao et al., iScience 27:108820 (2024), doi:10.1016/j.isci.2024.108820",
+    "table_s1": {
+      "sheet": "Supplemental Table S1",
+      "data_rows": 2189,
+      "columns": [
+        "(index)",
+        "Protein Accession",
+        "Gene Name",
+        "Protein Name",
+        "Site",
+        "Localization_probability",
+        "Intensity_01",
+        "Intensity_02",
+        "Intensity_03",
+        "Intensity_median",
+        "Intensity_mean"
+      ],
+      "reconciliation": "2,189 sites over 1,107 distinct accessions — the paper's 'over 2,000 modified lysines in over 1,100 proteins', reproduced from the table.",
+      "site_column": "A 15-character sequence window, every value exactly 15 characters. NOT a numeric position. No position column exists anywhere in the sheet.",
+      "key_uniqueness": {
+        "distinct_accession_site_pairs": 2189,
+        "distinct_15mers": 2189,
+        "15mers_in_more_than_one_row": 0,
+        "15mers_spanning_more_than_one_accession": 0
+      },
+      "no_statistic": "No p-value, no fold change, no significance flag. The legend says only 'met filtering criteria (see text)'.",
+      "zeros": "560 rows carry a zero in at least one replicate intensity — the same not-reported-as-zero convention as the FragPipe table."
+    },
+    "R1": {
+      "verdict": "FAIL — EXHAUSTED",
+      "deepest_grain": "G4",
+      "determined_by": [
+        "Table S1, opened"
+      ],
+      "grade": "P",
+      "reason": "Requirement 1 asks for accession or gene PLUS POSITION. The accession and gene are present; the position is not, at any grain.",
+      "the_qualification_that_matters": "The set is RECOVERABLE to site grain: locate the 15-mer in that accession's sequence. Within this table the recovery is unambiguous — all 2,189 windows are distinct and none spans two accessions — so the ambiguity is not in the table. It is entirely in the SEQUENCE VERSION the window is resolved against, and the paper states none. The published position is therefore a function of which UniProt release you resolve it on.",
+      "why_that_is_interesting_rather_than_merely_awkward": "It is a reference-identity defeater built into the claim set's own key. The anchor measured 5% of sequences amended after the original search and isoform positions returning the wrong residue against canonical sequences (I2). Resolving 2,189 windows against today's UniProt would put a number on how many published sites move or vanish — which is a D2 instrument, and a clean one.",
+      "exhaustion": "CLOSED 2026-09-17. All three site tables opened at G4. None carries a position column; all three share an identical 11-column schema — accession, gene, protein name, Site (15 characters), localisation probability, three replicate intensities, median, mean. No statistic in any of them."
+    },
+    "R2": {
+      "verdict": "FAIL, provisionally, and this is the more decisive finding",
+      "reason": "The claim set carries no statistic. It is a filtered identification list, not a significance set. D5 requires a stated statistical criterion whose faithful reconstruction can withdraw support from published claims — with no test selecting these 2,189 sites, there is no p-value to reconstruct and nothing to withdraw.",
+      "caveat": "'Met filtering criteria (see text)' may name a statistical filter in the methods, which have not been read. But the table carries no statistic column, where the anchor's SUPP_DATA_1 does.",
+      "consequence": "Unless the methods state a selecting test, this candidate cannot carry the D5 replication however its R1 resolves. It remains a strong D2 candidate."
+    },
+    "tables_s3_s4": {
+      "Table S3 (hHERC5 in HEK293T-HERC5KO)": {
+        "data_rows": 7117,
+        "distinct_accessions": 2901,
+        "distinct_15mers": 7117,
+        "accession_site_pairs_distinct": true,
+        "position_column": "none"
+      },
+      "Table S4 (mHERC6 in HEK293T-HERC5KO)": {
+        "data_rows": 7182,
+        "distinct_accessions": 2779,
+        "distinct_15mers": 7182,
+        "accession_site_pairs_distinct": true,
+        "position_column": "none"
+      },
+      "shared_accessions_S3_S4": 1998,
+      "scale_note": "The transfected sets are roughly three times the primary A549 ISGylome. The paper’s headline figure — over 2,000 lysines in over 1,100 proteins — is Table S1 alone."
+    },
+    "species_question_closed": {
+      "finding": "THERE IS NO MOUSE PROTEOME. Table S4 is mHERC6 and mouse ISG15/mUBE2L6 expressed in HUMAN HEK293T-HERC5KO cells, so its substrates are human. S3 and S4 share 1,998 accessions, and S4-only accessions are human.",
+      "correction": "Cross-species keying was raised against this candidate twice — first from the abstract, then from the supplementary legends — and dissolves on opening the tables. The mouse in this study is the enzyme, never the proteome."
+    }
+  },
+  "M5": {
+    "candidate": "PXD055843",
+    "publication": "Mukhopadhyay et al., Nature Communications, doi:10.1038/s41467-026-74490-2, 2026-06-19. Retitled from the 2024 preprint; the PRIDE record still carries the preprint title.",
+    "supplementary_data": [
+      {
+        "item": "Supplementary Data 1",
+        "contents": "DIA total proteome, HeLa siUSP24 vs siC, +/- IFN-beta. 7,610 unique proteins.",
+        "grain": "protein"
+      },
+      {
+        "item": "Supplementary Data 2",
+        "contents": "DIA GG-peptidome, K-e-GG modified peptides, same design. 8,169 unique MODIFIED PEPTIDES.",
+        "grain": "peptide, and an identification list rather than a significance set"
+      },
+      {
+        "item": "Supplementary Data 3",
+        "contents": "ISG15 interactome by immunoaffinity enrichment. 4,410 unique proteins.",
+        "grain": "protein"
+      },
+      {
+        "item": "Supplementary Data 4",
+        "contents": "FILTERED set of interactome and GG-peptidome hits significantly enriched on USP24 depletion, log2FC >= 1.3 and -log10 p >= 1.3 under IFN-beta. 56 PROTEINS for network analysis.",
+        "grain": "protein"
+      },
+      {
+        "item": "Supplementary Data 5",
+        "contents": "oligonucleotide sequences",
+        "grain": "none"
+      }
+    ],
+    "R1": {
+      "verdict": "FAIL",
+      "deepest_grain": "G1",
+      "grade": "P",
+      "reason": "The only significance-selected published set is Supplementary Data 4, and it is 56 PROTEINS — protein grain, and it merges two assays. The GG arm is Supplementary Data 2, which is an identification list at peptide grain with no significance selection. There is no published site-grain significant table.",
+      "exhaustion": "Supplementary Data 2 is unopened. It could carry site-level columns and a significance column that the description does not mention, which would overturn this. Under the asymmetry rule the FAIL is not exhausted until it is opened — but the description is specific about what the file is, and the significant set is named separately as Data 4.",
+      "cross_reference": "Project memory records four Perseus spreadsheets for this deposit (S1_TP, S2_GG, S3_ISG15_IP, S4 derived ranking) against five published data files. The mapping is close but not one-to-one, and data/curation/curation_PXD055843.json pins 'Supplementary_Data_S1_TP.xlsx' with a content_hash against the file it pinned, not against the published Supplementary Data 1."
+    },
+    "bearing_on_the_section_5_countable": {
+      "what": "PXD055843 is the FIRST GENUINE ENTRY. It is curatable — a curation record exists in the repository, a source module is written, and ingestion is blocked only on the imputation question. And requirement 1 fails.",
+      "the_pairing": "Curatability passing, requirement 1 failing, which is exactly the countable the handoff §5 says is worth having whatever else the walk finds.",
+      "numerator_so_far": 1,
+      "denominator": "still unmade — it needs curatability determined across the ISG and USP18 candidate set, not the GlyGly-general sixty."
+    }
+  },
+  "finding_for_the_standard": {
+    "transparent_peer_review": "The Nature Communications listing carries one. Peer-review files routinely hold parameter values and reviewer-prompted clarifications absent from the paper — the material a D5 reconstruction needs. WALK-STANDARD §4's source order does not name it. Add it.",
+    "requirement_1_wording": "M4 shows the requirement cannot distinguish 'carries a position' from 'determines a position given a sequence version'. Those are different properties with different costs, and the second is a defeater in its own right. Worth splitting when the standard is next versioned."
+  }
+}

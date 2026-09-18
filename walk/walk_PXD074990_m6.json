@@ -1,0 +1,38 @@
+{
+  "accession": "PXD074990",
+  "walk_id": "m6",
+  "walked_at": "2026-09-17",
+  "walker": "reviewer-chat",
+  "standard_version": "WALK-STANDARD v1",
+  "task": "M6 — re-determine the verdict the handoff §4 records as known wrong",
+
+  "method_of_discovery": "Repository cloned from https://github.com/bzkzhao/bzk-omics. ROADMAP.md read at the PXD074990 ruling block (l.9985 onward) and at the survey row table. No network call to PRIDE; the determination is against the recorded walk, not a re-walk.",
+
+  "finding": "THE HANDOFF'S §4 PREMISE DOES NOT HOLD. The recorded walk does not have the defect attributed to it.",
+
+  "what_the_record_actually_shows": {
+    "date": "2026-08-18",
+    "ruling": "present but insufficient — described as the narrowest insufficiency of the four",
+    "stopping_rule": "Documented, not undocumented. The walk ran 'under the source set ADR-0026 settled', and states plainly what it did not do: 'No curation record is written, nothing is ingested, and no site table or archive is fetched.'",
+    "fetch_accounting": "Every call measured: project metadata 5,607 B, file listing 3,315 B, checksum.txt 176 B, total 9,098 B, all HTTP 200. 'No host refused anything, nothing was blocked, no route was retried, and no body was discarded.'",
+    "absence_determination": "The SDRF absence was determined over a COMPLETE listing — three files, total_records: 3, row count reconciled before scanning, paginated anyway so that 'the answer is right for the right reason'. One SEARCH archive, one RAW, one OTHER. No file whose name contains sdrf.",
+    "document_read": "checksum.txt fetched and read in full, then classified: under R1 it is not a basis, because it asserts a filename-to-digest pairing and no sample-to-condition assignment.",
+    "the_one_genuine_stop": "'What is missing is one expansion of a documented vocabulary, in a page this turn is not authorised to read.' A bounded, named, authorised stop — the opposite of a walk that ran out of rule."
+  },
+
+  "likely_origin_of_the_handoff_claim": {
+    "hypothesis": "'Not fetched' was read as 'absent'. The walk deliberately did not fetch PTMH1299_search_results.zip (2,283,114,958 B) under its source set. ROADMAP separately records that archive's member table — combined/txt/GlyGly (K)Sites.txt, 1,115,157 B uncompressed, 228,308 compressed, 95 columns — as VERIFIED, from a different pass. A reader holding both could conclude that a source was recorded absent while existing. The walk recorded it unfetched, which is a different claim and a correct one.",
+    "confidence": "Unproven. The original four-deposit survey's own text was not read; this is a reconstruction from the two records that are in the repository.",
+    "alternative_not_excluded": "The §4 defect may refer to an earlier pass over PXD074990 that predates the 2026-08-18 walk and is not in ROADMAP. Nothing found rules that out."
+  },
+
+  "consequence_for_WALK_STANDARD": {
+    "the_standard_survives": "Its rules are independently justified — the container rung, the asymmetry rule and the four-verdict vocabulary each caught a real error in this session, none of which involved PXD074990.",
+    "but_its_stated_motivation_is_wrong": "WALK-STANDARD's preamble cites PXD074990 as the named instance of an absence determined without a documented stopping rule. The recorded walk has a documented source set, a reconciled complete listing, and measured fetch accounting. The instance does not support the claim.",
+    "required_edit": "Replace the named instance, or restate the motivation without one. A standard written against a misread instance is the same defect one level up — which is exactly what the standard says about the survey it was written to fix.",
+    "irony_recorded_not_enjoyed": "The standard was written to stop absences being asserted from shallow reads. Its own motivating instance was asserted from a shallow read of the repository."
+  },
+
+  "verdict": "M6 CLOSED. PXD074990's recorded verdict stands as present but insufficient; no re-walk is warranted. The handoff §4 claim is withdrawn pending the original survey's text.",
+  "what_would_reopen_it": "The original four-deposit survey's own record of PXD074990, wherever it lives. If it says 'absent' of the archive, the handoff is right about that pass and wrong only about which pass."
+}

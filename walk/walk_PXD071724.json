@@ -1,0 +1,81 @@
+{
+  "accession": "PXD071724",
+  "title_as_deposited": "Mapping ISG15 sites on GAPDH and PGK1 by AP-MS",
+  "publication_doi": "10.1186/s13059-026-04034-w",
+  "publication": "Eggermont et al., Genome Biology 27:135 (2026)",
+  "walk_id": "w1",
+  "walked_at": "2026-09-17",
+  "walker": "reviewer-chat",
+  "standard_version": "WALK-STANDARD v1",
+
+  "origin": "Not in the handoff §6 candidate table. Surfaced by M1 as the second PRIDE deposit of the same publication. Recorded rather than dropped.",
+
+  "requirements": [
+    {
+      "id": "R1",
+      "verdict": "UNRESOLVED",
+      "deepest_grain": "G2",
+      "determined_by": ["s4"],
+      "grade": "P",
+      "note": "A site-grain claim set exists and is keyable — Fig. S7 names eleven significantly regulated GlyGly(K) sites as gene plus position (five on GAPDH, six on PGK1), with the subset also seen in the ISGylomics screen marked in bold. But it lives in a figure, not a table. This is the first live instance of WALK-STANDARD §9 limit 3: the G0-G4 ladder is defined for tabular supplementary material and has no defined deepest grain for figure-borne claims.",
+      "table_s5_checked_and_ruled_out": "Table S5 was opened at M2 and is NOT this deposit's result table. It is a cross-study literature compilation — 17 GAPDH lysines and 17 PGK1 lysines, each with a bracketed list of the prior studies reporting it, plus flags for inclusion in the K219R/K227R and 13KR mutants (13 flagged for 13KR, consistent with the mutant's name). Positions only; the gene is a section header rather than a column; no accession anywhere; no statistic. It is a provenance table for the mutagenesis design, not a claim set of this study.",
+      "consequence": "R1 for this deposit stays UNRESOLVED, and stays unresolvable at G4 until the ladder is extended to figure-borne claims or the deposit's own processed files are read."
+    },
+    {
+      "id": "R2",
+      "verdict": "PASS",
+      "deepest_grain": "G2",
+      "determined_by": ["s1", "s5"],
+      "grade": "P",
+      "criterion_recorded": {
+        "search": "DIA-NN v1.9.0, default settings, 1% FDR at precursor and protein level; SwissProt January 2024 plus GFP; precursor tolerance 10 ppm, fragment 20 ppm; Trypsin/P, up to two missed cleavages; carbamidomethyl fixed, Met oxidation / protein N-term acetyl / GG-K variable; yields the report.UniMod_121_sites_99 table, 26 GG-modified sites",
+        "downstream": "Perseus v.1.6.2.1; log2; per-sample median subtraction; sites with fewer than three valid values in at least one replicate group discarded; imputation from a normal distribution around the detection limit; one-way ANOVA between experimental groups",
+        "selection_threshold": "p < 0.01",
+        "is_the_selecting_criterion": true,
+        "multiplicity_correction": "none stated"
+      },
+      "note": "A third search engine across the two deposits of one paper: FragPipe for PXD065158, DIA-NN here. Imputation parameters unstated, as in the companion deposit."
+    },
+    {
+      "id": "R3",
+      "verdict": "UNRESOLVED",
+      "deepest_grain": "G0",
+      "determined_by": ["s1"],
+      "grade": "P",
+      "note": "Design stated: FLAG-GAPDH / FLAG-PGK1 / FLAG-GFP baits, each with HA-ISG15 or the conjugation-defective HA-ISG15-AA, n = 3. Deposit files not seen."
+    },
+    {
+      "id": "R4",
+      "verdict": "UNRESOLVED",
+      "deepest_grain": "G0",
+      "determined_by": ["s1"],
+      "grade": "P",
+      "note": "DIA-NN output. No existing adapter reads it, and no DIA-NN adapter is contemplated. File listing not retrieved."
+    }
+  ],
+
+  "sources": [
+    {"source_id": "s1", "name": "publication main text", "reached_at": "2026-09-17", "method_of_discovery": "shared with walk_PXD065158.json s1 — same article, same term-set enumeration", "deepest_grain": "G2", "exhausted": true},
+    {"source_id": "s4", "name": "figure legends", "reached_at": "2026-09-17", "method_of_discovery": "Fig. S7 legend and panel read from Additional file 1", "deepest_grain": "G2", "exhausted": true},
+    {"source_id": "s5", "name": "supplementary methods", "reached_at": "2026-09-17", "deepest_grain": "G2", "exhausted": true},
+    {"source_id": "s2", "name": "supplementary listing", "reached_at": "2026-09-17", "deepest_grain": "G1", "exhausted": false, "criterion_met": "No — Table S5 not opened. M2."},
+    {"source_id": "s3", "name": "supplementary tables", "reached": false, "exhausted": false},
+    {"source_id": "s6", "name": "PRIDE project metadata", "reached": false, "exhausted": false},
+    {"source_id": "s7", "name": "file listing", "reached": false, "exhausted": false},
+    {"source_id": "s8", "name": "SDRF", "reached": false, "exhausted": false},
+    {"source_id": "s9", "name": "repository-adjacent records", "reached": false, "exhausted": false}
+  ],
+
+  "dead_pointers": [],
+
+  "counts": {
+    "sources_exposed": 4,
+    "sources_exhausted": 3,
+    "requirements_determined": 1,
+    "requirements_defeated": 0,
+    "dead_pointers_encountered": 0
+  },
+
+  "verdict": "unresolved",
+  "verdict_reason": "Small and targeted rather than proteome-wide; it is a validation deposit, not a discovery one. Recorded for completeness and because it is the first case the standard's own stated limit on figure-borne claims applies to. Not a strong D5 candidate on its face."
+}
