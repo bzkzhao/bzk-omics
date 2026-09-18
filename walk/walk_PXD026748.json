@@ -1,0 +1,184 @@
+{
+  "accession": "PXD026748",
+  "title": "Proteome-wide identification of ISG15 sites targeted by SARS-CoV-2 PLpro",
+  "walk_id": "w1",
+  "walked_at": "2026-09-17",
+  "walker": "reviewer-chat",
+  "standard_version": "WALK-STANDARD v1",
+  "why_walked": "Surfaced by FRAME v1, absent from the handoff §6 list. The only human, MaxQuant, site-enriched member of Frame B whose R1 is unchecked — so the only candidate that could carry the D5 replication through the EXISTING adapter.",
+  "method_of_discovery": "PRIDE v3 project metadata via the frame query. Description, sample-processing protocol and data-processing protocol read in full from the frame TSV. No publication fetched.",
+  "design": {
+    "cells": "HeLa WT and Isg15-/-",
+    "stimulation": "IFN-alpha 500 U/mL, 72 h",
+    "treatment_axis": "recombinant wild-type or catalytically-dead mutant PLpro applied to lysate, 1:50 w/w, 30 min at 37 C",
+    "replicates": 3,
+    "arms": "2 genotypes x 2 PLpro treatments x 3 replicates",
+    "enrichment": "PTMScan HS Ubiquitin/SUMO Remnant Motif (K-e-GG) Kit, S-Trap, on-column trypsin, anti-K-e-GG immunocapture",
+    "instrument": "Q Exactive HF, Ultimate 3000 RSLCnano",
+    "n_files": 27,
+    "sdrf": "absent per the frame record"
+  },
+  "requirements": [
+    {
+      "id": "R1",
+      "verdict": "PASS",
+      "deepest_grain": "G4",
+      "grade": "P",
+      "note": "The most keyable claim table of the four candidates. It carries BOTH a numeric Lysine position AND a 31-character sequence window, so a site is resolvable either way and the two can be checked against each other — which is exactly the reference-identity cross-check the iScience tables cannot support. It also cross-references known ubiquitin sites, acetyl sites and in vivo ISG15 targets, and carries a per-site Protein Ratio WT/ISG15 KO, so the protein-abundance confound is addressable from the published table alone.",
+      "artefact": "Supplementary Table 1 (MOESM3), sheet \"Table 1\" — one workbook, three sheets",
+      "shape": {
+        "data_rows": 296,
+        "row_unit": "one row per site",
+        "columns": [
+          "#",
+          "Cluster",
+          "Uniprot ID",
+          "Gene name",
+          "Protein name",
+          "Lysine position",
+          "Multiplicity",
+          "Sequence window",
+          "Ubiquitin sites",
+          "Acetyl sites",
+          "In vivo ISG15 targets",
+          "Protein Ratio WT/ISG15 KO"
+        ]
+      },
+      "keyability": {
+        "rows_missing_position": 0,
+        "positions_numeric": 296,
+        "isoform_hyphens": 0,
+        "multi_accession_cells": 0,
+        "distinct_accession_position_pairs": 296,
+        "sequence_window_length": 31
+      }
+    },
+    {
+      "id": "R2",
+      "verdict": "PASS",
+      "deepest_grain": "G2",
+      "grade": "B",
+      "note": "Determined from the DEPOSIT's own data-processing protocol, not from a publication — so grade B rather than P, which is stronger than the anchor's own R2 evidence.",
+      "criterion_recorded": {
+        "search": "MaxQuant 1.6.17.0 with Andromeda, 1% FDR peptide and protein; SwissProt human January 2021, 20,621 sequences; precursor 4.5 ppm, fragment 20 ppm (GG) / 0.5 Da (shotgun); trypsin-allow-P, up to three missed cleavages; carbamidomethyl fixed; Met oxidation and protein N-term acetyl variable; GG on lysine variable for the GG samples; minimum modified-peptide score 30",
+        "discovery": "2,143 GG-modification sites, in the GlyGly(K) site table",
+        "downstream": "Perseus 1.6.2.1 — reverse, contaminant and localisation-probability<0.75 sites removed; site table expanded; log2; per-sample median subtraction; sites with fewer than three valid values in at least one replicate group discarded; imputation from a normal distribution around the detection limit; two-way ANOVA on treatment x genotype giving three p-values",
+        "selection_threshold": "p < 0.01 on at least one of the three",
+        "is_the_selecting_criterion": true,
+        "multiplicity_correction": "none stated for the GG arm"
+      }
+    },
+    {
+      "id": "R3",
+      "verdict": "PASS-provisional",
+      "deepest_grain": "G1",
+      "grade": "B",
+      "note": "The condition is carried in the raw filenames themselves — Gly-Gly-KO_mut_rep1, shotgun-ctrl_wt-2 — consistently across all 24 runs, four cells of three per arm. No SDRF and no design spreadsheet, so under I8 this is design derived from filenames: confidence = inferred, never presented as coming from the submitters. Provisional until the site table's column headers are matched to the run names.",
+      "better_than_PXD065158": "No separate design file to join against, so no transposed-token hazard of the sample-15 kind."
+    },
+    {
+      "id": "R4",
+      "verdict": "PASS",
+      "deepest_grain": "G2",
+      "grade": "B",
+      "note": "A complete MaxQuant combined/txt output. GlyGly (K)Sites.txt is the exact artefact bzk/adapters/maxquant_sites.py reads today, under the exact filename PXD074990's archive also carried. No adapter work is required.",
+      "significance": "THIS IS THE POINT OF WALKING IT. If R1 and R4 hold, the D5 replication runs through the existing adapter and the FragPipe build leaves the critical path.",
+      "artefact": "20210616_GlyGly_PRIDE.zip -> GlyGly (K)Sites.txt, 3.8 MB",
+      "archive_contents": [
+        "allPeptides.txt 865.2 MB",
+        "evidence.txt 44.7 MB",
+        "GlyGly (K)Sites.txt 3.8 MB",
+        "matchedFeatures.txt 0 bytes",
+        "modificationSpecificPeptides.txt 6.1 MB",
+        "ms3Scans.txt 0 bytes",
+        "msms.txt 299.3 MB",
+        "msmsScans.txt 237.7 MB",
+        "mzRange.txt 9.7 MB",
+        "Oxidation (M)Sites.txt 1.1 MB",
+        "parameters.txt 3 KB",
+        "peptides.txt 6.5 MB",
+        "proteinGroups.txt 3.7 MB",
+        "summary.txt 6 KB",
+        "tables.pdf 68 KB"
+      ],
+      "parameters_record": "parameters.txt, 3 KB — the MaxQuant analogue of fragger.params, so the search step is pinned from a deposited artefact as it is for PXD065158.",
+      "caution": "proteinGroups.txt here is from the GG-enriched search, NOT the shotgun proteome. The shotgun proteome lives in the separate 20210616_Shotgun_PRIDE.zip (914 MB) and has not been opened."
+    }
+  ],
+  "comparison_with_PXD065158": {
+    "same": "Perseus 1.6.2.1; two-way ANOVA on treatment x genotype; three p-values; p<0.01 on at least one; imputation from a normal distribution around the detection limit with NO width, downshift or seed stated. The D5 instrument is identical in shape.",
+    "better_here": "A localisation-probability threshold of 0.75 is STATED. PXD065158's methods state none. Reverse and contaminant removal are also stated explicitly, so filters_applied is recoverable under I16.",
+    "better_there": "PXD065158's published claim table is in hand and keys exactly; this one's is unseen.",
+    "engine": "MaxQuant into Perseus here, FragPipe into Perseus there. The MaxQuant pairing matches the anchor, which makes the controlled comparison cleaner — a difference in the fraction would not be confounded by a change of search engine.",
+    "the_catch": "Both are Impens-lab deposits, as is PXD011513. Three of Frame B's eleven come from one group. A fraction measured across them is partly a measurement of one laboratory's reporting practice, and that should be stated wherever the fraction is."
+  },
+  "probable_publication": {
+    "candidate": "Munnur et al., 'Altered ISGylation drives aberrant macrophage-dependent immune responses during SARS-CoV-2 infection', Nature Immunology 22:1416-1427 (2021)",
+    "basis": "PRIDE publicationDate 2021-10-12 matches; the Genome Biology paper describes that work as the first HeLa ISGylome characterised under SARS-CoV-2 PLpro treatment, which is this design exactly; author overlap with the Impens group.",
+    "status": "CONFIRMED. The paper's Data availability names PXD026748 explicitly.",
+    "next_step": "Open that paper's supplementary listing and determine R1. If it carries a site-grain table with accession and position, this candidate is complete on the publication side and the adapter question changes.",
+    "citation": "Munnur et al., Nat Immunol 22:1416-1427 (2021), doi:10.1038/s41590-021-01035-8"
+  },
+  "verdict": "COMPLETE. R1, R2, R4 PASS. R3 PASS-provisional.",
+  "verdict_reason": "Every requirement is met with no new engineering. Claim table: numeric position plus sequence window, 296 rows, exact reconciliation on the headline claim. Criterion: stated in the deposit and the publication, with imputation unstated — the D5 instrument intact. Search output: MaxQuant GlyGly (K)Sites.txt, the format the platform reads today, with parameters.txt pinning the search. Design: legible from filenames across 24 runs with no join hazard and no acquisition gaps. And the matched shotgun proteome is in the same deposit, which the anchor does not have.",
+  "the_multiplicity_finding": {
+    "what": "The methods say the GlyGly(K) site table was EXPANDED before analysis — \"the site table was expanded and the intensities were log2-transformed\".",
+    "why_it_matters": "Expansion is the MaxQuant ___1/___2/___3 multiplicity split. So this analysis consumed PER-MULTIPLICITY intensities, where the anchor used multiplicity-summed. I16's own DDL comment defers exactly this: \"Per-multiplicity consumption (the ___n split) is deferred — extend the enum when a per-multiplicity analysis is actually run.\" This is that analysis.",
+    "the_trade_off": "PXD026748 avoids the FragPipe adapter but requires the quantity enum to be extended, and quantity is identifying (I16, ADR-0020), so the extension is a schema change rather than a config line. PXD065158 needs the adapter but its table is one row per site with no expansion. Neither candidate is free; the costs are in different places.",
+    "also": "A localisation-probability threshold of 0.75 is stated and applied — recoverable into Analysis.localization_threshold, which the anchor supplies and PXD065158 does not.",
+    "SOFTENED": "Measured at G4: the Multiplicity column is 1 for ALL 296 rows. So although the analysis consumed the EXPANDED site table, every published claim is a multiplicity-1 row. I16 still requires the Analysis to declare the quantity it consumed, so the enum question stands — but its practical consequence is far smaller than stated this morning, because the claim-grain comparison is unaffected. The earlier framing of \"a FragPipe adapter against a quantity-enum extension\" overstated the second term."
+  },
+  "reconciliation": {
+    "exact": {
+      "cluster_1a": "118 sites on 95 distinct proteins — the paper's headline PLpro-target claim, reproduced from the table",
+      "cluster_3": "20 ubiquitination sites on 16 proteins — exact",
+      "ISG15_clusters_1a_1b_2": "276 sites — exact"
+    },
+    "discrepancy": {
+      "what": "The paper says 276 sites on 181 proteins. The table holds 182 distinct Uniprot accessions and 181 distinct gene names.",
+      "observed": "Two gene names each span two accessions — AKR1C3 (P42330, P52895) and HSP90AA1 (P07900, P08238), which are paralogue pairs collapsed under one gene name.",
+      "why_it_does_not_close": "Collapsing two 2:1 gene names against 182 accessions gives 180, not 181, so neither the accession count nor the gene-name count reproduces the published figure exactly. One row is unaccounted for. Recorded as an open discrepancy, not explained.",
+      "class": "protein-grain counting basis — the same shape as PXD065158's unlabelled row, and it bears on whether a published protein count is by accession or by gene."
+    }
+  },
+  "deposit_listing": {
+    "entries_pasted": 26,
+    "pride_metadata_says": 27,
+    "unaccounted": 1,
+    "composition": {
+      "RAW": 24,
+      "SEARCH": 2
+    },
+    "design": "12 GlyGly runs and 12 shotgun runs; four cells of three in each arm (WT/KO x wild-type/mutant PLpro)",
+    "b_series": "8777 to 8823 in steps of two — 24 slots, 24 deposited, NO absences. The opposite of PXD065158, which had two.",
+    "size_outlier": "shotgun-ctrl_mut-3 at 627 MB against a 1,380-1,795 range. Sits in the shotgun arm, so it bears on the protein-adjustment baseline rather than the site claims.",
+    "file_count_discrepancy": {
+      "what": "PRIDE project metadata states 27 files; the file listing shows 26.",
+      "status": "CONFIRMED against the PRIDE file base, and unresolved in either direction — nothing seen says which number is right.",
+      "class": "A deposit whose own stated file count disagrees with its own listing, by one. Small, countable, and exactly the kind of internal inconsistency the claim-durability direction is about. Recorded as an instance; not counted, and not explained."
+    }
+  },
+  "shotgun_archive": {
+    "artefact": "20210616_Shotgun_PRIDE.zip, opened",
+    "contents": [
+      "allPeptides.txt 940.6 MB",
+      "evidence.txt 178.2 MB",
+      "GlyGly (K)Sites.txt 188 KB",
+      "matchedFeatures.txt 0 bytes",
+      "modificationSpecificPeptides.txt 23.5 MB",
+      "ms3Scans.txt 0 bytes",
+      "msms.txt 1.25 GB",
+      "msmsScans.txt 382.2 MB",
+      "mzRange.txt 11.1 MB",
+      "Oxidation (M)Sites.txt 1.9 MB",
+      "parameters.txt 3 KB",
+      "peptides.txt 26.6 MB",
+      "proteinGroups.txt 11.2 MB",
+      "summary.txt 6 KB",
+      "tables.pdf 69 KB"
+    ],
+    "the_finding": "proteinGroups.txt at 11.2 MB is the SHOTGUN proteome — the protein-abundance baseline, deposited in the same project as the GG arm, sharing one design and one filename convention. A separate parameters.txt pins the shotgun search independently, as the methods said two searches were run.",
+    "why_it_matters": "ROADMAP blocks the MaxQuant protein-groups adapter on the ground that no curation record exists for the anchor's proteome run — the diGly and proteome runs are separate deposits with separate sample sets. Here both arms are in ONE deposit with ONE legible design, so both curation records are writable from one listing. That makes I4 protein_adjusted = applied reachable, and with it I21, which ROADMAP records as exercised by constructed cases only because no writer in the repository emits an ADJUSTED_BY edge.",
+    "caution": "The 188 KB GlyGly (K)Sites.txt in this archive is incidental GG identification from the unenriched shotgun search. It is not a second claim set and must not be read as one."
+  }
+}
