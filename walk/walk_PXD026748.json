@@ -5,6 +5,7 @@
   "walked_at": "2026-09-17",
   "walker": "reviewer-chat",
   "standard_version": "WALK-STANDARD v1",
+  "standard_version_note": "WALK-STANDARD v1 is not in this repository and cannot be obtained. v2 was written by overwriting v1 in place, so v1's text is not recoverable from anywhere; only WALK-STANDARD.md v2 and its changelog survive. The verdicts in this record were measured against v1, and a reader cannot see the text they were measured against. v1 is deliberately not reconstructed from the changelog.",
   "why_walked": "Surfaced by FRAME v1, absent from the handoff §6 list. The only human, MaxQuant, site-enriched member of Frame B whose R1 is unchecked — so the only candidate that could carry the D5 replication through the EXISTING adapter.",
   "method_of_discovery": "PRIDE v3 project metadata via the frame query. Description, sample-processing protocol and data-processing protocol read in full from the frame TSV. No publication fetched.",
   "design": {

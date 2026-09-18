@@ -3,6 +3,7 @@
   "walked_at": "2026-09-17",
   "walker": "reviewer-chat",
   "standard_version": "WALK-STANDARD v1",
+  "standard_version_note": "WALK-STANDARD v1 is not in this repository and cannot be obtained. v2 was written by overwriting v1 in place, so v1's text is not recoverable from anywhere; only WALK-STANDARD.md v2 and its changelog survive. The verdicts in this record were measured against v1, and a reader cannot see the text they were measured against. v1 is deliberately not reconstructed from the changelog.",
   "method_of_discovery": "Supplementary listings retrieved as screenshots by the user after cell.com and PMC refused automated fetches. iScience Table S1 (mmc2.xlsx) and the Nature Communications 'Description of Additional Supplementary Files' PDF then supplied and opened. Table S1 read at G4 with openpyxl; counts computed, not eyeballed.",
   "M4": {
     "candidate": "iScience 2024, HERC5-dependent ISGylome",

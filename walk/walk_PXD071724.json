@@ -7,6 +7,7 @@
   "walked_at": "2026-09-17",
   "walker": "reviewer-chat",
   "standard_version": "WALK-STANDARD v1",
+  "standard_version_note": "WALK-STANDARD v1 is not in this repository and cannot be obtained. v2 was written by overwriting v1 in place, so v1's text is not recoverable from anywhere; only WALK-STANDARD.md v2 and its changelog survive. The verdicts in this record were measured against v1, and a reader cannot see the text they were measured against. v1 is deliberately not reconstructed from the changelog.",
 
   "origin": "Not in the handoff §6 candidate table. Surfaced by M1 as the second PRIDE deposit of the same publication. Recorded rather than dropped.",
 

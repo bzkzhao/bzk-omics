@@ -312,3 +312,15 @@ remaining-source list — never a FAIL.
 - **R4 tier ambiguity named** (§1.1, §9) and deliberately not resolved.
 
 **v1, 2026-09-17** — first version, written before any candidate was walked.
+
+**v1's text is lost, and this changelog is all that survives of it.** v2 was
+written by overwriting v1 in place rather than by keeping the prior version, so
+v1 is not recoverable — not from this repository, not from the working directory
+it was written in. **Every walk artefact in this repository names v1** — all five
+records (`walk_PXD026748.json`, `walk_PXD065158.json`, `walk_PXD071724.json`,
+`walk_PXD074990_m6.json`, `walk_M4_M5.json`) carry `"standard_version":
+"WALK-STANDARD v1"`, and `STEP2-R1-SCAN.md` is headed *against WALK-STANDARD v1*.
+Their verdicts were measured against a text no reader can now read, and the
+entries above are the only account of how that text differed from this one. **v1 is deliberately not reconstructed from this changelog.** Reversing
+the entries out would produce a document that had never governed anything, and
+committing it as v1 would be worse than the gap it filled.
