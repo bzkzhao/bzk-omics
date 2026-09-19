@@ -972,6 +972,17 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         #
         # The replacement of the row this one supersedes: the emitted `Protein`'s key set, now four
         # columns rather than three. A literal on the right, the builder's output on the left.
+        # ── tests/test_rebuild_report_mirror.py, classified 2026-09-19 ────────────────────────
+        # **`PINNED`, not `INSTANCES`, and matched by Pass D rather than Pass C.** The right side
+        # is a literal display, which Pass C excludes; what matches is Pass D — `extra` is a name
+        # bound from a call, and Pass D does not exclude a literal on the other side.
+        #
+        # Neither side produced the other. The left is read off `RebuildReport`'s and
+        # `ReplayReport`'s declarations at run time; the right is `{'tables_created'}`, typed by
+        # hand, and it is the whole claim — that `RebuildReport` adds exactly one field to the
+        # replay's, so a second one added there alone is noticed. Re-deriving it would assert
+        # nothing, which is why it is a literal and why moving it is a deliberate edit.
+        ("test_rebuild_report_mirror.py", "extra == {'tables_created'}", 1),
         (
             "test_resolve_nodes.py",
             "set(protein) == {NODE_TYPE_KEY, 'id', 'accession', 'gene_absence'}",

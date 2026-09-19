@@ -59,7 +59,7 @@ construction rather than by nothing having re-fetched, which is what it rested o
 from __future__ import annotations
 
 import shutil
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
@@ -450,17 +450,24 @@ def rebuild(
             "not ingested. The stores are written and are a subset of the export — run "
             "`python -m bzk.sources.pride` and rebuild (OPERATIONS.md §5)"
         )
+    # **Every `ReplayReport` field, carried by iteration rather than by hand.** The nine
+    # `field=replay.field` lines this replaces were a mirror between two dataclasses with nothing
+    # holding them equal: a field added to `ReplayReport` and not repeated here was dropped in
+    # silence — no import error, no failing test, no runtime error, just a `RebuildReport` missing
+    # a number. That happened, on the turn that added `protein_observations`, and was found only
+    # because a real rebuild printed the count in one line and not the other.
+    #
+    # Now the same omission raises `TypeError: unexpected keyword argument` on **every** rebuild,
+    # including the one in `tests/test_rebuild.py`. The silence becomes a failure at the first call.
+    # `tests/test_rebuild_report_mirror.py` moves it earlier still, to a check that needs no rebuild.
+    #
+    # `RebuildReport` stays a **declared** dataclass and is not derived from this one. Its fields
+    # are the public surface a caller reads and `OPERATIONS.md` §5 describes; a class whose
+    # attributes exist only as a comprehension's output is not a surface anyone can read, and
+    # `tables_created` — the one field that is not the replay's — would have nowhere to be declared.
     return RebuildReport(
         tables_created=tables,
-        curation_records=replay.curation_records,
-        nodes_staged=replay.nodes_staged,
-        edges_staged=replay.edges_staged,
-        cells_staged=replay.cells_staged,
-        deposits_ingested=replay.deposits_ingested,
-        site_observations=replay.site_observations,
-        protein_observations=replay.protein_observations,
-        refusals=replay.refusals,
-        ingestions_skipped=replay.ingestions_skipped,
+        **{f.name: getattr(replay, f.name) for f in fields(ReplayReport)},
     )
 
 
