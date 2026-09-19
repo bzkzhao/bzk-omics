@@ -24,9 +24,12 @@ keys must belong to — `lfq` for `LFQ intensity `, `intensity` for `Intensity `
 It does **not** choose what is retained: each mapped sample's run label is read against every family
 present, so a file carrying three families yields three cells per sample per observation (I11).
 Until 2026-09-19 the declaration chose the columns too, and PXD026748's shotgun `proteinGroups.txt`
-is where that bit — three families of twelve columns, twenty-four columns discarded at ingestion by
-a declaration that should only have been declarative. `maxquant_sites.py` has kept every family
-since 2026-08-08 and states the reason; the two adapters now agree. Bare `intensity` is legal here
+is where that bit: it carries more than one family, so a declaration that should only have been
+declarative was discarding matrices at ingestion. The families and their column counts are measured
+and dated in `data/curation/curation_PXD026748_shotgun.json`, rationale item (4), which is that
+figure's one home — restating it here is what this sentence used to do, and a second copy of a
+measurement is a defect rather than a convenience. `maxquant_sites.py` has kept every family since
+2026-08-08 and states the reason; the two adapters now agree. Bare `intensity` is legal here
 and only here — §5's enum permits it where there is no multiplicity axis.
 
 **One invariant fires at this grain, and the pre-registration said none did.** That claim came from
@@ -406,10 +409,12 @@ class MaxQuantProteinGroupsAdapter:
                 )
             # **Every quantity family the file reports, not only the one the `Analysis` declares**,
             # which is the rule `maxquant_sites.py` has carried since 2026-08-08 and this adapter
-            # did not. PXD026748's shotgun `proteinGroups.txt` carries three families of twelve
-            # columns; storing one discarded twenty-four columns at ingestion and made the
-            # declaration lossy when it should only be declarative. The declared quantity says what
-            # this ingestion consumed (I16); the store says what was reported (I11).
+            # did not. Storing one family discarded the rest at ingestion and made the declaration
+            # lossy when it should only be declarative; the case that showed it is PXD026748's
+            # shotgun `proteinGroups.txt`, whose families and column counts are measured and dated
+            # in `data/curation/curation_PXD026748_shotgun.json`, rationale item (4). The declared
+            # quantity says what this ingestion consumed (I16); the store says what was reported
+            # (I11).
             #
             # **By exact name, built from the label — never a prefix scan.** The real file carries
             # `iBAQ peptides`, which begins with the `iBAQ ` prefix and is not a sample column. A
