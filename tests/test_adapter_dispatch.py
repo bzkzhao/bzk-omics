@@ -36,7 +36,7 @@ from bzk.adapters.maxquant_sites import DeclaredSiteAnalysis, MaxQuantSiteAdapte
 from bzk.adapters.perseus import DeclaredAnalysis, DeclaredContrast, PerseusAdapter
 from bzk.ontology import store
 from bzk.ontology.invariants import NODE_TYPE_KEY
-from bzk.rebuild import _adapter_for, create_graph, replay_ingestion
+from bzk.rebuild import _adapter_for, create_graph, rebuild, replay_ingestion
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SYNTHETIC_RECORD = FIXTURES / "curation_synthetic_loadable.json"
@@ -120,6 +120,66 @@ def test_a_perseus_export_over_protein_groups_is_claimed_by_perseus_alone() -> N
     protein `sniff` returned `True` here, which would have recorded a search output's grain over
     an analysis' values (I16)."""
     assert _claims(FIXTURES / "perseus_synthetic_over_protein_groups.txt") == ["perseus"]
+
+
+# ── C1 · the same disjointness, in the container the `.txt` parametrisation cannot reach ────────
+#
+# `_every_txt_fixture` globs `*.txt`, so the parametrisation above never exercises a **workbook** —
+# and `PerseusAdapter.sniff` has a whole branch for that container (`perseus.py:408-413`), reached
+# by `spreadsheet.looks_like_a_workbook`, which decides on the type-prefix stamp rather than on
+# annotation rows. `PXD055843` is the one committed record whose deposit is a workbook, and the
+# claim that it stays skipped rests on the two MaxQuant `sniff`s refusing one. That was argued and
+# never asserted until here.
+#
+# Built in `tmp_path` with `openpyxl` as `tests/test_perseus.py:112`'s `_sheet` does, and thrown
+# away: no workbook is committed, for the reason that file states — a synthetic twin rather than a
+# binary fixture nobody can read a diff of.
+
+
+def _sheet(path: Path, sheet_rows: list[list[object]]) -> Path:
+    import openpyxl
+
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    for row in sheet_rows:
+        sheet.append(row)
+    workbook.save(path)
+    return path
+
+
+def test_a_perseus_stamped_workbook_is_claimed_by_perseus_alone(tmp_path: Any) -> None:
+    """**The non-vacuity assertion comes first, deliberately.** `_claims(...) == ["perseus"]` is
+    satisfied both by a working Perseus workbook branch and by one that has been deleted — in the
+    second case the list is empty for the wrong reason and the MaxQuant half of the claim is never
+    tested. Asserting that Perseus claims it *before* asserting that nobody else does is what makes
+    the second assertion mean something."""
+    path = _sheet(
+        tmp_path / "perseus_stamped.xlsx",
+        [
+            ["T: Protein IDs", "N: LFQ intensity A", "N: id"],
+            ["P20591", 1.0, 0],
+        ],
+    )
+
+    assert _perseus_adapter().sniff(path), "the Perseus workbook branch did not claim this file"
+    assert _claims(path) == ["perseus"]
+
+
+def test_a_plain_workbook_is_claimed_by_nobody(tmp_path: Any) -> None:
+    """A workbook carrying a MaxQuant protein-groups header and **no** Perseus stamp. Perseus
+    refuses it — the stamp is a fact about who wrote the header, not about the numbers under it —
+    and neither MaxQuant adapter reads workbooks, so nothing claims it. That is the state
+    `PXD055843` is reported in: *"no adapter recognises …"*, a skipped ingestion and exit 1, which
+    `OPERATIONS.md` §5 says is the honest outcome rather than a silent one."""
+    path = _sheet(
+        tmp_path / "plain.xlsx",
+        [
+            ["Protein IDs", "LFQ intensity A", "id"],
+            ["P20591", 1.0, 0],
+        ],
+    )
+
+    assert _claims(path) == []
 
 
 def test_a_perseus_export_over_sites_is_claimed_by_perseus_alone() -> None:
@@ -324,6 +384,59 @@ def test_replay_over_a_protein_groups_deposit_counts_protein_observations(tmp_pa
     # line already ties the report to the adapter, so repeating that term here would check the
     # graph against nothing.
     assert store.count_nodes(conn)["ProteinObservation"] == 1
+
+
+def test_a_rebuild_carries_the_protein_count_out_of_the_replay(tmp_path: Any, capsys: Any) -> None:
+    """`RebuildReport` dropped the field `ReplayReport` had gained, and a real rebuild showed it:
+    the replay summary printed `0 protein observation(s)` while the `done:` line and the
+    `RebuildReport` repr carried no protein count at all. A report that carries one grain and drops
+    the other tells a caller a protein-groups deposit ingested nothing.
+
+    Both sides are checked against the adapter rather than against a literal on each side, as T5
+    does: an assertion whose two terms are the same hard-coded number checks nothing.
+    """
+    home = tmp_path / "home"
+    loaded, path = _stored(
+        tmp_path, home, _synthetic_protein_groups(), "SYNTHETIC_proteinGroups.txt"
+    )
+    curation_dir = tmp_path / "curation"
+
+    # The replay first, against a fresh graph; then the rebuild, which drops that graph and redoes
+    # the same work through `rebuild()`. Same `home`, so both read the one synthetic deposit.
+    replay = replay_ingestion(create_graph(home), curation_dir, home=home)
+    rebuilt = rebuild(home=home, curation_dir=curation_dir)
+
+    adapter = _adapter_for(loaded, path, None)
+    assert adapter is not None
+    adapter.parse(path, loaded.sample_mapping())
+    emitted = adapter.report.groups_emitted
+
+    assert replay.protein_observations == emitted
+    assert rebuilt.protein_observations == emitted
+    assert rebuilt.protein_observations == replay.protein_observations
+    assert rebuilt.site_observations == 0
+
+    # And the `done:` line says so, in the wording the replay summary already used. The repr was
+    # only half the gap; the line a rebuild actually prints was the other half.
+    done = [line for line in capsys.readouterr().out.splitlines() if "done:" in line][-1]
+    assert f"{emitted} protein observation(s)" in done
+
+
+def test_a_skipped_deposit_is_reported_without_a_grain(tmp_path: Any, capsys: Any) -> None:
+    """A deposit that never reached an adapter has not had its grain determined — `_adapter_for`
+    is what decides it — so the skip message names none. Both messages said *"sites not ingested"*
+    from week 1, which was true only while one adapter existed and is a guess once two do."""
+    home = tmp_path / "home"
+    payload = (FIXTURES / "perseus_synthetic_over_protein_groups.txt").read_bytes()
+    _stored(tmp_path, home, payload, "SYNTHETIC_perseus.txt")
+    conn = create_graph(home)
+
+    report = replay_ingestion(conn, tmp_path / "curation", home=home)
+
+    assert report.ingestions_skipped == 1
+    out = capsys.readouterr().out
+    assert "no adapter recognises SYNTHETIC_perseus.txt; not ingested" in out
+    assert "sites not ingested" not in out
 
 
 def test_replay_ingestion_still_records_the_seventy_eight_second_hazard() -> None:

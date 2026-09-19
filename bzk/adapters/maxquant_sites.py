@@ -257,10 +257,15 @@ class MaxQuantSiteAdapter:
         neither of those has"* — true of `proteinGroups.txt`, false of the Perseus export, because
         a Perseus tab-separated export of a *site* table keeps those same three column names in its
         header and adds only annotation rows beneath it. This function returned `True` for such a
-        file, so the claim was not a simplification but a measurable error; it is struck rather
-        than deleted so the correction is visible. `maxquant.carries_perseus_annotation` is the
-        marker that actually separates the two, and `tests/test_adapter_dispatch.py` pins the three
-        `sniff`s as pairwise disjoint rather than leaving the disjointness to a docstring.
+        file, so the claim was not a simplification but a measurable error. **Nothing was struck
+        through**, and an earlier revision of this paragraph said otherwise — it read *"struck
+        rather than deleted"*, describing a strikethrough that was never written. What was
+        actually done is what the sentence above does: the false clause was **removed** from the
+        claim, and it is quoted in full two sentences up, which is how a correction stays visible
+        in a docstring.
+        `maxquant.carries_perseus_annotation` is the marker that actually separates the two, and
+        `tests/test_adapter_dispatch.py` pins the three `sniff`s as pairwise disjoint — over both
+        containers, since 10b — rather than leaving the disjointness to a docstring.
         """
         if maxquant.carries_perseus_annotation(path):
             return False

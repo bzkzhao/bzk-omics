@@ -133,6 +133,13 @@ class RebuildReport:
     cells_staged: int = 0
     deposits_ingested: int = 0
     site_observations: int = 0
+    #: The protein-grain counterpart, carried up from `ReplayReport` for the reason every other
+    #: field here is: a caller holding a `RebuildReport` sees what the rebuild ingested, and a
+    #: report that carries one grain and drops the other says a protein-groups deposit ingested
+    #: nothing. It was dropped on the turn that added it to `ReplayReport` — the replay summary
+    #: printed `0 protein observation(s)` on a real rebuild while the `done:` line and this repr
+    #: carried no protein count at all, which is how the omission was found.
+    protein_observations: int = 0
     refusals: list[Refusal] = field(default_factory=list)
     ingestions_skipped: int = 0
 
@@ -351,15 +358,16 @@ def replay_ingestion(
             # it reaches here. A predicate to tell the two apart was written, found to have an
             # unreachable branch, and removed; `tests/test_rebuild.py` pins the premise instead.
             skipped += 1
-            log(
-                f"  {path.name} names a deposit that is not in the content store; "
-                "sites not ingested"
-            )
+            # No grain in the message, deliberately. A deposit that never reached an adapter has
+            # not had its grain determined — `_adapter_for` is what decides it — so naming one
+            # here would state as fact the thing the skip is evidence of *not* knowing. It read
+            # "sites not ingested" from week 1, which was true only while one adapter existed.
+            log(f"  {path.name} names a deposit that is not in the content store; not ingested")
             continue
         adapter = _adapter_for(loaded, source, resolver)
         if adapter is None:
             skipped += 1
-            log(f"  no adapter recognises {source.name}; sites not ingested")
+            log(f"  no adapter recognises {source.name}; not ingested")
             continue
         parsed = adapter.parse(source, loaded.sample_mapping())
         written = store.write_change_set(conn, parsed.nodes, parsed.edges)
@@ -432,6 +440,7 @@ def rebuild(
     log(
         f"done: {tables} tables, {replay.curation_records} curation record(s), "
         f"{replay.deposits_ingested} deposit(s), {replay.site_observations} site observation(s), "
+        f"{replay.protein_observations} protein observation(s), "
         f"{len(replay.refusals)} refused, {replay.nodes_staged} node statement(s), "
         f"{replay.edges_staged} edge statement(s), {replay.cells_staged:,} quantitative cell(s)"
     )
@@ -449,6 +458,7 @@ def rebuild(
         cells_staged=replay.cells_staged,
         deposits_ingested=replay.deposits_ingested,
         site_observations=replay.site_observations,
+        protein_observations=replay.protein_observations,
         refusals=replay.refusals,
         ingestions_skipped=replay.ingestions_skipped,
     )
