@@ -1,0 +1,165 @@
+{
+  "accession": "PXD026748",
+  "file": "GlyGly (K)Sites.txt",
+  "content_hash": "sha256:59000733f3b6b9fa8be31d4f8ae7e1868c0bb5099a8bbada580d28b3db647f50",
+  "project": {
+    "title": "SARS-CoV-2 PLpro deISGylation of host proteins"
+  },
+  "experiment": {
+    "title": "HeLa ISG15 knockout diGly proteomics, IFN-alpha then lysate PLpro wild-type vs mutant",
+    "modality": "digly_proteomics",
+    "organism_taxid": 9606
+  },
+  "search_engine": "maxquant",
+  "search_engine_version": "1.6.17.0",
+  "acquisition_mode": "dda",
+  "instrument": "Q Exactive HF",
+  "basis": "filename_inference",
+  "confidence": "inferred",
+  "curated_by": null,
+  "curated_at": "2026-09-19",
+  "rationale": "Design from two sources in the deposit, neither an SDRF. (1) The column-to-condition mapping is read from the twelve per-run Intensity column names, which are the raw filenames: the token after 'Gly-Gly-' is the genotype (WT = HeLa wild-type, KO = Isg15-/-), '_mut' marks mutant PLpro and its absence wild-type PLpro, and '_repN' is the replicate index. Twelve columns, two genotypes x two PLpro treatments x three replicates, every cell of the design filled once. Because this mapping is deduced from naming conventions, basis is 'filename_inference' and I8 forbids presenting it as coming from the submitters. (2) The treatment parameters are read from the PRIDE project's sample-processing protocol, as captured on 2026-09-17 in data/frame/frame_raw.tsv: cells stimulated 72 h with 500 U/mL IFN-alpha, lysed, and 7.2 mg protein of each replicate treated with recombinant WT or mutant PLpro at 1:50 (w/w) for 30 min at 37 C. Per ADR-0035 R1 a Sample is the material measured: twelve GG runs are twelve Samples, treatment names the full sequence, and timepoint_h measures from the contrast-defining treatment, the 30-min PLpro incubation, so 0.5. Search parameters are from the same protocol's data-processing text: MaxQuant 1.6.17.0, Q Exactive HF, data-dependent acquisition. Genotype is written 'ISG15-/-', the HGNC symbol for the human gene in HeLa; the deposit writes 'Isg15-/-'.",
+  "unresolved": [
+    "PAIRING — the premise ADR-0035 records is contradicted by the deposit's own protocol, and is not written here as fact. ADR-0035 (Proposed) and WALK-STANDARD v2's R5 row describe the PLpro axis as 'three cultures split two ways, not six independent replicates'. The PRIDE sample-processing protocol states instead that 'five millions cells of each genotype were seeded in triplicate for each condition (WT or mutant PLpro) in 12x150 mm2 culture dishes', and that '7.2 mg total protein of each replicate was treated with recombinant WT or mutant PLpro'. That is twelve separately seeded dishes, one per sample, with no lysate split. What survives of the gap is narrower: whether same-index replicates across PLpro treatments (e.g. WT_rep1 and WT_mut_rep1) were processed as blocks, such as seeded, stimulated or lysed together, is unstated. The schema could not record such a block if it existed (ADR-0035 R2), and the publication does not say whether its two-way ANOVA treated replicate index as a blocking factor. Consequence: a reconstruction cannot choose between a blocked and an unblocked model from anything in the deposit. That consequence stands whichever reading of the design is right. ADR-0035's Context and R2 rest on the split-lysate reading and should be re-examined at its review.",
+    "QUANTITY — no value of Analysis.quantity's closed enum denotes the publication's quantity. The PRIDE data-processing text says the site table 'was expanded' in Perseus before log2 transformation, which is the MaxQuant ___1/___2/___3 per-multiplicity split, present in this file as Intensity___1..3 globally and per run (36 per-run columns). ONTOLOGY.md §5 defers per-multiplicity consumption until 'a per-multiplicity analysis is actually run', and quantity is identifying (I16, ADR-0020). The platform's own analysis of this deposit consumes 'intensity_multiplicity_summed', the summed per-run Intensity columns the mapping keys name, measured from MaxQuantSiteAdapter's DeclaredSiteAnalysis default, which bzk/rebuild.py does not override. Consequence: the published analysis cannot yet be declared honestly as an Analysis. Declaring it with the summed quantity would mint a wrong Analysis id rather than fail, and extending the enum is a schema change with its own record.",
+    "SITE COUNT — the filters the publication states (reverse, potential contaminant, localization probability < 0.75) leave 2,187 sites from this file: 2,653 rows, less 66 decoy or contaminant rows (26 Reverse, 40 Potential contaminant, none both), less 400 below 0.75. The PRIDE data-processing text states 'the discovery of 2143 GG-modification sites (listed in the GlyGly(K) site table)'. The difference is 44. Neither the protocol nor the deposit explains it, and no rule was searched for that would close it. Consequence: this table and the publication's site count are not reconciled, and a claim-grain comparison must key published sites individually rather than assume the populations match.",
+    "REPLICATE TYPE — recorded 'unspecified'. The protocol supports separately seeded dishes, 'seeded in triplicate for each condition', each lysed and treated as its own replicate, which rules out repeated injection of one sample. It never uses the words 'biological' or 'technical', so neither is asserted, consistent with PXD018299's record. Consequence: as for the anchor, the variance a differential test estimates is between separately cultured dishes of one cell line. How to read it is the analyst's call, not a stated fact.",
+    "PLpro MUTANT — the protocol says only 'mutant PLpro'. The walk record's 'catalytically-dead' is not stated in the deposit and is not written into treatment. Consequence: treatment names the mutant as the deposit does, and its mechanism is left to the publication."
+  ],
+  "contrasts_of_interest": [
+    {
+      "id": "PLproWT_vs_PLproMut_in_WT",
+      "numerator": "WT + IFN-alpha, lysate + PLpro WT",
+      "denominator": "WT + IFN-alpha, lysate + PLpro mutant",
+      "note": "The claim-defining axis: sites whose ISG15 modification PLpro removes. The publication did not test pairwise contrasts. It ran a two-way ANOVA (PLpro treatment x genotype) and retained sites with p < 0.01 on any of the three terms. This contrast is the curator's statement of interest, not a transcription of the test run."
+    },
+    {
+      "id": "PLproWT_vs_PLproMut_in_ISG15KO",
+      "numerator": "ISG15-/- + IFN-alpha, lysate + PLpro WT",
+      "denominator": "ISG15-/- + IFN-alpha, lysate + PLpro mutant",
+      "note": "Negative control. Without ISG15 there is no ISGylation for PLpro to remove, so a PLpro-dependent change here is not deISGylation. That includes deubiquitination by PLpro, which carries the same GlyGly remnant."
+    }
+  ],
+  "mapping": {
+    "Intensity 01_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_rep1": {
+      "genotype": "ISG15-/-",
+      "treatment": "IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro WT 1:50 w/w 30 min 37 C",
+      "timepoint_h": 0.5,
+      "replicate": 1,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Intensity 03_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_mut_rep1": {
+      "genotype": "ISG15-/-",
+      "treatment": "IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro mutant 1:50 w/w 30 min 37 C",
+      "timepoint_h": 0.5,
+      "replicate": 1,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Intensity 05_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_rep1": {
+      "genotype": "WT",
+      "treatment": "IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro WT 1:50 w/w 30 min 37 C",
+      "timepoint_h": 0.5,
+      "replicate": 1,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Intensity 07_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_mut_rep1": {
+      "genotype": "WT",
+      "treatment": "IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro mutant 1:50 w/w 30 min 37 C",
+      "timepoint_h": 0.5,
+      "replicate": 1,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Intensity 09_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_mut_rep2": {
+      "genotype": "ISG15-/-",
+      "treatment": "IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro mutant 1:50 w/w 30 min 37 C",
+      "timepoint_h": 0.5,
+      "replicate": 2,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Intensity 11_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_mut_rep2": {
+      "genotype": "WT",
+      "treatment": "IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro mutant 1:50 w/w 30 min 37 C",
+      "timepoint_h": 0.5,
+      "replicate": 2,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Intensity 13_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_rep2": {
+      "genotype": "ISG15-/-",
+      "treatment": "IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro WT 1:50 w/w 30 min 37 C",
+      "timepoint_h": 0.5,
+      "replicate": 2,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Intensity 15_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_rep2": {
+      "genotype": "WT",
+      "treatment": "IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro WT 1:50 w/w 30 min 37 C",
+      "timepoint_h": 0.5,
+      "replicate": 2,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Intensity 17_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_mut_rep3": {
+      "genotype": "WT",
+      "treatment": "IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro mutant 1:50 w/w 30 min 37 C",
+      "timepoint_h": 0.5,
+      "replicate": 3,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Intensity 19_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_rep3": {
+      "genotype": "ISG15-/-",
+      "treatment": "IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro WT 1:50 w/w 30 min 37 C",
+      "timepoint_h": 0.5,
+      "replicate": 3,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Intensity 21_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_rep3": {
+      "genotype": "WT",
+      "treatment": "IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro WT 1:50 w/w 30 min 37 C",
+      "timepoint_h": 0.5,
+      "replicate": 3,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    },
+    "Intensity 23_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_mut_rep3": {
+      "genotype": "ISG15-/-",
+      "treatment": "IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro mutant 1:50 w/w 30 min 37 C",
+      "timepoint_h": 0.5,
+      "replicate": 3,
+      "replicate_type": "unspecified",
+      "source_type": "cell_line",
+      "cell_line": "HeLa",
+      "organism_taxid": 9606
+    }
+  }
+}

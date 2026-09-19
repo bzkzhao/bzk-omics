@@ -488,14 +488,15 @@ def test_an_unknown_top_level_key_is_refused_and_the_message_names_it(tmp_path: 
 def test_every_record_and_fixture_on_disk_still_loads() -> None:
     """The check is *no key outside the known set*, never *exactly this set*.
 
-    The four files do not agree on their key sets — `corrections` is in one real record and not the
-    other, `note` and `synthetic` are in the fixtures and neither real record, `pending` is in one
-    fixture alone — so a check written as an equality would refuse three of the four.
+    The five files do not agree on their key sets — `corrections` is in one real record and not the
+    other two, `note` and `synthetic` are in the fixtures and no real record, `pending` is in one
+    fixture alone — so a check written as an equality would refuse at least three of the five: no key
+    set is shared by more than two files (`curation_PXD026748.json` and `curation_PXD055843.json`).
     """
     records = sorted(CURATION_DIR.glob("curation_*.json")) + sorted(
         FIXTURES.glob("curation_synthetic_*.json")
     )
-    assert len(records) == 4, f"expected the two records and the two twins, found {records}"
+    assert len(records) == 5, f"expected the three records and the two twins, found {records}"
     for path in records:
         record = _record(path)
         unknown = set(record) - loader.KNOWN_KEYS
