@@ -85,6 +85,7 @@ This exists because a project with one developer and a compressed timeline will 
 | [0032](0032-what-the-perseus-adapter-reads-and-whether-the-platform-converts.md) | What the Perseus adapter reads from an export it was not written for; the platform does not convert |
 | [0033](0033-frame-is-a-coverage-repair.md) | The frame is a coverage repair, not an admissibility criterion; C0 screens its candidates unamended |
 | [0034](0034-declaring-an-unrecorded-imputation.md) | Declaring an imputation whose parameters were never recorded; the determiner gains the parent's `parameters_observed` |
+| [0035](0035-a-perturbation-applied-after-the-sample-ends.md) | A perturbation applied after the biological sample ends: `Sample` is the material measured, and the split-lysate pairing is declared in `unresolved`, not in §3 |
 
 ## Queued
 
