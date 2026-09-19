@@ -1,0 +1,160 @@
+{
+  "dataset": "PXD026748",
+  "file": "GlyGly (K)Sites.txt",
+  "content_hash": "sha256:59000733f3b6b9fa8be31d4f8ae7e1868c0bb5099a8bbada580d28b3db647f50",
+  "note": "What ingesting PXD026748's GG-enriched site table produces: every count on the adapter's SiteIngestReport, the quantitative cells it retains, the membership of its refusals, and the two shares walk/PREREG-PXD026748-ingest.md registered. Generated from the deposit's bytes through the adapter the curation record selects, never transcribed from a report \u2014 see this module's docstring for why. The two shares carry their own `method` string because no document states the method behind the figures they are comparable to. Regenerate with `python -m bzk.sources.pxd026748_ingest_figures`.",
+  "generated_by": "python -m bzk.sources.pxd026748_ingest_figures",
+  "generated_under": {
+    "python": "3.12.14"
+  },
+  "report": {
+    "rows_read": 2653,
+    "dropped_decoy_or_contaminant": 66,
+    "dropped_below_localization": 400,
+    "sites_emitted": 2166,
+    "refused_no_razor_pick": 0,
+    "refused_unresolved_protein": 0,
+    "refused_residue_mismatch": 21,
+    "promoted_reviewed": 0
+  },
+  "cells": {
+    "total": 51984,
+    "by_quantity": {
+      "intensity_multiplicity_summed": 25992,
+      "ratio_mod_base": 25992
+    }
+  },
+  "refusals": [
+    {
+      "row": "475",
+      "reason": "residue_mismatch",
+      "detail": "P08195 position 171: the search reported 'K', uniprot:P08195#sv4 has 'V'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "476",
+      "reason": "residue_mismatch",
+      "detail": "P08195 position 122: the search reported 'K', uniprot:P08195#sv4 has 'A'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "477",
+      "reason": "residue_mismatch",
+      "detail": "P08195 position 166: the search reported 'K', uniprot:P08195#sv4 has 'N'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "478",
+      "reason": "residue_mismatch",
+      "detail": "P08195 position 147: the search reported 'K', uniprot:P08195#sv4 has 'L'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "479",
+      "reason": "residue_mismatch",
+      "detail": "P08195 position 160: the search reported 'K', uniprot:P08195#sv4 has 'L'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "1201",
+      "reason": "residue_mismatch",
+      "detail": "P49411 position 256: the search reported 'K', uniprot:P49411#sv3 has 'D'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "1202",
+      "reason": "residue_mismatch",
+      "detail": "P49411 position 234: the search reported 'K', uniprot:P49411#sv3 has 'L'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "1203",
+      "reason": "residue_mismatch",
+      "detail": "P49411 position 238: the search reported 'K', uniprot:P49411#sv3 has 'S'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "1206",
+      "reason": "residue_mismatch",
+      "detail": "P49411 position 347: the search reported 'K', uniprot:P49411#sv3 has 'G'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "1207",
+      "reason": "residue_mismatch",
+      "detail": "P49411 position 79: the search reported 'K', uniprot:P49411#sv3 has 'A'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "1684",
+      "reason": "residue_mismatch",
+      "detail": "Q03518 position 422: the search reported 'K', uniprot:Q03518#sv3 has 'L'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "1685",
+      "reason": "residue_mismatch",
+      "detail": "Q03518 position 449: the search reported 'K', uniprot:Q03518#sv3 has 'L'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "1924",
+      "reason": "residue_mismatch",
+      "detail": "Q16850 position 436: the search reported 'K', uniprot:Q16850#sv4 has 'N'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "1985",
+      "reason": "residue_mismatch",
+      "detail": "Q66PJ3 position 370: the search reported 'K', uniprot:Q66PJ3#sv3 has 'nothing (past the end)'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "2109",
+      "reason": "residue_mismatch",
+      "detail": "Q8NI36 position 159: the search reported 'K', uniprot:Q8NI36#sv2 has 'T'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "2327",
+      "reason": "residue_mismatch",
+      "detail": "Q9BYK8 position 2550: the search reported 'K', uniprot:Q9BYK8#sv7 has 'T'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "2328",
+      "reason": "residue_mismatch",
+      "detail": "Q9BYK8 position 2491: the search reported 'K', uniprot:Q9BYK8#sv7 has 'V'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "2433",
+      "reason": "residue_mismatch",
+      "detail": "Q9NVI7 position 472: the search reported 'K', uniprot:Q9NVI7#sv3 has 'H'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "2436",
+      "reason": "residue_mismatch",
+      "detail": "Q9NVI7 position 553: the search reported 'K', uniprot:Q9NVI7#sv3 has 'M'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "2438",
+      "reason": "residue_mismatch",
+      "detail": "Q9NVI7 position 549: the search reported 'K', uniprot:Q9NVI7#sv3 has 'L'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    },
+    {
+      "row": "2553",
+      "reason": "residue_mismatch",
+      "detail": "Q9UP83 position 724: the search reported 'K', uniprot:Q9UP83#sv4 has 'A'. The sequence has been amended since the search, so this position no longer means what the search meant by it."
+    }
+  ],
+  "multi_protein": {
+    "method": "A row is multi-protein when its `Proteins` column, split on ';' with blanks dropped, names more than one accession; an emitted observation is multi-protein when its `candidate_proteins` list has more than one member. The row populations are the adapter's own, not re-derived: `after_decoy_or_contaminant` is `maxquant.drop_decoys_and_contaminants(table)` and `after_localisation` is the second value the adapter's `_filter` returns, so the denominators here are the same rows the ingestion counted. NEITHER walk/PREREG-PXD026748-ingest.md NOR notes/reports/09-ingest-PXD026748-report.md states the method behind their figures, so this definition is this module's and may differ from the one that produced them.",
+    "after_decoy_or_contaminant": {
+      "numerator": 232,
+      "denominator": 2587
+    },
+    "after_localisation": {
+      "numerator": 205,
+      "denominator": 2187
+    },
+    "emitted_observations": {
+      "numerator": 203,
+      "denominator": 2166
+    }
+  },
+  "isoform_razor_picks": {
+    "method": "A razor pick is MaxQuant's `Protein` column for a row, stripped, BEFORE any I17 promotion \u2014 promotion replaces the pick with a reviewed entry, and 'razor pick' names what MaxQuant chose. It is an isoform accession when it contains '-', which is the test `bzk/resolve/uniprot.py:357` applies. `rows.denominator` counts every row after the localisation filter, including rows whose `Protein` is empty and which the adapter then refuses as `no_razor_pick`; those rows contribute to the denominator and never to the numerator. `distinct_picks` counts each non-empty pick once. As above, neither the PREREG nor report 09 states its method and this one may differ.",
+    "rows": {
+      "numerator": 0,
+      "denominator": 2187
+    },
+    "distinct_picks": {
+      "numerator": 0,
+      "denominator": 1033
+    }
+  }
+}

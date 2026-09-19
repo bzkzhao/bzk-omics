@@ -1,0 +1,39 @@
+{
+  "dataset": "PXD026748",
+  "file": "proteinGroups.txt",
+  "content_hash": "sha256:b74a1797b49b85ff3ba88e2739e47dad242583eedd58945417c239ba9fd7f884",
+  "note": "What ingesting PXD026748's shotgun protein-groups table produces: every field on the adapter's ProteinIngestReport but `observation_of_row`, the quantitative cells it retains by family, the membership of its refusals, the quantity its ingestion Analysis declares, and the only-identified-by-site rows the publication removed and this adapter does not. Generated from the deposit's bytes through the adapter the curation record selects, never transcribed from a report. Regenerate with `python -m bzk.sources.pxd026748_ingest_figures`.",
+  "generated_by": "python -m bzk.sources.pxd026748_ingest_figures",
+  "generated_under": {
+    "python": "3.12.14"
+  },
+  "report": {
+    "rows_read": 4916,
+    "spill_lines": 0,
+    "dropped_decoy_or_contaminant": 148,
+    "groups_emitted": 4768,
+    "refused_empty_group": 0,
+    "distinct_accessions": 5408,
+    "cells": 171648
+  },
+  "cells": {
+    "by_quantity": {
+      "ibaq": 57216,
+      "intensity": 57216,
+      "lfq": 57216
+    },
+    "positive_by_quantity": {
+      "ibaq": 41951,
+      "intensity": 41951,
+      "lfq": 28396
+    }
+  },
+  "refusals": [],
+  "analysis_quantity": "lfq",
+  "only_identified_by_site": {
+    "column_present": true,
+    "in_file": 93,
+    "emitted": 73,
+    "dropped_as_decoy_or_contaminant": 20
+  }
+}
