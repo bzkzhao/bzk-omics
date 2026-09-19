@@ -293,7 +293,14 @@ def test_an_empty_group_is_refused_and_counted(tmp_path: Path) -> None:
     assert (adapter.report.groups_emitted, adapter.report.refused_empty_group) == (1, 1)
     # Refused, not merely flagged: no observation and no cells for it.
     assert len([n for n in parsed.nodes if n[NODE_TYPE_KEY] == "ProteinObservation"]) == 1
-    assert len(parsed.cells[0][1]) == 2, "two samples for the one surviving row, none for the other"
+    # Two samples by the two families `HEADER` carries, all on the surviving row. Four rather than
+    # two since 2026-09-19; what this asserts is that the refused row contributes none of them.
+    assert len(parsed.cells[0][1]) == 4, (
+        "two samples by two families, and nothing for the other row"
+    )
+    assert {c.observation_id for c in parsed.cells[0][1]} == {
+        n["id"] for n in parsed.nodes if n[NODE_TYPE_KEY] == "ProteinObservation"
+    }
 
 
 def test_the_site_refusal_slugs_do_not_transfer(tmp_path: Path) -> None:
@@ -361,26 +368,46 @@ def test_every_observation_carries_its_quant_ref_and_its_cells(tmp_path: Path) -
 
     assert [label for label, _ in parsed.cells] == ["ProteinObservation"]
     cells = parsed.cells[0][1]
+    # **Every family the row carries, not the declared one.** `HEADER` has `LFQ intensity ` and
+    # `Intensity ` columns for both samples and no `iBAQ ` column, so the exact set is two samples
+    # by two families — and the two `lfq` entries below are what this assertion held before
+    # 2026-09-19, when the other two were discarded at ingestion (I11).
     assert {(c.sample_id, c.quantity, c.value) for c in cells} == {
         ("bzk:sampleWT", "lfq", 1500000.0),
         ("bzk:sampleKO", "lfq", 2500000.0),
+        ("bzk:sampleWT", "intensity", 1600000.0),
+        ("bzk:sampleKO", "intensity", 2600000.0),
     }
     assert all(c.observation_id == observation["id"] for c in cells)
 
 
-def test_the_declared_quantity_chooses_the_column_family(tmp_path: Path) -> None:
-    """I16's record and the numbers cannot disagree, because the declaration is what is read. The
-    same row read as `lfq` and as `intensity` yields different values from different columns."""
+def test_the_declared_quantity_sets_the_analysis_and_gates_the_keys(tmp_path: Path) -> None:
+    """What the declaration does, and what it no longer does.
+
+    It sets `Analysis.quantity` (I16) and fixes the family the curation's mapping keys must belong
+    to. It does **not** choose what is stored: the same row declared `lfq` and declared `intensity`
+    yields the **same cells**, one per family present, each carrying its own column's value (I11).
+
+    Renamed from `test_the_declared_quantity_chooses_the_column_family` on 2026-09-19, because that
+    is the claim this turn removed. Its docstring said *"the declaration is what is read"* — it is
+    not, and a test whose name asserts the behaviour it now refutes is worse than no test.
+    """
     row = _row(lfq_wt="10", intensity_wt="20")
-    by_quantity = {}
+    expected = {
+        ("bzk:sampleWT", "lfq", 10.0),
+        ("bzk:sampleKO", "lfq", 2500000.0),
+        ("bzk:sampleWT", "intensity", 20.0),
+        ("bzk:sampleKO", "intensity", 2600000.0),
+    }
     for quantity in ("lfq", "intensity"):
         parsed = _adapter(quantity).parse(_write(tmp_path, [row]), _mapping(quantity))
-        cells = {c.sample_id: c for c in parsed.cells[0][1]}
-        by_quantity[quantity] = cells["bzk:sampleWT"]
-    assert by_quantity["lfq"].value == 10.0
-    assert by_quantity["intensity"].value == 20.0
-    assert by_quantity["lfq"].quantity == "lfq"
-    assert by_quantity["intensity"].quantity == "intensity"
+        analysis = next(
+            n for n in parsed.nodes if n[NODE_TYPE_KEY] == "Analysis" and "quantity" in n
+        )
+        assert analysis["quantity"] == quantity, "the declaration is what the Analysis records"
+        assert {(c.sample_id, c.quantity, c.value) for c in parsed.cells[0][1]} == expected, (
+            "the store keeps what the file reports, whichever family is declared"
+        )
 
 
 def test_a_reported_zero_stays_a_zero(tmp_path: Path) -> None:
@@ -389,9 +416,83 @@ def test_a_reported_zero_stays_a_zero(tmp_path: Path) -> None:
     to null would be the adapter interpreting MaxQuant's convention, which I19 leaves to the
     statistics layer — and it would silently disagree with `maxquant_sites.py`."""
     parsed = _adapter().parse(_write(tmp_path, [_row(lfq_wt="0", lfq_ko="")]), _mapping())
-    by_sample = {c.sample_id: c.value for c in parsed.cells[0][1]}
+    # Keyed on `(sample, quantity)` since 2026-09-19. Keyed on the sample alone it still passed,
+    # because `sorted(QUANTITY_COLUMNS)` happens to place `lfq` after `intensity` and the later
+    # write won — green for a reason that had nothing to do with the claim.
+    by_sample = {c.sample_id: c.value for c in parsed.cells[0][1] if c.quantity == "lfq"}
     assert by_sample["bzk:sampleWT"] == 0.0, "a reported zero is a measurement"
     assert by_sample["bzk:sampleKO"] is None, "a blank is an absence"
+
+
+# ── I11: every quantity family the file reports, not the declared one (2026-09-19) ──────────────
+#
+# The rule `maxquant_sites.py` has carried since 2026-08-08 and this adapter did not. PXD026748's
+# shotgun `proteinGroups.txt` carries three families of twelve columns each — `Intensity`,
+# `LFQ intensity` and `iBAQ`, measured on bzk's machine — so declaring one discarded twenty-four
+# columns at ingestion. The file is not committed; these fixtures are its synthetic shape.
+
+#: `HEADER` plus an `iBAQ ` family for both samples, so all three of `QUANTITY_COLUMNS` are present.
+THREE_FAMILY_HEADER = [*HEADER, "iBAQ WT_P_1", "iBAQ KO_P_1"]
+
+
+def _three_family_row(**kwargs: str) -> list[str]:
+    """`_row()` extended with the two `iBAQ ` values, in `THREE_FAMILY_HEADER`'s order."""
+    return [*_row(**kwargs), "1700000", "2700000"]
+
+
+def test_every_family_present_is_retained(tmp_path: Path) -> None:
+    """T1. Three families by two samples is six cells, each with its own column's value.
+
+    This is the whole change: before it, the same row and mapping produced two cells and the other
+    four columns were discarded at ingestion — the *"would discard a matrix at ingestion"* that
+    `maxquant_sites.py:641-645` gives as its reason for keeping all of them.
+    """
+    path = _write(tmp_path, [_three_family_row()], header=THREE_FAMILY_HEADER)
+    parsed = _adapter().parse(path, _mapping())
+
+    cells = parsed.cells[0][1]
+    assert {(c.sample_id, c.quantity, c.value) for c in cells} == {
+        ("bzk:sampleWT", "lfq", 1500000.0),
+        ("bzk:sampleKO", "lfq", 2500000.0),
+        ("bzk:sampleWT", "intensity", 1600000.0),
+        ("bzk:sampleKO", "intensity", 2600000.0),
+        ("bzk:sampleWT", "ibaq", 1700000.0),
+        ("bzk:sampleKO", "ibaq", 2700000.0),
+    }
+    assert len(cells) == 6
+
+
+def test_a_column_sharing_a_family_prefix_is_not_a_sample_column(tmp_path: Path) -> None:
+    """T2. `iBAQ peptides` begins with the `iBAQ ` prefix and is not a sample column.
+
+    **The real shotgun file carries it**, which is why the lookup builds an exact column name from
+    the run label rather than scanning for the prefix. A scan would retain `iBAQ peptides` as a
+    measurement of whichever sample it happened to be walked for — a value the file never reported
+    for that sample, which is I15's shape one layer down: a number presented as a measurement of
+    something it is not.
+    """
+    header = [*THREE_FAMILY_HEADER, "iBAQ peptides"]
+    row = [*_three_family_row(), "42"]
+    parsed = _adapter().parse(_write(tmp_path, [row], header=header), _mapping())
+
+    cells = parsed.cells[0][1]
+    assert len(cells) == 6, "the extra column adds no cell"
+    assert 42.0 not in {c.value for c in cells}
+
+
+def test_a_family_the_file_does_not_carry_is_skipped_not_refused(tmp_path: Path) -> None:
+    """T3. `HEADER` has no `iBAQ ` column at all, and that is an ordinary file, not a broken one.
+
+    `QUANTITY_COLUMNS` names every family this adapter *can* read; a deposit carries the ones its
+    MaxQuant run was configured to write. Refusing on a missing family would make the enum a
+    requirement rather than a vocabulary — and `HAP1_USP18KO_proteinGroups.txt` has exactly this
+    shape: 14 `Intensity `, 14 `LFQ intensity `, 0 `iBAQ`.
+    """
+    parsed = _adapter().parse(_write(tmp_path, [_row()]), _mapping())
+
+    cells = parsed.cells[0][1]
+    assert {c.quantity for c in cells} == {"lfq", "intensity"}
+    assert len(cells) == 4
 
 
 def test_a_refused_row_contributes_no_cells(tmp_path: Path) -> None:
@@ -432,8 +533,11 @@ def test_a_mapping_key_naming_no_column_is_refused(tmp_path: Path) -> None:
 
 
 def test_a_mapping_key_from_another_family_is_refused(tmp_path: Path) -> None:
-    """The declared quantity chooses the columns, so a key naming another family would record one
-    quantity on the `Analysis` and store another (I16). The column exists; it is the wrong one."""
+    """The declaration fixes the family the keys must belong to, so a key naming another family
+    would record one quantity on the `Analysis` while the keys describe a different run of columns
+    (I16). The column exists; it is the wrong one. **This refusal is unchanged by the 2026-09-19
+    retention change** — what that changed is what is *stored*, not which keys are accepted, and
+    this test is what says so."""
     mapping = SampleMapping(
         curation_analysis_id="bzk:c",
         samples=[_sample("bzk:s", "WT_P_1", "Intensity WT_P_1", "WT")],

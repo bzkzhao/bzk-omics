@@ -18,9 +18,16 @@ least half the peptides, which §6.3 calls its own razor-rule inference; reading
 inference where the observation belongs. `perseus.PROTEIN_COLUMNS` prefers the same column, so the
 two adapters agree without either of them deciding.
 
-**The declared quantity chooses the column family**, so I16's record and the numbers cannot
-disagree: `lfq` reads `LFQ intensity `, `intensity` reads `Intensity `, `ibaq` reads `iBAQ `. Bare
-`intensity` is legal here and only here — §5's enum permits it where there is no multiplicity axis.
+**The declared quantity sets `Analysis.quantity`; the store keeps every family the file reports.**
+The declaration says what this ingestion consumed (I16) and fixes the family the curation's mapping
+keys must belong to — `lfq` for `LFQ intensity `, `intensity` for `Intensity `, `ibaq` for `iBAQ `.
+It does **not** choose what is retained: each mapped sample's run label is read against every family
+present, so a file carrying three families yields three cells per sample per observation (I11).
+Until 2026-09-19 the declaration chose the columns too, and PXD026748's shotgun `proteinGroups.txt`
+is where that bit — three families of twelve columns, twenty-four columns discarded at ingestion by
+a declaration that should only have been declarative. `maxquant_sites.py` has kept every family
+since 2026-08-08 and states the reason; the two adapters now agree. Bare `intensity` is legal here
+and only here — §5's enum permits it where there is no multiplicity axis.
 
 **One invariant fires at this grain, and the pre-registration said none did.** That claim came from
 a probe that removed `quant_ref`, `REPORTS_PROTEIN` and `RESOLVES_TO_PROTEIN` *entirely* and watched
@@ -62,9 +69,13 @@ class MaxQuantProteinGroupsError(ValueError):
     """A MaxQuant `proteinGroups.txt` cannot be ingested as given."""
 
 
-#: The declared quantity and the column family it names. Reading is driven by the declaration, so
-#: an `Analysis` recording `lfq` over `Intensity ` columns is unrepresentable rather than a mistake
-#: a reviewer has to catch (I16).
+#: Every column family this adapter can read, and which of §5's closed quantities each one carries.
+#: One home for the mapping, so a new quantity is a row here rather than a string in the reader.
+#:
+#: **Read in full, not selected from.** The declared quantity picks one row to validate the mapping
+#: keys against (I16); the reader walks all of them and keeps each family the file actually carries
+#: (I11). Before 2026-09-19 this dict was a lookup table with one live row per ingestion, and the
+#: comment here said reading was driven by the declaration — it is not, and has not been since.
 #:
 #: **`ibaq` is in §5's enum and has no columns in this deposit.** Measured on
 #: `HAP1_USP18KO_proteinGroups.txt`: 14 `Intensity `, 14 `LFQ intensity `, **0 `iBAQ`** — the
@@ -165,6 +176,11 @@ class ProteinIngestReport:
     groups_emitted: int
     refused_empty_group: int
     distinct_accessions: int
+    #: Cells written **across every quantity family the file reports**, not per family and not the
+    #: declared family alone: one per `(observation, sample, family present)`. So this is no longer
+    #: `groups_emitted * len(mapping.samples)` — the figures recorded against the fourteen-sample
+    #: run of `HAP1_USP18KO_proteinGroups.txt` were, and they describe the adapter before
+    #: 2026-09-19.
     cells: int
     #: MaxQuant row `id` → the `ProteinObservation` id it became, for the same reason the site
     #: adapter carries one: nothing on the observation records its source row, and re-deriving the
@@ -175,13 +191,21 @@ class ProteinIngestReport:
 def _sample_columns(
     mapping: SampleMapping, column: Mapping[str, int], prefix: str
 ) -> list[tuple[str, str]]:
-    """`(Sample.id, column name)` per mapped sample.
+    """`(Sample.id, run label)` per mapped sample, with the run label recovered from its key.
 
-    The curation maps each sample to a **column name**, so the column is taken from the mapping
-    rather than guessed from a run label. A key naming a column this file does not have raises: a
-    mapping the adapter cannot place is a curation problem, and skipping the sample would drop it
-    from the matrix while leaving its `Sample` node in the graph — I11 unmet in a shape nothing
-    would notice, which is the failure `maxquant_sites.py` records for the same reason.
+    **The label, not the column name, and that changed 2026-09-19.** The curation maps each sample
+    to a column name — `LFQ intensity WT_P_1` — and this used to hand that name straight to the
+    reader, which is why the reader could only ever read one family. `maxquant_sites.py` recovers
+    the label instead and reads every family that carries it; this now does the same, so the caller
+    can build `f"{p}{label}"` for each `p` in `QUANTITY_COLUMNS` (I11). The key still decides which
+    label, so nothing is guessed.
+
+    **Both refusals are unchanged in effect.** A key naming a column this file does not have
+    raises, and so does a key outside the declared family: a mapping the adapter cannot place is a
+    curation problem, and skipping the sample would drop it from the matrix while leaving its
+    `Sample` node in the graph — I11 unmet in a shape nothing would notice, which is the failure
+    `maxquant_sites.py` records for the same reason. The declared family is still what the keys
+    must agree with; on the replay path `quantity_from_mapping_keys` guarantees that agreement.
     """
     placed = []
     for sample in mapping.samples:
@@ -195,10 +219,12 @@ def _sample_columns(
         if not key.startswith(prefix):
             raise MaxQuantProteinGroupsError(
                 f"sample mapping key {key!r} is not of the declared quantity's family {prefix!r}. "
-                "The declared quantity chooses the columns, so a mapping naming another family "
-                "would record one quantity on the Analysis and store another (I16)."
+                "The declaration sets `Analysis.quantity` (I16) and fixes the family the keys must "
+                "belong to, so a mapping naming another family would record one quantity on the "
+                "Analysis while the keys describe a different run of columns. What is *stored* is "
+                "every family the file reports (I11), whichever is declared."
             )
-        placed.append((str(sample["id"]), key))
+        placed.append((str(sample["id"]), key[len(prefix) :]))
     return placed
 
 
@@ -378,20 +404,33 @@ class MaxQuantProteinGroupsAdapter:
                 edges.append(
                     {"type": "RESOLVES_TO_PROTEIN", "from": observation_id, "to": protein_id}
                 )
-            for sample_id, name in samples:
-                cells.append(
-                    quant_store.Cell(
-                        observation_id=observation_id,
-                        sample_id=sample_id,
-                        quantity=self.declared.quantity,
-                        # `maxquant.cell_value`, not a local one. The first draft here folded `0`
-                        # to `None` — MaxQuant does write 0 for an unquantified protein — and that
-                        # is a reading `maxquant_sites.py` had already refused to make (I19). Two
-                        # adapters over one deposit cannot mean two things by a zero, so the
-                        # convention has one home and this defers to it.
-                        value=maxquant.cell_value(row, column, name),
-                    )
+            # **Every quantity family the file reports, not only the one the `Analysis` declares**,
+            # which is the rule `maxquant_sites.py` has carried since 2026-08-08 and this adapter
+            # did not. PXD026748's shotgun `proteinGroups.txt` carries three families of twelve
+            # columns; storing one discarded twenty-four columns at ingestion and made the
+            # declaration lossy when it should only be declarative. The declared quantity says what
+            # this ingestion consumed (I16); the store says what was reported (I11).
+            #
+            # **By exact name, built from the label — never a prefix scan.** The real file carries
+            # `iBAQ peptides`, which begins with the `iBAQ ` prefix and is not a sample column. A
+            # scan would retain it as a measurement of a sample it does not belong to; a name built
+            # from the run label cannot reach it.
+            cells.extend(
+                quant_store.Cell(
+                    observation_id=observation_id,
+                    sample_id=sample_id,
+                    quantity=quantity,
+                    # `maxquant.cell_value`, not a local one. The first draft here folded `0`
+                    # to `None` — MaxQuant does write 0 for an unquantified protein — and that
+                    # is a reading `maxquant_sites.py` had already refused to make (I19). Two
+                    # adapters over one deposit cannot mean two things by a zero, so the
+                    # convention has one home and this defers to it.
+                    value=maxquant.cell_value(row, column, f"{family_prefix}{label}"),
                 )
+                for sample_id, label in samples
+                for quantity, family_prefix in sorted(QUANTITY_COLUMNS.items())
+                if f"{family_prefix}{label}" in column
+            )
 
         # Same contract as every other producer of a change-set: a batch that cannot validate never
         # leaves this module half-written.
