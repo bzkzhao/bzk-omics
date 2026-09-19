@@ -404,6 +404,19 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "member.uncompressed_size == info.file_size == len(content)",
             1,
         ),
+        # ── tests/test_curation_pxd026748_arms.py, classified 2026-09-19 ──────────────────────
+        # **`PINNED`, not `INSTANCES`, and the two sides are two different files.** `shotgun` and
+        # `gg` are each `sorted(tuple(...))` over the `Sample` nodes of one committed curation
+        # record; neither call produced the other, and the records are written independently by
+        # the review loop. The claim is that `curation_PXD026748.json` and
+        # `curation_PXD026748_shotgun.json` describe the same twelve materials field-for-field —
+        # which is a fact about two documents, the shape the block below calls safe.
+        #
+        # The assertion above it compares the same two as *sets* and names the symmetric
+        # difference; this one adds multiplicity, and fails when one arm repeats a tuple the other
+        # carries once. Made to fail by changing one shotgun sample's `treatment` in a copy under
+        # `tmp_path`.
+        ("test_curation_pxd026748_arms.py", "shotgun == gg", 1),
         # ── tests/test_decision_index.py, classified individually 2026-08-10 ──────────────────
         # Thirteen matches, none an instance, each made to fail by a mutation of the surface it
         # names. Every one is either a computed value against a **pinned literal** or two sets

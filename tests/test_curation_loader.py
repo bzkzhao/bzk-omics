@@ -488,15 +488,22 @@ def test_an_unknown_top_level_key_is_refused_and_the_message_names_it(tmp_path: 
 def test_every_record_and_fixture_on_disk_still_loads() -> None:
     """The check is *no key outside the known set*, never *exactly this set*.
 
-    The five files do not agree on their key sets — `corrections` is in one real record and not the
-    other two, `note` and `synthetic` are in the fixtures and no real record, `pending` is in one
-    fixture alone — so a check written as an equality would refuse at least three of the five: no key
-    set is shared by more than two files (`curation_PXD026748.json` and `curation_PXD055843.json`).
+    The six files do not agree on their key sets — `corrections` is in one real record and not the
+    other three, `note` and `synthetic` are in the fixtures and no real record, `pending` is in one
+    fixture alone, and `contrasts_of_interest` is in every file but
+    `curation_PXD026748_shotgun.json` — so a check written as an equality would refuse at least four
+    of the six: five distinct key sets over six files, and no key set is shared by more than two
+    (`curation_PXD026748.json` and `curation_PXD055843.json`, still the only pair).
+
+    **Re-measured 2026-09-19 with the shotgun record present**, rather than carried over: the pair
+    is unchanged and the sixth file is a fifth key set of its own, because the shotgun arm names no
+    contrast. A record that had matched an existing set would have left the sentence true while the
+    reason for it moved.
     """
     records = sorted(CURATION_DIR.glob("curation_*.json")) + sorted(
         FIXTURES.glob("curation_synthetic_*.json")
     )
-    assert len(records) == 5, f"expected the three records and the two twins, found {records}"
+    assert len(records) == 6, f"expected the four records and the two twins, found {records}"
     for path in records:
         record = _record(path)
         unknown = set(record) - loader.KNOWN_KEYS
