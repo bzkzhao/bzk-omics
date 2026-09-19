@@ -29,9 +29,16 @@ checked against something outside this module as well as against itself.
 
 **Search-output ingestion joined the replay 2026-08-07.** Each curation record names a deposit by
 `content_hash`; where those bytes are in the content-addressed store, the record's
-`SampleMapping` and the file go through the adapter that recognises it, and the sites are written
-alongside the curation. This is what I9's *"regenerable from `raw/` plus the curation export"*
-actually means — before it, the clause was discharged against curation content only.
+`SampleMapping` and the file go through the adapter that recognises it, and the observations are
+written alongside the curation. This is what I9's *"regenerable from `raw/` plus the curation
+export"* actually means — before it, the clause was discharged against curation content only.
+
+**And it stopped meaning *sites* 2026-09-19.** `_adapter_for` dispatches over both MaxQuant
+adapters by `sniff`, so a `proteinGroups.txt` named by a curation record replays as
+`ProteinObservation`s. Until then the replay could only have been right by accident: the one
+adapter it could return was the site adapter, and the report path read `sites_emitted` off
+whatever came back. Both halves are fixed here, and `ReplayReport` now counts the two grains
+separately rather than calling either one "observations".
 
 `perseus.py` still stays out: it has no real input (`HANDOFF.md` §8) and inventing one to make the
 replay look fuller would put content in the graph that `raw/` cannot regenerate, which is the one
@@ -60,6 +67,11 @@ import kuzu
 
 from bzk import drift
 from bzk.adapters.base import Refusal
+from bzk.adapters.maxquant_protein_groups import (
+    DeclaredProteinAnalysis,
+    MaxQuantProteinGroupsAdapter,
+    quantity_from_mapping_keys,
+)
 from bzk.adapters.maxquant_sites import DeclaredSiteAnalysis, MaxQuantSiteAdapter
 from bzk.curation.loader import CurationError, LoadedCuration, load_path
 from bzk.ontology import schema, store
@@ -94,7 +106,14 @@ class ReplayReport:
     #: Deposits an adapter recognised and ingested. Zero on a machine where `raw/` is empty.
     deposits_ingested: int = 0
     #: `SiteObservation`s written — the ingested population, which is NOT the file's row count.
+    #: Its meaning is unchanged by the protein branch below: a protein-groups deposit adds nothing
+    #: here, so a caller reading this field alone still reads sites and only sites.
     site_observations: int = 0
+    #: `ProteinObservation`s written, the protein-grain counterpart. A second field rather than one
+    #: `observations` total because the two are not the same quantity and adding them would produce
+    #: a number with no unit — the replay would then report a figure it could not label, which is
+    #: the shape I15 forbids of values and `CLAUDE.md` § *Flag rather than hide* forbids of counts.
+    protein_observations: int = 0
     #: Rows an adapter refused, carried up so a rebuild states what it did not ingest rather than
     #: leaving it to be inferred from a smaller total (`CLAUDE.md` § Flag rather than hide).
     refusals: list[Refusal] = field(default_factory=list)
@@ -175,21 +194,94 @@ def _deposit_for(loaded: LoadedCuration, home: Path) -> Path | None:
 def _adapter_for(loaded: LoadedCuration, path: Path, resolver: Resolver | None) -> Any | None:
     """The adapter that recognises this file, configured from the curation record.
 
-    Every declared parameter comes from the record — `search_engine`, its version — rather than
-    from a constant here, so the graph records what the curator stated about the run rather than
-    what this module assumed. Selection is by `sniff` on content, never by filename
-    (`ARCHITECTURE.md` §3).
+    Selection is by `sniff` on content, never by filename (`ARCHITECTURE.md` §3).
+
+    **Where the declared parameters come from, branch by branch.** `search_engine` and its version
+    come from the record on both branches. The protein branch's `quantity` comes from the record
+    too, derived from its mapping keys by `quantity_from_mapping_keys`. **The site branch's
+    `quantity` does not**: it is `DeclaredSiteAnalysis`' constant default
+    (`maxquant_sites.py:171`), so for a site deposit the graph records what this module assumed
+    rather than what the curator stated. That is an **open defect**, named here and deliberately
+    not repaired in this turn — repairing it would move an `Analysis` id, which is a separate
+    change with a separate pin to re-measure. The protein branch is the half that is now true.
+
+    **`PerseusAdapter` is not in this dispatch, and cannot be built from what this function has.**
+    Its constructor needs `contrasts`, and a contrast is a statement about an *analysis* — it comes
+    from an analysis record (`data/curation/analysis_*.json`), not from the curation record this
+    function holds. `bzk/sources/pxd055843_perseus.py:8-11` already routes around the replay for
+    this reason and reads its parameters from the analysis record itself. A Perseus export
+    therefore reaches this function and leaves it as `None`, which the caller reports as a skipped
+    ingestion — the honest outcome, not a silent one.
+
+    **No branch for "more than one adapter claims the file".** After the Perseus guard in both
+    MaxQuant `sniff`s the three are pairwise disjoint, so a refusal for that case would be an
+    unreachable branch — the same reason `replay_ingestion` records for the predicate it removed.
+    The disjointness is a property of the `sniff`s, so it is pinned where they are, in
+    `tests/test_adapter_dispatch.py`, rather than defended by dead code here.
     """
     dataset = next(n for n in loaded.nodes if n[NODE_TYPE_KEY] == "Dataset")
-    adapter = MaxQuantSiteAdapter(
+    search_engine = str(dataset.get("search_engine") or "unknown")
+    external_version = str(dataset.get("search_engine_version") or "unknown")
+    acquisition_mode = dataset.get("acquisition_mode")
+
+    site = MaxQuantSiteAdapter(
         DeclaredSiteAnalysis(
-            search_engine=str(dataset.get("search_engine") or "unknown"),
-            external_version=str(dataset.get("search_engine_version") or "unknown"),
-            acquisition_mode=dataset.get("acquisition_mode"),
+            search_engine=search_engine,
+            external_version=external_version,
+            acquisition_mode=acquisition_mode,
         ),
         resolver=resolver,
     )
-    return adapter if adapter.sniff(path) else None
+    if site.sniff(path):
+        return site
+
+    # **Sniff first, derive second, and that ordering is load-bearing.** `quantity` is derived from
+    # the record's mapping keys, and PXD018299's are `Ratio mod/base …` — no family here — so
+    # deriving before dispatching would raise on a record that replays today, turning a file this
+    # adapter never claimed into a rebuild-stopping error. But `sniff` is an instance method
+    # (`adapters/base.py:150`, not changed this turn) and the constructor validates `quantity`, so
+    # a *probe* instance is built on the dataclass default purely to ask the question. That is safe
+    # because `sniff` reads only the file: it touches no field of `declared`, so the probe's
+    # `quantity` cannot affect the answer, and the instance that parses is built fresh below with
+    # the derived one. The alternative — passing the derived value into the probe — is the ordering
+    # this comment exists to reject.
+    probe = MaxQuantProteinGroupsAdapter(
+        DeclaredProteinAnalysis(search_engine=search_engine, external_version=external_version)
+    )
+    if not probe.sniff(path):
+        return None
+    return MaxQuantProteinGroupsAdapter(
+        DeclaredProteinAnalysis(
+            search_engine=search_engine,
+            external_version=external_version,
+            quantity=quantity_from_mapping_keys(loaded.sample_mapping()),
+            acquisition_mode=acquisition_mode,
+        )
+    )
+
+
+#: Each adapter's ingest report names its own grain — `sites_emitted`, `groups_emitted` — because
+#: the two counts are not the same quantity. This is the registry that maps the field to the
+#: `ReplayReport` field it feeds and the word a log line may call it, so the replay reports the
+#: unit the adapter actually emitted instead of calling everything a site. A registry rather than
+#: an `isinstance` chain, per `CLAUDE.md` § *Domain logic lives in subtypes*.
+EMITTED_FIELDS: tuple[tuple[str, str, str], ...] = (
+    ("sites_emitted", "site_observations", "site"),
+    ("groups_emitted", "protein_observations", "protein group"),
+)
+
+
+def _emitted(report: Any) -> tuple[str | None, int, str]:
+    """`(ReplayReport field, count, unit)` for whichever grain this adapter's report names.
+
+    `(None, 0, "observation")` where the adapter left no report at all, which is the state a parse
+    that emitted nothing can legitimately be in; the caller then adds to no counter rather than
+    charging an adapter's output to the wrong grain.
+    """
+    for source, target, unit in EMITTED_FIELDS:
+        if hasattr(report, source):
+            return target, int(getattr(report, source)), unit
+    return None, 0, "observation"
 
 
 def replay_ingestion(
@@ -232,7 +324,8 @@ def replay_ingestion(
     # "the layer ran and there was nothing to retain" (`OPERATIONS.md` §1 calls it regenerable,
     # which presumes it is generated).
     quant_connection = quant.connect(home)
-    observations = deposits = skipped = 0
+    emitted_by_grain = {target: 0 for _, target, _ in EMITTED_FIELDS}
+    deposits = skipped = 0
     refusals: list[Refusal] = []
     for path in records:
         try:
@@ -279,18 +372,23 @@ def replay_ingestion(
             cells += quant.write_cells(quant_connection, label, batch).cells_staged
         deposits += 1
         refusals.extend(parsed.refusals)
-        report = adapter.report
-        emitted = report.sites_emitted if report is not None else 0
-        observations += emitted
+        # The unit is read off the adapter's own report rather than assumed. Before this it was
+        # `report.sites_emitted`, which is an `AttributeError` the moment a protein-groups deposit
+        # is ingested — the replay path assumed one grain because only one existed.
+        grain, emitted, unit = _emitted(adapter.report)
+        if grain is not None:
+            emitted_by_grain[grain] += emitted
         log(
-            f"  ingested {source.name} via {adapter.name}: {emitted} site(s), "
+            f"  ingested {source.name} via {adapter.name}: {emitted} {unit}(s), "
             f"{len(parsed.refusals)} refused, {written.nodes_staged} node statement(s), "
             f"{written.edges_staged} edge statement(s), "
             f"{sum(len(b) for _, b in parsed.cells):,} quantitative cell(s)"
         )
     log(
         f"ingestion replay: {len(records)} curation record(s), {deposits} deposit(s), "
-        f"{observations} site observation(s), {len(refusals)} refusal(s), "
+        f"{emitted_by_grain['site_observations']} site observation(s), "
+        f"{emitted_by_grain['protein_observations']} protein observation(s), "
+        f"{len(refusals)} refusal(s), "
         f"{nodes} node statement(s), {edges} edge statement(s), {cells:,} quantitative cell(s), "
         f"{skipped} ingestion(s) skipped"
     )
@@ -301,7 +399,8 @@ def replay_ingestion(
         edges_staged=edges,
         cells_staged=cells,
         deposits_ingested=deposits,
-        site_observations=observations,
+        site_observations=emitted_by_grain["site_observations"],
+        protein_observations=emitted_by_grain["protein_observations"],
         refusals=refusals,
         ingestions_skipped=skipped,
     )

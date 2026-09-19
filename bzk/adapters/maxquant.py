@@ -43,9 +43,36 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from bzk.adapters.perseus import ANNOTATION_PREFIX
+
 
 class MaxQuantError(ValueError):
     """A MaxQuant table cannot be read as given."""
+
+
+def carries_perseus_annotation(path: Path) -> bool:
+    """True where a tab-separated file carries one of Perseus' annotation rows below its header.
+
+    **The negative half of both MaxQuant `sniff`s.** A Perseus tab-separated export keeps the source
+    table's column names in its header, so a Perseus export of a site table still carries
+    `Amino acid` / `Positions within proteins` / `Localization prob`, and a Perseus export of a
+    protein-groups table still carries `Protein IDs`. Column names therefore cannot tell a search
+    output from an analysis of one, and both MaxQuant adapters claimed such a file until this
+    function existed — measured, not inferred (`tests/test_adapter_dispatch.py`).
+
+    The prefix itself has one home, `perseus.ANNOTATION_PREFIX`, and is imported rather than
+    restated: the two statements would be a mirror between two sources with nothing guarding it.
+    This module imports `perseus` and `perseus` imports nothing from here, so the direction is
+    acyclic and stays that way.
+
+    The header line is excluded, as it is in `perseus.sniff`: a *column* may legitimately be named
+    with braces, and a marker that a header could carry would not be a marker.
+    """
+    try:
+        lines = path.read_bytes().decode("utf-8", errors="replace").splitlines()
+    except OSError:
+        return False
+    return any(line.startswith(ANNOTATION_PREFIX) for line in lines[1:])
 
 
 @dataclass(frozen=True)

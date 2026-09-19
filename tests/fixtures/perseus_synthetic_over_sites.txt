@@ -1,0 +1,3 @@
+Amino acid	Positions within proteins	Localization prob	Proteins	id
+#!{Type}C	N	N	T	N
+K	12	0.99	P1	0

@@ -250,8 +250,20 @@ class MaxQuantSiteAdapter:
 
         Content, not name (`ARCHITECTURE.md` §3): `proteinGroups.txt` and the Perseus export in this
         same deposit are also tab-separated `.txt`. What distinguishes a *site* table is that it
-        carries a per-site residue and a position within the protein, which neither of those has.
+        carries a per-site residue and a position within the protein, **and that no Perseus step
+        has written to it**.
+
+        **The second half was missing and the docstring claimed otherwise.** It read *"which
+        neither of those has"* — true of `proteinGroups.txt`, false of the Perseus export, because
+        a Perseus tab-separated export of a *site* table keeps those same three column names in its
+        header and adds only annotation rows beneath it. This function returned `True` for such a
+        file, so the claim was not a simplification but a measurable error; it is struck rather
+        than deleted so the correction is visible. `maxquant.carries_perseus_annotation` is the
+        marker that actually separates the two, and `tests/test_adapter_dispatch.py` pins the three
+        `sniff`s as pairwise disjoint rather than leaving the disjointness to a docstring.
         """
+        if maxquant.carries_perseus_annotation(path):
+            return False
         try:
             header = path.read_bytes().decode("utf-8", errors="replace").splitlines()[0].split("\t")
         except (OSError, IndexError):

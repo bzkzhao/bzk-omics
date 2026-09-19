@@ -57,6 +57,11 @@ Edge = dict[str, Any]
 #: last-write-wins, so what an unresolved candidate carries is decided in one place.
 _UNRESOLVED = ResolvedProteins(nodes=[], edges=[], protein_id={})
 
+
+class MaxQuantProteinGroupsError(ValueError):
+    """A MaxQuant `proteinGroups.txt` cannot be ingested as given."""
+
+
 #: The declared quantity and the column family it names. Reading is driven by the declaration, so
 #: an `Analysis` recording `lfq` over `Intensity ` columns is unrepresentable rather than a mistake
 #: a reviewer has to catch (I16).
@@ -74,15 +79,68 @@ QUANTITY_COLUMNS: dict[str, str] = {
     "ibaq": "iBAQ ",
 }
 
+
+def quantity_from_mapping_keys(mapping: SampleMapping) -> str:
+    """The §5 quantity whose column family every one of this record's mapping keys names.
+
+    **Why derive it rather than declare it.** `_sample_columns` already refuses a mapping key that
+    is not of the declared quantity's family, so at this grain the mapping and the declaration
+    cannot disagree without the ingestion failing. A declaration that is *forced* by the record is
+    not a declaration — it is a second copy of what the record already says, with the curator on
+    the hook for keeping them equal. Reading it from the keys makes the record the one source.
+
+    Placed beside `QUANTITY_COLUMNS` so the prefixes keep one home: this is the only other function
+    that has to know what a family's columns are named, and splitting that knowledge across modules
+    is how the pair would drift.
+
+    **It never falls back to the dataclass default.** A mapping whose keys place in no family, or
+    in more than one, is a curation problem — the same class `_sample_columns` raises on — and
+    guessing `lfq` there would put a quantity on the `Analysis` that nothing in the record supports
+    (I16). Raising names the keys, which is the thing a curator has to go and fix.
+
+    Correct at **protein grain only.** A MaxQuant site table reports several families per sample
+    and the adapter stores all of them (`maxquant_sites.py`'s cell loop), so there a mapping key
+    names one column family out of several rather than the quantity of the ingestion; PXD018299's
+    keys are `Ratio mod/base …`, which is not a family here at all. See `rebuild._adapter_for`.
+    """
+    families: dict[str, list[str]] = {}
+    unplaceable: list[str] = []
+    for sample in mapping.samples:
+        key = str(sample.get("mapping_key", ""))
+        family = next((q for q, p in QUANTITY_COLUMNS.items() if key.startswith(p)), None)
+        if family is None:
+            unplaceable.append(key)
+        else:
+            families.setdefault(family, []).append(key)
+    if len(families) == 1 and not unplaceable:
+        return next(iter(families))
+
+    if not families and not unplaceable:
+        found = "the mapping carries no samples, so there are no keys to read a family from"
+    elif not families:
+        found = f"no key carries a recognised family prefix: {unplaceable}"
+    elif not unplaceable:
+        found = "the keys span more than one family: " + "; ".join(
+            f"{q} → {keys}" for q, keys in sorted(families.items())
+        )
+    else:
+        found = (
+            "the keys are mixed: "
+            + "; ".join(f"{q} → {keys}" for q, keys in sorted(families.items()))
+            + f"; and carrying no recognised family prefix: {unplaceable}"
+        )
+    raise MaxQuantProteinGroupsError(
+        "the sample mapping does not name exactly one quantity's column family, so no quantity "
+        f"can be declared for this ingestion (I16) — {found}. Expected every mapping_key to begin "
+        f"with one of {sorted(QUANTITY_COLUMNS.values())}"
+    )
+
+
 #: Applied before anything else, and recorded on the ingestion `Analysis` (I16).
 FILTERS_APPLIED = ("reverse", "potential_contaminant")
 
 ACCESSION_COLUMN = "Protein IDs"
 PEPTIDE_COUNT_COLUMNS = ("Peptides", "Razor + unique peptides")
-
-
-class MaxQuantProteinGroupsError(ValueError):
-    """A MaxQuant `proteinGroups.txt` cannot be ingested as given."""
 
 
 @dataclass(frozen=True)
@@ -165,7 +223,16 @@ class MaxQuantProteinGroupsAdapter:
         same deposit is that it carries a protein-group accession column and **no** per-site
         residue or position — the site table's own `sniff` keys on exactly those, so the two are
         mutually exclusive rather than merely different.
+
+        **And that no Perseus step has written to it.** A Perseus tab-separated export of a
+        protein-groups table keeps `Protein IDs` in its header and carries no residue column, so
+        the two tests above are both satisfied by a file this adapter must not read: it would
+        record a search output's grain over a table whose values are an analysis' (I16, I15).
+        `maxquant.carries_perseus_annotation` is the marker, shared with the site adapter so the
+        two agree by construction, and `tests/test_adapter_dispatch.py` pins the disjointness.
         """
+        if maxquant.carries_perseus_annotation(path):
+            return False
         try:
             header = read_table(path).header
         except (OSError, ValueError):
