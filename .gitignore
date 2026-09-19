@@ -8,7 +8,7 @@
 *.mzTab
 *.fasta
 *.fa
-*GlyGlyKSites.txt
+*GlyGly*Sites.txt
 *proteinGroups.txt
 *evidence.txt
 report.tsv
