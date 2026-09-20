@@ -1,0 +1,10 @@
+{
+  "source": "PLACEHOLDER — who stated these values, when, and in what form (for example: 'A. Pinto-Fernandez, email to bzk, 2026-09-30, in reply to the reconstruction questions')",
+  "date_received": "PLACEHOLDER — YYYY-MM-DD",
+  "width_sd": 0.3,
+  "downshift_sd": 1.8,
+  "scope": "per_sample",
+  "seed": 0,
+  "randomisations": 250,
+  "scheme": "exhaustive_excluding_trivial"
+}

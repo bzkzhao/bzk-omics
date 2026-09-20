@@ -1432,6 +1432,79 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_perseus_s0.py", "np.nanmin(without.q_value) == pytest.approx(0.0)", 1),
         ("test_perseus_s0.py", "unequal == kept == 55", 1),
         ("test_perseus_s0.py", "used == 'random_excluding_trivial'", 1),
+        # ── tests/test_pxd018299_h10.py, classified individually 2026-09-22 ───────────────────
+        # **Seventeen matches, all `PINNED`, and none is a call compared against its own
+        # expression.** Every right side is one of three things: a literal the test wrote
+        # (`0`, `1`, `10`, `0.4`, `0.5`, `1/3`, `2/3`); a value the test *chose as input* and is
+        # checking came back (`names[1]`, `first`/`second`/`earlier`, `Member(0.4, 2.0, …)`, the
+        # variant-name set built from `h10.VARIANTS`); or a figure from a different part of the
+        # same written fixture (`per_claim_support` rows against `anchor_matrix.exposure`), which
+        # is two stored surfaces rather than a call and its own expression — the shape
+        # `test_published_cascade.py`'s entry already records.
+        #
+        # Measured line by line, since most of these tests carry several:
+        #  - the three `h10.primary_variant(...)` lines and `admitted_variants`: the lowest F1
+        #    taken as primary (reads `joint+random` against `joint+random_excluding_trivial`), the
+        #    tie broken alphabetically, an undefined F1 scored as zero, and admission ignoring
+        #    check A.
+        #  - `gate_majority(SEEDS) == GATE_MAJORITY == 10`: the majority floored rather than
+        #    rounded up, which still gives 10 at twenty seeds and 1 at three — so this line stays
+        #    green and the `(0, 1, 2)` line below it reddens, which is why both are asserted.
+        #  - the `metrics` and `lopsided` lines: F1 as the arithmetic mean. **`lopsided` exists
+        #    because that mutation left the symmetric case green** — at precision == recall the
+        #    harmonic and arithmetic means are the same number.
+        #  - `plain['readout_b'][…]['share'] == 0.5`: the stub's own design, and the line that
+        #    makes the verdict comparison beside it non-vacuous.
+        #  - `code == 0` / `code == 1`: `main`'s exit status, reddened by the reverse-decoy filter
+        #    inverted and by the anchor run going ahead with no admitted variant.
+        #  - `configuration.member() == Member(…)`: every author file reported as tracked leaves
+        #    this line green and the one above it red, so its own evidence is the defaulting of an
+        #    omitted `scope`, which reads `whole_matrix` against `per_sample`.
+        ("test_pxd018299_h10.py", "code == 0", 1),
+        ("test_pxd018299_h10.py", "code == 1", 1),
+        (
+            "test_pxd018299_h10.py",
+            "configuration.member() == Member(width_sd=0.4, downshift_sd=2.0, scope='per_sample', seed=3)",
+            1,
+        ),
+        ("test_pxd018299_h10.py", "h10.admitted_variants(gate, attainability) == [names[1]]", 1),
+        ("test_pxd018299_h10.py", "h10.gate_majority(SEEDS) == h10.GATE_MAJORITY == 10", 1),
+        (
+            "test_pxd018299_h10.py",
+            "h10.primary_variant([first, second, third], gate) == second",
+            1,
+        ),
+        ("test_pxd018299_h10.py", "h10.primary_variant([first, second], gate) == second", 1),
+        ("test_pxd018299_h10.py", "h10.primary_variant([later, earlier], gate) == earlier", 1),
+        (
+            "test_pxd018299_h10.py",
+            "len(written['readouts']['per_claim_support']['rows']) == written['anchor_matrix']['exposure']",
+            1,
+        ),
+        ("test_pxd018299_h10.py", "lopsided['f1'] == pytest.approx(0.4)", 1),
+        ("test_pxd018299_h10.py", "lopsided['precision']['share'] == pytest.approx(0.5)", 1),
+        ("test_pxd018299_h10.py", "lopsided['recall']['share'] == pytest.approx(1 / 3)", 1),
+        ("test_pxd018299_h10.py", "metrics['f1'] == pytest.approx(2 / 3)", 1),
+        (
+            "test_pxd018299_h10.py",
+            "metrics['precision'] == {'numerator': 2, 'denominator': 3, 'share': pytest.approx(2 / 3)}",
+            1,
+        ),
+        (
+            "test_pxd018299_h10.py",
+            "metrics['recall'] == {'numerator': 2, 'denominator': 3, 'share': pytest.approx(2 / 3)}",
+            1,
+        ),
+        (
+            "test_pxd018299_h10.py",
+            "plain['readout_b']['conditional_on_imputation']['share'] == pytest.approx(0.5)",
+            1,
+        ),
+        (
+            "test_pxd018299_h10.py",
+            "set(written['gate_g']['variants']) == {v.name for v in h10.VARIANTS}",
+            1,
+        ),
     }
 )
 
