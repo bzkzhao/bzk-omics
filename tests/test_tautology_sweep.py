@@ -1149,6 +1149,103 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         # compared against the name `PUBLISHED_ROWS`, which the net cannot tell from a computed
         # value, and one against `list(range(...))`. Each now compares against a literal.
         ("test_published_cascade.py", "fixture['summary'] == derived", 1),
+        # ── tests/test_anova.py, classified individually 2026-09-20 ────────────────────────────
+        # **Nineteen matches, all `PINNED`, and the classification turns on one question the
+        # module poses: does the call produce the other side?** Here it never does, in three
+        # shapes.
+        #
+        # Thirteen are `result.<term> == pytest.approx(<number>)` against R's printed `aov` table
+        # for `ToothGrowth`. The net matches them only because `pytest.approx` is a call; what it
+        # wraps is a literal someone else published, so the right side has an origin `two_way` had
+        # no part in. Made to fail by dropping the `b` factor from `ss_a`
+        # (`n * b * ((mean_a` -> `n * ((mean_a`): `factor_a.sum_squares[0]` reads 68.45 against
+        # 205.35.
+        #
+        # Four are the symmetry check, `reversed_.<term> == pytest.approx(forward.<term>)`. Both
+        # sides come from `two_way`, which is the shape `INSTANCES` exists for — but from **two
+        # calls with the factors exchanged**, so neither produced the other, and a defect that
+        # treats the two factor positions differently separates them. Made to fail by computing
+        # `mean_b` from A's first level alone (`cell_means.mean(axis=1)` -> `cell_means[:, 0, :]`),
+        # which reddens this assertion at 2426.43 against 3504.33.
+        #
+        # One is `result.min_p() == pytest.approx(np.minimum(np.minimum(...)))`, whose sides are
+        # both functions of the same `result`. It is still not the class `INSTANCES` records, and
+        # the distinguishing test is `Evidence`'s own: an instance is one whose **own scope stays
+        # green** under the mutation. `np.nanmin` -> `np.nanmax` in `min_p` reddens this very
+        # assertion (0.937 against 0.122), so its scope does see the defect and there is no
+        # green-scope evidence to record.
+        #
+        # One is the fixture pin, `hashlib.sha256(FIXTURE.read_bytes()).hexdigest() ==
+        # TOOTHGROWTH_SHA256`: the file's bytes now against a digest written by hand when it was
+        # fetched. Made to fail by appending one newline to `tests/fixtures/toothgrowth.csv`; the
+        # committed fixture was restored from a copy taken before the mutation.
+        (
+            "test_anova.py",
+            "hashlib.sha256(FIXTURE.read_bytes()).hexdigest() == TOOTHGROWTH_SHA256",
+            1,
+        ),
+        ("test_anova.py", "result.factor_a.sum_squares[0] == pytest.approx(205.35, abs=0.005)", 1),
+        (
+            "test_anova.py",
+            "result.factor_b.sum_squares[0] == pytest.approx(2426.43434, abs=0.005)",
+            1,
+        ),
+        (
+            "test_anova.py",
+            "result.interaction.sum_squares[0] == pytest.approx(108.319, abs=0.005)",
+            1,
+        ),
+        ("test_anova.py", "result.residual_sum_squares[0] == pytest.approx(712.106, abs=0.005)", 1),
+        ("test_anova.py", "result.factor_a.f[0] == pytest.approx(15.572, abs=0.0005)", 1),
+        ("test_anova.py", "result.factor_b.f[0] == pytest.approx(92.0, abs=0.0005)", 1),
+        ("test_anova.py", "result.interaction.f[0] == pytest.approx(4.107, abs=0.0005)", 1),
+        ("test_anova.py", "result.factor_a.p_value[0] == pytest.approx(0.000231, abs=5e-07)", 1),
+        ("test_anova.py", "result.interaction.p_value[0] == pytest.approx(0.0219, abs=5e-05)", 1),
+        (
+            "test_anova.py",
+            "reversed_.factor_a.sum_squares[0] == pytest.approx(forward.factor_b.sum_squares[0])",
+            1,
+        ),
+        (
+            "test_anova.py",
+            "reversed_.factor_b.sum_squares[0] == pytest.approx(forward.factor_a.sum_squares[0])",
+            1,
+        ),
+        (
+            "test_anova.py",
+            "reversed_.interaction.sum_squares[0] == pytest.approx(forward.interaction.sum_squares[0])",
+            1,
+        ),
+        (
+            "test_anova.py",
+            "reversed_.residual_sum_squares[0] == pytest.approx(forward.residual_sum_squares[0])",
+            1,
+        ),
+        (
+            "test_anova.py",
+            "result.factor_a.f == pytest.approx(_lstsq_f(values, full, np.column_stack([intercept, db, dab])), rel=1e-09)",
+            1,
+        ),
+        (
+            "test_anova.py",
+            "result.factor_b.f == pytest.approx(_lstsq_f(values, full, np.column_stack([intercept, da, dab])), rel=1e-09)",
+            1,
+        ),
+        (
+            "test_anova.py",
+            "result.interaction.f == pytest.approx(_lstsq_f(values, full, np.column_stack([intercept, da, db])), rel=1e-09)",
+            1,
+        ),
+        (
+            "test_anova.py",
+            "result.factor_a.sum_squares + result.factor_b.sum_squares + result.interaction.sum_squares + result.residual_sum_squares == pytest.approx(total, rel=1e-09)",
+            1,
+        ),
+        (
+            "test_anova.py",
+            "result.min_p() == pytest.approx(np.minimum(np.minimum(result.factor_a.p_value, result.factor_b.p_value), result.interaction.p_value))",
+            1,
+        ),
     }
 )
 
@@ -1398,7 +1495,15 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # did not exist, so both figures move together as they did at 993 -> 1007 / 29 -> 30. Read off
     # `sweep()` — 32 modules, 1129 asserts — rather than incremented, and moved for that module's
     # three tests alone.
-    assert modules >= 32 and asserts >= 1129, (
+    # 1129 -> 1641 and 32 -> 47 on 2026-09-20, with `tests/test_anova.py` (the forty-seventh).
+    # **Fifteen modules and five hundred assertions accrued behind this line without it moving**,
+    # which is the slack the two re-denominations above already named and then took again: `>=` is
+    # silent about a surface that grew, so it moves only when someone remembers, and between
+    # 2026-08-18 and today nobody did. It is read off `sweep()` rather than incremented, and the
+    # gap is recorded here rather than closed quietly — a floor that lags the surface by a third
+    # tolerates deleting a third of the suite's assertions, which is the case its own failure
+    # message describes.
+    assert modules >= 47 and asserts >= 1641, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
