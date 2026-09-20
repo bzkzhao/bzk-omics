@@ -1,0 +1,4882 @@
+{
+  "dataset": "PXD026748",
+  "published_file": "41590_2021_1035_MOESM3_ESM.xlsx",
+  "published_content_hash": "sha256:872371eb9877c6aa1f85e82429e8354993cd4d10c643592ff8ee14012e36a870",
+  "published_sheet": "Table 1",
+  "deposit_file": "GlyGly (K)Sites.txt",
+  "deposit_content_hash": "sha256:59000733f3b6b9fa8be31d4f8ae7e1868c0bb5099a8bbada580d28b3db647f50",
+  "path": "platform",
+  "note": "Every row of PXD026748's Supplementary Table 1, joined to the deposit's site table on (Uniprot ID, Lysine position) against (Protein, Position) and walked through the PLATFORM path: join, decoy/contaminant, localisation, ingestion, presence. A row clearing all five REACHES THE TEST; it is not recovered, and no significance stage ran \u2014 that is the reconstruction, which this repository has not performed for this deposit. Rows lost at `join` carry `window_matches`: the deposit rows sharing their Sequence window, each as {row, protein}. A Sequence window cell can hold several windows separated by ';', one per candidate protein, so the index is built PER WINDOW and an empty list means no deposit row carries this window among its windows \u2014 not that no cell equals it. `protein` is the Proteins entry at the same position, and null with a reason where the two columns split to different counts, because aligning them anyway would be guessing which candidate owns which window. A lead for a reader, never a second key, and the generator never recovers a row on it. Cells the spreadsheet stored as a date or a time are recorded AS FOUND, as ISO-8601 strings, and listed per row in `coerced_cells` and per column in the summary; no symbol is inferred for any of them, because writing an inference where the source belongs is not this file's job. Generated from both files' bytes through the adapter the curation record selects, never transcribed, and compared here with no registration or report. Regenerate with `python -m bzk.sources.pxd026748_published_cascade`.",
+  "generated_by": "python -m bzk.sources.pxd026748_published_cascade",
+  "generated_under": {
+    "generated_at": "2026-09-20T09:58:37.753593+00:00",
+    "commit": "9c27d708e077cad73852cc0e2789c4d117dc82de",
+    "working_tree_clean": false,
+    "python": "3.12.14",
+    "presence_rule": "at least 3 positive summed intensities in at least one of 4 (genotype, treatment) groups, from the curation record's mapping",
+    "sample_groups": {
+      "ISG15-/- | IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro WT 1:50 w/w 30 min 37 C": [
+        "Intensity 01_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_rep1",
+        "Intensity 13_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_rep2",
+        "Intensity 19_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_rep3"
+      ],
+      "ISG15-/- | IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro mutant 1:50 w/w 30 min 37 C": [
+        "Intensity 03_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_mut_rep1",
+        "Intensity 09_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_mut_rep2",
+        "Intensity 23_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_mut_rep3"
+      ],
+      "WT | IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro WT 1:50 w/w 30 min 37 C": [
+        "Intensity 05_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_rep1",
+        "Intensity 15_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_rep2",
+        "Intensity 21_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_rep3"
+      ],
+      "WT | IFN-alpha 500 U/mL 72 h; then lysate + recombinant SARS-CoV-2 PLpro mutant 1:50 w/w 30 min 37 C": [
+        "Intensity 07_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_mut_rep1",
+        "Intensity 11_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_mut_rep2",
+        "Intensity 17_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_mut_rep3"
+      ]
+    }
+  },
+  "summary": {
+    "published_rows": 296,
+    "stages_run": [
+      "join",
+      "decoy_contaminant",
+      "localisation",
+      "ingestion",
+      "presence"
+    ],
+    "coerced_cells": {
+      "by_column": {
+        "Gene name": 2
+      },
+      "rows": [
+        32,
+        55
+      ]
+    },
+    "reaches_test": 288,
+    "lost": {
+      "join": {
+        "count": 6,
+        "reasons": {
+          "no_key_match": 6
+        }
+      },
+      "decoy_contaminant": {
+        "count": 0,
+        "reasons": {}
+      },
+      "localisation": {
+        "count": 0,
+        "reasons": {}
+      },
+      "ingestion": {
+        "count": 2,
+        "reasons": {
+          "residue_mismatch": 2
+        }
+      },
+      "presence": {
+        "count": 0,
+        "reasons": {}
+      }
+    },
+    "reaches_test_by_cluster": {
+      "Cluster 1a": 117,
+      "Cluster 1b": 39,
+      "Cluster 2": 112,
+      "Cluster 3": 20
+    },
+    "reaches_test_published_multiplicity_2": 0,
+    "reaches_test_with_positive_multiplicity_column": 1
+  },
+  "rows": [
+    {
+      "published": {
+        "#": 1,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P34932",
+        "Gene name": "HSPA4",
+        "Lysine position": 329,
+        "Multiplicity": 1,
+        "Sequence window": "LARVEPPLRSVLEQTKLKKEDIYAVEIVGGA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1019",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 2,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P14618",
+        "Gene name": "PKM",
+        "Lysine position": 135,
+        "Multiplicity": 1,
+        "Sequence window": "RTGLIKGSGTAEVELKKGATLKITLDNAYME"
+      },
+      "coerced_cells": [],
+      "deposit_id": "665",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 3,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P04075",
+        "Gene name": "ALDOA",
+        "Lysine position": 42,
+        "Multiplicity": 1,
+        "Sequence window": "GKGILAADESTGSIAKRLQSIGTENTEENRR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "312",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 4,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "O15294",
+        "Gene name": "OGT",
+        "Lysine position": 16,
+        "Multiplicity": 1,
+        "Sequence window": "MASSVGNVADSTEPTKRMLSFQGLAELAHRE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "112",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 5,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "O94888",
+        "Gene name": "UBXN7",
+        "Lysine position": 99,
+        "Multiplicity": 1,
+        "Sequence window": "KQEILVEPEPLFGAPKRRRPARSIFDGFRDF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "234",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 6,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q8NBN3",
+        "Gene name": "TMEM87A",
+        "Lysine position": 512,
+        "Multiplicity": 1,
+        "Sequence window": "MRSTKQEPNGNSKVNKAQEDDLKWVEENVPS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2096",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 7,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q9NPF0",
+        "Gene name": "CD320",
+        "Lysine position": 278,
+        "Multiplicity": 1,
+        "Sequence window": "GLLVAMKESLLLSEQKTSLP___________"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2397",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 8,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P06899",
+        "Gene name": "HIST1H2BK",
+        "Lysine position": 109,
+        "Multiplicity": 1,
+        "Sequence window": "EIQTAVRLLLPGELAKHAVSEGTKAVTKYTS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "179",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 9,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P22234",
+        "Gene name": "PAICS",
+        "Lysine position": 30,
+        "Multiplicity": 1,
+        "Sequence window": "EGKTKEVYELLDSPGKVLLQSKDQITAGNAA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "789",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 10,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q16643",
+        "Gene name": "DBN1",
+        "Lysine position": 173,
+        "Multiplicity": 1,
+        "Sequence window": "PVGTTYQKTDAAVEMKRINREQFWEQAKKEE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1919",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 11,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q9Y5B9",
+        "Gene name": "SUPT16H",
+        "Lysine position": 504,
+        "Multiplicity": 1,
+        "Sequence window": "AKRRLTEQKGEQQIQKARKSNVSYKNPSLMP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2603",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 12,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P20290",
+        "Gene name": "BTF3",
+        "Lysine position": 171,
+        "Multiplicity": 1,
+        "Sequence window": "ADSLTSLRRLAEALPKQSVDGKAPLATGEDD"
+      },
+      "coerced_cells": [],
+      "deposit_id": "753",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 13,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "O14737",
+        "Gene name": "PDCD5",
+        "Lysine position": 63,
+        "Multiplicity": 1,
+        "Sequence window": "LDQSARARLSNLALVKPEKTKAVENYLIQMA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "80",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 14,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "O43795",
+        "Gene name": "MYO1B",
+        "Lysine position": 156,
+        "Multiplicity": 1,
+        "Sequence window": "QLLQSNPVLEAFGNAKTVRNDNSSRFGKYMD"
+      },
+      "coerced_cells": [],
+      "deposit_id": "151",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 15,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q92841",
+        "Gene name": "DDX17",
+        "Lysine position": 468,
+        "Multiplicity": 1,
+        "Sequence window": "SQPERDWVLNEFRSGKAPILIATDVASRGLD"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2161",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 16,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q9H8Y8",
+        "Gene name": "GORASP2",
+        "Lysine position": 211,
+        "Multiplicity": 1,
+        "Sequence window": "YGYLHRIPTRPFEEGKKISLPGQMAGTPITP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2370",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 17,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P80723",
+        "Gene name": "BASP1",
+        "Lysine position": 25,
+        "Multiplicity": 1,
+        "Sequence window": "KGYNVNDEKAKEKDKKAEGAATEEEGTPKES"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1621",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 18,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P78527",
+        "Gene name": "PRKDC",
+        "Lysine position": 681,
+        "Multiplicity": 1,
+        "Sequence window": "FYKLLSITVRNAKKIKYFEGVSPKSLKHSPE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1585",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 19,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P50990",
+        "Gene name": "CCT8",
+        "Lysine position": 7,
+        "Multiplicity": 1,
+        "Sequence window": "_________MALHVPKAPGFAQMLKEGAKHF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1229",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 20,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P53396",
+        "Gene name": "ACLY",
+        "Lysine position": 978,
+        "Multiplicity": 1,
+        "Sequence window": "MKKEGKLIMGIGHRVKSINNPDMRVQILKDY"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1278",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 21,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P50395",
+        "Gene name": "GDI2",
+        "Lysine position": 54,
+        "Multiplicity": 1,
+        "Sequence window": "YGGESASITPLEDLYKRFKIPGSPPESMGRG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1216",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 22,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 233,
+        "Multiplicity": 1,
+        "Sequence window": "LENKEGLELLKTAIGKAGYTDKVVIGMDVAA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "403",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 23,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P13639",
+        "Gene name": "EEF2",
+        "Lysine position": 272,
+        "Multiplicity": 1,
+        "Sequence window": "MKKLWGDRYFDPANGKFSKSATSPEGKKLPR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "642",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 24,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P28838",
+        "Gene name": "LAP3",
+        "Lysine position": 79,
+        "Multiplicity": 1,
+        "Sequence window": "AGKLRETLNISGPPLKAGKTRTFYGLHQDFP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "914",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 25,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q13868",
+        "Gene name": "EXOSC2",
+        "Lysine position": 94,
+        "Multiplicity": 1,
+        "Sequence window": "EVGDIVVGRITEVQQKRWKVETNSRLDSVLL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1813",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 26,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q12986",
+        "Gene name": "NFX1",
+        "Lysine position": 981,
+        "Multiplicity": 1,
+        "Sequence window": "ISEDSDPFNIRSSGSKFSDSLKEDARKDLKF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1755",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 27,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q04637",
+        "Gene name": "EIF4G1",
+        "Lysine position": 646,
+        "Multiplicity": 1,
+        "Sequence window": "EGLPHISDVVLDKANKTPLRPLDPTRLQGIN"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1694",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 28,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P54727",
+        "Gene name": "RAD23B",
+        "Lysine position": 147,
+        "Multiplicity": 1,
+        "Sequence window": "TASSEPAPASAAKQEKPAEKPAETPVATSPT"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1318",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 29,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P29401",
+        "Gene name": "TKT",
+        "Lysine position": 144,
+        "Multiplicity": 1,
+        "Sequence window": "LGAACGMAYTGKYFDKASYRVYCLLGDGELS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "934",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 30,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 420,
+        "Multiplicity": 1,
+        "Sequence window": "AKYNQLLRIEEELGSKAKFAGRNFRNPLAK_"
+      },
+      "coerced_cells": [],
+      "deposit_id": "408",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 31,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P23396",
+        "Gene name": "RPS3",
+        "Lysine position": 62,
+        "Multiplicity": 1,
+        "Sequence window": "EIIILATRTQNVLGEKGRRIRELTAVVQKRF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "824",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 32,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q9UHD8",
+        "Gene name": "2021-09-09T00:00:00",
+        "Lysine position": 326,
+        "Multiplicity": 1,
+        "Sequence window": "KSTLINTLFKSKISRKSVQPTSEERIPKTIE"
+      },
+      "coerced_cells": [
+        {
+          "column": "Gene name",
+          "as_found": "2021-09-09T00:00:00",
+          "type": "datetime"
+        }
+      ],
+      "deposit_id": "2506",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 33,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P25685",
+        "Gene name": "DNAJB1",
+        "Lysine position": 35,
+        "Multiplicity": 1,
+        "Sequence window": "IKRAYRRQALRYHPDKNKEPGAEEKFKEIAE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "853",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 34,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q16851",
+        "Gene name": "UGP2",
+        "Lysine position": 91,
+        "Multiplicity": 1,
+        "Sequence window": "GKIQRPPEDSIQPYEKIKARGLPDNISSVLN"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1925",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 35,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q9Y520",
+        "Gene name": "PRRC2C",
+        "Lysine position": 669,
+        "Multiplicity": 1,
+        "Sequence window": "QPRPAVLSGYFKQFQKSLPPRFQRQQEQMKQ"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2599",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 36,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q9P2J5",
+        "Gene name": "LARS",
+        "Lysine position": 39,
+        "Multiplicity": 1,
+        "Sequence window": "WDTERVFEVNASNLEKQTSKGKYFVTFPYPY"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2480",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 37,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P31040",
+        "Gene name": "SDHA",
+        "Lysine position": 179,
+        "Multiplicity": 1,
+        "Sequence window": "EDGKIYQRAFGGQSLKFGKGGQAHRCCCVAD"
+      },
+      "coerced_cells": [],
+      "deposit_id": "960",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 38,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P27708",
+        "Gene name": "CAD",
+        "Lysine position": 165,
+        "Multiplicity": 1,
+        "Sequence window": "FLDPNARPLVPEVSIKTPRVFNTGGAPRILA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "902",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 39,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P06744",
+        "Gene name": "GPI",
+        "Lysine position": 34,
+        "Multiplicity": 1,
+        "Sequence window": "EHRSELNLRRLFDANKDRFNHFSLTLNTNHG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "427",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 40,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P14618",
+        "Gene name": "PKM",
+        "Lysine position": 188,
+        "Multiplicity": 1,
+        "Sequence window": "KIYVDDGLISLQVKQKGADFLVTEVENGGSL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "670",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 41,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q5PRF9",
+        "Gene name": "SAMD4B",
+        "Lysine position": 529,
+        "Multiplicity": 1,
+        "Sequence window": "ETQKKRLLSWKQQVLKLLRTFPRKAALEMQN"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1970",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 42,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q13045",
+        "Gene name": "FLII",
+        "Lysine position": 21,
+        "Multiplicity": 1,
+        "Sequence window": "VLPFVRGVDLSGNDFKGGYFPENVKAMTSLR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1761",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 43,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 71,
+        "Multiplicity": 1,
+        "Sequence window": "RYMGKGVSKAVEHINKTIAPALVSKKLNVTE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "399",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 44,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P07814",
+        "Gene name": "EPRS",
+        "Lysine position": 435,
+        "Multiplicity": 1,
+        "Sequence window": "IWEYSRLNLNNTVLSKRKLTWFVNEGLVDGW"
+      },
+      "coerced_cells": [],
+      "deposit_id": "453",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 45,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q96CT7",
+        "Gene name": "CCDC124",
+        "Lysine position": 94,
+        "Multiplicity": 1,
+        "Sequence window": "SKLKGGKAPRVATSSKVTRAQIEDTLRRDHQ"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2193",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 46,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q06830",
+        "Gene name": "PRDX1",
+        "Lysine position": 93,
+        "Multiplicity": 1,
+        "Sequence window": "VDSHFCHLAWVNTPKKQGGLGPMNIPLVSDP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1718",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 47,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P00367",
+        "Gene name": "GLUD1",
+        "Lysine position": 390,
+        "Multiplicity": 1,
+        "Sequence window": "DCDILIPAASEKQLTKSNAPRVKAKIIAEGA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "284",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 48,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P32119",
+        "Gene name": "PRDX2",
+        "Lysine position": 10,
+        "Multiplicity": 1,
+        "Sequence window": "______MASGNARIGKPAPDFKATAVVDGAF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "993",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 49,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q9Y2A7",
+        "Gene name": "NCKAP1",
+        "Lysine position": 1075,
+        "Multiplicity": 1,
+        "Sequence window": "ALASSSLLKIGQETDKTTTRNRESVYLLLDM"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2568",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 50,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P11413",
+        "Gene name": "G6PD",
+        "Lysine position": 89,
+        "Multiplicity": 1,
+        "Sequence window": "RLTVADIRKQSEPFFKATPEEKLKLEDFFAR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "597",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 51,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P33527",
+        "Gene name": "ABCC1",
+        "Lysine position": 303,
+        "Multiplicity": 1,
+        "Sequence window": "SSKVDANEEVEALIVKSPQKEWNPSLFKVLY"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1008",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 52,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P0DMV8",
+        "Gene name": "HSPA1A",
+        "Lysine position": 56,
+        "Multiplicity": 1,
+        "Sequence window": "YVAFTDTERLIGDAAKNQVALNPQNTVFDAK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "540",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 53,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P31939",
+        "Gene name": "ATIC",
+        "Lysine position": 266,
+        "Multiplicity": 1,
+        "Sequence window": "KELKEALGIPAAASFKHVSPAGAAVGIPLSE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "973",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 54,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q16851",
+        "Gene name": "UGP2",
+        "Lysine position": 93,
+        "Multiplicity": 1,
+        "Sequence window": "IQRPPEDSIQPYEKIKARGLPDNISSVLNKL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1926",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 55,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q16181",
+        "Gene name": "2021-09-07T00:00:00",
+        "Lysine position": 89,
+        "Multiplicity": 1,
+        "Sequence window": "DLYSPEYPGPSHRIKKTVQVEQSKVLIKEGG"
+      },
+      "coerced_cells": [
+        {
+          "column": "Gene name",
+          "as_found": "2021-09-07T00:00:00",
+          "type": "datetime"
+        }
+      ],
+      "deposit_id": "1906",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 56,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P50991",
+        "Gene name": "CCT4",
+        "Lysine position": 126,
+        "Multiplicity": 1,
+        "Sequence window": "IIAGSLLDSCTKLLQKGIHPTIISESFQKAL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1238",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 57,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P05141",
+        "Gene name": "SLC25A5",
+        "Lysine position": 96,
+        "Multiplicity": 1,
+        "Sequence window": "YFPTQALNFAFKDKYKQIFLGGVDKHTQFWR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "367",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 58,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P35579",
+        "Gene name": "MYH9",
+        "Lysine position": 299,
+        "Multiplicity": 1,
+        "Sequence window": "AGEHLKTDLLLEPYNKYRFLSNGHVTIPGQQ"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1034",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 59,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P13929",
+        "Gene name": "ENO3",
+        "Lysine position": 28,
+        "Multiplicity": 1,
+        "Sequence window": "DSRGNPTVEVDLHTAKGRFRAAVPSGASTGI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "651",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 60,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P12268",
+        "Gene name": "IMPDH2",
+        "Lysine position": 109,
+        "Multiplicity": 1,
+        "Sequence window": "NCTPEFQANEVRKVKKYEQGFITDPVVLSPK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "619",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 61,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P08758",
+        "Gene name": "ANXA5",
+        "Lysine position": 101,
+        "Multiplicity": 1,
+        "Sequence window": "KPSRLYDAYELKHALKGAGTNEKVLTEIIAS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "519",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 62,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P04406",
+        "Gene name": "GAPDH",
+        "Lysine position": 139,
+        "Multiplicity": 1,
+        "Sequence window": "PSADAPMFVMGVNHEKYDNSLKIISNASCTT"
+      },
+      "coerced_cells": [],
+      "deposit_id": "332",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 63,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 406,
+        "Multiplicity": 1,
+        "Sequence window": "GQIKTGAPCRSERLAKYNQLLRIEEELGSKA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "413",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 64,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q99829",
+        "Gene name": "CPNE1",
+        "Lysine position": 256,
+        "Multiplicity": 1,
+        "Sequence window": "FECIHPEKQQKKKSYKNSGTIRVKICRVETE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2281",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 65,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P50851",
+        "Gene name": "LRBA",
+        "Lysine position": 2279,
+        "Multiplicity": 1,
+        "Sequence window": "GNFRDLSKPIGALNPKRAVFYAERYETWEDD"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1228",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 66,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P43243",
+        "Gene name": "MATR3",
+        "Lysine position": 146,
+        "Multiplicity": 1,
+        "Sequence window": "DKITPENLPQILLQLKRRRTEEGPTLSYGRD"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1118",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 67,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P08238",
+        "Gene name": "HSP90AB1",
+        "Lysine position": 347,
+        "Multiplicity": 1,
+        "Sequence window": "LLFIPRRAPFDLFENKKKKNNIKLYVRRVFI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "482",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 68,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P04075",
+        "Gene name": "ALDOA",
+        "Lysine position": 140,
+        "Multiplicity": 1,
+        "Sequence window": "TQGLDGLSERCAQYKKDGADFAKWRCVLKIG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "314",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 69,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "O00567",
+        "Gene name": "NOP56",
+        "Lysine position": 333,
+        "Multiplicity": 1,
+        "Sequence window": "LAKYPASTVQILGAEKALFRALKTRGNTPKY"
+      },
+      "coerced_cells": [],
+      "deposit_id": "68",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 70,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P00338",
+        "Gene name": "LDHA",
+        "Lysine position": 5,
+        "Multiplicity": 1,
+        "Sequence window": "___________MATLKDQLIYNLLKEEQTPQ"
+      },
+      "coerced_cells": [],
+      "deposit_id": "277",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 71,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q9P2R7",
+        "Gene name": "SUCLA2",
+        "Lysine position": 143,
+        "Multiplicity": 1,
+        "Sequence window": "AKAVSSQMIGKKLFTKQTGEKGRICNQVLVC"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2488",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 72,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q9BPX5",
+        "Gene name": "ARPC5L",
+        "Lysine position": 69,
+        "Multiplicity": 1,
+        "Sequence window": "LRAFHAALRNSPVNTKNQAVKERAQGVVLKV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2296",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 73,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q96AG4",
+        "Gene name": "LRRC59",
+        "Lysine position": 111,
+        "Multiplicity": 1,
+        "Sequence window": "KLVTLPVSFAQLKNLKWLDLKDNPLDPVLAK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2176",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 74,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P61011",
+        "Gene name": "SRP54",
+        "Lysine position": 398,
+        "Multiplicity": 1,
+        "Sequence window": "NDQELDSTDGAKVFSKQPGRIQRVARGSGVS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1401",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 75,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P06744",
+        "Gene name": "GPI",
+        "Lysine position": 12,
+        "Multiplicity": 1,
+        "Sequence window": "____MAALTRDPQFQKLQQWYREHRSELNLR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "424",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 76,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P04075",
+        "Gene name": "ALDOA",
+        "Lysine position": 99,
+        "Multiplicity": 1,
+        "Sequence window": "LYQKADDGRPFPQVIKSKGGVVGIKVDKGVV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "306",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 77,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 81,
+        "Multiplicity": 1,
+        "Sequence window": "VEHINKTIAPALVSKKLNVTEQEKIDKLMIE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "411",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 78,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q9UNF1",
+        "Gene name": "MAGED2",
+        "Lysine position": 422,
+        "Multiplicity": 1,
+        "Sequence window": "SLFGDVKKLITDEFVKQKYLDYARVPNSNPP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2542",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 79,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q8IWZ3",
+        "Gene name": "ANKHD1",
+        "Lysine position": 1833,
+        "Multiplicity": 1,
+        "Sequence window": "QATTLSTFQPANKLNKNVPTNVRSSFPVSLP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2061",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 80,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q14157",
+        "Gene name": "UBAP2L",
+        "Lysine position": 420,
+        "Multiplicity": 1,
+        "Sequence window": "DLKNPSDSAVHSPFTKRQAFTPSSTMMEVFL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1818",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 81,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P42330",
+        "Gene name": "AKR1C3",
+        "Lysine position": 33,
+        "Multiplicity": 1,
+        "Sequence window": "VLGFGTYAPPEVPRSKALEVTKLAIEAGFRH"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1110",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 82,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P38646",
+        "Gene name": "HSPA9",
+        "Lysine position": 121,
+        "Multiplicity": 1,
+        "Sequence window": "KRQAVTNPNNTFYATKRLIGRRYDDPEVQKD"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1064",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 83,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P30520",
+        "Gene name": "ADSS",
+        "Lysine position": 173,
+        "Multiplicity": 1,
+        "Sequence window": "NLGTTKKGIGPVYSSKAARSGLRMCDLVSDF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "956",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 84,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P22234",
+        "Gene name": "PAICS",
+        "Lysine position": 116,
+        "Multiplicity": 1,
+        "Sequence window": "RRIATGSFLKRNPGVKEGYKFYPPKVELFFK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "791",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 85,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "E9PAV3",
+        "Gene name": "NACA",
+        "Lysine position": 2005,
+        "Multiplicity": 1,
+        "Sequence window": "KIEDLSQQAQLAAAEKFKVQGEAVSNIQENT"
+      },
+      "coerced_cells": [],
+      "deposit_id": "40",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 86,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P22234",
+        "Gene name": "PAICS",
+        "Lysine position": 110,
+        "Multiplicity": 1,
+        "Sequence window": "PIEWVCRRIATGSFLKRNPGVKEGYKFYPPK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "790",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 87,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q15691",
+        "Gene name": "MAPRE1",
+        "Lysine position": 148,
+        "Multiplicity": 1,
+        "Sequence window": "QETAVAPSLVAPALNKPKKPLTSSSAAPQRP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1891",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 88,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P80723",
+        "Gene name": "BASP1",
+        "Lysine position": 18,
+        "Multiplicity": 1,
+        "Sequence window": "GKLSKKKKGYNVNDEKAKEKDKKAEGAATEE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1619",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 89,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P78371",
+        "Gene name": "CCT2",
+        "Lysine position": 230,
+        "Multiplicity": 1,
+        "Sequence window": "DEGFLLDKKIGVNQPKRIENAKILIANTGMD"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1577",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 90,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P29401",
+        "Gene name": "TKT",
+        "Lysine position": 6,
+        "Multiplicity": 1,
+        "Sequence window": "__________MESYHKPDQQKLQALKDTANR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "927",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 91,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P26639",
+        "Gene name": "TARS",
+        "Lysine position": 319,
+        "Multiplicity": 1,
+        "Sequence window": "DPKMLKEWEKFQEEAKNRDHRKIGRDQELYF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "890",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 92,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P00338",
+        "Gene name": "LDHA",
+        "Lysine position": 81,
+        "Multiplicity": 1,
+        "Sequence window": "QHGSLFLRTPKIVSGKDYNVTANSKLVIITA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "280",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 93,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P07900",
+        "Gene name": "HSP90AA1",
+        "Lysine position": 84,
+        "Multiplicity": 1,
+        "Sequence window": "KLDSGKELHINLIPNKQDRTLTIVDTGIGMT"
+      },
+      "coerced_cells": [],
+      "deposit_id": "460",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 94,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q9UJX4",
+        "Gene name": "ANAPC5",
+        "Lysine position": 393,
+        "Multiplicity": 1,
+        "Sequence window": "SLGIQSLVQQRAFAGKTANKLMDALKDSDLL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2519",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 95,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P30041",
+        "Gene name": "PRDX6",
+        "Lysine position": 56,
+        "Multiplicity": 1,
+        "Sequence window": "RDFTPVCTTELGRAAKLAPEFAKRNVKLIAL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "945",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 96,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 256,
+        "Multiplicity": 1,
+        "Sequence window": "VIGMDVAASEFFRSGKYDLDFKSPDDPSRYI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "417",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 97,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P11586",
+        "Gene name": "MTHFD1",
+        "Lysine position": 543,
+        "Multiplicity": 1,
+        "Sequence window": "ITWQRVLDTNDRFLRKITIGQAPTEKGHTRT"
+      },
+      "coerced_cells": [],
+      "deposit_id": "602",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 98,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q96CT7",
+        "Gene name": "CCDC124",
+        "Lysine position": 197,
+        "Multiplicity": 1,
+        "Sequence window": "PRLKQENPNMRLSQLKQLLKKEWLRSPDNPM"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2192",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 99,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q8IWZ3",
+        "Gene name": "ANKHD1",
+        "Lysine position": 1830,
+        "Multiplicity": 1,
+        "Sequence window": "VTSQATTLSTFQPANKLNKNVPTNVRSSFPV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2062",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 100,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q16513",
+        "Gene name": "PKN2",
+        "Lysine position": 498,
+        "Multiplicity": 1,
+        "Sequence window": "IERRPKLQRQKKIFSKQQGKTFLRAPQMNIN"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1913",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 101,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P49674",
+        "Gene name": "CSNK1E",
+        "Lysine position": 171,
+        "Multiplicity": 1,
+        "Sequence window": "YRDARTHQHIPYRENKNLTGTARYASINTHL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1177",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 102,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P31939",
+        "Gene name": "ATIC",
+        "Lysine position": 66,
+        "Multiplicity": 1,
+        "Sequence window": "VSELTGFPEMLGGRVKTLHPAVHAGILARNI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "977",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 103,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P29401",
+        "Gene name": "TKT",
+        "Lysine position": 283,
+        "Multiplicity": 1,
+        "Sequence window": "EQIIQEIYSQIQSKKKILATPPQEDAPSVDI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "924",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 104,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P26038",
+        "Gene name": "MSN",
+        "Lysine position": 139,
+        "Multiplicity": 1,
+        "Sequence window": "LLASYAVQSKYGDFNKEVHKSGYLAGDKLLP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "879",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 105,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P15311",
+        "Gene name": "EZR",
+        "Lysine position": 139,
+        "Multiplicity": 1,
+        "Sequence window": "LLGSYAVQAKFGDYNKEVHKSGYLSSERLIP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "683",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 106,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P21333",
+        "Gene name": "FLNB",
+        "Lysine position": 16,
+        "Multiplicity": 1,
+        "Sequence window": "MPATEKDLAEDAPWKKIQQNTFTRWCNEHLK"
+      },
+      "coerced_cells": [],
+      "deposit_id": null,
+      "lost_at": "join",
+      "loss_reason": "no_key_match",
+      "has_positive_multiplicity_column": null,
+      "window_matches": [
+        {
+          "row": "200",
+          "protein": "O75369"
+        }
+      ]
+    },
+    {
+      "published": {
+        "#": 107,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P13639",
+        "Gene name": "EEF2",
+        "Lysine position": 275,
+        "Multiplicity": 1,
+        "Sequence window": "LWGDRYFDPANGKFSKSATSPEGKKLPRTFC"
+      },
+      "coerced_cells": [],
+      "deposit_id": "639",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 108,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P05388",
+        "Gene name": "RPLP0",
+        "Lysine position": 92,
+        "Multiplicity": 1,
+        "Sequence window": "KLLPHIRGNVGFVFTKEDLTEIRDMLLANKV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "371",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 109,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P51665",
+        "Gene name": "PSMD7",
+        "Lysine position": 199,
+        "Multiplicity": 1,
+        "Sequence window": "VGTLSQRITNQVHGLKGLNSKLLDIRSYLEK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1248",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 110,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q9P2J5",
+        "Gene name": "LARS",
+        "Lysine position": 5,
+        "Multiplicity": 1,
+        "Sequence window": "___________MAERKGTAKVDFLKKIEKEI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2476",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 111,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P61011",
+        "Gene name": "SRP54",
+        "Lysine position": 457,
+        "Multiplicity": 1,
+        "Sequence window": "KGGDMSKNVSQSQMAKLNQQMAKMMDPRVLH"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1400",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 112,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q14157",
+        "Gene name": "UBAP2L",
+        "Lysine position": 864,
+        "Multiplicity": 1,
+        "Sequence window": "RDGSLASNPYSGDLTKFGRGDASSPAPATTL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1817",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 113,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P17980",
+        "Gene name": "PSMC3",
+        "Lysine position": 233,
+        "Multiplicity": 1,
+        "Sequence window": "QPPKGVLMYGPPGTGKTLLARACAAQTKATF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "720",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 114,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q96A65",
+        "Gene name": "EXOC4",
+        "Lysine position": 9,
+        "Multiplicity": 1,
+        "Sequence window": "_______MAAEAAGGKYRSTVSKSKDPSGLL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2173",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 115,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "Q9UBX3",
+        "Gene name": "SLC25A10",
+        "Lysine position": 132,
+        "Multiplicity": 1,
+        "Sequence window": "GTPADLVNVRMQNDVKLPQGQRRNYAHALDG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2501",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 116,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P08559",
+        "Gene name": "PDHA1",
+        "Lysine position": 83,
+        "Multiplicity": 1,
+        "Sequence window": "MQTVRRMELKADQLYKQKIIRGFCHLCDGQE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "496",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 117,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P31948",
+        "Gene name": "STIP1",
+        "Lysine position": 462,
+        "Multiplicity": 1,
+        "Sequence window": "AMDVYQKALDLDSSCKEAADGYQRCMMAQYN"
+      },
+      "coerced_cells": [],
+      "deposit_id": "986",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 118,
+        "Cluster": "Cluster 1a",
+        "Uniprot ID": "P15559",
+        "Gene name": "NQO1",
+        "Lysine position": 61,
+        "Multiplicity": 1,
+        "Sequence window": "NFNPIISRKDITGKLKDPANFQYPAESVLAY"
+      },
+      "coerced_cells": [],
+      "deposit_id": "690",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 119,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "Q9Y6I3",
+        "Gene name": "EPN1",
+        "Lysine position": 117,
+        "Multiplicity": 1,
+        "Sequence window": "AVQTLKDFQYVDRDGKDQGVNVREKAKQLVA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2353",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 120,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P08559",
+        "Gene name": "PDHA1",
+        "Lysine position": 244,
+        "Multiplicity": 1,
+        "Sequence window": "MGTSVERAAASTDYYKRGDFIPGLRVDGMDI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "495",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 121,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P28838",
+        "Gene name": "LAP3",
+        "Lysine position": 118,
+        "Multiplicity": 1,
+        "Sequence window": "KKAAGIDEQENWHEGKENIRAAVAAGCRQIQ"
+      },
+      "coerced_cells": [],
+      "deposit_id": "913",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 122,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "Q9NVI7",
+        "Gene name": "ATAD3A",
+        "Lysine position": 549,
+        "Multiplicity": 1,
+        "Sequence window": "RMYFDKYVLKPATEGKQRLKLAQFDYGRKCS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2438",
+      "lost_at": "ingestion",
+      "loss_reason": "residue_mismatch",
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 123,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P37840",
+        "Gene name": "SNCA",
+        "Lysine position": 23,
+        "Multiplicity": 1,
+        "Sequence window": "LSKAKEGVVAAAEKTKQGVAEAAGKTKEGVL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1060",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 124,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "Q92922",
+        "Gene name": "SMARCC1",
+        "Lysine position": 925,
+        "Multiplicity": 1,
+        "Sequence window": "KLRHFEELETIMDREKEALEQQRQQLLTERQ"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2166",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 125,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P53396",
+        "Gene name": "ACLY",
+        "Lysine position": 97,
+        "Multiplicity": 1,
+        "Sequence window": "KSWLKPRLGQEATVGKATGFLKNFLIEPFVP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1275",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 126,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "Q14527",
+        "Gene name": "HLTF",
+        "Lysine position": 158,
+        "Multiplicity": 1,
+        "Sequence window": "TMPLHMTFWGKEENRKAVSDQLKKHGFKLGP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1836",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": true
+    },
+    {
+      "published": {
+        "#": 127,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "Q8TCJ2",
+        "Gene name": "STT3B",
+        "Lysine position": 10,
+        "Multiplicity": 1,
+        "Sequence window": "______MAEPSAPESKHKSSLNSSPWSGLMA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2114",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 128,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P53621",
+        "Gene name": "COPA",
+        "Lysine position": 411,
+        "Multiplicity": 1,
+        "Sequence window": "IPKDADSQNPDAPEGKRSSGLTAVWVARNRF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1282",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 129,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P82933",
+        "Gene name": "MRPS9",
+        "Lysine position": 119,
+        "Multiplicity": 1,
+        "Sequence window": "IDRAIAYLFPSGLFEKRARPVMKHPEQIFPR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1625",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 130,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P10809",
+        "Gene name": "HSPD1",
+        "Lysine position": 133,
+        "Multiplicity": 1,
+        "Sequence window": "VLARSIAKEGFEKISKGANPVEIRRGVMLAV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "554",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 131,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P04818",
+        "Gene name": "TYMS",
+        "Lysine position": 99,
+        "Multiplicity": 1,
+        "Sequence window": "VLEELLWFIKGSTNAKELSSKGVKIWDANGS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "345",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 132,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P06576",
+        "Gene name": "ATP5B",
+        "Lysine position": 124,
+        "Multiplicity": 1,
+        "Sequence window": "RTIAMDGTEGLVRGQKVLDSGAPIKIPVGPE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "394",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 133,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "Q9UII2",
+        "Gene name": "ATPIF1",
+        "Lysine position": 49,
+        "Multiplicity": 1,
+        "Sequence window": "DRGAGSIREAGGAFGKREQAEEERYFRAQSR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2513",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 134,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "Q96TA1",
+        "Gene name": "FAM129B",
+        "Lysine position": 430,
+        "Multiplicity": 1,
+        "Sequence window": "DGLQQRFDVSSTSVFKQRAQIHMREQMDNAV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2249",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 135,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P04075",
+        "Gene name": "ALDOA",
+        "Lysine position": 147,
+        "Multiplicity": 1,
+        "Sequence window": "SERCAQYKKDGADFAKWRCVLKIGEHTPSAL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "308",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 136,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "Q8NI36",
+        "Gene name": "WDR36",
+        "Lysine position": 159,
+        "Multiplicity": 1,
+        "Sequence window": "VFSAFARNKEIVHTFKGHKAEIHFLQPFGDH"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2109",
+      "lost_at": "ingestion",
+      "loss_reason": "residue_mismatch",
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 137,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "Q15233",
+        "Gene name": "NONO",
+        "Lysine position": 249,
+        "Multiplicity": 1,
+        "Sequence window": "EGLPEKLVIKNQQFHKEREQPPRFAQPGSFE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1884",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 138,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P80723",
+        "Gene name": "BASP1",
+        "Lysine position": 10,
+        "Multiplicity": 1,
+        "Sequence window": "______MGGKLSKKKKGYNVNDEKAKEKDKK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1622",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 139,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P60709",
+        "Gene name": "ACTB",
+        "Lysine position": 113,
+        "Multiplicity": 1,
+        "Sequence window": "PEEHPVLLTEAPLNPKANREKMTQIMFETFN"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1390",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 140,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P28340",
+        "Gene name": "POLD1",
+        "Lysine position": 439,
+        "Multiplicity": 1,
+        "Sequence window": "VAGLCSNIRDSSFQSKQTGRRDTKVVSMVGR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "910",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 141,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P60842",
+        "Gene name": "EIF4A3",
+        "Lysine position": 60,
+        "Multiplicity": 1,
+        "Sequence window": "LKESLLRGIYAYGFEKPSAIQQRAIIPCIKG"
+      },
+      "coerced_cells": [],
+      "deposit_id": null,
+      "lost_at": "join",
+      "loss_reason": "no_key_match",
+      "has_positive_multiplicity_column": null,
+      "window_matches": [
+        {
+          "row": "1065",
+          "protein": "P38919"
+        }
+      ]
+    },
+    {
+      "published": {
+        "#": 142,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "O43592",
+        "Gene name": "XPOT",
+        "Lysine position": 668,
+        "Multiplicity": 1,
+        "Sequence window": "HAVGFASRTSKAFSNKQTVKQCGCSEVYLDC"
+      },
+      "coerced_cells": [],
+      "deposit_id": "133",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 143,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "O75396",
+        "Gene name": "SEC22B",
+        "Lysine position": 43,
+        "Multiplicity": 1,
+        "Sequence window": "RDLQQYQSQAKQLFRKLNEQSPTRCTLEAGA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "206",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 144,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P35579",
+        "Gene name": "MYH9",
+        "Lysine position": 403,
+        "Multiplicity": 1,
+        "Sequence window": "AILTPRIKVGRDYVQKAQTKEQADFAVEALA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1026",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 145,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P08238",
+        "Gene name": "HSP90AB1",
+        "Lysine position": 53,
+        "Multiplicity": 1,
+        "Sequence window": "IFLRELISNASDALDKIRLISLTDENALSGN"
+      },
+      "coerced_cells": [],
+      "deposit_id": "487",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 146,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P08237",
+        "Gene name": "PFKM",
+        "Lysine position": 144,
+        "Multiplicity": 1,
+        "Sequence window": "RSEWSDLLSDLQKAGKITDEEATKSSYLNIV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "480",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 147,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P04075",
+        "Gene name": "ALDOA",
+        "Lysine position": 330,
+        "Multiplicity": 1,
+        "Sequence window": "GGKKENLKAAQEEYVKRALANSLACQGKYTP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "305",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 148,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P08238",
+        "Gene name": "HSP90AA1",
+        "Lysine position": 112,
+        "Multiplicity": 1,
+        "Sequence window": "GMTKADLINNLGTIAKSGTKAFMEALQAGAD"
+      },
+      "coerced_cells": [],
+      "deposit_id": null,
+      "lost_at": "join",
+      "loss_reason": "no_key_match",
+      "has_positive_multiplicity_column": null,
+      "window_matches": [
+        {
+          "row": "456",
+          "protein": null,
+          "protein_unattributed_reason": "`Proteins` and `Sequence window` split to different counts (3 and 1), so no entry can be aligned with this window without guessing which candidate owns it"
+        }
+      ]
+    },
+    {
+      "published": {
+        "#": 149,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P14927",
+        "Gene name": "UQCRB",
+        "Lysine position": 4,
+        "Multiplicity": 1,
+        "Sequence window": "____________MAGKQAVSASGKWLDGIRK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "675",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 150,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P62913",
+        "Gene name": "RPL11",
+        "Lysine position": 8,
+        "Multiplicity": 1,
+        "Sequence window": "________MAQDQGEKENPMRELRIRKLCLN"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1508",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 151,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "Q9Y265",
+        "Gene name": "RUVBL1",
+        "Lysine position": 7,
+        "Multiplicity": 1,
+        "Sequence window": "_________MKIEEVKSTTKTQRIASHSHVK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2563",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 152,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "Q9NZ01",
+        "Gene name": "TECR",
+        "Lysine position": 60,
+        "Multiplicity": 1,
+        "Sequence window": "PARQSLRLDPKGKSLKDEDVLQKLPVGTTAT"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2448",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 153,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P53396",
+        "Gene name": "ACLY",
+        "Lysine position": 4,
+        "Multiplicity": 1,
+        "Sequence window": "____________MSAKAISEQTGKELLYKFI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1276",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 154,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P25705",
+        "Gene name": "ATP5A1",
+        "Lysine position": 175,
+        "Multiplicity": 1,
+        "Sequence window": "GKGPIGSKTRRRVGLKAPGIIPRISVREPMQ"
+      },
+      "coerced_cells": [],
+      "deposit_id": "863",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 155,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "O14818",
+        "Gene name": "PSMA7",
+        "Lysine position": 28,
+        "Multiplicity": 1,
+        "Sequence window": "DGHLFQVEYAQEAVKKGSTAVGVRGRDIVVL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "87",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 156,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P05141",
+        "Gene name": "SLC25A5",
+        "Lysine position": 23,
+        "Multiplicity": 1,
+        "Sequence window": "FAKDFLAGGVAAAISKTAVAPIERVKLLLQV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "359",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 157,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "O75874",
+        "Gene name": "IDH1",
+        "Lysine position": 126,
+        "Multiplicity": 1,
+        "Sequence window": "AIICKNIPRLVSGWVKPIIIGRHAYGDQYRA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "220",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 158,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P06493",
+        "Gene name": "CDK1",
+        "Lysine position": 6,
+        "Multiplicity": 1,
+        "Sequence window": "__________MEDYTKIEKIGEGTYGVVYKG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "388",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 159,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "Q969Z0",
+        "Gene name": "TBRG4",
+        "Lysine position": 446,
+        "Multiplicity": 1,
+        "Sequence window": "LHPEFHIQFLGGKSQKDQNTFQKLLHINATA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2172",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 160,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P49327",
+        "Gene name": "FASN",
+        "Lysine position": 1582,
+        "Multiplicity": 1,
+        "Sequence window": "YYASLNFRDIMLATGKLSPDAIPGKWTSQDS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1186",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 161,
+        "Cluster": "Cluster 1b",
+        "Uniprot ID": "P06744",
+        "Gene name": "GPI",
+        "Lysine position": 89,
+        "Multiplicity": 1,
+        "Sequence window": "SRGVEAARERMFNGEKINYTEGRAVLHVALR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "429",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 162,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P34932",
+        "Gene name": "HSPA4",
+        "Lysine position": 53,
+        "Multiplicity": 1,
+        "Sequence window": "CISFGPKNRSIGAAAKSQVISNAKNTVQGFK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1017",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 163,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P61088",
+        "Gene name": "UBE2N",
+        "Lysine position": 92,
+        "Multiplicity": 1,
+        "Sequence window": "HPNVDKLGRICLDILKDKWSPALQIRTVLLS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1406",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 164,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "O00232",
+        "Gene name": "PSMD12",
+        "Lysine position": 98,
+        "Multiplicity": 1,
+        "Sequence window": "LNENIMLLSKRRSQLKQAVAKMVQQCCTYVE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "56",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 165,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P35998",
+        "Gene name": "PSMC2",
+        "Lysine position": 46,
+        "Multiplicity": 1,
+        "Sequence window": "ALLKTYGQSTYSRQIKQVEDDIQQLLKKINE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1045",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 166,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P52895",
+        "Gene name": "AKR1C3",
+        "Lysine position": 270,
+        "Multiplicity": 1,
+        "Sequence window": "IALRYQLQRGVVVLAKSYNEQRIRQNVQVFE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1108",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 167,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P56381",
+        "Gene name": "ATP5E",
+        "Lysine position": 32,
+        "Multiplicity": 1,
+        "Sequence window": "QICAKAVRDALKTEFKANAEKTSGSNVKIVK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1366",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 168,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P68104",
+        "Gene name": "EEF1A1",
+        "Lysine position": 255,
+        "Multiplicity": 1,
+        "Sequence window": "RPTDKPLRLPLQDVYKIGGIGTVPVGRVETG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1548",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 169,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q9BXB5",
+        "Gene name": "OSBPL11",
+        "Lysine position": 395,
+        "Multiplicity": 1,
+        "Sequence window": "GMDLTKVVLPTFILEKRSLLEMYADFMAHPD"
+      },
+      "coerced_cells": [],
+      "deposit_id": null,
+      "lost_at": "join",
+      "loss_reason": "no_key_match",
+      "has_positive_multiplicity_column": null,
+      "window_matches": [
+        {
+          "row": "2320",
+          "protein": "Q9BXB4"
+        }
+      ]
+    },
+    {
+      "published": {
+        "#": 170,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P53396",
+        "Gene name": "ACLY",
+        "Lysine position": 650,
+        "Multiplicity": 1,
+        "Sequence window": "KIGNTGGMLDNILASKLYRPGSVAYVSRSGG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1274",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 171,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "O43175",
+        "Gene name": "PHGDH",
+        "Lysine position": 384,
+        "Multiplicity": 1,
+        "Sequence window": "CLSPAVIVGLLKEASKQADVNLVNAKLLVKE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "124",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 172,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P49327",
+        "Gene name": "FASN",
+        "Lysine position": 1591,
+        "Multiplicity": 1,
+        "Sequence window": "IMLATGKLSPDAIPGKWTSQDSLLGMEFSGR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1187",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 173,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q13228",
+        "Gene name": "SELENBP1",
+        "Lysine position": 93,
+        "Multiplicity": 1,
+        "Sequence window": "NTCSSCFGDSTKSRTKLVLPSLISSRIYVVD"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1779",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 174,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q14152",
+        "Gene name": "EIF3A",
+        "Lysine position": 420,
+        "Multiplicity": 1,
+        "Sequence window": "ERVTKVLNWVREQPEKEPELQQYVPQLQNNT"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1814",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 175,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P08670",
+        "Gene name": "VIM",
+        "Lysine position": 104,
+        "Multiplicity": 1,
+        "Sequence window": "ADAINTEFKNTRTNEKVELQELNDRFANYID"
+      },
+      "coerced_cells": [],
+      "deposit_id": "513",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 176,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P08238",
+        "Gene name": "HSP90AA1",
+        "Lysine position": 283,
+        "Multiplicity": 1,
+        "Sequence window": "DSGKDKKKKTKKIKEKYIDQEELNKTKPIWT"
+      },
+      "coerced_cells": [],
+      "deposit_id": null,
+      "lost_at": "join",
+      "loss_reason": "no_key_match",
+      "has_positive_multiplicity_column": null,
+      "window_matches": [
+        {
+          "row": "459",
+          "protein": null,
+          "protein_unattributed_reason": "`Proteins` and `Sequence window` split to different counts (4 and 2), so no entry can be aligned with this window without guessing which candidate owns it"
+        }
+      ]
+    },
+    {
+      "published": {
+        "#": 177,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P08670",
+        "Gene name": "VIM",
+        "Lysine position": 120,
+        "Multiplicity": 1,
+        "Sequence window": "VELQELNDRFANYIDKVRFLEQQNKILLAEL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "504",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 178,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P68363",
+        "Gene name": "TUBA1B",
+        "Lysine position": 96,
+        "Multiplicity": 1,
+        "Sequence window": "GPYRQLFHPEQLITGKEDAANNYARGHYTIG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1559",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 179,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P29401",
+        "Gene name": "TKT",
+        "Lysine position": 343,
+        "Multiplicity": 1,
+        "Sequence window": "LGHASDRIIALDGDTKNSTFSEIFKKEHPDR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "921",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 180,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P53621",
+        "Gene name": "COPA",
+        "Lysine position": 61,
+        "Multiplicity": 1,
+        "Sequence window": "KFDEHDGPVRGIDFHKQQPLFVSGGDDYKIK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1284",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 181,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06493",
+        "Gene name": "CDK1",
+        "Lysine position": 56,
+        "Multiplicity": 1,
+        "Sequence window": "EEGVPSTAIREISLLKELRHPNIVSLQDVLM"
+      },
+      "coerced_cells": [],
+      "deposit_id": "387",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 182,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P23396",
+        "Gene name": "RPS3",
+        "Lysine position": 90,
+        "Multiplicity": 1,
+        "Sequence window": "KRFGFPEGSVELYAEKVATRGLCAIAQAESL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "816",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 183,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P08865",
+        "Gene name": "RPSA",
+        "Lysine position": 89,
+        "Multiplicity": 1,
+        "Sequence window": "VSVISSRNTGQRAVLKFAAATGATPIAGRFT"
+      },
+      "coerced_cells": [],
+      "deposit_id": "520",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 184,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "O43175",
+        "Gene name": "PHGDH",
+        "Lysine position": 351,
+        "Multiplicity": 1,
+        "Sequence window": "AEALGTLMRAWAGSPKGTIQVITQGTSLKNA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "123",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 185,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "O14744",
+        "Gene name": "PRMT5",
+        "Lysine position": 60,
+        "Multiplicity": 1,
+        "Sequence window": "VFHPRFKREFIQEPAKNRPGPQTRSDLLLSG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "81",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 186,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "O15294",
+        "Gene name": "OGT",
+        "Lysine position": 168,
+        "Multiplicity": 1,
+        "Sequence window": "NPDLYCVRSDLGNLLKALGRLEEAKACYLKA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "113",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 187,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P68363",
+        "Gene name": "TUBA1B",
+        "Lysine position": 60,
+        "Multiplicity": 1,
+        "Sequence window": "GDDSFNTFFSETGAGKHVPRAVFVDLEPTVI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1560",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 188,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P52895",
+        "Gene name": "AKR1C3",
+        "Lysine position": 75,
+        "Multiplicity": 1,
+        "Sequence window": "QVGLAIRSKIADGSVKREDIFYTSKLWSNSH"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1109",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 189,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P55036",
+        "Gene name": "PSMD4",
+        "Lysine position": 365,
+        "Multiplicity": 1,
+        "Sequence window": "EAIRNAMGSLASQATKDGKKDKKEEDKK___"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1329",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 190,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P35579",
+        "Gene name": "MYH9",
+        "Lysine position": 225,
+        "Multiplicity": 1,
+        "Sequence window": "QLLQANPILEAFGNAKTVKNDNSSRFGKFIR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1032",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 191,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P11586",
+        "Gene name": "MTHFD1",
+        "Lysine position": 819,
+        "Multiplicity": 1,
+        "Sequence window": "RAAQAPSSFQLLYDLKLPVEDKIRIIAQKIY"
+      },
+      "coerced_cells": [],
+      "deposit_id": "600",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 192,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P23921",
+        "Gene name": "RRM1",
+        "Lysine position": 414,
+        "Multiplicity": 1,
+        "Sequence window": "ETGTPYMLYKDSCNRKSNQQNLGTIKCSNLC"
+      },
+      "coerced_cells": [],
+      "deposit_id": "840",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 193,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P34897",
+        "Gene name": "SHMT2",
+        "Lysine position": 103,
+        "Multiplicity": 1,
+        "Sequence window": "LGSCLNNKYSEGYPGKRYYGGAEVVDEIELL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1015",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 194,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P26641",
+        "Gene name": "EEF1G",
+        "Lysine position": 132,
+        "Multiplicity": 1,
+        "Sequence window": "TLGIMHHNKQATENAKEEVRRILGLLDAYLK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "895",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 195,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P25705",
+        "Gene name": "ATP5A1",
+        "Lysine position": 427,
+        "Multiplicity": 1,
+        "Sequence window": "LSVSRVGSAAQTRAMKQVAGTMKLELAQYRE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "858",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 196,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "O00159",
+        "Gene name": "MYO1C",
+        "Lysine position": 188,
+        "Multiplicity": 1,
+        "Sequence window": "RLLQSNPVLEAFGNAKTLRNDNSSRFGKYMD"
+      },
+      "coerced_cells": [],
+      "deposit_id": "52",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 197,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P14618",
+        "Gene name": "PKM",
+        "Lysine position": 66,
+        "Multiplicity": 1,
+        "Sequence window": "IGPASRSVETLKEMIKSGMNVARLNFSHGTH"
+      },
+      "coerced_cells": [],
+      "deposit_id": "660",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 198,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q99942",
+        "Gene name": "RNF5",
+        "Lysine position": 93,
+        "Multiplicity": 1,
+        "Sequence window": "PLYGRGSQKPQDPRLKTPPRPQGQRPAPESR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2292",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 199,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P78371",
+        "Gene name": "CCT2",
+        "Lysine position": 223,
+        "Multiplicity": 1,
+        "Sequence window": "SLADSYLDEGFLLDKKIGVNQPKRIENAKIL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1578",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 200,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P00338",
+        "Gene name": "LDHA",
+        "Lysine position": 232,
+        "Multiplicity": 1,
+        "Sequence window": "DLGTDKDKEQWKEVHKQVVESAYEVIKLKGY"
+      },
+      "coerced_cells": [],
+      "deposit_id": "279",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 201,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P10809",
+        "Gene name": "HSPD1",
+        "Lysine position": 250,
+        "Multiplicity": 1,
+        "Sequence window": "QKCEFQDAYVLLSEKKISSIQSIVPALEIAN"
+      },
+      "coerced_cells": [],
+      "deposit_id": "561",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 202,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P49368",
+        "Gene name": "CCT3",
+        "Lysine position": 21,
+        "Multiplicity": 1,
+        "Sequence window": "PVLVLSQNTKRESGRKVQSGNINAAKTIADI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1199",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 203,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P26447",
+        "Gene name": "S100A4",
+        "Lysine position": 57,
+        "Multiplicity": 1,
+        "Sequence window": "LPSFLGKRTDEAAFQKLMSNLDSNRDNEVDF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "887",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 204,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P05141",
+        "Gene name": "SLC25A5",
+        "Lysine position": 43,
+        "Multiplicity": 1,
+        "Sequence window": "PIERVKLLLQVQHASKQITADKQYKGIIDCV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "362",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 205,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 64,
+        "Multiplicity": 1,
+        "Sequence window": "LRDNDKTRYMGKGVSKAVEHINKTIAPALVS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "406",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 206,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q9UM54",
+        "Gene name": "MYO6",
+        "Lysine position": 1192,
+        "Multiplicity": 1,
+        "Sequence window": "QRFFRIPFIRPADQYKDPQSKKKGWWYAHFD"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2533",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 207,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q8NE71",
+        "Gene name": "ABCF1",
+        "Lysine position": 430,
+        "Multiplicity": 1,
+        "Sequence window": "VYEELRATGAAAAEAKARRILAGLGFDPEMQ"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2102",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 208,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q06830",
+        "Gene name": "PRDX1",
+        "Lysine position": 7,
+        "Multiplicity": 1,
+        "Sequence window": "_________MSSGNAKIGHPAPNFKATAVMP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1720",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 209,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P67936",
+        "Gene name": "TPM4",
+        "Lysine position": 11,
+        "Multiplicity": 1,
+        "Sequence window": "_____MAGLNSLEAVKRKIQALQQQADEAED"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1540",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 210,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P40227",
+        "Gene name": "CCT6A",
+        "Lysine position": 41,
+        "Multiplicity": 1,
+        "Sequence window": "AARGLQDVLRTNLGPKGTMKMLVSGAGDIKL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1075",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 211,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P29401",
+        "Gene name": "TKT",
+        "Lysine position": 204,
+        "Multiplicity": 1,
+        "Sequence window": "QSDPAPLQHQMDIYQKRCEAFGWHAIIVDGH"
+      },
+      "coerced_cells": [],
+      "deposit_id": "925",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 212,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 5,
+        "Multiplicity": 1,
+        "Sequence window": "___________MSILKIHAREIFDSRGNPTV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "419",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 213,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 330,
+        "Multiplicity": 1,
+        "Sequence window": "VVGDDLTVTNPKRIAKAVNEKSCNCLLLKVN"
+      },
+      "coerced_cells": [],
+      "deposit_id": "407",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 214,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06576",
+        "Gene name": "ATP5B",
+        "Lysine position": 201,
+        "Multiplicity": 1,
+        "Sequence window": "GIKVVDLLAPYAKGGKIGLFGGAGVGKTVLI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "393",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 215,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q92973",
+        "Gene name": "TNPO2",
+        "Lysine position": 56,
+        "Multiplicity": 1,
+        "Sequence window": "FPDFNNYLIFVLTRLKSEDEPTRSLSGLILK"
+      },
+      "coerced_cells": [],
+      "deposit_id": null,
+      "lost_at": "join",
+      "loss_reason": "no_key_match",
+      "has_positive_multiplicity_column": null,
+      "window_matches": [
+        {
+          "row": "84",
+          "protein": "O14787"
+        }
+      ]
+    },
+    {
+      "published": {
+        "#": 216,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P05141",
+        "Gene name": "SLC25A5",
+        "Lysine position": 94,
+        "Multiplicity": 1,
+        "Sequence window": "IRYFPTQALNFAFKDKYKQIFLGGVDKHTQF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "366",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 217,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q9P258",
+        "Gene name": "RCC2",
+        "Lysine position": 179,
+        "Multiplicity": 1,
+        "Sequence window": "LITTEGKLWSWGRNEKGQLGHGDTKRVEAPR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2469",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 218,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q99758",
+        "Gene name": "ABCA3",
+        "Lysine position": 503,
+        "Multiplicity": 1,
+        "Sequence window": "IMPSYWCGKPRAVAGKEEEDSDPEKALRNEY"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2277",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 219,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q15149",
+        "Gene name": "PLEC",
+        "Lysine position": 932,
+        "Multiplicity": 1,
+        "Sequence window": "HLSGLAKRAKAVVQLKPRHPAHPMRGRLPLL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1868",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 220,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q14152",
+        "Gene name": "EIF3A",
+        "Lysine position": 351,
+        "Multiplicity": 1,
+        "Sequence window": "TDIARLLDMDGIIVEKQRRLATLLGLQAPPT"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1815",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 221,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P62826",
+        "Gene name": "RAN",
+        "Lysine position": 60,
+        "Multiplicity": 1,
+        "Sequence window": "VEVHPLVFHTNRGPIKFNVWDTAGQEKFGGL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1478",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 222,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P41250",
+        "Gene name": "GARS",
+        "Lysine position": 129,
+        "Multiplicity": 1,
+        "Sequence window": "PKDDIVDRAKMEDTLKRRFFYDQAFAIYGGV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1088",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 223,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P17987",
+        "Gene name": "TCP1",
+        "Lysine position": 109,
+        "Multiplicity": 1,
+        "Sequence window": "VIIAAELLKNADELVKQKIHPTSVISGYRLA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "729",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 224,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P14618",
+        "Gene name": "PKM",
+        "Lysine position": 305,
+        "Multiplicity": 1,
+        "Sequence window": "IMVARGDLGIEIPAEKVFLAQKMMIGRCNRA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "663",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 225,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P07900",
+        "Gene name": "HSP90AA1",
+        "Lysine position": 443,
+        "Multiplicity": 1,
+        "Sequence window": "AEDKENYKKFYEQFSKNIKLGIHEDSQNRKK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "464",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 226,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06744",
+        "Gene name": "GPI",
+        "Lysine position": 366,
+        "Multiplicity": 1,
+        "Sequence window": "YFQQGDMESNGKYITKSGTRVDHQTGPIVWG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "431",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 227,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 193,
+        "Multiplicity": 1,
+        "Sequence window": "FREAMRIGAEVYHNLKNVIKEKYGKDATNVG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "410",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 228,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 28,
+        "Multiplicity": 1,
+        "Sequence window": "DSRGNPTVEVDLFTSKGLFRAAVPSGASTGI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "405",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 229,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 228,
+        "Multiplicity": 1,
+        "Sequence window": "FAPNILENKEGLELLKTAIGKAGYTDKVVIG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "402",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 230,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P00558",
+        "Gene name": "PGK1",
+        "Lysine position": 272,
+        "Multiplicity": 1,
+        "Sequence window": "LFDEEGAKIVKDLMSKAEKNGVKITLPVDFV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "287",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 231,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P00558",
+        "Gene name": "PGK1",
+        "Lysine position": 323,
+        "Multiplicity": 1,
+        "Sequence window": "PAGWMGLDCGPESSKKYAEAVTRAKQIVWNG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "289",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 232,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q9UQE7",
+        "Gene name": "SMC3",
+        "Lysine position": 140,
+        "Multiplicity": 1,
+        "Sequence window": "LESAGFSRSNPYYIVKQGKINQMATAPDSQR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2556",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 233,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q16658",
+        "Gene name": "FSCN1",
+        "Lysine position": 241,
+        "Multiplicity": 1,
+        "Sequence window": "CEGRYLAPSGPSGTLKAGKATKVGKDELFAL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1922",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 234,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q08752",
+        "Gene name": "PPID",
+        "Lysine position": 341,
+        "Multiplicity": 1,
+        "Sequence window": "ALADLKKAQGIAPEDKAIQAELLKVKQKIKA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1733",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 235,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P54578",
+        "Gene name": "USP14",
+        "Lysine position": 313,
+        "Multiplicity": 1,
+        "Sequence window": "ITKQSPTLQRNALYIKSSKISRLPAYLTIQM"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1295",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 236,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P49327",
+        "Gene name": "FASN",
+        "Lysine position": 1927,
+        "Multiplicity": 1,
+        "Sequence window": "LVLTSRSGIRTGYQAKQVRRWRRQGVQVQVS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1192",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 237,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P29401",
+        "Gene name": "TKT",
+        "Lysine position": 16,
+        "Multiplicity": 1,
+        "Sequence window": "MESYHKPDQQKLQALKDTANRLRISSIQATT"
+      },
+      "coerced_cells": [],
+      "deposit_id": "926",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 238,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P26447",
+        "Gene name": "S100A4",
+        "Lysine position": 48,
+        "Multiplicity": 1,
+        "Sequence window": "ELKELLTRELPSFLGKRTDEAAFQKLMSNLD"
+      },
+      "coerced_cells": [],
+      "deposit_id": "885",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 239,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P11310",
+        "Gene name": "ACADM",
+        "Lysine position": 69,
+        "Multiplicity": 1,
+        "Sequence window": "KFAREEIIPVAAEYDKTGEYPVPLIRRAWEL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "595",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 240,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 221,
+        "Multiplicity": 1,
+        "Sequence window": "NVGDEGGFAPNILENKEGLELLKTAIGKAGY"
+      },
+      "coerced_cells": [],
+      "deposit_id": "401",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 241,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 126,
+        "Multiplicity": 1,
+        "Sequence window": "ILGVSLAVCKAGAVEKGVPLYRHIADLAGNS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "398",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 242,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "O75367",
+        "Gene name": "H2AFY",
+        "Lysine position": 117,
+        "Multiplicity": 1,
+        "Sequence window": "SGGVLPNIHPELLAKKRGSKGKLEAIITPPP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "197",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 243,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06576",
+        "Gene name": "ATP5B",
+        "Lysine position": 133,
+        "Multiplicity": 1,
+        "Sequence window": "GLVRGQKVLDSGAPIKIPVGPETLGRIMNVI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "395",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 244,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P78371",
+        "Gene name": "CCT2",
+        "Lysine position": 13,
+        "Multiplicity": 1,
+        "Sequence window": "___MASLSLAPVNIFKAGADEERAETARLTS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1572",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 245,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P49327",
+        "Gene name": "FASN",
+        "Lysine position": 1866,
+        "Multiplicity": 1,
+        "Sequence window": "KVVVQVLAEEPEAVLKGAKPKLMSAISKTFC"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1195",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 246,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P50990",
+        "Gene name": "CCT8",
+        "Lysine position": 400,
+        "Multiplicity": 1,
+        "Sequence window": "MDDIERAVDDGVNTFKVLTRDKRLVPGGGAT"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1230",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 247,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q7KZF4",
+        "Gene name": "SND1",
+        "Lysine position": 249,
+        "Multiplicity": 1,
+        "Sequence window": "EADGSETPEPFAAEAKFFTESRLLQRDVQII"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2032",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 248,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P11142",
+        "Gene name": "HSPA8",
+        "Lysine position": 56,
+        "Multiplicity": 1,
+        "Sequence window": "YVAFTDTERLIGDAAKNQVAMNPTNTVFDAK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "583",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 249,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 202,
+        "Multiplicity": 1,
+        "Sequence window": "EVYHNLKNVIKEKYGKDATNVGDEGGFAPNI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "420",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 250,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P04075",
+        "Gene name": "ALDOA",
+        "Lysine position": 108,
+        "Multiplicity": 1,
+        "Sequence window": "PFPQVIKSKGGVVGIKVDKGVVPLAGTNGET"
+      },
+      "coerced_cells": [],
+      "deposit_id": "310",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 251,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P05783",
+        "Gene name": "KRT18",
+        "Lysine position": 167,
+        "Multiplicity": 1,
+        "Sequence window": "LQIDNARLAADDFRVKYETELAMRQSVENDI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "377",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 252,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q9NQH7",
+        "Gene name": "XPNPEP3",
+        "Lysine position": 412,
+        "Multiplicity": 1,
+        "Sequence window": "KDLGIMKNIKENNAFKAARKYCPHHVGHYLG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2398",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 253,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q92995",
+        "Gene name": "USP13",
+        "Lysine position": 640,
+        "Multiplicity": 1,
+        "Sequence window": "ELPDISPPIVIPDDSKDRLMNQLIDPSDIDE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2167",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 254,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q7Z6Z7",
+        "Gene name": "HUWE1",
+        "Lysine position": 3452,
+        "Multiplicity": 1,
+        "Sequence window": "MLSHPVIRRSSLLTEKLLRLLSLISIALPEN"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2048",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 255,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P14618",
+        "Gene name": "PKM",
+        "Lysine position": 62,
+        "Multiplicity": 1,
+        "Sequence window": "IICTIGPASRSVETLKEMIKSGMNVARLNFS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "671",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 256,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P11142",
+        "Gene name": "HSPA8",
+        "Lysine position": 159,
+        "Multiplicity": 1,
+        "Sequence window": "VTVPAYFNDSQRQATKDAGTIAGLNVLRIIN"
+      },
+      "coerced_cells": [],
+      "deposit_id": "590",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 257,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P07195",
+        "Gene name": "LDHB",
+        "Lysine position": 156,
+        "Multiplicity": 1,
+        "Sequence window": "VDILTYVTWKLSGLPKHRVIGSGCNLDSARF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "437",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 258,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P07355",
+        "Gene name": "ANXA2",
+        "Lysine position": 115,
+        "Multiplicity": 1,
+        "Sequence window": "LGLLKTPAQYDASELKASMKGLGTDEDSLIE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "440",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 259,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P83731",
+        "Gene name": "RPL24",
+        "Lysine position": 27,
+        "Multiplicity": 1,
+        "Sequence window": "KIYPGHGRRYARTDGKVFQFLNAKCESAFLS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1631",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 260,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P54725",
+        "Gene name": "RAD23A",
+        "Lysine position": 53,
+        "Multiplicity": 1,
+        "Sequence window": "RDAFPVAGQKLIYAGKILSDDVPIRDYRIDE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1299",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 261,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P04406",
+        "Gene name": "GAPDH",
+        "Lysine position": 117,
+        "Multiplicity": 1,
+        "Sequence window": "FTTMEKAGAHLQGGAKRVIISAPSADAPMFV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "322",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 262,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P11142",
+        "Gene name": "HSPA8",
+        "Lysine position": 112,
+        "Multiplicity": 1,
+        "Sequence window": "DAGRPKVQVEYKGETKSFYPEEVSSMVLTKM"
+      },
+      "coerced_cells": [],
+      "deposit_id": "579",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 263,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P68104",
+        "Gene name": "EEF1A1",
+        "Lysine position": 172,
+        "Multiplicity": 1,
+        "Sequence window": "STEPPYSQKRYEEIVKEVSTYIKKIGYNPDT"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1551",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 264,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P15104",
+        "Gene name": "GLUL",
+        "Lysine position": 11,
+        "Multiplicity": 1,
+        "Sequence window": "_____MTTSASSHLNKGIKQVYMSLPQGEKV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "676",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 265,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P06733",
+        "Gene name": "ENO1",
+        "Lysine position": 60,
+        "Multiplicity": 1,
+        "Sequence window": "EALELRDNDKTRYMGKGVSKAVEHINKTIAP"
+      },
+      "coerced_cells": [],
+      "deposit_id": "421",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 266,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P04075",
+        "Gene name": "ALDOA",
+        "Lysine position": 28,
+        "Multiplicity": 1,
+        "Sequence window": "KKELSDIAHRIVAPGKGILAADESTGSIAKR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "313",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 267,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P04406",
+        "Gene name": "GAPDH",
+        "Lysine position": 215,
+        "Multiplicity": 1,
+        "Sequence window": "RGALQNIIPASTGAAKAVGKVIPELNGKLTG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "325",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 268,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P55072",
+        "Gene name": "VCP",
+        "Lysine position": 60,
+        "Multiplicity": 1,
+        "Sequence window": "KMDELQLFRGDTVLLKGKKRREAVCIVLSDD"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1339",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 269,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P34932",
+        "Gene name": "HSPA4",
+        "Lysine position": 61,
+        "Multiplicity": 1,
+        "Sequence window": "RSIGAAAKSQVISNAKNTVQGFKRFHGRAFS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1018",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 270,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P08183",
+        "Gene name": "ABCB1",
+        "Lysine position": 279,
+        "Multiplicity": 1,
+        "Sequence window": "VIAFGGQKKELERYNKNLEEAKRIGIKKAIT"
+      },
+      "coerced_cells": [],
+      "deposit_id": "474",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 271,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P29401",
+        "Gene name": "TKT",
+        "Lysine position": 241,
+        "Multiplicity": 1,
+        "Sequence window": "KAFGQAKHQPTAIIAKTFKGRGITGVEDKES"
+      },
+      "coerced_cells": [],
+      "deposit_id": "917",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 272,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P30050",
+        "Gene name": "RPL12",
+        "Lysine position": 83,
+        "Multiplicity": 1,
+        "Sequence window": "QAQIEVVPSASALIIKALKEPPRDRKKQKNI"
+      },
+      "coerced_cells": [],
+      "deposit_id": "948",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 273,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q99832",
+        "Gene name": "CCT7",
+        "Lysine position": 218,
+        "Multiplicity": 1,
+        "Sequence window": "GALEDSQLVAGVAFKKTFSYAGFEMQPKKYH"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2283",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 274,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "Q7Z6Z7",
+        "Gene name": "HUWE1",
+        "Lysine position": 4295,
+        "Multiplicity": 1,
+        "Sequence window": "WFWRALRSFDQADRAKFLQFVTGTSKVPLQG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2044",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 275,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P08670",
+        "Gene name": "VIM",
+        "Lysine position": 188,
+        "Multiplicity": 1,
+        "Sequence window": "VERDNLAEDIMRLREKLQEEMLQREEAENTL"
+      },
+      "coerced_cells": [],
+      "deposit_id": "502",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 276,
+        "Cluster": "Cluster 2",
+        "Uniprot ID": "P62244",
+        "Gene name": "RPS15A",
+        "Lysine position": 84,
+        "Multiplicity": 1,
+        "Sequence window": "LNKCGVISPRFDVQLKDLEKWQNNLLPSRQF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1454",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 277,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "P29728",
+        "Gene name": "OAS2",
+        "Lysine position": 419,
+        "Multiplicity": 1,
+        "Sequence window": "KTGSDADLVVFHNSLKSYTSQKNERHKIVKE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "942",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 278,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "Q8N0X7",
+        "Gene name": "SPG20",
+        "Lysine position": 362,
+        "Multiplicity": 1,
+        "Sequence window": "EFQIPGRTRPSSDQLKEASGTDVKQLDQGNK"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2083",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 279,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "Q53GL7",
+        "Gene name": "PARP10",
+        "Lysine position": 916,
+        "Multiplicity": 1,
+        "Sequence window": "GFNRSFCGRNATVYGKGVYFARRASLSVQDR"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1948",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 280,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "Q8N0X7",
+        "Gene name": "SPG20",
+        "Lysine position": 475,
+        "Multiplicity": 1,
+        "Sequence window": "IQPEEKPVEVSPAVTKGLYIAKQATGGAAKV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2082",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 281,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "Q9UL46",
+        "Gene name": "PSME2",
+        "Lysine position": 145,
+        "Multiplicity": 1,
+        "Sequence window": "PKIEDGNDFGVAIQEKVLERVNAVKTKVEAF"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2525",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 282,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "Q8N0X7",
+        "Gene name": "SPG20",
+        "Lysine position": 465,
+        "Multiplicity": 1,
+        "Sequence window": "QKGASKLRERIQPEEKPVEVSPAVTKGLYIA"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2081",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 283,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "Q03519",
+        "Gene name": "TAP2",
+        "Lysine position": 245,
+        "Multiplicity": 1,
+        "Sequence window": "FSSLLRQDLGFFQETKTGELNSRLSSDTTLM"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1687",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 284,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "P20591",
+        "Gene name": "MX1",
+        "Lysine position": 123,
+        "Multiplicity": 1,
+        "Sequence window": "VLKLKKLVNEDKWRGKVSYQDYEIEISDASE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "759",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 285,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "P68032",
+        "Gene name": "ACTC1",
+        "Lysine position": 293,
+        "Multiplicity": 1,
+        "Sequence window": "ETTYNSIMKCDIDIRKDLYANNVLSGGTTMY"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1542",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 286,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "Q9Y287",
+        "Gene name": "ITM2B",
+        "Lysine position": 39,
+        "Multiplicity": 1,
+        "Sequence window": "EEALIIPPDAVAVDCKDPDDVVPVGQRRAWC"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2565",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 287,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "Q9NVJ2",
+        "Gene name": "ARL8B",
+        "Lysine position": 141,
+        "Multiplicity": 1,
+        "Sequence window": "LVLGNKRDLPNALDEKQLIEKMNLSAIQDRE"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2439",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 288,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "Q03519",
+        "Gene name": "TAP2",
+        "Lysine position": 612,
+        "Multiplicity": 1,
+        "Sequence window": "YTDVGEKGSQLAAGQKQRLAIARALVRDPRV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1686",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 289,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "O14879",
+        "Gene name": "IFIT3",
+        "Lysine position": 357,
+        "Multiplicity": 1,
+        "Sequence window": "ECYQTPFNKEVPDAEKQQSHQRYCNLQKYNG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "91",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 290,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "O95786",
+        "Gene name": "DDX58",
+        "Lysine position": 644,
+        "Multiplicity": 1,
+        "Sequence window": "ITILFVKTRALVDALKNWIEGNPKLSFLKPG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "263",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 291,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "Q9BYM8",
+        "Gene name": "RBCK1",
+        "Lysine position": 174,
+        "Multiplicity": 1,
+        "Sequence window": "DLTLQPRGPLEPGPPKPGVPQEPGRGQPDAV"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2329",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 292,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "Q96BN8",
+        "Gene name": "OTULIN",
+        "Lysine position": 66,
+        "Multiplicity": 1,
+        "Sequence window": "HEEDMYRAADEIEKEKELLIHERGASEPRLS"
+      },
+      "coerced_cells": [],
+      "deposit_id": "2187",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 293,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "Q63HN8",
+        "Gene name": "RNF213",
+        "Lysine position": 1079,
+        "Multiplicity": 1,
+        "Sequence window": "CGTDEKILANVTEDAKRLIAVADSVLTKVVG"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1984",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 294,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "P98196",
+        "Gene name": "ATP11A",
+        "Lysine position": 678,
+        "Multiplicity": 1,
+        "Sequence window": "DRLQEKAADTIEALQKAGIKVWVLTGDKMET"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1639",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 295,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "P07737",
+        "Gene name": "PFN1",
+        "Lysine position": 105,
+        "Multiplicity": 1,
+        "Sequence window": "TKSTGGAPTFNVTVTKTDKTLVLLMGKEGVH"
+      },
+      "coerced_cells": [],
+      "deposit_id": "450",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    },
+    {
+      "published": {
+        "#": 296,
+        "Cluster": "Cluster 3",
+        "Uniprot ID": "P68032",
+        "Gene name": "ACTC1",
+        "Lysine position": 115,
+        "Multiplicity": 1,
+        "Sequence window": "PEEHPTLLTEAPLNPKANREKMTQIMFETFN"
+      },
+      "coerced_cells": [],
+      "deposit_id": "1543",
+      "lost_at": null,
+      "loss_reason": null,
+      "has_positive_multiplicity_column": false
+    }
+  ]
+}
