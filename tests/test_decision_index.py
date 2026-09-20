@@ -56,7 +56,12 @@ EXPECTED_SEED_LINES = 18
 EXPECTED_SEED_STRUCK = 17
 
 #: The three status values `decisions/README.md` names, and their counts here.
-EXPECTED_STATUSES = {"Accepted": 20, "Proposed": 11, "Superseded": 3}
+#:
+#: 20/11/3 -> 21/10/3 on 2026-09-20, for ADR-0035's round-trip: landed `Proposed`, reviewed at
+#: `ff54bf2` on six findings, `Accepted` once the review's edits were applied. A status change is
+#: the one edit an `Accepted` record may not receive, so this pin moving is what says the
+#: round-trip closed rather than that someone retyped a header.
+EXPECTED_STATUSES = {"Accepted": 21, "Proposed": 10, "Superseded": 3}
 
 #: Supersessions recorded on one side only, with the reason each is permitted.
 #:
