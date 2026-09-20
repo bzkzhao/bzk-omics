@@ -1399,7 +1399,39 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "unchanged.p_value[0] == pytest.approx(2.0 * scipy_stats.t.sf(3.0 / np.sqrt(2.0 / 3.0), 4), rel=1e-12)",
             1,
         ),
-        ("test_perseus_s0.py", "used == 'exhaustive'", 1),
+        # **1 -> 2 on 2026-09-22**, and the multiset is what made it visible: the new
+        # exhaustive-excluding-trivial test asserts the same expression, in a different scope,
+        # about a different scheme. The two are not separable by this pin — the module's own
+        # docstring calls that its declared limit — so both are covered by the same evidence
+        # shape, the exhaustive branch labelled `"random"`, which reddens whichever runs first.
+        ("test_perseus_s0.py", "used == 'exhaustive'", 2),
+        # ── tests/test_perseus_s0.py, the trivial-relabelling schemes, 2026-09-22 ─────────────
+        # **Six further matches, all `PINNED`**, from the three tests that land the two
+        # `_excluding_trivial` schemes. Every right side is a literal count or `1/19` written out
+        # in the test, and none is a call compared against its own expression. Each was measured
+        # line by line, since each test carries more than one of them.
+        #  - `np.nanmin(with_mirror.q_value) == pytest.approx(1.0 / 19.0)`: the mirror dropped from
+        #    the scheme that keeps it (`skip = trivial`), which reads 0.0 against 0.0526. It is
+        #    the assertion that pins the floor to the mirror rather than to the draw count, which
+        #    is the correction this turn also made to P1's comment.
+        #  - `np.nanmin(without.q_value) == pytest.approx(0.0)`: the mirror kept in the excluding
+        #    scheme (`mirror = None`), which reads 0.0526 against 0.
+        #  - `count == 18`: the exhaustive branch skipping only the identity, reading 19.
+        #  - `unequal == kept == 55`: the mirror misread as the **last** `n_a` columns rather than
+        #    as B's columns — the same set at equal sizes, a real 3-combination at 3 against 5 —
+        #    which drops one relabelling too many and reads 54.
+        #  - `used == 'random_excluding_trivial'`: the drawing branch labelled `"random"`.
+        #  - `count == 400`: the same branch returning one draw fewer, reading 399.
+        ("test_perseus_s0.py", "count == 18", 1),
+        ("test_perseus_s0.py", "count == 400", 1),
+        (
+            "test_perseus_s0.py",
+            "np.nanmin(with_mirror.q_value) == pytest.approx(1.0 / 19.0, rel=1e-12)",
+            1,
+        ),
+        ("test_perseus_s0.py", "np.nanmin(without.q_value) == pytest.approx(0.0)", 1),
+        ("test_perseus_s0.py", "unequal == kept == 55", 1),
+        ("test_perseus_s0.py", "used == 'random_excluding_trivial'", 1),
     }
 )
 

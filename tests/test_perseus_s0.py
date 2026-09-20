@@ -159,10 +159,15 @@ def test_p1_the_null_counts_fdr_and_q_match_an_independent_enumeration() -> None
     np.testing.assert_allclose(result.d, d, rtol=1e-12)
     np.testing.assert_allclose(result.q_value, _hand_q(d, null), rtol=1e-12)
 
-    # The two extreme rows are called by no relabelling but themselves, so their FDR numerator is
-    # the smallest a 19-draw null can produce: one null row at or beyond the threshold, over 19
-    # draws, over one observed row. 1/19 = 0.0526… — which no alpha below it can ever reach, and
-    # is the reason a 19-permutation null cannot support an FDR of 0.01.
+    # **1/19 here is the mirror's floor, not the draw count's.** Corrected 2026-09-22: this comment
+    # read *"the smallest a 19-draw null can produce … the reason a 19-permutation null cannot
+    # support an FDR of 0.01"*, and that generalisation is wrong. Under `joint` the mirror
+    # relabelling — group A given exactly B's columns — reproduces every observed `|d|` exactly,
+    # so the null count at every threshold is at least one and q is floored at one over the number
+    # of relabellings whatever the data say. Drop the mirror and the same 19-ish null reaches q =
+    # 0: `exhaustive_excluding_trivial` runs 18 draws here and is not floored. What cannot support
+    # an FDR of 0.01 is `joint` **with the mirror**, at any draw count, and that is a property of
+    # the scheme rather than of the enumeration's size.
     assert result.q_value[2] == pytest.approx(1.0 / 19.0, rel=1e-12)
     assert result.significant.tolist() == [False, False, False, False, False, False]
 
@@ -499,3 +504,84 @@ def test_the_outcome_carries_every_declared_parameter_value() -> None:
     assert result.randomisations_used == 19
     assert result.seed == 3
     assert result.direction.tolist() == [1.0, 0.0, 1.0, 1.0, 0.0, 0.0]
+
+
+# ── the trivial-relabelling schemes ─────────────────────────────────────────────────────────────
+
+
+def test_joint_reaches_a_q_of_one_percent_only_once_the_mirror_is_excluded() -> None:
+    """The mirror floors every q at `1 / draws` under `joint`, and excluding it removes the floor.
+
+    Both runs are the same matrix, the same statistic and the same 3-against-3 design; the only
+    difference is whether the one relabelling that reproduces every observed `|d|` is in the null.
+    With it, nothing can reach 0.01 however strong the effect. Without it, strong rows reach 0.
+
+    **This is the finding that made the two `_excluding_trivial` schemes necessary**, and it is
+    asserted rather than described: `walk/PREREG-PXD018299-H10.md` §4 makes a variant that cannot
+    reach 0.01 at 3 against 3 refuted by the anchor's own publication, which reports 798 calls at
+    that level from that design.
+    """
+    rng = np.random.default_rng(0)
+    numerator = rng.normal(0.0, 1.0, size=(400, 3))
+    denominator = rng.normal(0.0, 1.0, size=(400, 3))
+    numerator[:60] += 4.0
+    settings: dict[str, Any] = {
+        "s0": 0.1,
+        "alpha": 0.01,
+        "randomisations": 250,
+        "seed": 0,
+        "sidedness": "joint",
+    }
+
+    with_mirror = perseus_s0(numerator, denominator, scheme="exhaustive_when_small", **settings)
+    without = perseus_s0(numerator, denominator, scheme="exhaustive_excluding_trivial", **settings)
+
+    assert np.nanmin(with_mirror.q_value) == pytest.approx(1.0 / 19.0, rel=1e-12)
+    assert not with_mirror.significant.any()
+    assert np.nanmin(without.q_value) == pytest.approx(0.0)
+    assert without.significant.any()
+
+
+def test_the_exhaustive_excluding_trivial_scheme_runs_eighteen_at_three_against_three() -> None:
+    """C(6,3) = 20, less the identity and the mirror. At unequal sizes there is no mirror, so the
+    two exhaustive schemes coincide and the count says so."""
+    from bzk.stats.perseus_s0 import _relabellings
+
+    draws, used, count = _relabellings(
+        3, 3, scheme="exhaustive_excluding_trivial", randomisations=250, seed=0
+    )
+    groups = {tuple(sorted(draw[:3].tolist())) for draw in draws}
+
+    assert used == "exhaustive"
+    assert count == 18
+    assert len(groups) == 18
+    assert (0, 1, 2) not in groups  # the identity
+    assert (3, 4, 5) not in groups  # the mirror
+
+    _, _, unequal = _relabellings(
+        3, 5, scheme="exhaustive_excluding_trivial", randomisations=250, seed=0
+    )
+    _, _, kept = _relabellings(3, 5, scheme="exhaustive_when_small", randomisations=250, seed=0)
+    assert unequal == kept == 55  # C(8,3) − 1, and no mirror to drop
+
+
+def test_random_excluding_trivial_never_draws_a_trivial_relabelling() -> None:
+    """And it returns the count asked for, having drawn past whatever it rejected.
+
+    Asserted over every draw rather than over the count alone: a scheme that stopped early would
+    also report a plausible number, and a scheme that filtered after drawing would report fewer.
+    """
+    from bzk.stats.perseus_s0 import _relabellings
+
+    draws, used, count = _relabellings(
+        3, 3, scheme="random_excluding_trivial", randomisations=400, seed=1
+    )
+    groups = [frozenset(draw[:3].tolist()) for draw in draws]
+
+    assert used == "random_excluding_trivial"
+    assert count == 400
+    assert len(draws) == 400
+    assert frozenset({0, 1, 2}) not in groups
+    assert frozenset({3, 4, 5}) not in groups
+    # The draws are still with replacement — what is excluded is the trivial pair, not repetition.
+    assert len(set(groups)) == 18

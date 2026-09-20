@@ -36,6 +36,31 @@ which 19 are not the identity.** Twenty draws with replacement from twenty relab
 finer null than all twenty — it is the same null, sampled badly, with an FDR that moves with the
 seed for no reason in the data. Above the cut the enumeration is hopeless (C(12,6) = 924, C(20,10)
 = 184,756), so the scheme falls back and says that it did.
+
+**The mirror is why the two `_excluding_trivial` schemes exist, and it is not a nicety — it can
+make a variant unable to reach any FDR at all.** The mirror relabelling gives group A precisely
+B's columns; it exists only when the two groups are the same size, and its statistic is exactly
+`−d` for every row at once. Under `joint`, which counts `|d|`, that reproduces **every observed
+`|d|` exactly**, so at every threshold the null count is at least one and the FDR is floored at
+`1 / (number of relabellings)` — 1/19 at 3 against 3, whatever the data say. A `joint` variant
+that keeps the mirror therefore cannot return a q below that floor, and an FDR of 0.01 is
+unreachable for it at that design.
+
+**Measured, not reasoned.** The reviewer's simulation — 1,375 rows at 3 against 3 with 200 planted
++4 SD effects — had `joint` with the mirror kept call **none** of them at FDR 0.01, against **69**
+for `per_side` with the exhaustive scheme. **Re-run here at seed 0 on the same shape, the
+mechanism reproduces exactly and the sizes do not**, which is what a different draw gives: `joint`
+with the mirror called 0 with its smallest q pinned at 0.0526 = 1/19, `per_side` exhaustive called
+46, and `joint` with the trivial relabellings excluded reached q = 0 — so the floor is the mirror
+and not the draw count. Only the reviewer's figure of 69 is unreproduced, and it is that run's,
+not this one's.
+
+A third thing that run shows and is worth carrying: `joint` **without** the mirror still called
+only 1 of the 200, because counting `|d|` doubles the null relative to a one-sided count. The
+mirror is what makes `joint` impossible at this design; the two-tailed count is what makes it
+weak. Excluding the two trivial relabellings is offered as its own scheme rather than folded into
+the existing ones because which treatment a published run used is exactly the kind of question
+this module refuses to answer by judgement.
 """
 
 from __future__ import annotations
@@ -52,8 +77,14 @@ from bzk.stats.tests import _moments
 #: The two answers to *"how is sidedness handled"*, neither chosen here.
 SIDEDNESS = ("joint", "per_side")
 
-#: The two answers to *"how are the relabellings drawn"*, neither chosen here.
-SCHEMES = ("random", "exhaustive_when_small")
+#: The four answers to *"how are the relabellings drawn"*, none chosen here. The two
+#: `_excluding_trivial` forms were added 2026-09-22 for the reason the module docstring gives.
+SCHEMES = (
+    "random",
+    "random_excluding_trivial",
+    "exhaustive_when_small",
+    "exhaustive_excluding_trivial",
+)
 
 #: What `Analysis.parameters_json` must carry to have run this test. `ARCHITECTURE.md` §4:
 #: *"Required parameters, recorded on the `Analysis` per I16: `s0`, `fdr`, and the number of
@@ -123,12 +154,24 @@ def _relabellings(
     drops the identity — the one relabelling under which the "null" is the observed data, whose
     inclusion would pull every FDR towards the observed counts by exactly one draw. It keeps the
     mirror (group A given precisely B's columns), which is a genuine relabelling and merely yields
-    `−d`; dropping it would make the null asymmetric under `per_side` for no stated reason.
+    `−d`; whether that is right depends on the sidedness, which is why the choice is a scheme of
+    its own rather than a correction applied here — see the module docstring for what keeping it
+    costs under `joint`.
+
+    `exhaustive_excluding_trivial` is the same enumeration with the mirror dropped as well. At
+    unequal group sizes there is no mirror, so the two exhaustive schemes coincide and the count
+    says so: `C − 1` rather than `C − 2`.
 
     `random` draws with replacement, as the brief fixes it: the draws are independent, so a
     relabelling can repeat and the identity can come up. Both are properties of the sampling rather
     than defects, and neither is corrected for — a de-duplicating "random" scheme would be a third
     scheme wearing the name of the second.
+
+    `random_excluding_trivial` draws the same way but **keeps drawing until it has
+    `randomisations` non-trivial draws**, so the count it reports is the count that ran. Repeats
+    are still allowed: what is excluded is the identity and the mirror, not repetition. The loop
+    cannot fail to terminate for any design this test accepts, since `n >= 2` per group leaves at
+    least four relabellings of which at most two are trivial.
     """
     total = n_a + n_b
     if scheme not in SCHEMES:
@@ -141,18 +184,34 @@ def _relabellings(
     # of draws, the identity is never one of the draws, and refusing an enumeration of 19 because
     # a twentieth relabelling exists that the scheme would not use is a fallback with no cost
     # behind it. At 3 against 3 the cut therefore bites at 19, and at 18 it falls back.
+    identity = frozenset(range(n_a))
+    # The mirror exists only at equal group sizes: there is no relabelling that hands A exactly
+    # B's columns when the two counts differ.
+    mirror = frozenset(range(n_a, total)) if n_a == n_b else None
+    trivial = {identity} | ({mirror} if mirror is not None else set())
+    excluding = scheme.endswith("_excluding_trivial")
+    dropped = len(trivial) if excluding else 1
+
     distinct = math.comb(total, n_a)
-    if scheme == "exhaustive_when_small" and distinct - 1 <= randomisations:
-        identity = tuple(range(n_a))
+    if scheme.startswith("exhaustive") and distinct - dropped <= randomisations:
+        skip = trivial if excluding else {identity}
         draws = [
             np.array([*group, *[i for i in range(total) if i not in set(group)]])
             for group in itertools.combinations(range(total), n_a)
-            if group != identity
+            if frozenset(group) not in skip
         ]
         return draws, "exhaustive", len(draws)
 
     rng = np.random.default_rng(seed)
-    return [rng.permutation(total) for _ in range(randomisations)], "random", randomisations
+    if not excluding:
+        return [rng.permutation(total) for _ in range(randomisations)], "random", randomisations
+
+    drawn: list[np.ndarray] = []
+    while len(drawn) < randomisations:
+        draw = rng.permutation(total)
+        if frozenset(draw[:n_a].tolist()) not in trivial:
+            drawn.append(draw)
+    return drawn, "random_excluding_trivial", randomisations
 
 
 def _tail_counts(sorted_values: np.ndarray, thresholds: np.ndarray, *, upper: bool) -> np.ndarray:
