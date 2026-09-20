@@ -14,6 +14,7 @@ three anchor declarations must resolve to exactly the URLs they resolved to befo
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -470,3 +471,162 @@ def test_the_anchor_declarations_keep_their_urls() -> None:
         "https://static-content.springer.com/esm/art%3A10.1038%2Fs41590-021-01035-8/"
         "MediaObjects/41590_2021_1035_MOESM3_ESM.xlsx"
     )
+
+
+# ── T6/T7 · cells Excel coerced to dates, recorded as found ─────────────────────────────────────
+#
+# `openpyxl` hands back a `datetime` for a cell the spreadsheet stored as a date, and JSON cannot
+# serialise one. Run on the real supplement at `a33472f` the generator computed every record and
+# then died at `write_text` with `TypeError: Object of type datetime is not JSON serializable`.
+# Nothing was written, so the no-partial-fixture property held and the defect surfaced as a failure
+# rather than as a fixture. Two cells are involved, both in `Gene name` — spreadsheet software
+# turning a gene symbol into a date.
+#
+# **Nothing here infers a symbol from a date**, and nothing may: that would write an inference
+# where the source belongs. The tests below check that the cell is recorded as found, flagged, and
+# — where it would have become a key — refused by name.
+
+
+def _excel_date(year: int, month: int, day: int) -> datetime:
+    """A **naive** datetime, because that is what `openpyxl` hands back for a date cell.
+
+    `DTZ001` wants a `tzinfo` and is right about almost every other call site; here a tz-aware
+    value would not reproduce the thing being tested. Excel stores no zone, `openpyxl` invents
+    none, and the cell that broke the run at `a33472f` was naive — a fixture carrying a zone would
+    be testing a value the supplement cannot contain.
+    """
+    return datetime(year, month, day)  # noqa: DTZ001
+
+
+#: A site table with a header and no data rows: `parse` resolves nothing, so `main` runs offline
+#: and in milliseconds. The join then loses every published row, which is what T6 and T7 are about.
+EMPTY_DEPOSIT_HEADER = [
+    "Proteins",
+    "Positions within proteins",
+    "Protein",
+    "Position",
+    "Amino acid",
+    "Localization prob",
+    "Sequence window",
+    "Reverse",
+    "Potential contaminant",
+    "id",
+    *SAMPLE_COLUMNS,
+]
+
+
+def _run_main(tmp_path: Path, sheet_rows: list[list[Any]]) -> dict[str, Any]:
+    """`main()` end to end against a synthetic deposit, record and supplement. Returns the fixture.
+
+    Every byte is built here: the deposit is stored in a temporary `home`, the curation record is
+    pointed at its real digest, and the supplement is stored and then declared with the digest the
+    store gave it — which is what lets `verify` find it without a hash anyone typed.
+    """
+    import json
+
+    from bzk.provenance import raw_store
+
+    home = tmp_path / "home"
+    fixtures_dir = tmp_path / "fixtures"
+    fixtures_dir.mkdir()
+
+    deposit_bytes = ("\t".join(EMPTY_DEPOSIT_HEADER) + "\r\n").encode("utf-8")
+    deposit = raw_store.store(deposit_bytes, "GlyGly (K)Sites.txt", home=home)
+
+    record = json.loads(
+        (Path(__file__).parent / "fixtures" / "curation_synthetic_loadable.json").read_text()
+    )
+    record["file"] = "GlyGly (K)Sites.txt"
+    record["content_hash"] = deposit.content_hash
+    base = next(iter(record["mapping"].values()))
+    record["mapping"] = {
+        name: dict(base, replicate=i + 1) for i, name in enumerate(SAMPLE_COLUMNS[:4])
+    }
+    curation_path = tmp_path / "curation_SYNTHETIC.json"
+    curation_path.write_text(json.dumps(record), encoding="utf-8")
+
+    workbook_path = _workbook(tmp_path / "supp.xlsx", sheet_rows)
+    stored_supp = raw_store.store(workbook_path.read_bytes(), "supp.xlsx", home=home)
+    supplement = protein_groups.SupplementaryFile(
+        label="synthetic",
+        filename="supp.xlsx",
+        expected_content_hash=stored_supp.content_hash,
+        doi=cascade_source.PXD026748_DOI,
+    )
+
+    assert (
+        cascade_source.main(
+            home=home,
+            fixtures_dir=fixtures_dir,
+            curation_path=curation_path,
+            supplement=supplement,
+        )
+        == 0
+    )
+    written = fixtures_dir / cascade_source.FIXTURE_NAME
+    # Parsed back rather than inspected in memory: the defect this closes was a *serialisation*
+    # failure, so reading the file is the only assertion that would have caught it.
+    fixture: dict[str, Any] = json.loads(written.read_text())
+    return fixture
+
+
+def test_a_date_in_gene_name_is_recorded_as_found_and_flagged(tmp_path: Path) -> None:
+    """T6. A `datetime` in `Gene name` serialises, is recorded as its ISO string, and is flagged.
+
+    The three halves are one test because they are one claim: the cell reaches the fixture
+    unchanged in meaning, in a form JSON can hold, and says so about itself.
+    """
+    fixture = _run_main(
+        tmp_path,
+        [
+            ["Supplementary Table 1", None, None, None, None, None, None],
+            HEADER_CELLS + ["Multiplicity", "Sequence window"],
+            [1, "A", MX1, _excel_date(2021, 9, 9), 4, 1, "AAAKAAA"],
+            [2, "B", IFIT1, "IFIT1", 7, 1, "QQQKQQQ"],
+        ],
+    )
+
+    coerced = fixture["rows"][0]
+    assert coerced["published"]["Gene name"] == "2021-09-09T00:00:00"
+    assert coerced["coerced_cells"] == [
+        {"column": "Gene name", "as_found": "2021-09-09T00:00:00", "type": "datetime"}
+    ]
+    assert fixture["rows"][1]["coerced_cells"] == [], "the uncoerced row carries the key, empty"
+
+    assert fixture["summary"]["coerced_cells"] == {"by_column": {"Gene name": 1}, "rows": [1]}
+
+
+def test_a_date_in_a_key_column_is_refused_by_name(tmp_path: Path) -> None:
+    """T7. A coerced `Lysine position` loses the row at `join` with `coerced_key`, not with
+    `no_key_match`.
+
+    `_text` would return `'2021-09-07T00:00:00'` for it — a non-empty string that looks like a key
+    and matches nothing — so the row would be lost as an ordinary miss and the coercion would be
+    invisible in the one place it changed an outcome. Nothing in the real supplement hits this;
+    both of its coerced cells are in `Gene name`.
+    """
+    fixture = _run_main(
+        tmp_path,
+        [
+            HEADER_CELLS + ["Multiplicity", "Sequence window"],
+            [1, "A", MX1, "MX1", _excel_date(2021, 9, 7), 1, "AAAKAAA"],
+            [2, "B", IFIT1, "IFIT1", 7, 1, "QQQKQQQ"],
+        ],
+    )
+
+    assert fixture["rows"][0]["lost_at"] == "join"
+    assert fixture["rows"][0]["loss_reason"] == "coerced_key"
+    assert fixture["rows"][0]["coerced_cells"][0]["column"] == "Lysine position"
+    # The other row misses for the ordinary reason, so the two are distinguishable in the fixture.
+    assert fixture["rows"][1]["loss_reason"] == "no_key_match"
+    assert fixture["summary"]["lost"]["join"]["reasons"] == {"coerced_key": 1, "no_key_match": 1}
+
+
+def test_a_type_json_cannot_hold_stops_by_name(tmp_path: Path) -> None:
+    """The residue, refused rather than stringified. `openpyxl` also returns `timedelta` for a
+    duration-formatted cell; it has no `isoformat`, and choosing a representation for it here would
+    be inventing one nobody picked."""
+    from datetime import timedelta
+
+    with pytest.raises(cascade_source.CascadeSourceError, match="holds a timedelta"):
+        cascade_source._published_value("Gene name", timedelta(days=1))

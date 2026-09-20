@@ -42,7 +42,7 @@ import platform
 import subprocess
 import sys
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time
 from pathlib import Path
 from typing import Any
 
@@ -118,8 +118,28 @@ REACHES_TEST = "reaches_test"
 
 REASON_NO_KEY_MATCH = "no_key_match"
 REASON_AMBIGUOUS_KEY = "ambiguous_key"
+REASON_COERCED_KEY = "coerced_key"
 REASON_NOT_EMITTED = "not_emitted"
 REASON_PRESENCE_RULE = "presence_rule"
+
+#: The two published columns the join key is built from. Named so `REASON_COERCED_KEY` and the key
+#: itself cannot come to disagree about which columns matter.
+KEY_COLUMNS = ("Uniprot ID", "Lysine position")
+
+#: The types `openpyxl` returns for a cell the spreadsheet stored as a date or a time, which JSON
+#: cannot serialise. **This is not a hypothetical.** Run on the real supplement at `a33472f` the
+#: generator computed every record and then died at `write_text` with `TypeError: Object of type
+#: datetime is not JSON serializable`; nothing was written, so the no-partial-fixture property
+#: held and the defect surfaced as a failure rather than as a fixture. Two cells are involved, both
+#: in `Gene name` — the familiar case of spreadsheet software turning a gene symbol into a date.
+#:
+#: `datetime` is a subclass of `date`, so the type is reported as `type(value).__name__`: what
+#: matters to a reader is which one `openpyxl` handed back, not which one it also is.
+COERCED_TYPES = (datetime, date, time)
+
+#: What a published cell may be once `_published_value` has run, and therefore what `json` will be
+#: asked to serialise. A cell of any other type stops the run by name — see `_published_value`.
+SERIALISABLE_TYPES = (str, int, float, bool, type(None))
 
 
 class CascadeSourceError(ValueError):
@@ -179,6 +199,39 @@ def _text(value: object) -> str:
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return "" if value is None else str(value).strip()
+
+
+def _coerced_type(value: object) -> str | None:
+    """The type name where a published cell came back as a date or a time, else `None`."""
+    return type(value).__name__ if isinstance(value, COERCED_TYPES) else None
+
+
+def _published_value(column: str, value: object) -> Any:
+    """One published cell as it goes into the record: ISO-8601 for a date or time, else unchanged.
+
+    **Converted, not interpreted.** The ISO string is the cell *as found*, in a form JSON can hold;
+    it says what the spreadsheet contains and makes no claim about what it was before the
+    spreadsheet changed it. Mapping `2021-09-09` back to the gene symbol it replaced is an
+    inference, and writing an inference where the source belongs is what `ONTOLOGY.md` §6.3 keeps
+    out of an observation. The record flags the cell instead, and a reader with the paper can do
+    the rest.
+
+    **Anything else stops the run by name.** `openpyxl` can also return a `timedelta` for a
+    duration-formatted cell, which has no `isoformat` and which JSON cannot hold either. Rather
+    than stringify an unknown type — inventing a representation nobody chose — this raises with
+    the column and the type, so the next such cell is a named refusal at build time instead of the
+    opaque `TypeError` at `write_text` that this turn exists to fix.
+    """
+    if isinstance(value, COERCED_TYPES):
+        return value.isoformat()
+    if not isinstance(value, SERIALISABLE_TYPES):
+        raise CascadeSourceError(
+            f"published column {column!r} holds a {type(value).__name__}, which JSON cannot "
+            f"serialise and this module does not know how to record as found. Value: {value!r}. "
+            "Add its type to COERCED_TYPES with the form it should take, rather than letting a "
+            "representation be chosen for it."
+        )
+    return value
 
 
 def sample_groups(curation: LoadedCuration) -> dict[str, list[str]]:
@@ -256,8 +309,17 @@ def build(
 
     records: list[dict[str, Any]] = []
     for cells in published:
+        raw = {name: cells.get(name) for name in PUBLISHED_COLUMNS}
+        coerced = [
+            {"column": name, "as_found": _published_value(name, value), "type": kind}
+            for name, value in raw.items()
+            if (kind := _coerced_type(value)) is not None
+        ]
         record: dict[str, Any] = {
-            "published": {name: cells.get(name) for name in PUBLISHED_COLUMNS},
+            "published": {name: _published_value(name, value) for name, value in raw.items()},
+            # Empty for almost every row, and present on all of them: a key that appears only where
+            # something went wrong is a key a reader has to know to look for.
+            "coerced_cells": coerced,
             "deposit_id": None,
             "lost_at": None,
             "loss_reason": None,
@@ -265,17 +327,31 @@ def build(
         }
         records.append(record)
 
+        # A lead, never a key. `None` where the deposit has no `Sequence window` column at all,
+        # because an empty list there would assert that no row shares the window. Computed here
+        # rather than in a closure over `cells`: a function defined inside the loop that reads the
+        # loop's variable is the late-binding trap, and it is one dict lookup.
+        window_lead = (
+            None if by_window is None else by_window.get(_text(cells.get("Sequence window")), [])
+        )
+
+        # **A coerced key is refused by name, before `_text` ever sees it.** `_text` would return
+        # `'2021-09-09 00:00:00'` for a date — a non-empty string that looks like a key, matches no
+        # deposit row, and loses the row as an ordinary `no_key_match`. The coercion would then be
+        # invisible in the one place it changed an outcome. Nothing in the supplement hits this:
+        # both of its coerced cells are in `Gene name`. This exists so that if it ever happened it
+        # would be named rather than absorbed.
+        if any(entry["column"] in KEY_COLUMNS for entry in coerced):
+            record["lost_at"] = cascade.STAGE_JOIN
+            record["loss_reason"] = REASON_COERCED_KEY
+            record["window_matches"] = window_lead
+            continue
+
         hits = by_key.get((_text(cells.get("Uniprot ID")), _text(cells.get("Lysine position"))), [])
         if len(hits) != 1:
             record["lost_at"] = cascade.STAGE_JOIN
             record["loss_reason"] = REASON_NO_KEY_MATCH if not hits else REASON_AMBIGUOUS_KEY
-            # A lead, never a key. `None` where the deposit has no `Sequence window` column at all,
-            # because an empty list there would assert that no row shares the window.
-            record["window_matches"] = (
-                None
-                if by_window is None
-                else by_window.get(_text(cells.get("Sequence window")), [])
-            )
+            record["window_matches"] = window_lead
             if len(hits) > 1:
                 record["ambiguous_ids"] = [_text(r[column["id"]]) for r in hits]
             continue
@@ -335,9 +411,19 @@ def summary(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         lost[stage] = {"count": len(at_stage), "reasons": dict(sorted(reasons.items()))}
 
     clusters = collections.Counter(str(r["published"].get("Cluster")) for r in reaching)
+    # Over **every** record, not only the ones that reached the test: a coerced cell is a fact
+    # about the supplement, and counting it only where it survived would report a property of the
+    # cascade as a property of the file.
+    by_column = collections.Counter(
+        str(entry["column"]) for r in records for entry in r.get("coerced_cells", ())
+    )
+    coerced_rows = [r["published"].get("#") for r in records if r.get("coerced_cells")]
     return {
         "published_rows": len(records),
         "stages_run": list(STAGES_RUN),
+        # What the spreadsheet turned into a date or a time, by column, and which rows. No symbol
+        # is inferred for any of them — see `_published_value`.
+        "coerced_cells": {"by_column": dict(sorted(by_column.items())), "rows": coerced_rows},
         # Named rather than `recovered`: these rows reached a test this repository has not run.
         REACHES_TEST: len(reaching),
         "lost": lost,
@@ -359,14 +445,33 @@ def summary(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 
 
 def _commit() -> dict[str, Any]:
-    def git(*args: str) -> str:
-        return subprocess.run(
-            ["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=True
-        ).stdout.strip()
+    """`HEAD` and whether the tree is clean, or `null`s where git cannot answer.
 
+    **Tolerant of not being in a work tree, which the anchor's equivalent is not.** This was found
+    by a test rather than reasoned: `tests/test_tautology_sweep.py` re-runs a recorded mutation in
+    a copy of the repository made *without* `.git`, and the moment a test here called `main()`
+    end to end, `git rev-parse HEAD` exited 128 and took the whole evidence run red — a module
+    unrelated to this one failing because provenance was mandatory.
+
+    `null` rather than a placeholder string: a fixture whose `commit` reads `"unknown"` asserts a
+    commit by that name, and one whose `working_tree_clean` reads `false` asserts a dirty tree
+    that was never looked at. The generator's real run happens inside the work tree, where both
+    fields are populated; a run from anywhere else says so.
+    """
+
+    def git(*args: str) -> str | None:
+        try:
+            done = subprocess.run(
+                ["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=True
+            )
+        except (OSError, subprocess.CalledProcessError):
+            return None
+        return done.stdout.strip()
+
+    status = git("status", "--porcelain")
     return {
         "commit": git("rev-parse", "HEAD"),
-        "working_tree_clean": not git("status", "--porcelain"),
+        "working_tree_clean": None if status is None else not status,
     }
 
 
@@ -397,7 +502,11 @@ def fixture_for(
             "ran — that is the reconstruction, which this repository has not performed for this "
             "deposit. Rows lost at `join` carry `window_matches`, the ids of deposit rows sharing "
             "their Sequence window: a lead for a reader, never a second key, and the generator "
-            "never recovers a row on it. Generated from both files' bytes through the adapter the "
+            "never recovers a row on it. Cells the spreadsheet stored as a date or a time are "
+            "recorded AS FOUND, as ISO-8601 strings, and listed per row in `coerced_cells` and "
+            "per column in the summary; no symbol is inferred for any of them, because writing an "
+            "inference where the source belongs is not this file's job. Generated from both "
+            "files' bytes through the adapter the "
             "curation record selects, never transcribed, and compared here with no registration "
             f"or report. Regenerate with `{GENERATED_BY}`."
         ),
