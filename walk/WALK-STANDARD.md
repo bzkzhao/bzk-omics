@@ -248,20 +248,52 @@ FAIL.
 |---|---|---|
 | `PXD018299` (anchor) | PASS | genotype and cell treatment, both properties of living cells |
 | `PXD065158` | PASS | genotype and cell treatment; the ISG15-machinery transfection is a cell treatment |
-| `PXD026748` | **FAIL** | the PLpro axis is applied to **lysate**, after the biological sample ends. Expressing it as `Sample.treatment` multiplies samples falsely; not expressing it breaks I11's `Cell` key; and the pairing — three cultures split two ways, not six independent replicates — is unrecordable either way. **To clear:** an ADR on post-preparation perturbation. |
+| `PXD026748` | ~~**FAIL**~~ **UNRESOLVED** — corrected 2026-09-19, see below | ~~the PLpro axis is applied to **lysate**, after the biological sample ends. Expressing it as `Sample.treatment` multiplies samples falsely; not expressing it breaks I11's `Cell` key; and the pairing — three cultures split two ways, not six independent replicates — is unrecordable either way. **To clear:** an ADR on post-preparation perturbation.~~ The PLpro axis is applied to **lysate** and that much holds. The rest does not: the axis is assigned **at seeding**, so there is no split to be unrecordable. What is unstated is whether same-index dishes were processed as **blocks**, and an unstated design factor is not a representation failure. **To clear:** author correspondence on the block structure. |
 
-**The `PXD026748` instance is why R5 exists.** It passes R1 through R4 and may
-still be unusable, and nothing in v1 would have surfaced that before a curation
-record was being written.
+**~~The `PXD026748` instance is why R5 exists.~~ Withdrawn 2026-09-19 — the
+second motivating-instance correction this standard has needed.** ADR-0035's
+review read `data/frame/frame_raw.tsv`'s `sampleProcessing` field for this
+deposit — the PRIDE protocol captured 2026-09-17 and committed at `3422d51`,
+before either the record or this row was written — and found it says *"five
+millions cells of each genotype were seeded in triplicate for each condition (WT
+or mutant PLpro)"*. Two genotypes × two PLpro conditions × three replicates is
+twelve dishes, each committed to its condition before any lysate exists. **The
+split this row calls unrecordable is not in the deposit.** The clause *"three
+cultures split two ways, not six independent replicates"* is struck with it.
+
+**What R5 keeps, and why the row is UNRESOLVED rather than PASS.** The deposit
+does carry an unrepresentable relation — after digestion, *"an aliquot of 30 µg
+total peptide was taken for shotgun proteomics analysis. The remaining peptide
+solution was incubated with antibody-bead slurry"* — so each shotgun run and one
+GG run measure portions of one digest. That is §7(b)'s **shared source**, and
+`bzk/ontology/schema.py` names no Sample-to-Sample relation to carry it
+(ADR-0035 R2, re-grounded on review). But it is a relation between the deposit's
+two *arms*, it bears on this platform's own protein adjustment rather than on
+anything the publication claims, and the deposit's block structure — the thing
+that would decide R5 either way — is simply unstated. A verdict of PASS would
+assert that nothing is lost; FAIL would name a lost relation the published
+analysis does not use. **UNRESOLVED is the honest third.**
+
+**This is the second time.** v1's motivating instance was `PXD074990` and was
+withdrawn in v2's preamble; v2's was this row. Recorded rather than quietly
+replaced: a standard whose motivating instance keeps needing withdrawal is
+telling its author something about how the instances were picked, and both were
+picked from a read that stopped short of an artefact this repository already
+held.
 
 ### What R5 gives the thesis, not only the walk
 
 A design that cannot be represented is a design a reconstruction cannot faithfully
-reproduce. `PXD026748`'s paired PLpro axis is **not stated as paired in the
+reproduce. ~~`PXD026748`'s paired PLpro axis is **not stated as paired in the
 methods**, so a reconstruction choosing an unpaired two-way ANOVA and one choosing
 a paired one will disagree, and nothing says which was run. That is a defeater
 arising from an **unrepresentable design** rather than an omitted parameter, and
-the taxonomy has no class for it. R5 is how such cases get found.
+the taxonomy has no class for it.~~ **Struck 2026-09-19 with the row above.** The
+PLpro axis is not a split, so *"paired vs unpaired"* is not the open question;
+what is open is an **unstated block**, which is an omitted design fact and not an
+unrepresentable one. **The example is withdrawn and the claim is not**: R5 is
+still how such cases would get found, and this standard no longer offers a
+worked instance of one. R5 is how such cases get found.
 
 ---
 
@@ -310,6 +342,15 @@ remaining-source list — never a FAIL.
 - **Motivating instance replaced** (preamble) — the `PXD074990` claim is
   withdrawn; the standard now stands on the errors its own rules caught.
 - **R4 tier ambiguity named** (§1.1, §9) and deliberately not resolved.
+
+**v2, corrected in place 2026-09-19** — ADR-0035's review. §7's `PXD026748` row
+moves **FAIL → UNRESOLVED**, its stated reason is struck, the sentence *"The
+`PXD026748` instance is why R5 exists"* is withdrawn, and §7's *"What R5 gives
+the thesis"* loses its worked example. A correction in place rather than a v3:
+v2 is not superseded, one row and two sentences of it are wrong, and the
+strikethroughs keep both readings visible. **This is the second motivating
+instance this standard has withdrawn**, after v1's `PXD074990` in the preamble
+above.
 
 **v1, 2026-09-17** — first version, written before any candidate was walked.
 
