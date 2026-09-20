@@ -18,7 +18,8 @@ routes and not a defect to tune away.
 
 from bzk.stats.fdr import FDR_METHODS, benjamini_hochberg
 from bzk.stats.imputation import IMPUTATION_METHODS, ImputationOutcome, downshifted_normal
-from bzk.stats.registry import TESTS, TestResult, presence_filter
+from bzk.stats.perseus_s0 import PerseusOutcome, PerseusS0Error, perseus_s0
+from bzk.stats.registry import TESTS, RegisteredTest, TestResult, presence_filter
 from bzk.stats.tests import S0, student_t, student_t_s0, welch_t, welch_t_s0
 
 __all__ = [
@@ -27,9 +28,13 @@ __all__ = [
     "S0",
     "TESTS",
     "ImputationOutcome",
+    "PerseusOutcome",
+    "PerseusS0Error",
+    "RegisteredTest",
     "TestResult",
     "benjamini_hochberg",
     "downshifted_normal",
+    "perseus_s0",
     "presence_filter",
     "student_t",
     "student_t_s0",

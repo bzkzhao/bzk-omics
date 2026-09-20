@@ -3,12 +3,16 @@
 `ARCHITECTURE.md` §4's registry table lists three entries and their status:
 
   - `perseus_s0`         default and required — SAM-style, fold-change curvature `s0`,
-                         permutation FDR. **Not implemented here.**
+                         permutation FDR. **Written 2026-09-21, in `bzk/stats/perseus_s0.py`**,
+                         once `PXD018299`'s publication supplied the two values `ROADMAP.md`
+                         l.73 deferred the entry for. It is registered; this module's four
+                         variants below are still not.
   - `moderated_t_ebayes` v0.2, deferred by `ROADMAP.md`.
   - `welch_t`            *"Sanity check. Plain two-sample test; useful for detecting when the
                          choice of test is load-bearing."*
 
-Only `welch_t` is **registered**, and §4 is explicit that this is not a substitute for the default:
+`welch_t` was the only registered entry until 2026-09-21 and is now one of two, and §4 is explicit
+that it is not a substitute for the default:
 *"`perseus_s0` is not the same test as `welch_t` with Benjamini-Hochberg. The `s0` parameter
 introduces a fold-change dependence into the significance threshold... A reproduction that ignores
 this will not match the group's numbers even when it recovers the same proteins."* `welch_t` is
@@ -21,10 +25,15 @@ a set of four implementations to settle it from: *"{Student, Welch} × {S0 appli
 applied}"*. All four are written here. Registering them would put three names in `TESTS` that
 `ARCHITECTURE.md` §4's table does not list, and §4 is normative — code that diverges from it is
 wrong, or the document is wrong and must be amended first (`CLAUDE.md`). Worse, `student_t_s0` with
-`S0 = 1` sits one permutation-FDR step away from `perseus_s0`, which §4 records as *required and
-unwritten*; a registry entry would read as that gap having been closed. So the pre-registration's
-"registered set" is enumerated by the instrument that uses it, and `TESTS` still holds exactly what
-§4 says v0.1 holds. Amending §4 to admit these is a separate change with its own reason.
+`S0 = 1` sits one permutation-FDR step away from `perseus_s0`, and a registry entry would have read
+as that gap having been closed. So the pre-registration's "registered set" is enumerated by the
+instrument that uses it, and `TESTS` holds exactly what §4's table names. Amending §4 to admit
+these is a separate change with its own reason.
+
+**That last sentence was written while `perseus_s0` was unwritten, and the gap is now closed by the
+entry itself** (2026-09-21, `bzk/stats/perseus_s0.py`) rather than by one of these standing in for
+it. The reasoning above is unchanged by that: these four are still not §4's entries, and the one
+that is now exists.
 
 **The S0 modification is Tusher et al.'s, in one line:** the statistic divides the difference in
 means by `standard error + S0` rather than by the standard error, and the P value is read off the

@@ -1349,6 +1349,57 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "len(written['h9p']['sites']) == len(CLAIM_IDS)",
             1,
         ),
+        # ── tests/test_perseus_s0.py, classified individually 2026-09-21 ──────────────────────
+        # **Ten matches, all `PINNED`.** Every right side is arithmetic written out in the test's
+        # own docstring — `3 / (sqrt(2/3) + 0.1)`, `1 / 0.1`, `1/19`, the pooled `−4 / (sqrt(56/15)
+        # + 0.1)` — or a literal, or `scipy.stats.t.sf` at hand-computed arguments, which is a
+        # special function and not arithmetic the module under test performs. None is a call
+        # compared against its own expression, which is the question the failure message poses.
+        #
+        # **Measured line by line where a line could be reached on its own.**
+        #  - `result.d[0] == …sqrt(2/3)…`: `s0` dropped from the denominator, reading 3.674 against
+        #    3.274. `result.d[2] == 10.0` goes with it — it is the row whose spread is zero, so the
+        #    same mutation takes it to infinity.
+        #  - `result.d[1] == 0` and `result.d[5] == 0` are the rows whose two group means are
+        #    equal, and no denominator mutation moves them. The one that does is a numerator
+        #    "guard" — `np.where(difference == 0, 1.0, difference)` — which reddens d[1] at 1.091
+        #    while leaving d[0] green, so both are reachable without the line above.
+        #  - `result.d[0] == pytest.approx(pooled, …)`: `pooled=True` swapped for `pooled=False`,
+        #    reading −2.458 against −1.968. **That test exists because this mutation left the
+        #    3-against-3 case green**: at equal group sizes the pooled and Welch standard errors
+        #    are the same number, so P1 cannot tell them apart and an unequal-n case had to be
+        #    added.
+        #  - `used == 'exhaustive'`: the scheme labelled `random` while still enumerating.
+        #    `count == 19`: the identity relabelling kept, reading 20.
+        #  - `unchanged.log2fc[0] == 3.0`: `welch_t`'s difference negated. `unchanged.p_value[0]`:
+        #    Welch-Satterthwaite's df off by one. Both are in `bzk/stats/tests.py`, which this
+        #    entry guards as unchanged.
+        #
+        # **One entry is documentary and is recorded as such rather than claimed as guarded.**
+        # `result.q_value[2] == pytest.approx(1.0 / 19.0)` restates in closed form one element of
+        # the `assert_allclose` on the line above, which checks every q against an independent
+        # enumeration. Any mutation to the q arithmetic reddens that line first, so this one
+        # cannot be reached on its own; what it adds is the reading — 1/19 is the smallest FDR a
+        # 19-draw null can produce, so no alpha below it is attainable at 3 against 3 — and the
+        # multiset records it as a restatement rather than as a second guard.
+        ("test_perseus_s0.py", "count == 19", 1),
+        (
+            "test_perseus_s0.py",
+            "result.d[0] == pytest.approx(3.0 / (np.sqrt(2.0 / 3.0) + 0.1), rel=1e-12)",
+            1,
+        ),
+        ("test_perseus_s0.py", "result.d[0] == pytest.approx(pooled, rel=1e-12)", 1),
+        ("test_perseus_s0.py", "result.d[1] == pytest.approx(0.0)", 1),
+        ("test_perseus_s0.py", "result.d[2] == pytest.approx(10.0, rel=1e-12)", 1),
+        ("test_perseus_s0.py", "result.d[5] == pytest.approx(0.0)", 1),
+        ("test_perseus_s0.py", "result.q_value[2] == pytest.approx(1.0 / 19.0, rel=1e-12)", 1),
+        ("test_perseus_s0.py", "unchanged.log2fc[0] == pytest.approx(3.0)", 1),
+        (
+            "test_perseus_s0.py",
+            "unchanged.p_value[0] == pytest.approx(2.0 * scipy_stats.t.sf(3.0 / np.sqrt(2.0 / 3.0), 4), rel=1e-12)",
+            1,
+        ),
+        ("test_perseus_s0.py", "used == 'exhaustive'", 1),
     }
 )
 

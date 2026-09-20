@@ -29,13 +29,20 @@ from bzk.stats import (
 
 
 def test_the_registry_holds_what_architecture_4_says_v0_1_holds() -> None:
-    """§4's table: `welch_t` is the sanity check and the only test in v0.1. `perseus_s0` is default
-    and required but unwritten; `moderated_t_ebayes` is deferred to v0.2 by ROADMAP.
+    """§4's table: `welch_t` is the sanity check, `perseus_s0` the default and required entry, and
+    `moderated_t_ebayes` is deferred to v0.2 by ROADMAP.
 
     Asserted so the gap is visible rather than discovered later by someone selecting a default that
     does not exist — §4 is explicit that `welch_t` with BH is *not* `perseus_s0`.
+
+    **This read `== {"welch_t"}` until 2026-09-21, with a docstring calling `perseus_s0` "default
+    and required but unwritten".** It was written, in `bzk/stats/perseus_s0.py`: `ROADMAP.md` l.73
+    deferred the entry because *"the `s0` and FDR parameter values are not yet known"*, and
+    `PXD018299`'s own publication supplies them. The gap this assertion made visible is the gap
+    that closed, so the assertion moves with it rather than being deleted — `moderated_t_ebayes`
+    is still absent, and that half of the statement is doing the same work it always did.
     """
-    assert set(TESTS) == {"welch_t"}
+    assert set(TESTS) == {"welch_t", "perseus_s0"}
     assert set(FDR_METHODS) == {"BH"}
     assert set(IMPUTATION_METHODS) == {"none", "downshifted_normal"}
 
