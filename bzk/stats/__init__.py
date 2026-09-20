@@ -19,16 +19,20 @@ routes and not a defect to tune away.
 from bzk.stats.fdr import FDR_METHODS, benjamini_hochberg
 from bzk.stats.imputation import IMPUTATION_METHODS, ImputationOutcome, downshifted_normal
 from bzk.stats.registry import TESTS, TestResult, presence_filter
-from bzk.stats.tests import welch_t
+from bzk.stats.tests import S0, student_t, student_t_s0, welch_t, welch_t_s0
 
 __all__ = [
     "FDR_METHODS",
     "IMPUTATION_METHODS",
+    "S0",
     "TESTS",
     "ImputationOutcome",
     "TestResult",
     "benjamini_hochberg",
     "downshifted_normal",
     "presence_filter",
+    "student_t",
+    "student_t_s0",
     "welch_t",
+    "welch_t_s0",
 ]

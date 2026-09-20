@@ -1246,6 +1246,44 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "result.min_p() == pytest.approx(np.minimum(np.minimum(result.factor_a.p_value, result.factor_b.p_value), result.interaction.p_value))",
             1,
         ),
+        # ── tests/test_t_variants.py, classified individually 2026-09-20 ──────────────────────
+        # **Five entries over eight occurrences, all `PINNED`.** The right side of every one is
+        # arithmetic done by hand in the test's own docstring: `DIFFERENCE` is the literal -4.0,
+        # and `_p(...)` reads `scipy.stats.t.sf` at a statistic and a df written out from the two
+        # groups' means and variances. `bzk/stats/tests.py` had no part in producing either, which
+        # is the question the failure message poses. Made to fail by weighting Welch's two
+        # variances by the other group's n (`var1 / n1 + var2 / n2` -> `var1 / n2 + var2 / n1`):
+        # the Welch P reads 0.0551 against 0.0458.
+        #
+        # **`result.log2fc[0] == pytest.approx(DIFFERENCE)` stands at a count of 4, and the
+        # multiset cannot tell the four apart** — they are one expression in four test functions,
+        # differing only in which variant bound `result`, which is the scope-blindness this
+        # module's own docstring declares. It is recorded rather than worked around, because
+        # nothing rests on it: the difference of means is the one quantity all four variants share
+        # by construction, so a variant wired to the wrong helper is caught by the P assertion two
+        # lines below it in the same test, never by this one. Made to fail as above, which reddens
+        # the P line; `log2fc` is reddened instead by returning `mean2 - mean1`.
+        ("test_t_variants.py", "result.log2fc[0] == pytest.approx(DIFFERENCE)", 4),
+        (
+            "test_t_variants.py",
+            "result.p_value[0] == pytest.approx(_p(DIFFERENCE / WELCH_SE, WELCH_DF), rel=1e-12)",
+            1,
+        ),
+        (
+            "test_t_variants.py",
+            "result.p_value[0] == pytest.approx(_p(DIFFERENCE / STUDENT_SE, STUDENT_DF), rel=1e-12)",
+            1,
+        ),
+        (
+            "test_t_variants.py",
+            "result.p_value[0] == pytest.approx(_p(DIFFERENCE / (WELCH_SE + S0), WELCH_DF), rel=1e-12)",
+            1,
+        ),
+        (
+            "test_t_variants.py",
+            "result.p_value[0] == pytest.approx(_p(DIFFERENCE / (STUDENT_SE + S0), STUDENT_DF), rel=1e-12)",
+            1,
+        ),
     }
 )
 
@@ -1503,7 +1541,9 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # gap is recorded here rather than closed quietly — a floor that lags the surface by a third
     # tolerates deleting a third of the suite's assertions, which is the case its own failure
     # message describes.
-    assert modules >= 47 and asserts >= 1641, (
+    # 1641 -> 1653 and 47 -> 48 the same day for `tests/test_t_variants.py` (the
+    # forty-eighth), read off `sweep()` in the same way.
+    assert modules >= 48 and asserts >= 1653, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
