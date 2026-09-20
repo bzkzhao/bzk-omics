@@ -1323,6 +1323,32 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_pxd026748_reconstruction.py", "family['verdict']['exposure'] == len(CLAIM_IDS)", 1),
         ("test_pxd026748_reconstruction.py", "len(family['claims']) == len(CLAIM_IDS)", 1),
         ("test_pxd026748_reconstruction.py", "sum(counts.values()) == len(CLAIM_IDS)", 1),
+        # ── tests/test_pxd026748_h5c_h9p.py, classified individually 2026-09-21 ───────────────
+        # **One match, `PINNED`.** `counts` is bound from `missing_counts(...)` and the right side
+        # is the literal `[0, None]` the test wrote, so Pass D matched a name bound from a call and
+        # not a call compared against its own expression. The whole module contributes one entry
+        # because every other assertion compares against a literal display or a dict literal.
+        #
+        # **Measured to the stricter standard: the failure names *this* assertion and not the line
+        # above it.** The obvious mutation — a `null` min(P) counted as support — does not qualify:
+        # it reddens `categories[1] == {...}` one line earlier, and this line never runs. The
+        # mutation that discriminates is `missing_counts` returning `0` rather than `None` for a
+        # claim with no row in the filtered population, which is exactly the conflation the
+        # assertion exists to forbid: it reads `[0, 0] == [0, None]`.
+        ("test_pxd026748_h5c_h9p.py", "counts == [0, None]", 1),
+        # Two more from the module's single end-to-end test, both `PINNED`. `code == 0` is
+        # `main`'s exit status against a literal, matched because Pass D sees a name bound from a
+        # call; made to fail by `main` returning 1, which reads `1 == 0`. `len(written['h9p']
+        # ['sites']) == len(CLAIM_IDS)` compares a length of what was written against the length of
+        # the claim list the *test* supplied — an input the test chose, imported from
+        # `tests/test_pxd026748_reconstruction.py`; made to fail by writing `sites[:2]`, which
+        # reads `2 == 5`.
+        ("test_pxd026748_h5c_h9p.py", "code == 0", 1),
+        (
+            "test_pxd026748_h5c_h9p.py",
+            "len(written['h9p']['sites']) == len(CLAIM_IDS)",
+            1,
+        ),
     }
 )
 
