@@ -1,10 +1,10 @@
 # HYPOTHESIS — claim durability in PTM site proteomics
 
-**Version:** 5, superseding v4. It registers H9's sharp form before it is
-measured on the second deposit, `PXD026748`, as v4 instructed. Nothing measured
-changes.
+**Version:** 6, superseding v5. It records H9s's measured verdict, and it
+registers two new hypotheses on `PXD026748` before either is measured: H5c
+(corroboration by citation) and H9p (D5 at protein grain).
 **Status:** registered. Amendments are recorded with their trigger so the change
-is auditable; v1 to v4 are superseded, not silently replaced. v3 was a working
+is auditable; v1 to v5 are superseded, not silently replaced. v3 was a working
 draft and was never formally published (`notes/landing/LANDING-HYPOTHESIS-v4.md`).
 
 **What this document is:** the hypotheses, the definitions they depend on, the
@@ -18,7 +18,36 @@ decision can be audited; it is not restated anywhere else.
 
 ---
 
-## 0. Changelog from v4 *(this version)*
+## 0. Changelog from v5 *(this version)*
+
+**Two triggers.**
+- **H9s was measured.** The verdict is *extends D5 to imputation alone*. Home:
+  `walk/RESULT-PXD026748-reconstruction.md` and
+  `tests/fixtures/pxd026748_reconstruction.json`.
+- **Unused columns were found.** The publication's Supplementary Table 1 carries
+  columns nothing has used yet. One of them flags each ISG15 claim that an
+  independent *in vivo* ISGylome also reported. The reviewer counted that
+  column's flags (128 of the 276 ISG15 claims) and **deliberately did not join
+  them to the reconstruction's durability**, so that the join can be registered
+  before anyone sees it.
+
+1. **H9s's status is recorded,** with its home, under H9s in §5 and in §6.
+2. **D5 gains a v6 note.** The anchor's *test-choice* mechanism did not recur on
+   `PXD026748`. There the stated test reproduces the publication's own
+   statistics exactly, measured on imputation-free proteins. The class holds
+   through a different unstated step. See §4, D5.
+3. **H5c is registered: corroboration by citation, against D5 durability.** It
+   is **not C0**, and §4's C0 entry says why.
+4. **H9p is registered: D5 at protein grain,** on the same deposit's shotgun arm.
+   It tests whether imputation-underdetermination is particular to site data.
+5. **§6 gains exposure rows** for H5c and H9p.
+
+**What did not change.** Every class, every other hypothesis, the kill
+conditions, and C0's vacancy.
+
+---
+
+## 0-bis. Changelog from v4 *(carried, unchanged)*
 
 **One trigger.** The second deposit's methods were read in full on 2026-09-20
 (`notes/reports/REVIEW-ADR-0035.md`, addendum). They state the software, the
@@ -333,6 +362,16 @@ records, measured at claim grain with a denominator, and it is precisely what a
 machine consuming the methods section encounters. D2 is decay; D5 is
 under-determination. They are the two latent classes with evidence.
 
+**v6 note — the second deposit.** On `PXD026748` the stated test is fully
+specified and **reproduces the publication's own statistics exactly** wherever
+imputation cannot enter: 1,512 of 1,512 proteins
+(`walk/RESULT-PXD026748-reconstruction.md`, the gate). So the *test-choice*
+mechanism named above did not recur, and that is v4's weakening condition met
+**for that mechanism**. The class held through a different unstated step,
+imputation, measured under H9s. **The class generalises across two deposits and
+two mechanisms. The anchor's fraction is not a rate, and it is not compared with
+the second deposit's.**
+
 **What would weaken it.** A second deposit whose methods fully specify the test,
 where the reconstruction's support matches. Look for one.
 
@@ -361,6 +400,16 @@ and it is a hollow recovery. The only candidate on this deposit is the one
 target row that is partly measured (OAS2 K425, two of three), which is thin.
 **Until a control exists, no claim may be made that the instrument distinguishes
 defeat from noise.**
+
+**Amended (v6) — a weaker candidate exists, and it is still not C0.**
+`PXD026748`'s Supplementary Table 1 flags each ISG15 claim that an independent
+*in vivo* ISGylome also reported (Zhang et al. 2019). The flag is **the
+publication's citation of another study**. The other study's measured values are
+not in the tree, and the publication's own mouse-to-human mapping has not been
+checked. C0 requires the corroborating evidence to be measured on both sides, so
+this does not fill C0. It is registered as **H5c** (§5): a test of whether the
+instrument's D5 durability tracks citation-level corroboration. If it does not,
+that is a warning about the instrument, recorded as such.
 
 **Amended (v4) — a partial validity check now exists, and it is not C0.** The
 cascade's measured-WT partition is 39 rows where both the publication and the
@@ -496,6 +545,68 @@ measurement.
 The seed is unrecorded, so matching one member is not evidence that the
 publication used it.
 
+*Status (v6):* **measured.** 111 durable and 177 underdetermined of 288, so the
+verdict is **extends D5 to imputation alone**. The registered expectation
+(*"extends, narrowly"*) held in direction and missed in size. Home:
+`walk/RESULT-PXD026748-reconstruction.md`.
+
+**H5c (corroboration by citation, against D5) — new, v6, registered on
+`PXD026748` before measurement.** Among the publication's ISG15 claims, those it
+flags as also reported by an independent *in vivo* ISGylome are more often
+durable under H9s's family than those it does not flag.
+- *Population:* ISG15 claims (clusters 1a, 1b and 2) among H9s's 288 that reach
+  the test. Cluster 3's ubiquitin sites are excluded, because the flag concerns
+  ISG15 targets.
+- *Groups:* flagged (Table 1's `In vivo ISG15 targets` column is `x`) and not
+  flagged. The column is read from the pinned supplement, never re-derived.
+- *Measure:* the durable proportion in each group at the primary threshold,
+  taken from the committed reconstruction fixture, which is not re-run.
+- *Directions, both registered:*
+  - **Discriminates:** flagged minus unflagged durable proportion is at least
+    **+0.10**. This supports the instrument's defeats not being noise.
+  - **Does not discriminate:** the difference lies between −0.10 and +0.10,
+    exclusive. This is recorded as a warning: D5 durability does not track
+    citation-level corroboration.
+  - **Inverted:** the difference is at most **−0.10**. It is reported as found,
+    and the reviewer has no mechanism for it.
+- *Declared confound:* corroborated sites may be more abundant, and so less
+  often imputed, which would make them durable for reasons other than being
+  true. Each claim's count of imputed values in its row is reported by group,
+  **descriptively**. It is not used to adjust the verdict.
+- *What it cannot show:* that a flagged claim is true. It can show only that
+  durability and citation agree or disagree.
+- The thresholds are judgement, fixed here, and not moved after measurement.
+
+**H9p (D5 at protein grain) — new, v6, registered on `PXD026748` before
+measurement.** The imputation-underdetermination measured under H9s at site grain
+is smaller at protein grain, in the same deposit, pipeline and family.
+- *Exposure:* Supplementary Table 2's proteins, the publication's two-way ANOVA
+  set at P < 0.01 on any term. Only those that join to the reconstruction's
+  shotgun matrix by the rule turn 16 recorded, and that reach the test, count.
+- *Pipeline and family:* the shotgun arm as registered and gated in
+  `walk/PREREG-PXD026748-reconstruction.md`, with the same 360 members and the
+  same support rule.
+- *Primary comparison:* **conditional on missingness.** A claim whose row has no
+  missing value cannot be underdetermined by imputation. The protein arm has far
+  more complete rows (the gate's 1,512 complete cases), so an unconditional
+  comparison would be settled by missingness alone. The comparison is therefore
+  the underdetermined proportion **among claims whose row carries at least one
+  missing value**, protein grain (U_p) against site grain (U_s). U_s takes its support
+  counts from the committed site fixture and its missingness from the GG
+  deposit's rows, with nothing re-run.
+- *Directions, both registered:*
+  - **Particular to site data:** U_p ≤ 0.5 × U_s.
+  - **General to the imputation step:** U_p ≥ 0.8 × U_s.
+  - Between the two: **indeterminate**, reported as found, deciding nothing.
+- *Disclosed before registration:* the gate's figures, including 1,512
+  complete-case proteins and 415 complete-case ANOVA members, were seen when
+  this was written. That knowledge is why the comparison is conditional. It sets
+  no threshold.
+- *What it cannot show:* that site data are more fragile *because* they are PTM
+  data. Absence-defined claims exist at protein grain too. It can show only
+  whether this deposit's two grains differ.
+- The thresholds are judgement, fixed here, and not moved after measurement.
+
 **H4 (attribution, D3).** For sites with orthogonal modifier evidence, some
 fraction carries evidence supporting more than one modifier identity, and that
 fraction is higher under interferon stimulation than at baseline.
@@ -533,7 +644,9 @@ result.
 | D4a | Targets whose sites reorder between constructed populations |
 | D4b | Rows producing a published-target verdict, against the tested population |
 | D5 | Published claims reaching the reconstruction's test (measured: 749) |
-| D5, second deposit (H9s) | `PXD026748`'s P-selected published claims (296) reaching the reconstruction's test — **unmeasured; the cascade measures it** |
+| D5, second deposit (H9s) | `PXD026748`'s P-selected published claims reaching the reconstruction's test — **measured: 288 of 296** (`tests/fixtures/pxd026748_published_cascade.json`) |
+| H5c | ISG15 claims among H9s's 288, split by the publication's in vivo flag — **unmeasured** |
+| H9p | Supplementary Table 2's proteins reaching the shotgun reconstruction's test, and within them those with at least one missing value — **unmeasured** |
 | D6 | Published claims entering the reconstruction (measured: 798) |
 | C0 | Targets appearing in two or more independent perturbational designs **with a measured arm on both sides** |
 
