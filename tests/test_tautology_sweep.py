@@ -727,6 +727,27 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_perseus.py", "result['adj_p_value'] == pytest.approx(0.0012)", 1),
         ("test_perseus.py", "result['p_value'] == pytest.approx(3.0902e-05)", 1),
         ("test_perseus.py", "store.ids_by_label(conn) == before", 1),
+        # ── tests/test_pxd026748_published_cascade.py, classified 2026-09-20 ──────────────────
+        # **`PINNED`, not `INSTANCES`, and the two sides are two separate runs over two different
+        # deposits.** `found` is `build(...)` over a deposit whose `Sequence window` cells carry
+        # the published windows; `missed` is `build(...)` over one that does not. Neither call
+        # produced the other — they share only their published rows — and the claim is that the
+        # window diagnostic is **inert**: finding a lead must change no placement and no count.
+        #
+        # Asserted as whole objects on purpose. A handful of named numbers would leave whichever
+        # count the test forgot to name as the place a recovery could hide, which is the defect
+        # these two lines exist to rule out. Made to fail by letting a window match recover the
+        # row, which moves `join` and `reaches_test` together.
+        (
+            "test_pxd026748_published_cascade.py",
+            "[_placed(r) for r in found] == [_placed(r) for r in missed]",
+            1,
+        ),
+        (
+            "test_pxd026748_published_cascade.py",
+            "cascade_source.summary(found) == cascade_source.summary(missed)",
+            1,
+        ),
         ("test_protein_groups.py", "[asdict(m) for m in measured] == _pinned()", 1),
         (
             "test_protein_groups.py",

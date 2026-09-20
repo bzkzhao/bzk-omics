@@ -48,6 +48,7 @@ from typing import Any
 
 from bzk import published_cascade as cascade
 from bzk.adapters import maxquant, spreadsheet
+from bzk.adapters.maxquant_protein_groups import _split
 from bzk.curation.loader import LoadedCuration
 from bzk.provenance.raw_store import verify
 from bzk.rebuild import _deposit_for
@@ -280,6 +281,59 @@ def _multiplicity_flag(
     )
 
 
+def window_index(deposit: maxquant.MaxQuantTable) -> dict[str, list[dict[str, Any]]] | None:
+    """Every window a deposit row carries → the matches that window has. `None` where no column.
+
+    **A `Sequence window` cell can hold several windows, one per candidate protein, separated by
+    `;` — and matching the whole cell finds only the single-window rows.** Measured on the real
+    deposit: 85 of its 2,653 rows carry a multi-window cell. Under whole-cell equality the
+    diagnostic found 1 of the 6 join losses; splitting finds all 6, which is the instrument turn 09
+    used. The fixture was not committed in between, because `window_matches: []` on a row whose
+    window *is* in the deposit asserts something false.
+
+    **The protein is the `Proteins` entry at the same position, and only when the two columns
+    split to the same count.** Where they do not, `protein` is `null` and
+    `protein_unattributed_reason` gives both counts. Aligning them anyway would be guessing which
+    candidate owns which window, and a guess recorded in a field named `protein` reads as a
+    measurement — the shape I15 forbids of values and this file already refuses for gene symbols.
+
+    The splitting rule is not a new one: `maxquant_protein_groups._split` is the rule
+    `maxquant_sites.py` spells inline for `Proteins` at `:479` and `:577`, character for
+    character, and this reuses it rather than writing a fourth copy.
+    """
+    window_column = (
+        deposit.header.index("Sequence window") if "Sequence window" in deposit.header else None
+    )
+    if window_column is None:
+        return None
+
+    column = {name: i for i, name in enumerate(deposit.header)}
+    protein_column = column.get("Proteins")
+    index: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
+    for row in deposit.rows:
+        windows = _split(_text(row[window_column]))
+        proteins = _split(_text(row[protein_column])) if protein_column is not None else []
+        aligned = protein_column is not None and len(proteins) == len(windows)
+        row_id = _text(row[column["id"]])
+        for position, window in enumerate(windows):
+            match: dict[str, Any] = {
+                "row": row_id,
+                "protein": proteins[position] if aligned else None,
+            }
+            if not aligned:
+                match["protein_unattributed_reason"] = (
+                    "`Proteins` has no column in this table"
+                    if protein_column is None
+                    else (
+                        f"`Proteins` and `Sequence window` split to different counts "
+                        f"({len(proteins)} and {len(windows)}), so no entry can be aligned with "
+                        "this window without guessing which candidate owns it"
+                    )
+                )
+            index[window].append(match)
+    return dict(index)
+
+
 def build(
     *,
     published: Sequence[Mapping[str, Any]],
@@ -300,12 +354,7 @@ def build(
     for row in deposit.rows:
         by_key[_text(row[column["Protein"]]), _text(row[column["Position"]])].append(row)
 
-    window_column = column.get("Sequence window")
-    by_window: dict[str, list[str]] | None = None
-    if window_column is not None:
-        by_window = collections.defaultdict(list)
-        for row in deposit.rows:
-            by_window[_text(row[window_column])].append(_text(row[column["id"]]))
+    by_window = window_index(deposit)
 
     records: list[dict[str, Any]] = []
     for cells in published:
@@ -327,10 +376,13 @@ def build(
         }
         records.append(record)
 
-        # A lead, never a key. `None` where the deposit has no `Sequence window` column at all,
-        # because an empty list there would assert that no row shares the window. Computed here
-        # rather than in a closure over `cells`: a function defined inside the loop that reads the
-        # loop's variable is the late-binding trap, and it is one dict lookup.
+        # A lead, never a key. **`[]` means "no deposit row carries this window AMONG ITS
+        # WINDOWS"** — the index is built per window, not per cell, so an empty list is a
+        # statement about every window of every row and not about whole-cell equality. `None`
+        # where the deposit has no `Sequence window` column at all, because an empty list there
+        # would assert something the table cannot support. Computed here rather than in a closure
+        # over `cells`: a function defined inside the loop that reads the loop's variable is the
+        # late-binding trap, and it is one dict lookup.
         window_lead = (
             None if by_window is None else by_window.get(_text(cells.get("Sequence window")), [])
         )
@@ -500,9 +552,14 @@ def fixture_for(
             "PLATFORM path: join, decoy/contaminant, localisation, ingestion, presence. A row "
             "clearing all five REACHES THE TEST; it is not recovered, and no significance stage "
             "ran — that is the reconstruction, which this repository has not performed for this "
-            "deposit. Rows lost at `join` carry `window_matches`, the ids of deposit rows sharing "
-            "their Sequence window: a lead for a reader, never a second key, and the generator "
-            "never recovers a row on it. Cells the spreadsheet stored as a date or a time are "
+            "deposit. Rows lost at `join` carry `window_matches`: the deposit rows sharing their "
+            "Sequence window, each as {row, protein}. A Sequence window cell can hold several "
+            "windows separated by ';', one per candidate protein, so the index is built PER "
+            "WINDOW and an empty list means no deposit row carries this window among its windows "
+            "— not that no cell equals it. `protein` is the Proteins entry at the same position, "
+            "and null with a reason where the two columns split to different counts, because "
+            "aligning them anyway would be guessing which candidate owns which window. A lead for "
+            "a reader, never a second key, and the generator never recovers a row on it. Cells the spreadsheet stored as a date or a time are "
             "recorded AS FOUND, as ISO-8601 strings, and listed per row in `coerced_cells` and "
             "per column in the summary; no symbol is inferred for any of them, because writing an "
             "inference where the source belongs is not this file's job. Generated from both "

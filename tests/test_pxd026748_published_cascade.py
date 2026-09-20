@@ -66,9 +66,12 @@ def _site_row(
     contaminant: str = "",
     values: list[str] | None = None,
     mult_2: str = "",
+    proteins: str | None = None,
 ) -> list[str]:
+    """One site-table row. `proteins` is the `;`-separated candidate set, defaulting to the razor
+    pick alone; `window` is the `Sequence window` cell, which may itself hold several windows."""
     return [
-        protein,
+        proteins if proteins is not None else protein,
         position,
         protein,
         position,
@@ -222,7 +225,10 @@ def test_a_window_match_is_recorded_and_never_recovers_the_row(tmp_path: Path) -
     records = _build(published, deposit)
 
     assert _placed(records[0]) == ("join", "no_key_match")
-    assert records[0]["window_matches"] == ["0"], "the lead is recorded"
+    # `{row, protein}` since 2026-09-20, where this was a bare id. The claim is unchanged — the
+    # lead is recorded and is not a key — and only the shape moved, because a `Sequence window`
+    # cell can hold several windows and the match now names which candidate owns the one it hit.
+    assert records[0]["window_matches"] == [{"row": "0", "protein": MX1}], "the lead is recorded"
     assert records[0]["deposit_id"] is None, "and it is not a key"
     assert cascade_source.summary(records)["reaches_test"] == 0
 
@@ -630,3 +636,137 @@ def test_a_type_json_cannot_hold_stops_by_name(tmp_path: Path) -> None:
 
     with pytest.raises(cascade_source.CascadeSourceError, match="holds a timedelta"):
         cascade_source._published_value("Gene name", timedelta(days=1))
+
+
+# ── T8/T9/T10 · the window diagnostic reads multi-window cells ──────────────────────────────────
+#
+# A `Sequence window` cell can hold several windows separated by `;`, one per candidate protein.
+# Measured on the real deposit: 85 of its 2,653 rows do. Matching the whole cell found 1 of the 6
+# join losses; splitting finds all 6, which is the instrument turn 09 used. The fixture was not
+# committed in between, because `window_matches: []` on a row whose window *is* in the deposit
+# asserts something false.
+#
+# **The diagnostic stays a diagnostic.** These tests assert the lead is found and that finding it
+# changes no placement and no count — T10 is the one that says so.
+
+WINDOW_A = "AAAKAAA"
+WINDOW_B = "BBBKBBB"
+WINDOW_C = "CCCKCCC"
+
+
+def test_a_window_inside_a_multi_window_cell_is_found_with_its_protein(tmp_path: Path) -> None:
+    """T8. Two windows, two candidates, and the published row carries the **second**.
+
+    Whole-cell equality finds nothing here: the cell is `'AAAKAAA;BBBKBBB'` and the published
+    window is `'BBBKBBB'`. The match names `IFIT1`, the candidate at the same position — not
+    `MX1`, which is the razor pick and the first entry.
+    """
+    deposit = _deposit(
+        tmp_path,
+        [
+            _site_row(
+                protein=MX1,
+                proteins=f"{MX1};{IFIT1}",
+                position="4",
+                row_id="0",
+                window=f"{WINDOW_A};{WINDOW_B}",
+            )
+        ],
+    )
+    published = [_published(**{"Lysine position": 999, "Sequence window": WINDOW_B})]
+
+    records = _build(published, deposit)
+
+    assert _placed(records[0]) == ("join", "no_key_match")
+    assert records[0]["window_matches"] == [{"row": "0", "protein": IFIT1}]
+
+
+def test_a_count_mismatch_leaves_the_protein_unattributed_with_its_reason(tmp_path: Path) -> None:
+    """T9. Three windows against two candidates: no entry can be aligned without guessing.
+
+    `protein: null` and a reason giving both counts, rather than a positional guess. A guess in a
+    field named `protein` reads as a measurement, which is what this whole module refuses — the
+    same refusal it makes for a gene symbol behind a coerced date.
+    """
+    deposit = _deposit(
+        tmp_path,
+        [
+            _site_row(
+                protein=MX1,
+                proteins=f"{MX1};{IFIT1}",
+                position="4",
+                row_id="0",
+                window=f"{WINDOW_A};{WINDOW_B};{WINDOW_C}",
+            )
+        ],
+    )
+    published = [_published(**{"Lysine position": 999, "Sequence window": WINDOW_B})]
+
+    records = _build(published, deposit)
+
+    match = records[0]["window_matches"][0]
+    assert match["row"] == "0"
+    assert match["protein"] is None
+    assert "2 and 3" in match["protein_unattributed_reason"]
+
+
+def test_finding_a_window_changes_no_placement_and_no_count(tmp_path: Path) -> None:
+    """T10. The diagnostic is inert: the same published rows against a deposit that *does* carry
+    their windows and one that does not give identical summaries.
+
+    Asserted as an equality between two whole summaries rather than as a handful of numbers,
+    because the claim is that *nothing* moved — and a count this test forgot to name is exactly
+    where a recovery would hide.
+    """
+    published = [
+        _published(**{"#": 1, "Lysine position": 999, "Sequence window": WINDOW_B}),
+        _published(
+            **{"#": 2, "Uniprot ID": IFIT1, "Lysine position": 4, "Sequence window": WINDOW_A}
+        ),
+    ]
+
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    with_window = _deposit(
+        tmp_path / "a",
+        [
+            _site_row(
+                protein=MX1,
+                proteins=f"{MX1};{IFIT1}",
+                position="4",
+                row_id="0",
+                window=f"{WINDOW_A};{WINDOW_B}",
+            )
+        ],
+    )
+    without_window = _deposit(
+        tmp_path / "b",
+        [_site_row(protein=MX1, position="4", row_id="0", window=WINDOW_C)],
+    )
+
+    found = _build(published, with_window)
+    missed = _build(published, without_window)
+
+    # Placement first, so a mutation that recovers the row fails on the claim rather than on a
+    # key that only a lost row carries.
+    assert _placed(found[0]) == ("join", "no_key_match"), "a window match is not a recovery"
+    assert found[0]["deposit_id"] is None, "a window match is never a key"
+    # The lead differs — that is the whole point of C1 —
+    assert found[0]["window_matches"] == [{"row": "0", "protein": IFIT1}]
+    assert missed[0]["window_matches"] == []
+    # — and nothing else does.
+    assert [_placed(r) for r in found] == [_placed(r) for r in missed]
+    assert cascade_source.summary(found) == cascade_source.summary(missed)
+
+
+def test_an_empty_list_means_no_row_carries_the_window_among_its_windows(tmp_path: Path) -> None:
+    """C2's meaning, asserted. A deposit row whose cell *contains* the published window as a
+    substring but not as one of its `;`-separated entries is not a match: the index is built per
+    window, so `[]` is a statement about entries and not about whole cells or substrings."""
+    deposit = _deposit(
+        tmp_path,
+        [_site_row(protein=MX1, position="4", row_id="0", window=f"X{WINDOW_B}X")],
+    )
+    published = [_published(**{"Lysine position": 999, "Sequence window": WINDOW_B})]
+
+    assert _build(published, deposit)[0]["window_matches"] == []
