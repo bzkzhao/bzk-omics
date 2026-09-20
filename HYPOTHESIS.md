@@ -1,10 +1,11 @@
 # HYPOTHESIS — claim durability in PTM site proteomics
 
-**Version:** 4, superseding v3. Amended against the **published-claim cascade**:
-all 798 rows of the anchor's Data Table S1, pinned as `SUPP_DATA_1` and walked
-through the platform path, every row placed at exactly one stage.
+**Version:** 5, superseding v4. It registers H9's sharp form before it is
+measured on the second deposit, `PXD026748`, as v4 instructed. Nothing measured
+changes.
 **Status:** registered. Amendments are recorded with their trigger so the change
-is auditable; v1, v2 and v3 are superseded, not silently replaced.
+is auditable; v1 to v4 are superseded, not silently replaced. v3 was a working
+draft and was never formally published (`notes/landing/LANDING-HYPOTHESIS-v4.md`).
 
 **What this document is:** the hypotheses, the definitions they depend on, the
 registered expectations and their directions, and the conditions under which the
@@ -17,7 +18,30 @@ decision can be audited; it is not restated anywhere else.
 
 ---
 
-## 0. Changelog from v3 *(this version)*
+## 0. Changelog from v4 *(this version)*
+
+**One trigger.** The second deposit's methods were read in full on 2026-09-20
+(`notes/reports/REVIEW-ADR-0035.md`, addendum). They state the software, the
+model and the selection rule, and they leave only the imputation unstated. That
+makes `PXD026748` close to the deposit v4 asked for under D5 and H9: *"a deposit
+whose methods specify the test fully"*. Its reconstruction is about to be
+registered, and v4 says the sharp form must be registered before it is measured.
+
+1. **H9s is registered**, H9's sharp form, stated for `PXD026748`: the family,
+   the durability criterion, and both directions. See §5.
+2. **§9's second-deposit gate is clarified, not moved.** It concerns ingesting
+   the *publication's* imputation. An internal reconstruction that declares its
+   own parameters and seeds is a different act (ADR-0034, table row 3), and it
+   does not pass that gate.
+3. **§6 gains the second deposit's D5 exposure row.** It is unmeasured, and the
+   cascade measures it.
+
+**What did not change.** Every class, every measured figure, every other
+hypothesis, and the kill conditions.
+
+---
+
+## 0a. Changelog from v3 *(carried, unchanged)*
 
 All six amendments share one trigger: the cascade (task K-b). Denominator 798,
 one path, **512 recovered, 286 lost, no residual**, against an arithmetic ceiling
@@ -416,11 +440,61 @@ alone, against 36 for the two divergent filters combined and 33 for the largest
 single one. Home: `FINDINGS` §14.
 *What would weaken it:* a deposit whose methods specify the test fully, where the
 reconstruction's support matches.
-*The sharp form, not yet registered as a hypothesis:* the methods admit a
-**family** of defensible reconstructions, not one. Claims surviving every member
-of that family are durable in a sense that means something; claims surviving only
-some are not. That intersection is computable from a single deposit and is the
-direction most worth pursuing. Register it before measuring it.
+~~*The sharp form, not yet registered as a hypothesis:*~~ **Registered in v5 as
+H9s, below.** The methods admit a **family** of defensible reconstructions, not
+one. Claims surviving every member of that family are durable in a sense that
+means something; claims surviving only some are not. That intersection is
+computable from a single deposit and is the direction most worth pursuing.
+Register it before measuring it.
+
+**H9s (the family form of D5) — new, v5, registered on `PXD026748` before
+measurement.** Where a publication fixes everything but a stochastic step, the
+published claims divide into those supported by every defensible completion of
+that step, the durable ones, and those supported by only some, the
+underdetermined ones.
+
+*Everything the publication fixes is held constant.* This is its stated
+pipeline:
+- remove reverse sequences, contaminants, and localisation below 0.75;
+- the per-multiplicity table, reconstructed on summed intensities with the
+  divergence declared. Route A was admitted by a registered rule:
+  `walk/RESULT-PXD026748-multiplicity.md`;
+- log2 transformation, then per-sample median subtraction;
+- at least three valid values in at least one group;
+- a two-way ANOVA of treatment × genotype with interaction;
+- retention at P < 0.01 on any of the three terms.
+
+*The family varies only what the publication leaves unstated:* the imputation's
+width, its downshift, and its scope (per column or the whole matrix), each
+crossed with repeated seeds. The grid's values are fixed in the reconstruction's
+pre-registration, before it runs. This document fixes the axes and the
+criterion, not the values.
+
+*Exposure:* the P-selected published claims, Supplementary Table 1's 296
+(276 ISG15 + 20 ubiquitin sites), that reach the test. The 118 PLpro targets are
+selected by clustering and are D1, not D5.
+
+*Support:* the reconstruction retains the claim at P < 0.01 on at least one of
+the three terms, as the publication did.
+
+*Durable:* supported in every member and every seed. Reported together with the
+fraction supported under each member alone, and the fraction supported in none.
+
+*Directions, both registered:*
+- **Weakens D5:** the durable fraction is **≥ 95% of exposure**. The test was
+  specified, and the support matches, which is the condition v4 registered under
+  D5 and H9.
+- **Extends D5 to imputation alone:** the underdetermined fraction, supported in
+  some members but not all, is **≥ 5% of exposure**.
+- **The reviewer's expectation:** nonzero, and well below the anchor's
+  test-choice figure, because only one step varies here.
+
+The two thresholds are judgement, fixed here. They are not moved after
+measurement.
+
+*What it cannot show:* whether the published run used any particular member.
+The seed is unrecorded, so matching one member is not evidence that the
+publication used it.
 
 **H4 (attribution, D3).** For sites with orthogonal modifier evidence, some
 fraction carries evidence supporting more than one modifier identity, and that
@@ -459,6 +533,7 @@ result.
 | D4a | Targets whose sites reorder between constructed populations |
 | D4b | Rows producing a published-target verdict, against the tested population |
 | D5 | Published claims reaching the reconstruction's test (measured: 749) |
+| D5, second deposit (H9s) | `PXD026748`'s P-selected published claims (296) reaching the reconstruction's test — **unmeasured; the cascade measures it** |
 | D6 | Published claims entering the reconstruction (measured: 798) |
 | C0 | Targets appearing in two or more independent perturbational designs **with a measured arm on both sides** |
 
@@ -582,7 +657,11 @@ One number, one more dataset.
   which strengthens H8 and weakens nothing.
 - **Second deposit blocked** at the imputation record; a stochastic imputation
   without a recorded seed and scope cannot be ingested, and "Perseus defaults"
-  names a convention rather than a downshift and a width.
+  names a convention rather than a downshift and a width. **Clarified (v5):**
+  this gate concerns ingesting the *publication's* imputation, and it stays
+  closed. An internal reconstruction that declares its own parameters and seeds
+  (ADR-0034, table row 3) is a different act. H9s measures that act, and it does
+  not pass this gate.
 - **Embargoed dataset** under the embargo invariant: instances countable, not
   nameable until release.
 - **Sequencing:** none of this precedes v0.1. If a gate starts pulling platform
