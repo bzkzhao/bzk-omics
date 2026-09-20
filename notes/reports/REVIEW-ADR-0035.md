@@ -244,3 +244,100 @@ allows during review:
 - **For Adán, 21 September:** the two design questions this review cannot settle:
   - which shotgun `-N` came from which GG `_repN` digest;
   - whether same-index dishes were processed as blocks.
+
+---
+
+## Addendum, 2026-09-20 — the publication states its model
+
+**Written after ADR-0035 was accepted at `82ee6d5`.** The record is now
+append-only (`decisions/README.md`). Its decisions R1–R5 are unaffected by
+what follows, so no superseding record is warranted. **Its defeater section is
+stale on one point, and its `Reviewed` row points here.**
+
+**Source (read).** Munnur et al., *Nat Immunol* 22:1416–1427 (2021), Methods,
+*LC–MS/MS and data analysis for ISGylome determination*, read 2026-09-20. It
+states the GG analysis in full, except for the imputation:
+- Perseus 1.6.2.1 on the MaxQuant site table;
+- remove reverse sequences, potential contaminants, and sites with localization
+  probability below 0.75;
+- **expand the site table**, then log2-transform and median-subtract per sample;
+- group replicates and discard sites short of three valid values in a group;
+- impute *"from a normal distribution around the detection limit"*;
+- group by treatment and genotype and run a **two-way ANOVA** with three P
+  values per site: treatment, genotype and interaction;
+- retain sites with P < 0.01 for any one of the three, with no correction for
+  multiple testing.
+
+The retained sites are Supplementary Table 1.
+
+### What it changes
+
+**1. Finding C's surviving defeater is contradicted.** The accepted record says
+of the block that *"nothing says which the publication ran"*. The publication
+names a two-factor model with interaction, and reports exactly the three P
+values that model yields.
+- **Read:** the model and its two factors.
+- **Judged:** no block term. The reported P values support this, and so does
+  the reviewer's understanding that Perseus's two-way ANOVA offers no block or
+  random factor.
+- **Not verified** against Perseus 1.6.2.1's documentation. The claim is
+  falsifiable there.
+
+**2. The block question changes kind.** It is no longer *"which model was run"*,
+an unknown the reconstruction must guess. It is now *"was the stated model
+appropriate, if same-index dishes were processed together"*, a question of
+validity for correspondence. It no longer bites at the reconstruction.
+
+**3. One unstated analytical choice, not two.** The accepted record says:
+*"Two unstated analytical choices in one deposit, as before — one of them now a
+different kind"*. After this addendum there is one: the imputation's width,
+downshift, scope and seed. Perseus's imputation is random, so an exact rerun is
+impossible even with the right parameters, and the reconstruction must report a
+distribution over seeds.
+
+**For the thesis (judged):** `PXD026748`'s reconstruction gap is an **omitted
+parameter**, the same class as ADR-0034's `PXD065158`. It is not an omitted
+design fact, and not an unrepresentable one. The review's finding C moved this
+deposit from the second of those classes to the first, and this addendum moves
+it from the first to the class the taxonomy already has.
+
+**4. `WALK-STANDARD` v2, §7's `PXD026748` row.** It was corrected to UNRESOLVED
+at `101bd4f` on the ground that the block structure is unstated. R5(b) tests for
+a lost relation *"the analysis depends on"*.
+- The published GG analysis, as stated, uses no block.
+- The cross-arm shared-source relation (R2) is used by neither published
+  analysis.
+
+**Judged: the row's ground is gone, and R5 is PASS for the published
+reconstruction.** The block moves to a validity note outside R5. This would be
+the third change to that row in two days, so it is **recorded here and not
+applied**. The decision is bzk's.
+
+### Facts for the reconstruction's pre-registration
+
+All read from the same Methods:
+- **The input is the expanded, per-multiplicity site table.** The closed
+  `quantity` enum has no value for it (ADR-0035, *What this unblocks*), so that
+  schema gate is now confirmed from the paper.
+- **The claim set splits into two selections.**
+  - The paper reports 276 ISGylation sites on 181 proteins and 20 ubiquitination
+    sites on 16 proteins; 276 + 20 = 296, the count keyed in turn 09. That set
+    is selected by the P criterion, and it is **D5's target**.
+  - The headline 118 ISGylation sites on 95 proteins, named as PLpro targets,
+    are selected by cluster membership and absence. That is **D1**, per
+    `walk/STEP2-R1-SCAN.md` §5, not D5.
+- **The filter sentence has one reading consistent with the results.** Read
+  literally, it discards any site short of three valid values in *any* group.
+  That is inconsistent with the heatmap, which keeps sites absent in the
+  knockout. The only consistent reading is Perseus's usual rule: at least three
+  valid values in at least one group. The pre-registration should state that
+  reading, and say that the literal one was rejected on the evidence.
+- **The shotgun arm is stated in parallel.** Proteins only identified by site
+  are removed, LFQ is log2-transformed and median-normalised, and a two-way
+  ANOVA follows, with P < 0.01 on any term (Supplementary Table 2). There is
+  also a WT vs *Isg15*-/- t-test at FDR 0.05 and S0 1 over 2,438 quantified
+  proteins (Supplementary Table 3).
+
+**Checked and empty.** The paper's Figshare deposit holds one figure source
+file, `Fig 1_new.ai`, with no Perseus session and no processed matrix. The
+Reporting Summary was not checked, and no peer-review file is linked.
