@@ -1284,6 +1284,45 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "result.p_value[0] == pytest.approx(_p(DIFFERENCE / (STUDENT_SE + S0), STUDENT_DF), rel=1e-12)",
             1,
         ),
+        # ── tests/test_pxd026748_reconstruction.py, classified individually 2026-09-20 ────────
+        # **Ten matches, all `PINNED`, and none of them compares the module against itself.**
+        # Six compare a figure the module produced against `len(CLAIM_IDS)` or `[360] *
+        # len(CLAIM_IDS)`, where `CLAIM_IDS` is the list of deposit ids the *test* wrote into its
+        # synthetic cascade fixture and 360 is the grid size `:110-124` registers — an input the
+        # test chose and a published constant, neither produced by the code under test. Made to
+        # fail by cutting the seed range from twenty to ten (`SEEDS = tuple(range(20))` ->
+        # `range(10)`), which reads 180 against 360.
+        #
+        # Two are `code == 0` and `code == 1`, `main`'s exit status against a literal: matched
+        # because Pass D sees a bare name bound from a call, not because either side derives from
+        # the other. Made to fail by running the GG arm whatever the gate says (`if not
+        # gate["verdict"]["passed"]:` -> `if gate["verdict"]["passed"] is None:`), which reads
+        # 0 against 1.
+        #
+        # Two are `normalised[0, 0] == pytest.approx(8.0 - 12.0)` and its counterpart at `8.0 -
+        # 11.0`: the two medians of one synthetic column, with and without the row the valid-value
+        # filter drops, written out by hand in the test. **They are the pair that makes the
+        # pipeline's order checkable**, and they are asserted against arithmetic rather than
+        # against each other. Made to fail by normalising after filtering instead of before, which
+        # reads -3.0 against -4.0.
+        (
+            "test_pxd026748_reconstruction.py",
+            "[len(c['min_p']) for c in family['claims']] == [360] * len(CLAIM_IDS)",
+            1,
+        ),
+        (
+            "test_pxd026748_reconstruction.py",
+            "a['family']['population_rows'] == len(CLAIM_IDS) + 1",
+            1,
+        ),
+        ("test_pxd026748_reconstruction.py", "after[0, 0] == pytest.approx(8.0 - 11.0)", 1),
+        ("test_pxd026748_reconstruction.py", "normalised[0, 0] == pytest.approx(8.0 - 12.0)", 1),
+        ("test_pxd026748_reconstruction.py", "code == 0", 1),
+        ("test_pxd026748_reconstruction.py", "code == 1", 1),
+        ("test_pxd026748_reconstruction.py", "family['exposure'] == len(CLAIM_IDS)", 1),
+        ("test_pxd026748_reconstruction.py", "family['verdict']['exposure'] == len(CLAIM_IDS)", 1),
+        ("test_pxd026748_reconstruction.py", "len(family['claims']) == len(CLAIM_IDS)", 1),
+        ("test_pxd026748_reconstruction.py", "sum(counts.values()) == len(CLAIM_IDS)", 1),
     }
 )
 
@@ -1543,7 +1582,9 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # message describes.
     # 1641 -> 1653 and 47 -> 48 the same day for `tests/test_t_variants.py` (the
     # forty-eighth), read off `sweep()` in the same way.
-    assert modules >= 48 and asserts >= 1653, (
+    # 1653 -> 1693 and 48 -> 49 the same day for `tests/test_pxd026748_reconstruction.py`
+    # (the forty-ninth), read off `sweep()` in the same way.
+    assert modules >= 49 and asserts >= 1693, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
