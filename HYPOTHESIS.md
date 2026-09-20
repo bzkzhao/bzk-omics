@@ -1,10 +1,12 @@
 # HYPOTHESIS — claim durability in PTM site proteomics
 
-**Version:** 6, superseding v5. It records H9s's measured verdict, and it
-registers two new hypotheses on `PXD026748` before either is measured: H5c
-(corroboration by citation) and H9p (D5 at protein grain).
+**Version:** 7, superseding v6. It adds D7 (draw instability) as an
+**exploratory** class, found after the fact on `PXD026748`. It registers H10 on
+the anchor as D7's first registered test, before any anchor computation. It
+records that the deposits are not independent, and it requires a comparability
+criterion for H4 before anything is counted. H5c and H9p are unchanged.
 **Status:** registered. Amendments are recorded with their trigger so the change
-is auditable; v1 to v5 are superseded, not silently replaced. v3 was a working
+is auditable; v1 to v6 are superseded, not silently replaced. v3 was a working
 draft and was never formally published (`notes/landing/LANDING-HYPOTHESIS-v4.md`).
 
 **What this document is:** the hypotheses, the definitions they depend on, the
@@ -18,7 +20,51 @@ decision can be audited; it is not restated anywhere else.
 
 ---
 
-## 0. Changelog from v5 *(this version)*
+## 0. Changelog from v6 *(this version)*
+
+**Trigger.** A descriptive breakdown of H9s's family, computed from the committed
+fixture after the verdict was recorded (`walk/RESULT-PXD026748-reconstruction.md`,
+the unregistered section, and `notes/scripts/describe_reconstruction.py`). Seed
+variation alone changes some claims' support **in every one of the 18 parameter
+cells**, 53 to 162 of 288 claims per cell. An external review
+(`notes/reports/REVIEW-seed-lability.md`, 2026-09-20, committed unchanged
+beside this version) argued this is a class distinct from
+D5.
+
+1. **D7, draw instability, is added as an exploratory class** (§4). It was
+   found after the fact, so `PXD026748` is its discovery deposit and **not a
+   confirmation of it**.
+2. **H10 is registered** (§5). It is D7's first registered test, on the anchor,
+   before any anchor computation. It carries the primary-readout rule and the
+   conditional denominator.
+3. **The deposits are not independent** (§8 and §9). Both publications share
+   authors. A third, unaffiliated deposit becomes the top gate.
+4. **H4 gains a registered requirement** (§5): a comparability criterion,
+   specified in a later amendment **before** any D3 instance is counted.
+5. **Corrections to the review, recorded so they are not re-introduced:**
+   - `PXD026748`'s publication states **no** imputation width, downshift, scope
+     or seed. The default cell is the reviewer's assumption, not *"the
+     publication's own settings"*.
+   - D7 is therefore **not** *"measured at the publication's settings"* and
+     **not** *"free of any reporting omission"*: the seed and the parameters were
+     omitted.
+   - D7's claim to distinctness rests on something else: lability in every
+     cell, and the fact that recording a seed would make the claim set
+     reproducible without making it stable.
+   - The review's proposed v7 removed the full text of D1 to D6 and of H2, H3,
+     H6, H7, H8, H9, H9s, H5c and H9p, and altered H5c's registered design. It
+     was **not adopted**, and no registered text is removed here.
+6. **The novelty of D7 is unverified.** Multiple imputation for proteomics
+   differential analysis exists (e.g. mi4p). A literature check is required
+   before any novelty claim is written (§11).
+
+**What did not change.** Every other class, every registered hypothesis's text
+(H5c and H9p included), every measured figure, and the kill conditions other
+than the added one.
+
+---
+
+## 0-v6. Changelog from v5 *(carried, unchanged)*
 
 **Two triggers.**
 - **H9s was measured.** The verdict is *extends D5 to imputation alone*. Home:
@@ -260,6 +306,7 @@ has routes, which route.
 | D4b | construction, direct | **latent** *(relocated v4)* | confirmed |
 | D5 | analytical underdetermination | **latent** *(new v4)* | measured |
 | D6 | specification divergence | **introduced** *(new v4)* | measured |
+| D7 | draw instability | **latent** *(new v7)* | **exploratory**: one discovery deposit, no registered test yet |
 | C0 | corroboration control | — | **vacant** |
 
 ### D1 — Selection
@@ -389,6 +436,37 @@ peptides below 0.75, down to 0.499996, and 3 flagged as potential contaminants.
 **Distinguish from D5.** D5 is *the record does not say*. D6 is *we did something
 additional*. The first is the publication's property; the second is ours. An
 instance that conflates them is not an instance.
+
+### D7 — Draw instability *(new, v7)* — **latent**, **exploratory**
+The published claim set is one realisation of a stochastic step, and other
+realisations of the same procedure give a different claim set.
+- **Recording the seed makes the claims reproducible, not stable.** That is what
+  separates D7 from D5. D5 says the record does not determine the analysis. D7
+  says that even a fully determined procedure leaves the claims dependent on the
+  draw.
+
+**Discovery instance, which is not a confirmation.** On `PXD026748`, H9s's
+family was re-read descriptively after its verdict. Seed variation alone changes
+some claims' support in **every one of the 18 parameter cells**, 53 to 162 of
+288 claims per cell. No underdetermined claim fails on the choice of cell alone.
+Home: `walk/RESULT-PXD026748-reconstruction.md` and the committed fixture.
+
+**What the discovery deposit does not show.**
+- **It does not show that D7 holds at the publication's settings.** Those are
+  unstated, and so is its seed.
+- **It does not show a rate for the literature.**
+- **It does not show that any claim is false.** No claim is unsupported in
+  every member. *Support varies* must never be written as *the site is not
+  modified*.
+
+**Status.** Exploratory until a registered test on data not yet examined
+confirms it. H10 is the first such test; the third deposit is the independent
+one.
+
+**Relation to prior work.** Draw variability in single imputation is known, and
+multiple imputation is its standard remedy. Any novelty claim is limited to a
+measured rate of **claim-set** instability against a publication's own claim
+set. It is **unverified** until the literature check in §11 is done.
 
 ### C0 — Corroboration (negative control) — **VACANT**
 Independent perturbational designs converge and the claim survives D1–D4. Not a
@@ -607,11 +685,41 @@ is smaller at protein grain, in the same deposit, pipeline and family.
   whether this deposit's two grains differ.
 - The thresholds are judgement, fixed here, and not moved after measurement.
 
+**H10 (D7 on the anchor) — new, v7, registered before any anchor computation.**
+The anchor's published claims that reach its reconstruction's test are
+draw-unstable under an imputation family built on the same axes as H9s's.
+- *Test held fixed:* the anchor's D5 reconstruction's test, as recorded for its
+  223. The family varies the imputation only.
+- *Primary readout, fixed by this rule:* at the anchor's **default cell** (width
+  0.3, downshift 1.8, per-sample, 20 seeds), the share of claims whose support
+  differs across seeds, **over claims whose row carries at least one imputed
+  value**.
+- *Reported, and never the headline:* the same share over all claims reaching
+  the test; the full-family underdetermined fraction; the single median draw.
+- *Directions:*
+  - **D7 recurs:** the primary readout is at least **5%**.
+  - **D7 is absent on the anchor:** at most **1%**. That is a reportable
+    outcome, and D7 would then be stated as deposit-specific.
+  - Between the two: **indeterminate**.
+- *Declared limitation:* the anchor shares authors with `PXD026748`, so a
+  recurrence tests the group's practice, **not the literature's**. Only the third
+  deposit (§9) is an independent test.
+- *Before measurement,* the anchor's reconstruction pre-registration fixes the
+  grid values, the population, and the exact test.
+- The thresholds are judgement, fixed here, and not moved after measurement.
+
 **H4 (attribution, D3).** For sites with orthogonal modifier evidence, some
 fraction carries evidence supporting more than one modifier identity, and that
 fraction is higher under interferon stimulation than at baseline.
 *Direction:* nonzero, and higher under IFN.
 *Status:* **unmeasured.**
+*Registered requirement (v7):* **co-annotation across studies is not
+disagreement.** A residue reported as ubiquitinated in one study and ISGylated in
+another is not in conflict when the conditions differ. Before any D3 instance
+is counted, a later amendment must specify a comparability criterion: same
+residue, same sequence version, a comparable perturbation state, and two
+assignments that cannot both hold. `PXD026748`'s co-annotation count is a
+candidate pool, not an exposure set, until that criterion exists.
 *Standing counter-position:* the field's settled answer is Kim et al.'s
 baseline-derived majority-ubiquitin conclusion and the under-6% figure repeated
 since. Argue the conditional-on-stimulation claim with own numbers or it is
@@ -648,6 +756,7 @@ result.
 | H5c | ISG15 claims among H9s's 288, split by the publication's in vivo flag — **unmeasured** |
 | H9p | Supplementary Table 2's proteins reaching the shotgun reconstruction's test, and within them those with at least one missing value — **unmeasured** |
 | D6 | Published claims entering the reconstruction (measured: 798) |
+| D7 (H10, anchor) | Anchor claims reaching the reconstruction's test whose row carries at least one imputed value — **unmeasured** |
 | C0 | Targets appearing in two or more independent perturbational designs **with a measured arm on both sides** |
 
 **Amended (v4).** D5 and D6 share a denominator the earlier classes lacked: the
@@ -731,11 +840,18 @@ One number, one more dataset.
 - **New:** the construction findings prove to be a property of this deposit
   rather than of published claims. At n=1 this is currently unanswerable, and
   the write-up must say so rather than generalising.
+- **New (v7):** every instance comes from one group's practice. The two deposits
+  share authors, so agreement between them may reflect shared conventions, not
+  the literature. Until an unaffiliated deposit is measured, the write-up must
+  say so, and must not present the two deposits as independent samples.
 
 ---
 
 ## 9. Open gates
 
+- **A third, unaffiliated deposit — the top gate (v7).** It is the only
+  independent test of D5's and D7's generality, since the first two deposits
+  share authors.
 - **H1 blocked** on the 2019 search FASTA. The refusal fixture carries sequence
   versions only for refused rows; the drift receipt measures cache-against-
   UniProt over one day, a different relation. If the deposit carries no search
@@ -808,6 +924,11 @@ One number, one more dataset.
   biology — evidence-strength framework in this exact biology. Read before
   defining D3 tiers; cite and extend.
 - **New:** the MNAR / downshifted-normal imputation literature, for D4.
+- **New (v7), required before any D7 novelty claim:** the multiple-imputation
+  literature for proteomics differential analysis (for example mi4p), and
+  studies of run-to-run variability from single imputation. D7's claim to
+  novelty is limited to claim-set instability against a publication's own claim
+  set, and even that stays unverified until this is read.
 - **New, and first:** the anchor publication itself — Pinto-Fernández et al.,
   *Br J Cancer* 124:817–830 (2021) — read at **figure, table and supplementary
   grain**. Two of this version's five amendments came from figures that had been
