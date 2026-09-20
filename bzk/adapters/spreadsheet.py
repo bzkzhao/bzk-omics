@@ -68,17 +68,37 @@ def _load(source: Path | bytes, *, read_only: bool) -> Any:
         raise SpreadsheetError(f"not a readable workbook: {type(exc).__name__}: {exc}") from exc
 
 
-def rows(source: Path | bytes, *, min_row: int = 1) -> list[tuple[Any, ...]]:
-    """Every cell of the workbook's **first** sheet, as `openpyxl` yields it.
+def rows(
+    source: Path | bytes, *, min_row: int = 1, sheet: str | None = None
+) -> list[tuple[Any, ...]]:
+    """Every cell of one sheet of the workbook, as `openpyxl` yields it.
 
-    First sheet and not a named one: both callers read single-sheet exports, and a name would be a
-    convention neither file states. `min_row` is 1-based and matches `openpyxl`'s own, so a caller
-    skipping a title row asks for what it means rather than slicing afterwards.
+    **`sheet=None` is the first sheet, and that is what every caller written before 2026-09-20
+    gets.** The original docstring said *"First sheet and not a named one: both callers read
+    single-sheet exports, and a name would be a convention neither file states."* That held while
+    both callers did. `PXD026748`'s Supplementary Table 1 is one workbook of **three** sheets
+    (`walk/walk_PXD026748.json`), so the caller that reads it has to say which, and a name it can
+    state is better than a position it would be guessing. The default keeps the old behaviour
+    exactly rather than making every caller name a sheet it has only one of.
+
+    A named sheet that is not in the workbook raises, naming the sheets that are: a reader that
+    silently fell back to the first would answer a question about `Table 1` with another sheet's
+    rows, which is the shape `CLAUDE.md` § *Never assert what the data cannot support* forbids.
+
+    `min_row` is 1-based and matches `openpyxl`'s own, so a caller skipping a title row asks for
+    what it means rather than slicing afterwards.
     """
     workbook = _load(source, read_only=True)
     try:
-        sheet = workbook.worksheets[0]
-        return list(sheet.iter_rows(min_row=min_row, values_only=True))
+        if sheet is None:
+            worksheet = workbook.worksheets[0]
+        elif sheet in workbook.sheetnames:
+            worksheet = workbook[sheet]
+        else:
+            raise SpreadsheetError(
+                f"the workbook has no sheet named {sheet!r}; it has {workbook.sheetnames}"
+            )
+        return list(worksheet.iter_rows(min_row=min_row, values_only=True))
     finally:
         workbook.close()
 
@@ -116,10 +136,15 @@ def merged_spans(source: Path | bytes) -> list[tuple[int, int, int, int]]:
         workbook.close()
 
 
-def text_rows(source: Path | bytes, *, min_row: int = 1) -> list[list[str]]:
+def text_rows(
+    source: Path | bytes, *, min_row: int = 1, sheet: str | None = None
+) -> list[list[str]]:
     """`rows`, with every cell as text and a missing cell as the empty string.
 
     The empty string rather than `'None'`: a caller reading header cells needs *absent* to be
     distinguishable from a cell whose text is the word, and `str(None)` erases that difference.
     """
-    return [["" if c is None else str(c) for c in row] for row in rows(source, min_row=min_row)]
+    return [
+        ["" if c is None else str(c) for c in row]
+        for row in rows(source, min_row=min_row, sheet=sheet)
+    ]

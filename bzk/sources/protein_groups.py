@@ -48,6 +48,7 @@ import sys
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from urllib.parse import quote
 
 import requests
 
@@ -60,11 +61,29 @@ from bzk.sources.pride import PXD018299_PROTEIN_GROUPS, fetch
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "pxd018299_protein_groups.json"
 
-#: Br J Cancer 124:817-830 (2021), doi:10.1038/s41416-020-01167-y — the publication the whole
-#: PXD018299 reproduction is anchored to. Springer serves supplementary files at a stable path.
-SPRINGER_ESM = (
-    "https://static-content.springer.com/esm/art%3A10.1038%2Fs41416-020-01167-y/MediaObjects/"
-)
+#: Br J Cancer 124:817-830 (2021) — the publication the whole PXD018299 reproduction is anchored
+#: to. Springer serves supplementary files at a stable path, keyed by the article's DOI.
+ANCHOR_DOI = "10.1038/s41416-020-01167-y"
+
+
+def _esm_prefix(doi: str) -> str:
+    """Springer's supplementary path for one article, from its DOI.
+
+    **Added 2026-09-20, and `SPRINGER_ESM` below is defined through it so its value cannot move.**
+    The prefix used to be a literal with the anchor's DOI baked in, which was right while every
+    declaration here belonged to the anchor's article. `PXD026748`'s Supplementary Table 1 is
+    Nature Immunology's (doi:10.1038/s41590-021-01035-8), so a second article needs a second
+    prefix — and a second literal would be this one copied with two characters changed, which is
+    the mirror `CLAUDE.md` § *Single source of truth* refuses. The DOI is the only thing that
+    differs, so the DOI is what varies.
+    """
+    return f"https://static-content.springer.com/esm/art%3A{quote(doi, safe='')}/MediaObjects/"
+
+
+#: Unchanged in value: `_esm_prefix(ANCHOR_DOI)` is byte-identical to the literal it replaces, and
+#: `tests/test_pxd026748_published_cascade.py` asserts that every declaration below still resolves
+#: to the URL it resolved to before.
+SPRINGER_ESM = _esm_prefix(ANCHOR_DOI)
 
 
 @dataclass(frozen=True)
@@ -75,10 +94,13 @@ class SupplementaryFile:
     label: str
     filename: str
     expected_content_hash: str
+    #: The article the file belongs to. Defaults to the anchor's, so the three declarations below
+    #: are unchanged and only a file from another article has to say which.
+    doi: str = ANCHOR_DOI
 
     @property
     def url(self) -> str:
-        return SPRINGER_ESM + self.filename
+        return _esm_prefix(self.doi) + self.filename
 
 
 SUPP_DATA_1 = SupplementaryFile(
