@@ -84,3 +84,55 @@ general to the step, not particular to site data. A PTM-specific argument cannot
 rest on per-claim fragility. It can rest only on exposure: site claims, and
 absence-defined claims in particular, carry missing values far more often. That
 exposure difference is descriptive here and was not registered.
+
+
+---
+
+## Addendum, 2026-09-20 — post-hoc checks and two corrections (UNREGISTERED)
+
+Added after an adversarial review of the findings document. **Nothing here changes
+either registered verdict.** The text above is left as written, and this section
+supersedes it where they disagree.
+
+**1. The stratified comparison declined above was later run, as a descriptive
+check.** The reading above says running one *"would be a post-hoc analysis"*. It
+is one, and it is labelled as such. Script:
+`notes/scripts/describe_h5c_h9p_strata.py`, which reads only
+`tests/fixtures/pxd026748_h5c_h9p.json`.
+
+```
+H5c — durable share, flagged minus unflagged, within missingness strata (clusters 1a, 1b, 2)
+   0-5 missing: flagged 35, unflagged 46, difference +0.150
+   6-8 missing: flagged 53, unflagged 45, difference +0.297
+     9 missing: flagged 38, unflagged 51, difference +0.147
+  weighted by stratum size: +0.203
+H9p — underdetermined share within missingness strata, proteins against sites
+   1-2 missing: proteins 30 of 55 (55%) | sites 10 of 24 (42%)
+   3-5 missing: proteins 43 of 63 (68%) | sites 29 of 46 (63%)
+   6-8 missing: proteins 44 of 55 (80%) | sites 79 of 111 (71%)
+    9+ missing: proteins 11 of 12 (92%) | sites 59 of 89 (66%)
+```
+
+- **H5c:** the corroboration gap survives the declared missingness confound in
+  every stratum. Abundance acting through measured intensity is not tested.
+- **H9p:** at equal missingness, protein claims are at least as
+  imputation-dependent as site claims. This supports the exposure reading above.
+
+**2. The flag is not independent corroboration.** The reading above calls it
+*"independent, citation-level corroboration"*. Zhang et al. 2019 shares an author
+with the publication (F. Thery). The publication's GG search strategy was based on
+that study's method, and both appear to come from the Ghent group. **The flag is a
+within-lab reproducibility signal, in mouse.** H5c therefore shows that durability
+tracks reproduction within one lab's practice, not corroboration in general. The
+wording *"its defeats are not noise"* becomes *"not only noise"*.
+
+**3. The timing.** H5c and H9p were registered in v6 (11:37 UTC) after the
+reconstruction fixture holding every claim's durability had been committed (11:23
+UTC), and with the flag column visible in the published table. The join had not
+been run. They were **pre-specified, not blind**.
+
+**4. The exposure argument has a design confound.** Site claims carry missing
+values more often partly because this experiment creates true absences: the
+deconjugase strips the conjugate, and the knockout removes ISG15. So *"a
+PTM-specific argument can rest only on exposure"* needs a further condition. It
+would have to show high exposure outside deconjugase and knockout designs.

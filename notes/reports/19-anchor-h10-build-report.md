@@ -1,6 +1,6 @@
 # Report — the anchor under its named test: gate G, check A, and H10
 
-**Run at:** 2026-09-22 · **Working copy:** `/home/user/bzk-omics` (this container's clone of `bzkzhao/bzk-omics`) · **Base:** `0e4dc6b`, a fast-forward of `2eb8445` · **Commits:** `388c757`, `e368326`, and this report's own · **Pushed, every push a fast-forward**
+**Run at:** 2026-09-20 *(corrected 2026-09-20: first recorded as 2026-09-22, which does not match the commit date)* · **Working copy:** `/home/user/bzk-omics` (this container's clone of `bzkzhao/bzk-omics`) · **Base:** `0e4dc6b`, a fast-forward of `2eb8445` · **Commits:** `388c757`, `e368326`, and this report's own · **Pushed, every push a fast-forward**
 
 **Headline.** Part A adds the two missing permutation schemes; Part B implements the whole pre-registration — gate G, check A, the two §3 checks, the 360-member paired family and readouts A to D. **No data run, on any deposit.** Twenty-eight tests, thirty-one mutations. E1 held at 805 + 28; **E2 held exactly as written** — `tests/test_perseus_s0.py`'s P1 comment and the sweep classifications, and nothing else.
 
