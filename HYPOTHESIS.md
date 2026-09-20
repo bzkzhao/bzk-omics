@@ -1,12 +1,16 @@
 # HYPOTHESIS — claim durability in PTM site proteomics
 
-**Version:** 7, superseding v6. It adds D7 (draw instability) as an
+**Version:** 8, superseding v7. It corrects the anchor's D5 instance, which
+rests on a false premise, and reclassifies it as D6. It records H5c's and H9p's
+verdicts, amends H10 to the anchor paper's named test with a registered gate, and
+registers the rule for choosing a third deposit.
+**Previous version line (v7):** version 7, superseding v6. It adds D7 (draw instability) as an
 **exploratory** class, found after the fact on `PXD026748`. It registers H10 on
 the anchor as D7's first registered test, before any anchor computation. It
 records that the deposits are not independent, and it requires a comparability
 criterion for H4 before anything is counted. H5c and H9p are unchanged.
 **Status:** registered. Amendments are recorded with their trigger so the change
-is auditable; v1 to v6 are superseded, not silently replaced. v3 was a working
+is auditable; v1 to v7 are superseded, not silently replaced. v3 was a working
 draft and was never formally published (`notes/landing/LANDING-HYPOTHESIS-v4.md`).
 
 **What this document is:** the hypotheses, the definitions they depend on, the
@@ -20,7 +24,46 @@ decision can be audited; it is not restated anywhere else.
 
 ---
 
-## 0. Changelog from v6 *(this version)*
+## 0. Changelog from v7 *(this version)*
+
+**Triggers.**
+- **An adversarial review (2026-09-20)** checked the findings against both
+  publications.
+- **A reading of the anchor's full text** (PMC7884788, Methods, *Data
+  analysis*) confirmed its central point. The paper names its implementation:
+  *Perseus (v1.6.0.2) ... a t-test with permutation FDR = 0.01 ... and s0 = 0.1*.
+  The Fig. 2 legend applies these values to all the paper's proteomic analyses.
+  It states no imputation, valid-value filter or normalisation.
+- **H5c and H9p were measured:** `walk/RESULT-PXD026748-h5c-h9p.md`.
+
+1. **The anchor's D5 instance is withdrawn and reclassified as D6** (§4). v4
+   said the anchor states permutation FDR and s0 *"and no implementation"*.
+   That is false. The 223 (and the 237 significance losses in total) measure our
+   reconstruction's departure from a named test, which is **introduced**, not
+   latent. The anchor's latent gap is its unstated imputation, filter and
+   normalisation, and that is **unmeasured**.
+2. **D5's surviving instance is `PXD026748`** (H9s): imputation, with the test
+   specified and reproduced. §7's item 5 and the kill condition that relied on
+   the 223 are amended in place.
+3. **H9 is re-scoped.** Its anchor confirmation rested on the false premise, and
+   its status is changed to reflect that.
+4. **H5c: discriminates** (+0.19). **H9p: general to imputation** (U_p 0.692
+   against U_s 0.656). Both are recorded with their homes.
+5. **H10 is amended before any anchor computation.**
+   - The test becomes the paper's named test.
+   - A gate on published Perseus output is required.
+   - Permutation randomness is declared as a second source of draw instability.
+   - A rule is given for parameters the authors may supply.
+6. **A third-deposit selection rule is registered** (§9): criteria, frame and
+   order, fixed before any candidate is examined.
+
+**What did not change.** H9s's verdict, D7's exploratory status, every other
+class and registered hypothesis, and every measured figure's value. Only the
+classification of the anchor's 223 changes.
+
+---
+
+## 0-v7. Changelog from v6 *(carried, unchanged)*
 
 **Trigger.** A descriptive breakdown of H9s's family, computed from the committed
 fixture after the verdict was recorded (`walk/RESULT-PXD026748-reconstruction.md`,
@@ -304,8 +347,8 @@ has routes, which route.
 | D3 | attribution | — | **unevidenced** |
 | D4a | construction via selection | **introduced** | confirmed, DDX58 |
 | D4b | construction, direct | **latent** *(relocated v4)* | confirmed |
-| D5 | analytical underdetermination | **latent** *(new v4)* | measured |
-| D6 | specification divergence | **introduced** *(new v4)* | measured |
+| D5 | analytical underdetermination | **latent** *(new v4)* | measured on `PXD026748` (imputation); the anchor instance was **withdrawn in v8** and reclassified as D6 |
+| D6 | specification divergence | **introduced** *(new v4)* | measured on the anchor: 36 from filters, plus (v8) 237 from our departure from the named test |
 | D7 | draw instability | **latent** *(new v7)* | **exploratory**: one discovery deposit, no registered test yet |
 | C0 | corroboration control | — | **vacant** |
 
@@ -396,7 +439,14 @@ The published record does not determine the analysis, so a faithful
 reconstruction produces different support for the same claim without anyone
 erring.
 
-**Named instance and measured shape.** The anchor's methods state permutation
+**Withdrawn (v8).** The paragraph below rests on a false premise. The anchor's
+methods name the implementation: Perseus 1.6.0.2, a t-test with permutation FDR
+0.01 and s0 0.1. Its 223 are therefore our departure from a named test, which is
+**D6** (see D6, v8 note). The anchor's latent gap is its unstated imputation,
+filter and normalisation, which is **unmeasured**. The paragraph is kept, struck
+in substance, so that the error stays auditable.
+
+~~**Named instance and measured shape.**~~ The anchor's methods state permutation
 FDR 0.01 with s0 0.1, and no implementation. A reconstruction reading the methods
 and choosing a standard test — BH on Welch — finds, of 749 published claims
 reaching the test, **223 failing the p-value (179 on the p-value alone)** and 58
@@ -432,6 +482,13 @@ localisation cut**, which removes 33 of the 798, and the **contaminant drop**,
 which removes 3. Total **36**. Both are defensible field conventions; both are
 documented in `ONTOLOGY.md`; neither is what the paper did — S1 retains 33
 peptides below 0.75, down to 0.499996, and 3 flagged as potential contaminants.
+
+**v8 note — the anchor's significance losses belong here.** Our anchor
+reconstruction replaced the named test with Welch's t, Benjamini–Hochberg and a
+log2 fold-change cut of 1. Its 237 significance losses (179 on P alone, 14 on
+fold change alone, 44 on both; `tests/fixtures/pxd018299_published_cascade.json`)
+are the reconstruction doing something other than what the paper did. They join
+the 36 filter losses as D6 on the anchor.
 
 **Distinguish from D5.** D5 is *the record does not say*. D6 is *we did something
 additional*. The first is the publication's property; the second is ours. An
@@ -562,9 +619,13 @@ statistical parameters without an implementation, a faithful reconstruction
 choosing a standard test withdraws support from a measurable fraction of the
 published claims.
 *Direction:* nonzero, and larger than any single upstream filter's cost.
-*Status:* **confirmed on this deposit.** 223 of 749 fail the p-value, 179 on it
+~~*Status:* **confirmed on this deposit.** 223 of 749 fail the p-value, 179 on it
 alone, against 36 for the two divergent filters combined and 33 for the largest
-single one. Home: `FINDINGS` §14.
+single one. Home: `FINDINGS` §14.~~
+*Status (v8):* **its premise is not met on the anchor.** The anchor states the
+implementation, so the 223 are D6, not an instance of H9. H9's claim survives
+only through H9s's family form on `PXD026748`, where the unstated step is the
+imputation.
 *What would weaken it:* a deposit whose methods specify the test fully, where the
 reconstruction's support matches.
 ~~*The sharp form, not yet registered as a hypothesis:*~~ **Registered in v5 as
@@ -623,6 +684,7 @@ measurement.
 The seed is unrecorded, so matching one member is not evidence that the
 publication used it.
 
+*Status (v8):* H5c and H9p, which were registered beside it, are measured below.
 *Status (v6):* **measured.** 111 durable and 177 underdetermined of 288, so the
 verdict is **extends D5 to imputation alone**. The registered expectation
 (*"extends, narrowly"*) held in direction and missed in size. Home:
@@ -655,6 +717,11 @@ durable under H9s's family than those it does not flag.
   durability and citation agree or disagree.
 - The thresholds are judgement, fixed here, and not moved after measurement.
 
+*H5c status (v8):* **measured, verdict discriminates.** Durable 62 of 126
+flagged against 43 of 142 unflagged, a difference of +0.189. The missingness
+confound is reported descriptively; flagged claims sit slightly less often at 9
+missing values. Home: `walk/RESULT-PXD026748-h5c-h9p.md`.
+
 **H9p (D5 at protein grain) — new, v6, registered on `PXD026748` before
 measurement.** The imputation-underdetermination measured under H9s at site grain
 is smaller at protein grain, in the same deposit, pipeline and family.
@@ -685,7 +752,14 @@ is smaller at protein grain, in the same deposit, pipeline and family.
   whether this deposit's two grains differ.
 - The thresholds are judgement, fixed here, and not moved after measurement.
 
+*H9p status (v8):* **measured, verdict general to imputation.** U_p is 128 of
+185 (0.692) and U_s is 177 of 270 (0.656). Descriptively, the unconditional gap
+(21% against 61%) comes from exposure: 94% of site claims carry missing values,
+against 31% of protein claims. Home: `walk/RESULT-PXD026748-h5c-h9p.md`.
+
 **H10 (D7 on the anchor) — new, v7, registered before any anchor computation.**
+**Amended in v8, still before any anchor computation.** Where this entry and the
+v8 amendment below disagree, the amendment governs.
 The anchor's published claims that reach its reconstruction's test are
 draw-unstable under an imputation family built on the same axes as H9s's.
 - *Test held fixed:* the anchor's D5 reconstruction's test, as recorded for its
@@ -707,6 +781,36 @@ draw-unstable under an imputation family built on the same axes as H9s's.
 - *Before measurement,* the anchor's reconstruction pre-registration fixes the
   grid values, the population, and the exact test.
 - The thresholds are judgement, fixed here, and not moved after measurement.
+
+**H10, v8 amendment.**
+- **The test is the paper's named test,** replacing *"the anchor's D5
+  reconstruction's test"*: a two-sample t-test with the s0 modification (s0 =
+  0.1), with significance at **permutation FDR ≤ 0.01**, as Perseus 1.6.0.2
+  computes it. Support means: significant, **and** in the direction of the
+  published claim set (higher in KO + IFN; Data Table S1 lists the peptides
+  enriched there).
+- **A gate, required before the anchor run.** The permutation-FDR
+  implementation must reproduce published Perseus output: `PXD026748`'s
+  Supplementary Table 3 significance calls (FDR 0.05, S0 = 1; 282 marked, 72 up
+  and 210 down), on the proteins where imputation cannot move the call. The
+  pre-registration fixes the gate's metric and threshold before it runs. If the
+  gate fails, H10 does not run.
+- **Two random steps.** Each member draws an imputation (seed k) and a
+  permutation set (seed k), paired, with 20 draws per cell. The primary readout
+  counts support changing across these paired draws. The same readout is also
+  reported with the permutation seed held fixed, to separate the two sources.
+  The randomisation count follows Perseus's documented default, confirmed in the
+  pre-registration.
+- **The steps the paper leaves unstated** (the valid-value rule, normalisation,
+  and which intensity columns) are fixed in the pre-registration, each with a
+  reason. They are not chosen by outcome.
+- **Parameters the authors may supply.** Anything the authors state *before*
+  the pre-registration is committed (imputation settings, randomisation count,
+  or confirmation that Data Table S1 carries imputed values) enters as fixed.
+  Anything stated *after* is reported as an added readout and changes no
+  registered primary.
+- The directions and thresholds of the v7 entry are unchanged: at least 5%
+  recurs, at most 1% absent, indeterminate between.
 
 **H4 (attribution, D3).** For sites with orthogonal modifier evidence, some
 fraction carries evidence supporting more than one modifier identity, and that
@@ -756,7 +860,8 @@ result.
 | H5c | ISG15 claims among H9s's 288, split by the publication's in vivo flag — **unmeasured** |
 | H9p | Supplementary Table 2's proteins reaching the shotgun reconstruction's test, and within them those with at least one missing value — **unmeasured** |
 | D6 | Published claims entering the reconstruction (measured: 798) |
-| D7 (H10, anchor) | Anchor claims reaching the reconstruction's test whose row carries at least one imputed value — **unmeasured** |
+| D7 (H10, anchor) | Anchor claims reaching the reconstruction's test (the paper's named test, v8) whose row carries at least one imputed value — **unmeasured** |
+| D6 (anchor, v8) | 798 published claims: 36 lost to filters the paper did not apply, and 237 of the 749 reaching the test lost to our departure from the named test (measured) |
 | C0 | Targets appearing in two or more independent perturbational designs **with a measured arm on both sides** |
 
 **Amended (v4).** D5 and D6 share a denominator the earlier classes lacked: the
@@ -803,7 +908,11 @@ cascade, and with it two things v3 did not have:
    tool produces this, because it requires the published claim set pinned as an
    artefact and both sides keyed to accession-with-sequence-version. That is
    D2's machinery doing work D2 was not built for.
-5. **D5, the 179.** Published claims that hold under the publication's stated
+5. ~~**D5, the 179.**~~ **Withdrawn (v8):** the anchor's test was named, so the
+   179 measure our departure from it (D6). The D5 result the thesis now holds
+   is H9s on `PXD026748`: published claims whose support depends on an unstated
+   imputation, with the named test reproduced exactly. *(Original text follows,
+   for audit.)* Published claims that hold under the publication's stated
    criterion and fail under an honest reconstruction of it. This is claim
    durability with an exposure denominator, and it is the result the thesis was
    reaching for by a different route.
@@ -832,7 +941,10 @@ One number, one more dataset.
   FIRED (v4).** Against *capacity* the paths hold: 512 of a possible 516, four
   short of the arithmetic ceiling. The reconstruction is not leaking claims
   through its own filters — those cost 36 of 798. But 286 published claims do not
-  survive, and 223 of those fail on a test the publication did not specify. So
+  survive, and 223 of those fail on a test the publication did not specify
+  *(v8: false. The publication named its test, and these 223 are our departure
+  from it, D6. The concentration argument therefore rests on our reconstruction,
+  not on the record.)* So
   the rates are not low; they are **concentrated in one identified mechanism**,
   which is a sharper result than a diffuse one. This is the smaller and better
   paper the condition anticipated. Write that one.
@@ -852,6 +964,22 @@ One number, one more dataset.
 - **A third, unaffiliated deposit — the top gate (v7).** It is the only
   independent test of D5's and D7's generality, since the first two deposits
   share authors.
+  **Selection rule, registered v8, before any candidate is examined.**
+  - *The frame:* `data/frame/frame_raw.tsv` as committed, walked in ascending
+    PXD accession order.
+  - *A candidate qualifies* only if it meets all five criteria:
+    1. no author is shared with either earlier publication;
+    2. a published, site-level claim set that lists its members;
+    3. a stated analysis pipeline, including the test and the selection rule;
+    4. a site table from a search engine in the deposit;
+    5. the ISGylation, ubiquitination or other GG-remnant PTM domain of the
+       frame.
+  - *The first qualifying candidate is taken.* Published statistics usable as a
+    gate are preferred: if the first qualifier lacks them, the walk continues to
+    at most five qualifiers and takes the first with a gate, or else the first
+    qualifier.
+  - *Attrition* at every criterion is reported. It is itself a measure of
+    curatability.
 - **H1 blocked** on the 2019 search FASTA. The refusal fixture carries sequence
   versions only for refused rows; the drift receipt measures cache-against-
   UniProt over one day, a different relation. If the deposit carries no search
