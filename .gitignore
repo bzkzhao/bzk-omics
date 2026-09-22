@@ -63,3 +63,10 @@ credentials.json
 
 # Ephemeral agent working files (.claude/config/issue-tracker.md)
 .scratch/
+
+# Local scratch — adjudicated in notes/reports/05-land-artefacts-report.md
+data/frame/200
+data/frame/probe*.py
+data/frame/probe_v*.json
+notes/reports/last.md
+notes/reports/run.md
