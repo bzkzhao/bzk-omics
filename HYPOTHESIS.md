@@ -1,6 +1,11 @@
 # HYPOTHESIS — claim durability in PTM site proteomics
 
-**Version:** 8, superseding v7. It corrects the anchor's D5 instance, which
+**Version:** 9, superseding v8. It records H10's measured verdict (**recurs**,
+from the third and final registered attempt, under a transferred test
+convention), moves D7 from exploratory to *recurred within one group*, and
+records seven published claims that rest entirely on imputed values. No registered hypothesis, threshold or class
+definition changes.
+**Previous version line (v8):** version 8, superseding v7. It corrects the anchor's D5 instance, which
 rests on a false premise, and reclassifies it as D6. It records H5c's and H9p's
 verdicts, amends H10 to the anchor paper's named test with a registered gate, and
 registers the rule for choosing a third deposit.
@@ -10,7 +15,7 @@ the anchor as D7's first registered test, before any anchor computation. It
 records that the deposits are not independent, and it requires a comparability
 criterion for H4 before anything is counted. H5c and H9p are unchanged.
 **Status:** registered. Amendments are recorded with their trigger so the change
-is auditable; v1 to v7 are superseded, not silently replaced. v3 was a working
+is auditable; v1 to v8 are superseded, not silently replaced. v3 was a working
 draft and was never formally published (`notes/landing/LANDING-HYPOTHESIS-v4.md`).
 
 **What this document is:** the hypotheses, the definitions they depend on, the
@@ -24,7 +29,60 @@ decision can be audited; it is not restated anywhere else.
 
 ---
 
-## 0. Changelog from v7 *(this version)*
+## 0. Changelog from v8 *(this version)*
+
+**The trigger.** H10 was measured on the anchor, in three registered attempts,
+each committed before it ran, and each reported beside the others:
+- `walk/PREREG-PXD018299-H10.md`, `-attempt2.md` and `-attempt3.md`;
+- `walk/RESULT-PXD018299-H10-attempt1.md`, `-attempt2.md` and `-attempt3.md`.
+
+1. **H10's verdict is recorded: recurs** (§5, H10 status). Among claims whose row
+   carries an imputed value, 159 of 751 (21.2%) change support across the default
+   cell's 20 paired draws. The primary variant is `joint_half` +
+   `random_excluding_trivial`.
+   - *The flag every figure carries:* the `joint_half` convention was
+     **calibrated on `PXD026748`'s published output and transferred** to this
+     deposit, across a different Perseus version, s0, FDR and design. Perseus's
+     documentation defines its q-value without that halving, and whether the
+     verdict survives without it is **untested**.
+2. **D7 moves from exploratory to recurred within one group** (§4). This is its
+   first registered test, on data it was not discovered on. The anchor shares
+   authors with `PXD026748`, so this is recurrence within one group's practice,
+   and the independent test is still the third deposit (§9).
+3. **The anchor under its named test** (§4, D6 note). 725 of 791 testable claims
+   are recovered at the default cell. That replaces the 237 losses measured
+   under our departing Welch-based test.
+4. **An observation is recorded** (§4, after D7): **seven published claims have
+   no measurement in the contrast they were tested in.** Their deposit
+   intensities sit only in untreated samples, so all twelve of their values in
+   the tested comparison are imputed, and all seven were published as
+   significantly enriched.
+   - A claim that S1 was *not* quantified from the deposit was **withdrawn**
+     before this version: it came from comparing a rounded table at a tolerance
+     of 1e-6 (`walk/CORRECTION-PXD018299-S1-provenance.md`). S1 **is** log2 of
+     the deposit's summed intensities.
+5. **An open question about the population,** recorded and not acted on: the
+   deposit holds twelve samples, treated and untreated, and the paper's
+   valid-value filter was probably applied across all twelve, where the
+   reconstruction applied it across the six treated ones. Attempt 3's stopping
+   rule closes further attempts without new information.
+6. **Defects, recorded and not rewritten.**
+   - Attempt 2's registration had two defects: check A was satisfied by *any
+     seed*, and ties were broken by list order. Together they produced a
+     degenerate primary.
+   - Readout A was computed over the whole family but labelled as the default
+     cell, in every attempt since turn 19. It is corrected by
+     `notes/scripts/recompute_readout_a.py`, and no scored result depends on it.
+   - The S1 comparison used a 1e-6 tolerance against a rounded published table,
+     which produced a false finding (withdrawn above) and a spurious
+     `normalisation: undetermined` in the fixtures.
+
+**What did not change.** Every class definition, every threshold, H5c's and
+H9p's verdicts, and the kill conditions.
+
+---
+
+## 0-v8. Changelog from v7 *(carried, unchanged)*
 
 **Triggers.**
 - **An adversarial review (2026-09-20)** checked the findings against both
@@ -349,7 +407,7 @@ has routes, which route.
 | D4b | construction, direct | **latent** *(relocated v4)* | confirmed |
 | D5 | analytical underdetermination | **latent** *(new v4)* | measured on `PXD026748` (imputation); the anchor instance was **withdrawn in v8** and reclassified as D6 |
 | D6 | specification divergence | **introduced** *(new v4)* | measured on the anchor: 36 from filters, plus (v8) 237 from our departure from the named test |
-| D7 | draw instability | **latent** *(new v7)* | **exploratory**: one discovery deposit, no registered test yet |
+| D7 | draw instability | **latent** *(new v7)* | **recurred within one group** (v9): discovered on `PXD026748`, recurred in a registered test on the anchor (H10, 21.2%); independent test pending |
 | C0 | corroboration control | — | **vacant** |
 
 ### D1 — Selection
@@ -490,6 +548,15 @@ fold change alone, 44 on both; `tests/fixtures/pxd018299_published_cascade.json`
 are the reconstruction doing something other than what the paper did. They join
 the 36 filter losses as D6 on the anchor.
 
+**v9 note — the anchor under its named test.** Recomputed with the paper's named
+test (H10, attempt 3), **725 of 791** testable claims are supported at the
+default cell, under a transferred convention. That count was disclosed before
+the run and is not a registered test; most of it is recovery of a detection
+pattern, since 751 of the 791 claims carry imputed values. So the 237 losses above were a
+property of our departing test and not of the published claims. Home:
+`walk/RESULT-PXD018299-H10-attempt3.md` §4, recomputed by
+`notes/scripts/recompute_readout_a.py`.
+
 **Distinguish from D5.** D5 is *the record does not say*. D6 is *we did something
 additional*. The first is the publication's property; the second is ours. An
 instance that conflates them is not an instance.
@@ -516,9 +583,35 @@ Home: `walk/RESULT-PXD026748-reconstruction.md` and the committed fixture.
   every member. *Support varies* must never be written as *the site is not
   modified*.
 
-**Status.** Exploratory until a registered test on data not yet examined
+~~**Status.** Exploratory until a registered test on data not yet examined
 confirms it. H10 is the first such test; the third deposit is the independent
-one.
+one.~~
+**Status (v9): recurred within one group.**
+- H10 (anchor, attempt 3) recurs: 159 of 751 claims with imputed values
+  (21.2%) change support across the default cell's 20 paired draws.
+- The instability is **imputation-driven**. With the permutation seed fixed it
+  is 159 of 751; with the imputation seed fixed, 1 of 751.
+- The test convention was **calibrated on the other deposit's output and
+  transferred**; Perseus's documentation describes no such halving, and the
+  verdict's sensitivity to it is untested.
+- The matrix is the deposit's site table, which is also the published table
+  (`walk/CORRECTION-PXD018299-S1-provenance.md`).
+- Both deposits share authors, so **independent confirmation still requires the
+  third deposit** (§9).
+
+**An observation (v9) — seven claims rest entirely on imputed values.**
+- Data Table S1 **is** log2 of the deposit's summed intensities, rounded. An
+  earlier claim to the contrary was a 1e-6 tolerance artefact and is withdrawn:
+  `walk/CORRECTION-PXD018299-S1-provenance.md`.
+- Seven published claims (deposit ids 124, 434, 562, 1070, 1140, 1233, 1903)
+  have intensities **only in the untreated samples**. In the contrast the paper
+  tested, KO + IFN against WT + IFN, all twelve of their values are imputed.
+- All seven pass the localisation cut with ordinary identification scores, and
+  all seven were published as significantly enriched.
+
+**It is not assigned to a class.** It is the limiting case of D7's mechanism —
+support resting wholly on generated values — and placing it would need its own
+registered criterion. Home: `walk/CORRECTION-PXD018299-S1-provenance.md`.
 
 **Relation to prior work.** Draw variability in single imputation is known, and
 multiple imputation is its standard remedy. Any novelty claim is limited to a
@@ -812,6 +905,23 @@ draw-unstable under an imputation family built on the same axes as H9s's.
 - The directions and thresholds of the v7 entry are unchanged: at least 5%
   recurs, at most 1% absent, indeterminate between.
 
+*H10 status (v9):* **measured, verdict recurs.** Home:
+`walk/RESULT-PXD018299-H10-attempt3.md`.
+- **Attempt 1:** the gate failed. The FDR was about twice as conservative as
+  Perseus's, so the named test was not reproduced.
+- **Attempt 2:** the fitted `joint_half` convention passed its unfitted checks
+  (recall 0.965; direction split 64 and 212 against Perseus's 72 and 210). But
+  a registration defect made the primary degenerate.
+- **Attempt 3,** the final attempt by its stopping rule:
+  - the primary is `joint_half` + `random_excluding_trivial`;
+  - check A, on the typical draw, had a median of 722.5 claims;
+  - **159 of 751 = 21.2%** of claims with imputed values change support, so
+    the verdict is **recurs**;
+  - the secondary, imputation-only, variant gives the same rate.
+- **The flags every figure carries:** the convention was calibrated on the
+  other deposit's output and transferred, and its effect on the verdict is
+  untested; the deposits share authors.
+
 **H4 (attribution, D3).** For sites with orthogonal modifier evidence, some
 fraction carries evidence supporting more than one modifier identity, and that
 fraction is higher under interferon stimulation than at baseline.
@@ -860,7 +970,7 @@ result.
 | H5c | ISG15 claims among H9s's 288, split by the publication's in vivo flag — **unmeasured** |
 | H9p | Supplementary Table 2's proteins reaching the shotgun reconstruction's test, and within them those with at least one missing value — **unmeasured** |
 | D6 | Published claims entering the reconstruction (measured: 798) |
-| D7 (H10, anchor) | Anchor claims reaching the reconstruction's test (the paper's named test, v8) whose row carries at least one imputed value — **unmeasured** |
+| D7 (H10, anchor) | Anchor claims reaching the reconstruction's test (the paper's named test, v8) whose row carries at least one imputed value — **measured (v9): 751 of 791 testable claims**; 7 of 798 published claims have no deposit value and could not be tested |
 | D6 (anchor, v8) | 798 published claims: 36 lost to filters the paper did not apply, and 237 of the 749 reaching the test lost to our departure from the named test (measured) |
 | C0 | Targets appearing in two or more independent perturbational designs **with a measured arm on both sides** |
 
