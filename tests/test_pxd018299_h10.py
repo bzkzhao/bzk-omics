@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -799,8 +800,14 @@ def test_attempt_1s_variant_list_and_fixture_name_are_untouched() -> None:
 #: Attempt 1's synthetic end-to-end fixture, canonically serialised and hashed, **measured at
 #: `36b344a`** — the commit before attempt 2 was written — in a `git worktree` of it, with
 #: `PYTHONPATH` pointed at that tree so the worktree's `bzk` was the one imported rather than the
-#: editable install's.
+#: editable install's. Re-measured unchanged at `e13f06c`, before attempt 3 was written.
 ATTEMPT_1_DIGEST = "512a0a4f374d732ca54b78101b35a515c3af0484f110fa53c7db010402ba4fd8"
+
+#: Attempt 2's, the same way, measured at **`e13f06c`** — the commit before attempt 3 was
+#: written. Its run needs the G2b bands widened to reach the anchor at synthetic scale, so the
+#: measurement widened them exactly as `_run_attempt_2` below does; a digest of a run that
+#: stopped at the gate would pin the gate and nothing after it.
+ATTEMPT_2_DIGEST = "eb593fe7a529c2b27a6da0ec714ad6cd9dd96826e0c7c5614c7f04418e708b27"
 
 #: What a rerun must move, and which therefore cannot be in the digest. The first four are a
 #: run's own identity; the last two are the synthetic workbooks' content hashes, which move
@@ -823,25 +830,48 @@ def _digest(written: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(written, sort_keys=True).encode()).hexdigest()
 
 
-def test_attempt_1s_fixture_is_unchanged_by_attempt_2(tmp_path: Path) -> None:
-    """The synthetic end-to-end run at attempt 1, against a digest measured before attempt 2.
+def _run_attempt_2(
+    paths: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> tuple[int, dict[str, Any]]:
+    """Attempt 2 end to end, with G2b's bands widened so the run reaches the anchor.
+
+    [58, 86] and [168, 252] are absolute counts calibrated to the deposit's 2,438 rows; nothing at
+    synthetic scale reaches 58 of anything, so with the registered bands no variant is admitted
+    and the run stops at the gate. What the bands themselves do is asserted at their own endpoints
+    by `test_g2b_bands_are_inclusive_at_both_ends`.
+    """
+    monkeypatch.setattr(h10, "G2B_WT_BAND", (0, 100))
+    monkeypatch.setattr(h10, "G2B_KO_BAND", (0, 100))
+    return _run(paths, attempt=2)
+
+
+def test_attempts_1_and_2_are_unchanged_by_attempt_3(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both earlier attempts' synthetic fixtures, against digests measured before attempt 3.
 
     **Against the old code, not against itself.** A first version of this test ran the live module
     twice and compared the two, which establishes determinism and nothing else — and it passed
     under a mutation that turned attempt 2's direction split on for everyone, because both runs
-    carried it. The digest below comes from a worktree of `36b344a`.
+    carried it. The attempt 1 digest comes from a worktree of `36b344a` and was re-measured
+    unchanged at `e13f06c`; the attempt 2 digest comes from `e13f06c`.
 
-    It also caught a real change: `anchor_block` gained an `s1_gene_column` key for readout D′,
-    and that key reached attempt 1's `anchor_matrix` block. Attempt 1 has run and its result is
-    committed; a fixture that gains a field is a fixture of something else. D′ reports the column
-    instead.
+    It also caught a real change once: `anchor_block` gained an `s1_gene_column` key for readout
+    D′, and that key reached attempt 1's `anchor_matrix` block. Attempt 1 has run and its result
+    is committed; a fixture that gains a field is a fixture of something else.
     """
-    _, written = _run(_synthetic(tmp_path))
+    paths = _synthetic(tmp_path)
+    _, one = _run(paths)
+    _, two = _run_attempt_2(paths, monkeypatch)
 
-    assert _digest(written) == ATTEMPT_1_DIGEST
-    assert "attempt" not in written
-    assert "validation" not in written
-    assert all("direction_split" not in v for v in written["gate_g"]["variants"].values())
+    assert _digest(one) == ATTEMPT_1_DIGEST
+    assert _digest(two) == ATTEMPT_2_DIGEST
+    assert "attempt" not in one
+    assert "validation" not in one
+    assert all("direction_split" not in v for v in one["gate_g"]["variants"].values())
+    assert two["attempt"] == 2
+    assert "matrix" not in two  # attempt 3's second flag is attempt 3's alone
+    assert "disclosed_before_run" not in two["readouts"]["readout_a"]
 
 
 def _counts(up: int, down: int, rows: int = 400) -> tuple[np.ndarray, np.ndarray]:
@@ -1085,3 +1115,346 @@ def test_attempt_2_writes_its_own_fixture_and_never_attempt_1s(
     # `_default_cell_supported` is `family_block_for`'s internal hand-off to D′ and must not reach
     # the file: attempt 1's fixture would otherwise have gained a key it never had.
     assert "_default_cell_supported" not in written["readouts"]
+
+
+# ── attempt 3 ───────────────────────────────────────────────────────────────────────────────────
+
+
+def _run_attempt_3(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    patch: Callable[[], None] | None = None,
+    **overrides: Any,
+) -> tuple[dict[str, Any], int, dict[str, Any]]:
+    """Attempts 1, 2 and 3 in order, returning the paths and attempt 3's exit code and fixture.
+
+    Attempt 2 runs first because attempt 3 §3 compares its own G2a and G2b against **attempt 2's
+    committed fixture**, so that file has to exist before attempt 3 does anything.
+
+    `patch` is called after those two runs and before attempt 3, and is where a test that stubs a
+    module-level function installs it. Installing such a stub around the whole helper would apply
+    it to attempts 1 and 2 as well — which is not merely wasteful but wrong: a spy returning an
+    attempt-3 variant name made attempt 1's own `next(v for v in registered if v.name == primary)`
+    raise `StopIteration`, so the test failed in a run it was not about. The two earlier attempts
+    are the unstubbed instrument attempt 3 is measured against, and they stay that way.
+    """
+    paths = _synthetic(tmp_path)
+    _run(paths)
+    _run_attempt_2(paths, monkeypatch)
+    if patch is not None:
+        patch()
+    code, written = _run(paths, attempt=3, **overrides)
+    return paths, code, written
+
+
+def test_attempt_3_runs_both_variants_and_reads_the_verdict_from_the_primary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """§4: *"computed for both variants in full"*, and the verdict from the primary alone.
+
+    Attempt 2 gave its secondaries readout A and nothing else, which is why readouts B, D and D′
+    were never seen for these two variants — and why attempt 3 can still test H10 at all. Both
+    blocks carry the full set here.
+    """
+    _, code, written = _run_attempt_3(tmp_path, monkeypatch)
+
+    assert code == 0
+    assert written["attempt"] == 3
+    assert written["anchor_run"] is True
+    assert set(written["readouts"]) == {"primary", "secondary"}
+    for role, name in (
+        ("primary", "joint_half+random_excluding_trivial"),
+        ("secondary", "joint_half+exhaustive_excluding_trivial"),
+    ):
+        block = written["readouts"][role]
+        assert block["variant"] == name
+        assert block["admitted"] is True
+        assert {"readout_a", "readout_b", "readout_c", "readout_d", "readout_d_prime"} <= set(block)
+        # Each variant is its own primary here, so nothing is reported as a secondary inside it.
+        assert "secondary_variants" not in block
+    assert written["verdict_read_from"] == "primary"
+    assert written["h10"] == written["readouts"]["primary"]["readout_b"]["verdict"]
+
+
+def test_the_verdict_reads_the_primary_and_not_the_secondary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The two blocks are stubbed to carry **different** verdicts, so which one is read shows.
+
+    On synthetic data both variants reach the same verdict, and an assertion that `h10` equals the
+    primary's would then also hold of the secondary's — true of two identical things and a test of
+    nothing. The stub makes them differ by construction.
+    """
+    real = h10.family_block_for
+    verdicts = {
+        "joint_half+random_excluding_trivial": "recurs",
+        "joint_half+exhaustive_excluding_trivial": "absent",
+    }
+
+    def _stub(*, primary: h10.Variant, **kwargs: Any) -> dict[str, Any]:
+        block = real(primary=primary, **kwargs)
+        block["readout_b"]["verdict"] = {"outcome": verdicts[primary.name], "share": None}
+        return block
+
+    _, code, written = _run_attempt_3(
+        tmp_path, monkeypatch, patch=lambda: monkeypatch.setattr(h10, "family_block_for", _stub)
+    )
+
+    assert code == 0
+    assert written["readouts"]["primary"]["readout_b"]["verdict"]["outcome"] == "recurs"
+    assert written["readouts"]["secondary"]["readout_b"]["verdict"]["outcome"] == "absent"
+    assert written["h10"]["outcome"] == "recurs"
+
+
+def test_readout_a_is_labelled_disclosed_before_the_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """§1: readout A was measured in attempt 2 — 725 and 724 of 791 — so it *"is reported for
+    completeness and is not scored as a prediction"*. A figure known before the run is a different
+    kind of claim from one that was not, and only the file will be read later."""
+    _, _, written = _run_attempt_3(tmp_path, monkeypatch)
+
+    for role in ("primary", "secondary"):
+        assert written["readouts"][role]["readout_a"]["disclosed_before_run"] is True
+
+
+def test_every_attempt_3_result_block_carries_both_flags(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """§4's two: the fitted convention, and the matrix the run actually used.
+
+    Attempt 2 §4 measured the second one — about 2% of S1's cells match log2 of the deposit, and
+    7 published claims carry six S1 values apiece with no measured value in any deposit column —
+    so every attempt-3 figure is about the deposit and has to say so where it is read.
+    """
+    _, _, written = _run_attempt_3(tmp_path, monkeypatch)
+
+    for block in (written, written["readouts"]["primary"], written["readouts"]["secondary"]):
+        assert block["validation"] == "in-sample; independent confirmation pending"
+        assert block["matrix"] == "deposit, not the published S1"
+
+
+def test_attempt_3_never_writes_the_earlier_fixture_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """*"Attempts 1 and 2 stand and are reported beside this one."* Beside, not over."""
+    paths = _synthetic(tmp_path)
+    _run(paths)
+    _run_attempt_2(paths, monkeypatch)
+    fixtures = Path(paths["fixtures_dir"])
+    before = {
+        name: (fixtures / name).read_bytes()
+        for name in (h10.FIXTURE_NAME, h10.FIXTURE_NAME_ATTEMPT_2)
+    }
+
+    _run(paths, attempt=3)
+
+    for name, bytes_ in before.items():
+        assert (fixtures / name).read_bytes() == bytes_
+    assert (fixtures / h10.FIXTURE_NAME_ATTEMPT_3).exists()
+    assert h10.fixture_name_for(3) not in (h10.FIXTURE_NAME, h10.FIXTURE_NAME_ATTEMPT_2)
+
+
+# ── §2 · the primary is fixed, not scored ───────────────────────────────────────────────────────
+
+
+def test_the_attempt_3_primary_is_fixed_and_never_scored(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """§2: the primary is *"fixed by principle rather than by tie"* — not by F1, not by a readout.
+
+    `primary_variant` is replaced by a spy that would hand back the **secondary** if anything
+    asked it. Nothing does, and the primary is the registered one. The gate is also doctored so
+    the secondary wins on every metric a scorer could read, which is what makes "never scored"
+    testable rather than merely true of this data.
+    """
+    calls: list[Any] = []
+
+    def _spy(*args: Any, **kwargs: Any) -> str:
+        calls.append(args)
+        return h10.ATTEMPT_3_SECONDARY.name
+
+    real_gate = h10.gate_block
+
+    def _favour_the_secondary(**kwargs: Any) -> dict[str, Any]:
+        gate = real_gate(**kwargs)
+        if h10.ATTEMPT_3_PRIMARY.name in gate["variants"]:
+            gate["variants"][h10.ATTEMPT_3_PRIMARY.name]["f1"] = 0.10
+            gate["variants"][h10.ATTEMPT_3_SECONDARY.name]["f1"] = 0.99
+        return gate
+
+    def _install() -> None:
+        monkeypatch.setattr(h10, "primary_variant", _spy)
+        monkeypatch.setattr(h10, "gate_block", _favour_the_secondary)
+
+    _, code, written = _run_attempt_3(tmp_path, monkeypatch, patch=_install)
+
+    assert code == 0
+    assert calls == []
+    assert written["primary_variant"] == "joint_half+random_excluding_trivial"
+    assert written["readouts"]["primary"]["variant"] == "joint_half+random_excluding_trivial"
+    assert written["gate_g"]["variants"][h10.ATTEMPT_3_SECONDARY.name]["f1"] == 0.99
+
+
+# ── §3 · check A on the typical draw ────────────────────────────────────────────────────────────
+
+
+def test_check_a_uses_the_median_over_seeds_and_not_any_seed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """§3's correction, and the case it was written for.
+
+    One seed reaches a claim and the other nineteen reach none, so the median is 0 and the
+    variant is **not** admitted — while attempt 2's *any seed* rule would admit it. That is
+    exactly what happened to `joint_half+random`: reached at seed 4, nothing in a typical draw,
+    made primary by a tie rule, and H10 went untested in substance.
+
+    The test statistic is stubbed rather than drawn, because a matrix small enough to run here
+    does not produce a one-seed-in-twenty result on demand; what is under test is which summary
+    of the twenty counts admits a variant.
+    """
+
+    class _Outcome:
+        def __init__(self, seed: int) -> None:
+            self.significant = np.array([seed == 4, False])
+            self.d = np.array([1.0, 1.0])
+
+    monkeypatch.setattr(h10, "perseus_s0", lambda *a, **k: _Outcome(int(k["seed"])))
+    result = h10.check_a_typical(
+        numerator=np.ones((2, 3)),
+        denominator=np.ones((2, 3)) * 2,
+        claim_rows=[0, 1],
+        variants=[h10.ATTEMPT_3_PRIMARY],
+        randomisations=10,
+        seeds=tuple(range(20)),
+        progress=False,
+    )
+
+    entry = result[h10.ATTEMPT_3_PRIMARY.name]
+    # **The counts must not be constant**, or every summary of them is the same number and no test
+    # over them can tell one from another. This is asserted rather than read off the stub because
+    # it is the condition that makes the test below meaningful, and because it is exactly what
+    # fails at synthetic scale: in `test_check_a_reports_every_seeds_count` every seed returns the
+    # same count, so reporting the mean instead of the median leaves that test green — the same
+    # shape as the pooled-versus-Welch and harmonic-versus-arithmetic traps this suite has hit.
+    assert len(set(entry["counts_by_seed"])) > 1
+    assert entry["counts_by_seed"][4] == 1
+    assert sum(entry["counts_by_seed"]) == 1
+    assert entry["median"] == 0.0
+    assert entry["reached"] is False
+    # The *any seed* rule is still reported, so the difference between the two is visible rather
+    # than only its consequence.
+    assert entry["reached_under_any_seed"] is True
+
+
+def test_check_a_reports_every_seeds_count(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """§3: *"Report every seed's count."* A median of 1 over `[0, 0, 1, 40]` and one over
+    `[1, 1, 1, 1]` are different facts about a variant."""
+    _, _, written = _run_attempt_3(tmp_path, monkeypatch)
+
+    for name in ("joint_half+random_excluding_trivial", "joint_half+exhaustive_excluding_trivial"):
+        entry = written["check_a"][name]
+        assert len(entry["counts_by_seed"]) == len(GATE_SEEDS)
+        assert entry["minimum_required"] == 1
+        assert entry["median"] == float(np.median(entry["counts_by_seed"]))
+        assert entry["reached"] is (entry["median"] >= 1)
+
+
+# ── §3 · the rerun-consistency check ────────────────────────────────────────────────────────────
+
+
+def test_a_g2_mismatch_stops_the_run_as_an_instrument_fault(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """§3: G2a and G2b are deterministic given the seeds, so a difference is the instrument having
+    changed under a registration that assumes it did not — not a finding about the anchor.
+
+    One direction count in the committed attempt-2 fixture is moved by one, which is the smallest
+    difference the comparison can see, and the run stops with nothing after the gate computed.
+    """
+    paths = _synthetic(tmp_path)
+    _run(paths)
+    _run_attempt_2(paths, monkeypatch)
+    attempt_2_path = Path(paths["fixtures_dir"]) / h10.FIXTURE_NAME_ATTEMPT_2
+    doctored = json.loads(attempt_2_path.read_text(encoding="utf-8"))
+    split = doctored["gate_g"]["variants"][h10.ATTEMPT_3_PRIMARY.name]["direction_split"]
+    split["higher_in_wt"] += 1
+    attempt_2_path.write_text(json.dumps(doctored), encoding="utf-8")
+
+    code, written = _run(paths, attempt=3)
+
+    assert code == 1
+    assert written["instrument_fault"] is True
+    assert written["g2_rerun_consistency"]["consistent"] is False
+    assert [d["field"] for d in written["g2_rerun_consistency"]["differences"]] == ["higher_in_wt"]
+    # Nothing after the gate ran.
+    assert "check_a" not in written
+    assert "readouts" not in written
+    assert "h10" not in written
+
+
+def test_the_consistency_check_compares_counts_and_not_shares() -> None:
+    """Six integers per variant. A share is a quotient, and two different pairs of counts can
+    produce the same one — 83/83 and 1/1 are both a precision of 1.00."""
+    gate = {
+        "variants": {
+            h10.ATTEMPT_3_PRIMARY.name: {
+                "precision": {"numerator": 1, "denominator": 1, "share": 1.0},
+                "recall": {"numerator": 1, "denominator": 1, "share": 1.0},
+                "direction_split": {"higher_in_wt": 64, "higher_in_knockout": 212},
+            }
+        }
+    }
+    earlier = {
+        "gate_g": {
+            "variants": {
+                h10.ATTEMPT_3_PRIMARY.name: {
+                    "precision": {"numerator": 83, "denominator": 83, "share": 1.0},
+                    "recall": {"numerator": 83, "denominator": 86, "share": 0.965},
+                    "direction_split": {"higher_in_wt": 64, "higher_in_knockout": 212},
+                }
+            }
+        }
+    }
+
+    result = h10.g2_rerun_consistency(gate, earlier, variants=[h10.ATTEMPT_3_PRIMARY])
+
+    assert result["consistent"] is False
+    assert {d["field"] for d in result["differences"]} == {
+        "precision_numerator",
+        "precision_denominator",
+        "recall_numerator",
+        "recall_denominator",
+    }
+
+
+def test_a_variant_absent_from_the_earlier_fixture_is_a_mismatch() -> None:
+    """Attempt 2 ran four variants and attempt 3 runs two of them, so this should never fire. It
+    fires if the committed fixture is not the run attempt 3 thinks it is."""
+    gate: dict[str, Any] = {"variants": {h10.ATTEMPT_3_PRIMARY.name: {}}}
+
+    result = h10.g2_rerun_consistency(gate, {}, variants=[h10.ATTEMPT_3_PRIMARY])
+
+    assert result["consistent"] is False
+    assert result["differences"][0]["reason"] == "absent"
+
+
+def test_an_unadmitted_primary_leaves_h10_not_tested(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """§3: *"If the primary is not admitted, no readout is reported as primary, and the result is
+    H10 not tested (attempt 3)."* The family does not run at all."""
+    _, code, written = _run_attempt_3(
+        tmp_path,
+        monkeypatch,
+        patch=lambda: monkeypatch.setattr(h10, "CHECK_A_MEDIAN_MINIMUM", 10**6),
+    )
+
+    assert code == 1
+    assert written["h10"] == "not tested (attempt 3)"
+    assert written["primary_admitted"] is False
+    assert written["admitted_variants"] == []
+    assert "readouts" not in written
+    # The checks that did run are still reported: the result is a finding, not a blank.
+    assert written["g2_rerun_consistency"]["consistent"] is True
+    assert set(written["check_a"]) == {v.name for v in h10.ATTEMPT_3_VARIANTS}

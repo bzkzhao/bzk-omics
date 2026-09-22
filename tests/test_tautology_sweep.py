@@ -1513,8 +1513,8 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         #  - `configuration.member() == Member(…)`: every author file reported as tracked leaves
         #    this line green and the one above it red, so its own evidence is the defaulting of an
         #    omitted `scope`, which reads `whole_matrix` against `per_sample`.
-        ("test_pxd018299_h10.py", "code == 0", 1),
-        ("test_pxd018299_h10.py", "code == 1", 1),
+        ("test_pxd018299_h10.py", "code == 0", 4),
+        ("test_pxd018299_h10.py", "code == 1", 3),
         (
             "test_pxd018299_h10.py",
             "configuration.member() == Member(width_sd=0.4, downshift_sd=2.0, scope='per_sample', seed=3)",
@@ -1580,7 +1580,6 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         #    attempt 2 scores attempt 1's eight.
         #  - `adar['largest_site_intensity'] == 9.0`: the largest site taken as the weakest, which
         #    reads the other peptide's intensity.
-        ("test_pxd018299_h10.py", "_digest(written) == ATTEMPT_1_DIGEST", 1),
         ("test_pxd018299_h10.py", "adar['largest_site_intensity'] == pytest.approx(9.0)", 1),
         ("test_pxd018299_h10.py", "admitted == names[1:]", 1),
         ("test_pxd018299_h10.py", "attempt_1_path.read_bytes() == before", 1),
@@ -1594,6 +1593,63 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         (
             "test_pxd018299_h10.py",
             "set(written['gate_g']['variants']) == {v.name for v in h10.ATTEMPT_2_VARIANTS}",
+            1,
+        ),
+        # ── tests/test_pxd018299_h10.py, attempt 3, 2026-09-22 ────────────────────────────────
+        # **Eight entries, all `PINNED`, and one of them is an expression attempt 2's block
+        # carried under another name** — `_digest(written) == ATTEMPT_1_DIGEST` became
+        # `_digest(one)` beside a new `_digest(two)`, so the old entry is removed here rather
+        # than left beside the two new ones: the `gone` half of the assertion below is what makes
+        # a pin describing a suite that no longer exists a failure rather than a comment.
+        # `attempt_1_path.read_bytes() == before` was removed with it on the first pass and put
+        # back, because `gone` reported it and `new` then reported it again: attempt 2's own
+        # single-fixture test still carries that line, and only the digest test's loop is new.
+        #
+        # Measured line by line, each against a mutation of `bzk/sources/pxd018299_h10.py`
+        # confirmed applied by reading the file back and reverted afterwards:
+        #  - `_digest(one) == ATTEMPT_1_DIGEST`: `family_block_for`'s `disclosed` defaulting to
+        #    `True`, so attempt 3 §1's label reaches attempt 1's readout A.
+        #  - `_digest(two) == ATTEMPT_2_DIGEST`: attempt 2's header gaining attempt 3's `matrix`
+        #    flag. **This is the entry that makes turn 20's digest test cover two attempts rather
+        #    than one** — under that mutation the attempt 1 digest above it stays green, which is
+        #    exactly what a single pinned digest could not have told anyone.
+        #  - `(fixtures / name).read_bytes() == bytes_`: attempt 3 writing its block a second time
+        #    under `FIXTURE_NAME_ATTEMPT_2`. Reddened at the first index that differs; a mutation
+        #    that merely renamed attempt 3's own output reddens the *open* of the file instead,
+        #    which is a crash and not this line, so the clobbering one is the recorded evidence.
+        #  - `code == 0`, 1 -> 4: `_attempt_3`'s closing `return 0` returned 1. Exactly the three
+        #    new occurrences reddened and the attempt-1 one did not, which is what pins the count
+        #    rather than the expression.
+        #  - `code == 1`, 1 -> 3: `g2_rerun_consistency` reporting `consistent: True` regardless,
+        #    and separately the unadmitted-primary branch writing a verdict and returning 0. One
+        #    new occurrence each; the attempt-1 one keeps its own recorded evidence above.
+        #  - `len(entry['counts_by_seed']) == len(GATE_SEEDS)`: `counts_by_seed` truncated to
+        #    `seed_counts[:1]`.
+        #  - `entry['median'] == float(np.median(entry['counts_by_seed']))`: the counts reported
+        #    one higher than the counts summarised, so the two fields disagree. **The mutation
+        #    this line looks written for — the median reported as the mean — left it green**, and
+        #    is recorded rather than swapped out: at synthetic scale every seed returns the same
+        #    count, and on a constant list the mean, the median and the maximum are one number.
+        #    It is the same shape as the pooled-versus-Welch and harmonic-versus-arithmetic traps
+        #    this suite has hit twice before. That mutation does redden
+        #    `test_check_a_uses_the_median_over_seeds_and_not_any_seed`, whose counts are stubbed
+        #    to `[0] * 20` with a single 1 — `assert 0.05 == 0.0` — so the median *is* guarded;
+        #    it is guarded there and not here.
+        #  - `set(written['check_a']) == {v.name for v in h10.ATTEMPT_3_VARIANTS}`: the reported
+        #    `check_a` narrowed to the primary's entry. Narrowing the *call* instead raises inside
+        #    admission before the assertion is reached, so the reported block is what is mutated.
+        ("test_pxd018299_h10.py", "(fixtures / name).read_bytes() == bytes_", 1),
+        ("test_pxd018299_h10.py", "_digest(one) == ATTEMPT_1_DIGEST", 1),
+        ("test_pxd018299_h10.py", "_digest(two) == ATTEMPT_2_DIGEST", 1),
+        (
+            "test_pxd018299_h10.py",
+            "entry['median'] == float(np.median(entry['counts_by_seed']))",
+            1,
+        ),
+        ("test_pxd018299_h10.py", "len(entry['counts_by_seed']) == len(GATE_SEEDS)", 1),
+        (
+            "test_pxd018299_h10.py",
+            "set(written['check_a']) == {v.name for v in h10.ATTEMPT_3_VARIANTS}",
             1,
         ),
     }

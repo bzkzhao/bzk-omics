@@ -48,9 +48,14 @@ file, and `walk/PXD018299-author-parameters.json` is not written here.
 
 **Whether the file was *committed* decides what it is, not whether it exists.** §6 A makes the
 author configuration readout A's primary only if it is committed before the run; an untracked file
-on someone's disk is not a record. The run asks `git ls-files --error-unmatch` and records the
+on someone's disk is not a record. The run asks `git cat-file -e HEAD:<path>` and records the
 answer either way. **H10's verdict never reads this file** — readout B stays on the registered
 default cell, as v8's rule requires and §6 B repeats.
+
+*(This paragraph said `git ls-files --error-unmatch` until 2026-09-22 and was stale by one turn:
+`is_tracked` moved to `HEAD` when the staged-file loophole was closed, and the docstring did not
+follow. A comment that describes a check the code stopped making is worse than no comment, because
+it is the thing a reader trusts instead of reading the function.)*
 """
 
 from __future__ import annotations
@@ -115,6 +120,8 @@ FIXTURE_NAME = "pxd018299_h10.json"
 #: Attempt 2 writes its own file. §"What it supersedes": *"Attempt 1 is not replaced. Its result
 #: stands, and this attempt is reported beside it."* Beside, not over.
 FIXTURE_NAME_ATTEMPT_2 = "pxd018299_h10_attempt2.json"
+#: Attempt 3 likewise. *"Attempts 1 and 2 stand and are reported beside this one."*
+FIXTURE_NAME_ATTEMPT_3 = "pxd018299_h10_attempt3.json"
 
 GENERATED_BY = "python -m bzk.sources.pxd018299_h10"
 
@@ -240,14 +247,41 @@ VARIANTS = tuple(Variant(s, c) for s in ATTEMPT_1_SIDEDNESS for c in SCHEMES)
 
 ATTEMPT_2_VARIANTS = tuple(Variant(s, c) for s in ATTEMPT_2_SIDEDNESS for c in SCHEMES)
 
+#: `walk/PREREG-PXD018299-H10-attempt3.md` §2's two, **and the primary is the first of them by
+#: fiat rather than by any score.** §2 fixes it *"by principle rather than by tie"*: it keeps both
+#: of `HYPOTHESIS.md` v8's random steps — imputation and permutation, paired by seed — and is
+#: closest to Perseus's documented practice of drawing a fixed number of randomisations. **No tie
+#: rule applies to attempt 3**, and `primary_variant`'s F1 comparison is not reached on that path.
+ATTEMPT_3_PRIMARY = Variant("joint_half", "random_excluding_trivial")
+ATTEMPT_3_SECONDARY = Variant("joint_half", "exhaustive_excluding_trivial")
+ATTEMPT_3_VARIANTS = (ATTEMPT_3_PRIMARY, ATTEMPT_3_SECONDARY)
+
+#: §3's strengthened check A. Attempt 2 admitted a variant that reached `q <= 0.01` under **any**
+#: seed, and `joint_half+random` did so on exactly one favourable draw and supported nothing in a
+#: typical one — so its registered primary was degenerate and H10 went untested in substance.
+#: The median over the twenty seeds is what a typical draw means, and 1 is the least it can be
+#: and still be a claim.
+CHECK_A_MEDIAN_MINIMUM = 1
+
+#: §4's second flag, on every attempt-3 result block. Attempt 2 §4 measured it: about 2% of S1's
+#: cells match log2 of the deposit, and 7 published claims carry six S1 values apiece while having
+#: no measured value in any of the six deposit columns. The reconstruction therefore tests the
+#: deposit, and every figure has to say so.
+ATTEMPT_3_MATRIX_FLAG = "deposit, not the published S1"
+
+#: §3's own words for the outcome where the primary is not admitted.
+ATTEMPT_3_NOT_TESTED = "not tested (attempt 3)"
+
 
 def variants_for(attempt: int) -> tuple[Variant, ...]:
-    """The registered variant list for an attempt. Nothing else selects between the two."""
+    """The registered variant list for an attempt. Nothing else selects between the three."""
     if attempt == 1:
         return VARIANTS
     if attempt == 2:
         return ATTEMPT_2_VARIANTS
-    raise H10Error(f"attempt {attempt!r} is not 1 or 2; there are two registrations")
+    if attempt == 3:
+        return ATTEMPT_3_VARIANTS
+    raise H10Error(f"attempt {attempt!r} is not 1, 2 or 3; there are three registrations")
 
 
 # ── gate G ──────────────────────────────────────────────────────────────────────────────────────
@@ -718,6 +752,132 @@ def check_a(
     return reached
 
 
+def check_a_typical(
+    *,
+    numerator: np.ndarray,
+    denominator: np.ndarray,
+    claim_rows: Sequence[int],
+    variants: Sequence[Variant],
+    randomisations: int = RANDOMISATIONS,
+    seeds: Sequence[int] = SEEDS,
+    progress: bool = True,
+) -> dict[str, Any]:
+    """Attempt 3 §3's check A: the **median over seeds** of the per-seed claim count, at least 1.
+
+    **This is a different question from attempts 1 and 2's, and `check_a` above is left alone.**
+    That one asks whether any seed reaches `q <= 0.01` with `d > 0` and short-circuits on the
+    first that does. Attempt 2's result is what makes the difference matter: `joint_half+random`
+    reached it at seed 4 and at no other, supported nothing in a typical draw, and was made the
+    registered primary by a tie rule — so the registered verdict came from a variant that calls
+    almost nothing, and H10 went untested in substance. The median is what a typical draw means.
+
+    **It counts claims, not rows.** §3 says *"the per-seed count of claims with q ≤ 0.01 and
+    d > 0"*; attempts 1 and 2's implementation asked `.any()` over every row of the matrix, which
+    is a superset of the claims. The two agree on whether anything is reached and disagree on how
+    much, and attempt 3 needs the amount.
+
+    Every seed's count is reported, not only the median: a median of 1 over counts of
+    `[0, 0, 1, 40, …]` and one over `[1, 1, 1, 1, …]` are different facts about a variant, and the
+    figure that admits it should not hide which it was.
+    """
+    combined = np.hstack([numerator, denominator])
+    half = numerator.shape[1]
+    rows = list(claim_rows)
+    counts: dict[str, list[int]] = {v.name: [] for v in variants}
+    for index, seed in enumerate(seeds):
+        filled = downshifted_normal(
+            combined,
+            downshift_sd=DEFAULT_DOWNSHIFT_SD,
+            width_sd=DEFAULT_WIDTH_SD,
+            seed=seed,
+            scope=DEFAULT_SCOPE,
+        ).values
+        for variant in variants:
+            outcome = perseus_s0(
+                filled[:, :half],
+                filled[:, half:],
+                s0=ANCHOR_S0,
+                alpha=ANCHOR_ALPHA,
+                randomisations=randomisations,
+                seed=seed,
+                sidedness=variant.sidedness,
+                scheme=variant.scheme,
+            )
+            supported = outcome.significant & (outcome.d > 0)
+            counts[variant.name].append(int(sum(1 for row in rows if supported[row])))
+        if progress:
+            print(f"[check A] seed {index + 1:>2}/{len(seeds)}", end="\r")
+    if progress:
+        print()
+    return {
+        name: {
+            "counts_by_seed": seed_counts,
+            "median": float(np.median(seed_counts)),
+            "minimum_required": CHECK_A_MEDIAN_MINIMUM,
+            "reached": float(np.median(seed_counts)) >= CHECK_A_MEDIAN_MINIMUM,
+            "reached_under_any_seed": any(c > 0 for c in seed_counts),
+        }
+        for name, seed_counts in counts.items()
+    }
+
+
+def g2_rerun_consistency(
+    gate: Mapping[str, Any], earlier: Mapping[str, Any], *, variants: Sequence[Variant]
+) -> dict[str, Any]:
+    """§3: G2a and G2b recomputed must equal attempt 2's exactly, or the run stops.
+
+    *"since they are deterministic given the seeds. A difference stops the run and is reported as
+    an instrument fault."* Six integers per variant are compared — precision's numerator and
+    denominator, recall's, and the two direction counts — rather than the shares and the `passes`
+    flags: a share is a quotient, and two different pairs of counts can produce the same one.
+
+    A variant that attempt 2 did not score at all is a mismatch too, and is named as one. Attempt
+    2 ran four variants and attempt 3 runs two of them, so this should never fire; it fires if the
+    committed fixture is not the run attempt 3 thinks it is.
+    """
+    #: `(name, path)` for each of the six integers compared, as a path through the block rather
+    #: than a lambda so the field names and the places they come from are one list.
+    fields: tuple[tuple[str, tuple[str, ...]], ...] = (
+        ("precision_numerator", ("precision", "numerator")),
+        ("precision_denominator", ("precision", "denominator")),
+        ("recall_numerator", ("recall", "numerator")),
+        ("recall_denominator", ("recall", "denominator")),
+        ("higher_in_wt", ("direction_split", "higher_in_wt")),
+        ("higher_in_knockout", ("direction_split", "higher_in_knockout")),
+    )
+
+    def read(block: Mapping[str, Any], path: tuple[str, ...]) -> int:
+        value: Any = block
+        for key in path:
+            value = value[key]
+        return int(value)
+
+    compared: dict[str, Any] = {}
+    differences: list[dict[str, Any]] = []
+    for variant in variants:
+        recomputed = gate["variants"].get(variant.name)
+        previous = earlier.get("gate_g", {}).get("variants", {}).get(variant.name)
+        if recomputed is None or previous is None:
+            differences.append({"variant": variant.name, "field": "variant", "reason": "absent"})
+            compared[variant.name] = {"absent": True}
+            continue
+        entry: dict[str, Any] = {}
+        for field, path in fields:
+            now, before = read(recomputed, path), read(previous, path)
+            entry[field] = {"attempt_3": now, "attempt_2": before, "equal": now == before}
+            if now != before:
+                differences.append(
+                    {"variant": variant.name, "field": field, "attempt_3": now, "attempt_2": before}
+                )
+        compared[variant.name] = entry
+    return {
+        "source": FIXTURE_NAME_ATTEMPT_2,
+        "compared": compared,
+        "differences": differences,
+        "consistent": not differences,
+    }
+
+
 def admitted_variants(
     gate: Mapping[str, Any],
     attainability: Mapping[str, Any],
@@ -948,7 +1108,10 @@ def fixture_name_for(attempt: int) -> str:
     if attempt == 2:
         assert FIXTURE_NAME_ATTEMPT_2 != FIXTURE_NAME
         return FIXTURE_NAME_ATTEMPT_2
-    raise H10Error(f"attempt {attempt!r} is not 1 or 2; there are two registrations")
+    if attempt == 3:
+        assert FIXTURE_NAME_ATTEMPT_3 not in (FIXTURE_NAME, FIXTURE_NAME_ATTEMPT_2)
+        return FIXTURE_NAME_ATTEMPT_3
+    raise H10Error(f"attempt {attempt!r} is not 1, 2 or 3; there are three registrations")
 
 
 def _load_anchor(path: Path) -> LoadedCuration:
@@ -1105,9 +1268,18 @@ def family_block_for(
     targets: Sequence[str],
     author: AuthorConfiguration | None,
     randomisations: int = RANDOMISATIONS,
+    disclosed: bool = False,
     progress: bool = True,
 ) -> dict[str, Any]:
-    """§6's readouts A to D, plus H10's verdict. The family runs here."""
+    """§6's readouts A to D, plus H10's verdict. The family runs here.
+
+    **`disclosed` labels readout A and changes nothing else.** Attempt 3 §1 discloses readout A
+    for both its variants — 725 and 724 of 791, measured in attempt 2 — so it *"is reported for
+    completeness and is not scored as a prediction"*. The flag is off by default, so attempts 1
+    and 2's blocks are byte-for-byte what they were, and it is a field rather than a footnote
+    because a figure that was known before the run is a different kind of claim from one that was
+    not, and only the file will be read later.
+    """
     matrix = np.asarray(anchor["matrix"])
     half = matrix.shape[1] // 2
     claim_rows = list(anchor["claim_rows"])
@@ -1167,11 +1339,13 @@ def family_block_for(
             if symbol.strip():
                 by_symbol[symbol.strip()].append(position)
 
-    readout_a = {
+    readout_a: dict[str, Any] = {
         "default_cell": _readout_a(support, claim_rows),
         "primary": "default_cell",
         "compared_with": {"welch_based_recovery": 512, "significance_losses": 237},
     }
+    if disclosed:
+        readout_a["disclosed_before_run"] = True
     if author is not None:
         member = author.member()
         author_support = np.stack(
@@ -1402,6 +1576,173 @@ def _header(
     }
 
 
+def _attempt_3(
+    *,
+    gate: Mapping[str, Any],
+    anchor: Mapping[str, Any],
+    numerator: np.ndarray,
+    denominator: np.ndarray,
+    anchor_curation: LoadedCuration,
+    shotgun_curation: LoadedCuration,
+    anchor_supplement: SupplementaryFile,
+    gate_supplement: SupplementaryFile,
+    generated_at: str,
+    started: float,
+    fixtures_dir: Path,
+    attempt_2_fixture_path: Path,
+    targets_fixture_path: Path,
+    author: AuthorConfiguration | None,
+    members: Sequence[Member],
+    randomisations: int = RANDOMISATIONS,
+    seeds: Sequence[int] = SEEDS,
+    progress: bool = True,
+) -> int:
+    """`walk/PREREG-PXD018299-H10-attempt3.md` §§2–4, after the gate has run.
+
+    Three things separate it from attempt 2, and they are the three the registration corrects:
+    the primary is fixed by §2 rather than chosen by a score, check A is §3's typical draw rather
+    than any seed, and §3's rerun consistency compares this run's G2a and G2b against the
+    committed attempt-2 fixture before anything else is computed.
+    """
+    flags = {"validation": ATTEMPT_2_VALIDATION, "matrix": ATTEMPT_3_MATRIX_FLAG}
+    header = {
+        **_header(
+            anchor_curation=anchor_curation,
+            shotgun_curation=shotgun_curation,
+            anchor_supplement=anchor_supplement,
+            gate_supplement=gate_supplement,
+            generated_at=generated_at,
+            anchor_run=False,
+            author=author,
+        ),
+        "attempt": 3,
+        **flags,
+    }
+    dropped = ("matrix", "claim_rows", "s1_gene_names", "s1_intensity", "s1_gene_column")
+    block: dict[str, Any] = {
+        **header,
+        "gate_g": gate,
+        "anchor_matrix": {k: v for k, v in anchor.items() if k not in dropped},
+    }
+    name = fixture_name_for(3)
+
+    # **§3's rerun consistency, before anything else is computed.** G2a and G2b are deterministic
+    # given the seeds, so a difference is not a finding about the anchor — it is the instrument
+    # having changed under a registration that assumes it did not.
+    earlier = json.loads(attempt_2_fixture_path.read_text(encoding="utf-8"))
+    consistency = g2_rerun_consistency(gate, earlier, variants=ATTEMPT_3_VARIANTS)
+    if not consistency["consistent"]:
+        path = _write(
+            fixtures_dir,
+            {**block, "g2_rerun_consistency": consistency, "instrument_fault": True},
+            name=name,
+        )
+        print(f"[attempt 3] G2 differs from attempt 2's committed values; stopped. Wrote {path}")
+        return 1
+
+    attainability = check_a_typical(
+        numerator=numerator,
+        denominator=denominator,
+        claim_rows=anchor["claim_rows"],
+        variants=ATTEMPT_3_VARIANTS,
+        randomisations=randomisations,
+        seeds=seeds,
+        progress=progress,
+    )
+    admitted = [
+        v.name
+        for v in ATTEMPT_3_VARIANTS
+        if gate["variants"][v.name]["passes"]
+        and gate["variants"][v.name]["direction_split"]["passes"]
+        and attainability[v.name]["reached"]
+    ]
+    block = {
+        **block,
+        "g2_rerun_consistency": consistency,
+        "instrument_fault": False,
+        "check_a": attainability,
+        "admitted_variants": admitted,
+        # §2: the primary is named by the registration, so it is recorded whether or not it was
+        # admitted. A field that appears only on success would make its absence ambiguous.
+        "primary_variant": ATTEMPT_3_PRIMARY.name,
+        "primary_admitted": ATTEMPT_3_PRIMARY.name in admitted,
+        "secondary_variant": ATTEMPT_3_SECONDARY.name,
+    }
+
+    if ATTEMPT_3_PRIMARY.name not in admitted:
+        # §3: *"If the primary is not admitted, no readout is reported as primary, and the result
+        # is H10 not tested (attempt 3)."* The family does not run at all — the same place
+        # attempts 1 and 2 put *"the anchor readouts do not run"*, and a secondary readout with no
+        # primary beside it is not something §4 describes.
+        path = _write(fixtures_dir, {**block, "h10": ATTEMPT_3_NOT_TESTED}, name=name)
+        print(f"[attempt 3] the primary was not admitted; {ATTEMPT_3_NOT_TESTED}. Wrote {path}")
+        return 1
+
+    # §4: *"computed for both variants in full"*. Each is run as its own primary, so each gets the
+    # whole block rather than readout A alone — which is what attempt 2's secondaries got, and is
+    # why its readouts B, D and D′ for these two variants were never seen.
+    readouts: dict[str, Any] = {}
+    for role, variant in (("primary", ATTEMPT_3_PRIMARY), ("secondary", ATTEMPT_3_SECONDARY)):
+        if variant.name not in admitted:
+            readouts[role] = {"variant": variant.name, "admitted": False, **flags}
+            continue
+        family = family_block_for(
+            anchor=anchor,
+            variants=[variant],
+            primary=variant,
+            members=list(members),
+            targets=_named_targets(targets_fixture_path),
+            author=author,
+            randomisations=randomisations,
+            disclosed=True,
+            progress=progress,
+        )
+        # The default cell's support, taken from the block that just computed it rather than
+        # recomputed for D′: the draws are seeded and would agree, but one computation cannot
+        # disagree with itself and two can.
+        supported = family.pop("_default_cell_supported")
+        # `family_block_for` reports every *other* admitted variant's readout A under this key,
+        # which for attempt 3 is always empty: each variant is run as its own primary, and the two
+        # are siblings at the top level rather than a primary and its secondaries. An empty map
+        # here would read as "no secondary was admitted", which is a different statement.
+        family.pop("secondary_variants", None)
+        family["readout_d_prime"] = dprime_block(
+            targets={
+                "results_curated": _named_targets(targets_fixture_path),
+                "results_not_curated": list(DPRIME_NOT_CURATED),
+                "discussion": list(DPRIME_DISCUSSION),
+            },
+            gene_names=anchor["s1_gene_names"],
+            gene_column=anchor["s1_gene_column"],
+            intensity=anchor["s1_intensity"],
+            claim_rows=anchor["claim_rows"],
+            supported=supported,
+        )
+        readouts[role] = {"variant": variant.name, "admitted": True, **flags, **family}
+
+    # §4: *"H10's verdict is read from the primary only."* The secondary carries its own readout B
+    # — that is what makes its imputation-only isolation readable — and it is not the run's
+    # verdict.
+    verdict = readouts["primary"]["readout_b"]["verdict"]
+    elapsed = time.monotonic() - started
+    path = _write(
+        fixtures_dir,
+        {
+            **block,
+            "anchor_run": True,
+            "readouts": readouts,
+            "h10": verdict,
+            "verdict_read_from": "primary",
+            "runtime_seconds": elapsed,
+        },
+        name=name,
+    )
+    print(f"[attempt 3] readout A primary {readouts['primary']['readout_a']['default_cell']}")
+    print(f"[attempt 3] H10 {verdict['outcome']} (from the primary alone)")
+    print(f"[attempt 3] wrote {path} in {elapsed:.1f}s")
+    return 0
+
+
 def _gate_inputs(
     curation: LoadedCuration, deposit: Path, supplement_path: Path
 ) -> tuple[np.ndarray, list[int], list[int], np.ndarray, list[str], set[str], dict[str, int]]:
@@ -1463,9 +1804,22 @@ def main(
     path, is attempt 1's and is not re-specified here. The two write different files and attempt 2
     labels every result block `in-sample`, because §1's convention was fitted on the table its
     gate is scored against.
+
+    **Attempt 3** is `walk/PREREG-PXD018299-H10-attempt3.md`, and it corrects exactly one thing:
+    attempt 2's registered primary was degenerate. Its check A admitted a variant that reached the
+    threshold under *one* favourable seed and supported nothing in a typical draw, and its tie
+    rule then made that variant primary — so H10's registered verdict came from a claim set with
+    almost nothing in it. Attempt 3 names its primary by principle, strengthens check A to the
+    median over the twenty seeds, computes every readout for both its variants, and checks its own
+    G2a and G2b against attempt 2's committed figures before it computes anything. All three
+    attempts write different files, and none overwrites another's.
     """
     registered = variants_for(attempt)
     attempt_2 = attempt == 2
+    attempt_3 = attempt == 3
+    #: Attempt 3 keeps attempt 2's convention and its two checks, so everything `attempt_2` gates
+    #: — the direction split, the orientation probe, the `in-sample` label — is on for it too.
+    directional = attempt_2 or attempt_3
     started = time.monotonic()
     generated_at = datetime.now(UTC).isoformat()
 
@@ -1476,7 +1830,7 @@ def main(
     values, wt_columns, ko_columns, complete, accessions, calls, call_values = _gate_inputs(
         shotgun_curation, shotgun_deposit, gate_path
     )
-    if attempt_2 and not orientation_holds(values, wt_columns, ko_columns):
+    if directional and not orientation_holds(values, wt_columns, ko_columns):
         raise H10Error(
             "the probe says `direction > 0` is not `higher in WT` under the argument order this "
             "module uses. G2b's two bands would silently exchange places, so the run stops."
@@ -1492,7 +1846,7 @@ def main(
         randomisations=randomisations,
         seeds=seeds,
         variants=registered,
-        direction=attempt_2,
+        direction=directional,
         progress=progress,
     )
     print(
@@ -1517,6 +1871,29 @@ def main(
 
     numerator = anchor["matrix"][:, :3]
     denominator = anchor["matrix"][:, 3:]
+
+    if attempt_3:
+        return _attempt_3(
+            gate=gate,
+            anchor=anchor,
+            numerator=numerator,
+            denominator=denominator,
+            anchor_curation=anchor_curation,
+            shotgun_curation=shotgun_curation,
+            anchor_supplement=anchor_supplement,
+            gate_supplement=gate_supplement,
+            generated_at=generated_at,
+            started=started,
+            fixtures_dir=fixtures_dir,
+            attempt_2_fixture_path=fixtures_dir / FIXTURE_NAME_ATTEMPT_2,
+            targets_fixture_path=targets_fixture_path,
+            author=read_author_parameters(author_parameters_path, repo_root=repo_root),
+            members=list(members) if members is not None else list(family_members()),
+            randomisations=randomisations,
+            seeds=seeds,
+            progress=progress,
+        )
+
     passing = [v for v in registered if gate["variants"][v.name]["passes"]]
     attainability = (
         check_a(
