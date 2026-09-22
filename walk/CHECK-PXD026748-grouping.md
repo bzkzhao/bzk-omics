@@ -1,5 +1,16 @@
 # CHECK — does preserving the treatment grouping explain the halving? (DESCRIPTIVE, UNREGISTERED)
 
+> **Partial withdrawal (2026-09-22).** The refutation below stands: preserving the treatment
+> grouping does not explain the factor of two. Its **explanation** is withdrawn. This document
+> says the restricted null is stricter because the treatment effect stays in the spread;
+> measured, the two nulls are indistinguishable (99th percentile of null |d| 0.784 against
+> 0.811) and the call-count gap is inside seed noise (`joint` ranges 138 to 178 per seed).
+> The reason is simpler: that experiment's treatment contrast is flat, so there is no effect
+> for either scheme to move. See `walk/CHECKS-convention-resolved.md` §3.
+>
+> The convention question itself is since resolved there: Perseus's documented rule reproduces
+> the anchor's own published count, and the halving is the other deposit's data property.
+
 **Run 2026-09-22 on bzk's machine.** Script:
 `notes/scripts/diagnose_grouping_v2.py`. Not an independent path: it scores a
 restricted null with the same `_statistic` and `_q_values` the registered runs

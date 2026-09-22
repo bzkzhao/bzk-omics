@@ -1,6 +1,11 @@
 # HYPOTHESIS — claim durability in PTM site proteomics
 
-**Version:** 9, superseding v8. It records H10's measured verdict (**recurs**,
+**Version:** 10, superseding v9. It restates H10's level under Perseus's
+**documented** FDR rule, which reproduces the anchor's own published call count
+with nothing fitted, and retires the transferred convention. The verdict
+(**recurs**) is unchanged, as are D7's status and every threshold and class
+definition.
+**Previous version line (v9):** version 9, superseding v8. It records H10's measured verdict (**recurs**,
 from the third and final registered attempt, under a transferred test
 convention), moves D7 from exploratory to *recurred within one group*, and
 records seven published claims that rest entirely on imputed values. No registered hypothesis, threshold or class
@@ -29,7 +34,43 @@ decision can be audited; it is not restated anywhere else.
 
 ---
 
-## 0. Changelog from v8 *(this version)*
+## 0. Changelog from v9 *(this version)*
+
+**The trigger.** Descriptive checks tested the transferred convention itself
+(`walk/CHECKS-convention-resolved.md`, `walk/CHECK-PXD026748-grouping.md`,
+`notes/scripts/diagnose_round{6,7}.py`).
+
+1. **H10's level is restated under Perseus's documented rule: 27.8%** (209 of
+   751 claims with an imputed value), with 673 of 791 supported, on the
+   registered population. The pre-specified 21.2% under the halved rule is
+   **superseded, not withdrawn**, and is kept visible.
+2. **The transfer is retired.** The documented rule reproduces the anchor's own
+   published count to within 2% (781 calls against 798), with nothing fitted —
+   a validation on the deposit under test.
+3. **The halving is the other deposit's data property.** On `PXD026748`,
+   preserved grouping, all 18 imputation settings and the median estimator all
+   fail to reproduce its 282 calls; only scaling by its estimated null
+   proportion does (278, π0 = 0.49), and that overfits the anchor badly (1,150
+   against 798). The anchor's π0 is 0.205.
+4. **The population question is closed at 0.2 points:** 27.8% on the registered
+   population against 27.6% on the twelve-sample one.
+5. **The authors' imputation is recovered, not assumed:** the wild-type columns
+   imply downshift 1.76–1.78 and width 0.29 against Perseus's defaults of 1.8
+   and 0.3, measured from the published values with the deposit's own columns as
+   reference. The knockout columns read lower only because significance selects
+   them upward, which simulation reproduces.
+6. **A withdrawn explanation of our own:** `CHECK-PXD026748-grouping.md`
+   explained the restricted null as stricter. Measured, the two nulls are
+   indistinguishable and the call-count gap is inside seed noise, because that
+   experiment's treatment contrast is flat. The refutation stands; the
+   explanation does not.
+
+**What did not change.** H10's verdict, D7's status, H5c's and H9p's verdicts,
+every threshold, and every class definition.
+
+---
+
+## 0-v9. Changelog from v8 *(carried, unchanged)*
 
 **The trigger.** H10 was measured on the anchor, in three registered attempts,
 each committed before it ran, and each reported beside the others:
@@ -40,11 +81,8 @@ each committed before it ran, and each reported beside the others:
    carries an imputed value, 159 of 751 (21.2%) change support across the default
    cell's 20 paired draws. The primary variant is `joint_half` +
    `random_excluding_trivial`.
-   - *The flag every figure carries:* the `joint_half` convention was
-     **calibrated on `PXD026748`'s published output and transferred** to this
-     deposit, across a different Perseus version, s0, FDR and design. Perseus's
-     documentation defines its q-value without that halving, and whether the
-     verdict survives without it is **untested**.
+   - *(v10: superseded. The level is restated at 27.8% under the documented
+     rule; see §0 of v10 and `walk/CHECKS-convention-resolved.md`.)*
 2. **D7 moves from exploratory to recurred within one group** (§4). This is its
    first registered test, on data it was not discovered on. The anchor shares
    authors with `PXD026748`, so this is recurrence within one group's practice,
@@ -553,7 +591,8 @@ the 36 filter losses as D6 on the anchor.
 
 **v9 note — the anchor under its named test.** Recomputed with the paper's named
 test (H10, attempt 3), **725 of 791** testable claims are supported at the
-default cell, under a transferred convention. That count was disclosed before
+default cell under the halved rule, and **673 of 791** under Perseus's
+documented rule (v10). That count was disclosed before
 the run and is not a registered test; most of it is recovery of a detection
 pattern, since 751 of the 791 claims carry imputed values. So the 237 losses above were a
 property of our departing test and not of the published claims. Home:
@@ -594,9 +633,10 @@ one.~~
   (21.2%) change support across the default cell's 20 paired draws.
 - The instability is **imputation-driven**. With the permutation seed fixed it
   is 159 of 751; with the imputation seed fixed, 1 of 751.
-- The test convention was **calibrated on the other deposit's output and
-  transferred**; Perseus's documentation describes no such halving, and the
-  verdict's sensitivity to it is untested.
+- **v10:** the level is **27.8%** (209 of 751) under Perseus's documented rule,
+  which reproduces this deposit's own published call count to within 2% with
+  nothing fitted. The transferred halving gave 21.2% and is superseded. The
+  verdict holds under every rule tried.
 - The matrix is the deposit's site table, which is also the published table
   (`walk/CORRECTION-PXD018299-S1-provenance.md`).
 - Both deposits share authors, so **independent confirmation still requires the
@@ -922,9 +962,10 @@ draw-unstable under an imputation family built on the same axes as H9s's.
   - **159 of 751 = 21.2%** of claims with imputed values change support, so
     the verdict is **recurs**;
   - the secondary, imputation-only, variant gives the same rate.
-- **The flags every figure carries:** the convention was calibrated on the
-  other deposit's output and transferred, and its effect on the verdict is
-  untested; the deposits share authors.
+- **v10:** the level is restated at **27.8%** under the documented rule; the
+  21.2% above is the pre-specified figure, superseded and kept visible.
+- **The flag every figure carries:** the deposits share authors, so independent
+  confirmation still requires the third deposit.
 
 **H4 (attribution, D3).** For sites with orthogonal modifier evidence, some
 fraction carries evidence supporting more than one modifier identity, and that
