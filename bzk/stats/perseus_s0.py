@@ -61,6 +61,33 @@ mirror is what makes `joint` impossible at this design; the two-tailed count is 
 weak. Excluding the two trivial relabellings is offered as its own scheme rather than folded into
 the existing ones because which treatment a published run used is exactly the kind of question
 this module refuses to answer by judgement.
+
+## `joint_half`, and what it rests on
+
+`joint_half` is `joint` with the null count at each threshold multiplied by ½, and nothing else.
+It is the third sidedness, added 2026-09-22 for `walk/PREREG-PXD018299-H10-attempt2.md` §1, and
+three things about it have to travel with it wherever it is used:
+
+1. **It was fitted, on one number at one seed.** H10's attempt 1 failed its gate at precision 1.00
+   and recall 0.50: every complete-case protein this implementation called, Perseus had called,
+   and Perseus called more. The diagnosis (`notes/scripts/diagnose_gate_g.py`, seed 0, the default
+   cell) found the ranking already exact — the top 86 of the statistic *are* the 86 published
+   complete-case calls — and the threshold off by about a factor of two: at Perseus's 282nd call
+   this module's `joint` q is 0.098, and half of that, 0.049, sits just under Perseus's 0.05.
+   **That single figure is the whole of the fit.** `walk/RESULT-PXD018299-H10-attempt1.md` records
+   it.
+2. **It is unverified against Perseus's code.** The plugin source once cited for it,
+   `github.com/JurgenCox/perseus-plugins`, returned **404 on 2026-09-22**, so the convention could
+   not be read from an implementation. What it is is the leading *reading* of a counting
+   convention — null exceedances counted in one tail against observed exceedances in both — and
+   not a transcription of one.
+3. **Attempt 1's result is why it exists at all.** It is not a better idea about permutation FDR;
+   it is a hypothesis about what one published tool counts, adopted because the alternative was to
+   stop. Every result computed under it is in-sample until something outside Table 3 confirms it:
+   an independent published Perseus output with its FDR and s0 stated, the code, or the authors.
+
+**At 3 against 3 with the mirror kept, the floor halves with it**: `joint`'s 1/19 becomes 1/38.
+That is arithmetic rather than a second claim, and it is asserted in the tests.
 """
 
 from __future__ import annotations
@@ -74,8 +101,10 @@ import numpy as np
 from bzk.stats.registry import register
 from bzk.stats.tests import _moments
 
-#: The two answers to *"how is sidedness handled"*, neither chosen here.
-SIDEDNESS = ("joint", "per_side")
+#: The three answers to *"how is sidedness handled"*, none chosen here. `joint_half` was added
+#: 2026-09-22 for `walk/PREREG-PXD018299-H10-attempt2.md` §1 — see the module docstring for what
+#: it is fitted to and what it is not verified against.
+SIDEDNESS = ("joint", "per_side", "joint_half")
 
 #: The four answers to *"how are the relabellings drawn"*, none chosen here. The two
 #: `_excluding_trivial` forms were added 2026-09-22 for the reason the module docstring gives.
@@ -224,7 +253,13 @@ def _tail_counts(sorted_values: np.ndarray, thresholds: np.ndarray, *, upper: bo
 
 
 def _q_values(
-    observed: np.ndarray, null_total: np.ndarray, thresholds: np.ndarray, *, upper: bool, draws: int
+    observed: np.ndarray,
+    null_total: np.ndarray,
+    thresholds: np.ndarray,
+    *,
+    upper: bool,
+    draws: int,
+    null_scale: float = 1.0,
 ) -> np.ndarray:
     """The q-value for every row whose statistic is finite, from counts already accumulated.
 
@@ -238,13 +273,18 @@ def _q_values(
     nothing; clipping it would assert a bound the estimator does not have, and nothing downstream
     reads q as a probability — significance is `q <= alpha`, and an uncapped q above 1 fails that
     exactly as a capped one would.
+
+    `null_scale` multiplies the null count and is ½ for `joint_half` — the whole of that
+    convention, applied at the one place the null count enters. It cannot disturb monotonicity: a
+    positive constant factor commutes with the running minimum below, so q stays non-increasing in
+    the statistic whatever the scale.
     """
     ordered = np.sort(thresholds) if upper else np.sort(thresholds)[::-1]
     order = np.argsort(thresholds) if upper else np.argsort(thresholds)[::-1]
     observed_sorted = np.sort(observed)
     called = _tail_counts(observed_sorted, ordered, upper=upper)
     with np.errstate(divide="ignore", invalid="ignore"):
-        fdr = (null_total[order] / draws) / called
+        fdr = (null_scale * null_total[order] / draws) / called
     # Least extreme threshold first, so the running minimum at position k is the smallest FDR over
     # every threshold a row at `ordered[k]` would still be called by.
     cummin = np.minimum.accumulate(fdr)
@@ -253,7 +293,13 @@ def _q_values(
 
 
 def _side_q(
-    d: np.ndarray, null_draws: list[np.ndarray], *, upper: bool, mask: np.ndarray, draws: int
+    d: np.ndarray,
+    null_draws: list[np.ndarray],
+    *,
+    upper: bool,
+    mask: np.ndarray,
+    draws: int,
+    null_scale: float = 1.0,
 ) -> np.ndarray:
     """q for the rows in `mask`, against the whole null in one direction. NaN elsewhere."""
     q = np.full(d.shape, np.nan)
@@ -265,7 +311,9 @@ def _side_q(
     for null in null_draws:
         finite = np.sort(null[np.isfinite(null)])
         null_total += _tail_counts(finite, thresholds, upper=upper)
-    q[mask] = _q_values(subject, null_total, thresholds, upper=upper, draws=draws)
+    q[mask] = _q_values(
+        subject, null_total, thresholds, upper=upper, draws=draws, null_scale=null_scale
+    )
     return q
 
 
@@ -316,9 +364,11 @@ def perseus_s0(
     null_draws = [_statistic(combined[:, idx[:n_a]], combined[:, idx[n_a:]], s0) for idx in draws]
 
     finite = np.isfinite(d)
-    if sidedness == "joint":
+    if sidedness in ("joint", "joint_half"):
         # One FDR over |d|: both directions share a threshold and a null, which is what makes it
-        # one test rather than two half-sized ones.
+        # one test rather than two half-sized ones. `joint_half` is this and one multiplication —
+        # the null count halved — so the two share every line but the scale, which is what makes
+        # "as `joint`, except" a statement about the code and not only about the definition.
         absolute = np.abs(d)
         q = _side_q(
             absolute,
@@ -326,6 +376,7 @@ def perseus_s0(
             upper=True,
             mask=finite,
             draws=used,
+            null_scale=0.5 if sidedness == "joint_half" else 1.0,
         )
     else:
         # Separate FDRs, each on one-sided counts. A row with `d == 0` is placed on the positive

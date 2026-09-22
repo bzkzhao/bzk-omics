@@ -99,7 +99,7 @@ from bzk.sources.pxd026748_reconstruction import (
     shotgun_rows,
 )
 from bzk.stats import downshifted_normal
-from bzk.stats.perseus_s0 import SCHEMES, SIDEDNESS, perseus_s0
+from bzk.stats.perseus_s0 import SCHEMES, perseus_s0
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CURATION_DIR = REPO_ROOT / "data" / "curation"
@@ -190,9 +190,16 @@ class Variant:
         return f"{self.sidedness}+{self.scheme}"
 
 
+#: Attempt 1's two sidedness values, pinned here rather than taken from `perseus_s0.SIDEDNESS`.
+#: **That module gained a third, `joint_half`, on 2026-09-22 for attempt 2**, and attempt 1's
+#: variant list is part of a registered and already-run gate: reading it off a constant that grows
+#: would have silently made attempt 1 a twelve-variant run, and its committed result a description
+#: of something else.
+ATTEMPT_1_SIDEDNESS = ("joint", "per_side")
+
 #: §4's eight, in the order the section lists them — sidedness outermost, scheme inner. The order
 #: is load-bearing: *"Ties go to the earlier variant in the list above."*
-VARIANTS = tuple(Variant(s, c) for s in SIDEDNESS for c in SCHEMES)
+VARIANTS = tuple(Variant(s, c) for s in ATTEMPT_1_SIDEDNESS for c in SCHEMES)
 
 
 # ── gate G ──────────────────────────────────────────────────────────────────────────────────────

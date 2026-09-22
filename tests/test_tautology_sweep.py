@@ -1432,6 +1432,59 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_perseus_s0.py", "np.nanmin(without.q_value) == pytest.approx(0.0)", 1),
         ("test_perseus_s0.py", "unequal == kept == 55", 1),
         ("test_perseus_s0.py", "used == 'random_excluding_trivial'", 1),
+        # ── tests/test_perseus_s0.py, the `joint_half` sidedness, 2026-09-22 ──────────────────
+        # **Six further matches, all `PINNED`.** Every right side is a literal: `1/19`, `1/38`, or
+        # a list of q-values read off the implementation at `0a6892d` in a worktree of that commit
+        # and typed in here. The two `.tolist()` entries are a regression pin against a run that
+        # has already happened — attempt 1's committed result — so their values deliberately come
+        # from the older code rather than from this one; a first draft of that test carried
+        # invented numbers and failed on two of six, which is the whole reason it is worth having.
+        #
+        # Measured line by line where a line could be reached on its own:
+        #  - `np.nanmin(half.q_value) == 1/38`: the halving dropped (`null_scale=1.0`), reading
+        #    0.0526 against 0.0263.
+        #  - `np.nanmin(whole.q_value) == 1/19` and `joint.q_value.tolist() == [...]`: `joint`
+        #    quietly routed through the halving (`null_scale=0.5`), reading 0.0263 against 0.0526.
+        #  - `per_side.q_value.tolist() == [...]`: `d >= 0` narrowed to `d > 0` on the positive
+        #    side, which leaves the zero-difference rows with no q at all and reads `nan`.
+        #
+        # **Two are documentary and are recorded as such rather than claimed as guarded.**
+        # `_fdr_at(whole, extreme, whole.d, null) == 1/19` is computed entirely inside the test,
+        # from its own enumeration of the nineteen relabellings — it states a property of the hand
+        # case (exactly one null value reaches the most extreme observed `|d|`), which is what
+        # anchors the `1/38` beside it; no mutation to the module reaches it. And
+        # `half.q_value[argmax] == 1/38` restates one element of the `assert_allclose` two lines
+        # above, which any mutation to the q arithmetic reddens first.
+        (
+            "test_perseus_s0.py",
+            "_fdr_at(whole, extreme, whole.d, null) == pytest.approx(1.0 / 19.0, rel=1e-12)",
+            1,
+        ),
+        (
+            "test_perseus_s0.py",
+            "half.q_value[np.argmax(np.abs(half.d))] == pytest.approx(1.0 / 38.0, rel=1e-12)",
+            1,
+        ),
+        (
+            "test_perseus_s0.py",
+            "joint.q_value.tolist() == pytest.approx([0.05263157894736842, 1.0, 0.05263157894736842, 1.0, 1.0, 1.0])",
+            1,
+        ),
+        (
+            "test_perseus_s0.py",
+            "np.nanmin(half.q_value) == pytest.approx(1.0 / 38.0, rel=1e-12)",
+            1,
+        ),
+        (
+            "test_perseus_s0.py",
+            "np.nanmin(whole.q_value) == pytest.approx(1.0 / 19.0, rel=1e-12)",
+            1,
+        ),
+        (
+            "test_perseus_s0.py",
+            "per_side.q_value.tolist() == pytest.approx([0.0, 0.5789473684210527, 0.0, 0.5789473684210527, 0.5789473684210527, 0.5789473684210527])",
+            1,
+        ),
         # ── tests/test_pxd018299_h10.py, classified individually 2026-09-22 ───────────────────
         # **Seventeen matches, all `PINNED`, and none is a call compared against its own
         # expression.** Every right side is one of three things: a literal the test wrote

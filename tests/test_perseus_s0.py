@@ -585,3 +585,108 @@ def test_random_excluding_trivial_never_draws_a_trivial_relabelling() -> None:
     assert frozenset({3, 4, 5}) not in groups
     # The draws are still with replacement — what is excluded is the trivial pair, not repetition.
     assert len(set(groups)) == 18
+
+
+# ── joint_half ──────────────────────────────────────────────────────────────────────────────────
+
+
+def _fdr_at(result: Any, threshold: float, observed: np.ndarray, null: np.ndarray) -> float:
+    """FDR(t) read back from a run's own inputs, by the definition rather than from the module."""
+    draws = result.randomisations_used
+    return float(
+        ((np.abs(null) >= threshold).sum() / draws) / (np.abs(observed) >= threshold).sum()
+    )
+
+
+def test_joint_half_is_joint_with_the_null_count_halved_at_every_threshold() -> None:
+    """`walk/PREREG-PXD018299-H10-attempt2.md` §1, and nothing else: the null count is multiplied
+    by ½ and the observed count is untouched.
+
+    Asserted as a ratio at every observed threshold rather than at one: halving the *observed*
+    count would double each FDR instead of halving it, and on a symmetric case the two are
+    distinguishable only by direction, not by size. The hand case is turn 18's P1 matrix, whose
+    nineteen relabellings are enumerable.
+    """
+    settings: dict[str, Any] = {
+        "s0": 0.1,
+        "alpha": 0.5,
+        "randomisations": 250,
+        "seed": 0,
+        "scheme": "exhaustive_when_small",
+    }
+    whole = perseus_s0(NUMERATOR, DENOMINATOR, sidedness="joint", **settings)
+    half = perseus_s0(NUMERATOR, DENOMINATOR, sidedness="joint_half", **settings)
+
+    np.testing.assert_allclose(whole.d, half.d, rtol=1e-12)
+    finite = np.isfinite(whole.q_value) & (whole.q_value > 0)
+    assert finite.any()
+    np.testing.assert_allclose(half.q_value[finite], whole.q_value[finite] / 2.0, rtol=1e-12)
+
+    # And against the definition, at the most extreme threshold, computed here from the null.
+    null = _hand_null(NUMERATOR, DENOMINATOR, 0.1)
+    extreme = float(np.max(np.abs(whole.d)))
+    assert _fdr_at(whole, extreme, whole.d, null) == pytest.approx(1.0 / 19.0, rel=1e-12)
+    assert half.q_value[np.argmax(np.abs(half.d))] == pytest.approx(1.0 / 38.0, rel=1e-12)
+
+
+def test_joint_half_halves_the_mirror_floor_at_three_against_three() -> None:
+    """`joint`'s floor is 1/19 with the mirror kept; `joint_half`'s is 1/38.
+
+    That is arithmetic and not a second claim about the convention — the mirror still reproduces
+    every observed `|d|`, so the null count at every threshold is still at least one, and the only
+    thing that moved is the ½. It is asserted because the pre-registration's own expectation about
+    which schemes fail check A turns on this number.
+    """
+    rng = np.random.default_rng(0)
+    numerator = rng.normal(0.0, 1.0, size=(400, 3))
+    denominator = rng.normal(0.0, 1.0, size=(400, 3))
+    numerator[:60] += 4.0
+    settings: dict[str, Any] = {
+        "s0": 0.1,
+        "alpha": 0.01,
+        "randomisations": 250,
+        "seed": 0,
+        "scheme": "exhaustive_when_small",
+    }
+
+    whole = perseus_s0(numerator, denominator, sidedness="joint", **settings)
+    half = perseus_s0(numerator, denominator, sidedness="joint_half", **settings)
+
+    assert np.nanmin(whole.q_value) == pytest.approx(1.0 / 19.0, rel=1e-12)
+    assert np.nanmin(half.q_value) == pytest.approx(1.0 / 38.0, rel=1e-12)
+    # 1/38 is 0.0263, still above 0.01, so neither reaches the anchor's threshold with the mirror
+    # in the null. Halving moves the floor; it does not remove it.
+    assert not whole.significant.any()
+    assert not half.significant.any()
+
+
+def test_joint_and_per_side_are_unchanged_by_the_addition() -> None:
+    """A fixed input through both older sidedness values, against values measured before
+    `joint_half` existed.
+
+    `walk/PREREG-PXD018299-H10.md`'s attempt 1 has already run and its result is committed; a
+    change to what `joint` or `per_side` computes would make that result a description of
+    something else. **The numbers below were read off the implementation at `0a6892d`** — the
+    commit before this one — in a `git worktree` of that commit, and are asserted here rather than
+    recomputed from this one. A first draft of this test carried invented values and failed on two
+    of the six, which is the whole reason it is worth having: a regression pin whose numbers come
+    from the code it is pinning would pass whatever that code did.
+    """
+    settings: dict[str, Any] = {
+        "s0": 0.1,
+        "alpha": 0.05,
+        "randomisations": 250,
+        "seed": 0,
+        "scheme": "exhaustive_when_small",
+    }
+    joint = perseus_s0(NUMERATOR, DENOMINATOR, sidedness="joint", **settings)
+    per_side = perseus_s0(NUMERATOR, DENOMINATOR, sidedness="per_side", **settings)
+
+    assert joint.q_value.tolist() == pytest.approx(
+        [0.05263157894736842, 1.0, 0.05263157894736842, 1.0, 1.0, 1.0]
+    )
+    assert per_side.q_value.tolist() == pytest.approx(
+        [0.0, 0.5789473684210527, 0.0, 0.5789473684210527, 0.5789473684210527, 0.5789473684210527]
+    )
+    assert joint.sidedness == "joint"
+    assert per_side.sidedness == "per_side"
