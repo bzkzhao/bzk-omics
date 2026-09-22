@@ -1,0 +1,27 @@
+EE — the census of drawn cells in the published table
+  published claims: 798
+    no drawn cell:                                   40
+    some drawn, both arms still measured somewhere:  43
+    a whole arm drawn (no measured counterpart):     715
+    claims whose published fold change contains a drawn cell: 758 of 798 (95%)
+  |published fold change - measured-only fold change| over the 43 comparable claims:
+    quartiles 0.691 / 1.055 / 1.524, max 3.428 (log2 units)
+    PKM (id 1107) sits at 0.472
+
+FF — the jitter band: how far the shared threshold moves, and its reach
+  jitter measured on rows whose own values never move: median q range 0.0015
+    published claims with median q within +/-0.0007 of the cut: 2 of 791 (0.3%)
+    published claims with median q within +/-0.0015 of the cut: 5 of 791 (0.6%)
+    published claims with median q within +/-0.0029 of the cut: 17 of 791 (2.1%)
+  With one observed instance among 40 fully measured claims, the rate is 2.5% with a
+  95% interval of roughly 0.1% to 13%, and it scales with how much of the matrix is drawn.
+
+GG — the peptide-level count the site table can provide
+  column used: 'Mod. peptide IDs'
+                              all rows:   2377 distinct modified-peptide ids
+        minus reverse and contaminants:   2359 distinct modified-peptide ids
+                  localisation >= 0.75:   2271 distinct modified-peptide ids
+
+HH — parameter and summary files in the raw store
+  none — the raw store holds the site tables, the protein groups and the supplements only.
+  PRIDE's file listing for PXD018299 would say whether the deposit carries them.
