@@ -1,0 +1,32 @@
+II — the signed gap over the 43 partially drawn claims
+  claims: 43
+  signed (published - measured-only): quartiles +0.691 / +1.055 / +1.524
+  published exceeds measured-only in 41 of 43 claims
+  absolute gap (as reported in round 14): median 1.055
+
+  what the authors' own imputation model predicts for these same claims
+    unconditional: median +1.007 (quartiles +0.604 / +1.545)
+    conditioned on clearing the weakest published fold change (+1.447): median +1.047 over 8296 of 8600 draws
+    observed: median +1.055
+
+JJ — the protein-grain control: MOESM4's published protein claims
+  MOESM4 header: ['LFQ intensity KO_IFN_1', 'LFQ intensity KO_IFN_2', 'LFQ intensity KO_IFN_3', 'LFQ intensity WT_IFN_1', 'LFQ intensity WT_IFN_2', 'LFQ intensity WT_IFN_3', 'C: Only identified by site', 'C: Reverse', 'C: Potential contaminant', 'N: Peptides', 'N: Razor + unique peptides', 'N: Unique peptides', 'N: Sequence coverage [%]', 'N: Unique + razor sequence coverage [%]', 'N: Unique sequence coverage [%]', 'N: Mol. weight [kDa]', 'N: Q-value', 'N: Score', 'N: Intensity', 'N: MS/MS count', 'T: Protein IDs', 'T: Majority protein IDs', 'T: Protein names', 'T: Gene names']
+  deposited proteinGroups LFQ columns: ['LFQ intensity KO_INF_P_2hGradient1', 'LFQ intensity KO_INF_P_2hGradient2', 'LFQ intensity KO_INF_P_2hGradient3', 'LFQ intensity KO_P_2hGradient1', 'LFQ intensity KO_P_2hGradient1_190305112303', 'LFQ intensity KO_P_2hGradient1_2ul', 'LFQ intensity KO_P_2hGradient2', 'LFQ intensity KO_P_2hGradient3', 'LFQ intensity WT_INF_P_2hGradient1', 'LFQ intensity WT_INF_P_2hGradient2', 'LFQ intensity WT_INF_P_2hGradient3', 'LFQ intensity WT_P_2hGradient1', 'LFQ intensity WT_P_2hGradient2', 'LFQ intensity WT_P_2hGradient3']
+  MOESM4 identifier column: 'T: Protein IDs'
+  matched 25 of 25 published protein claims to the deposit
+  cells with no deposited LFQ value (drawn): 150 of 150
+  compare: 95% of published SITE claims contain a drawn cell
+
+KK — a bounded scan for the paper's 2,341 modified peptides
+  loc >= 0.0     2359   2359   2359   2359   2047   1710   (scores (0, 20, 30, 40, 50, 60))
+  loc >= 0.5     2355   2355   2355   2355   2044   1709   (scores (0, 20, 30, 40, 50, 60))
+  loc >= 0.6     2279   2279   2279   2279   1992   1677   (scores (0, 20, 30, 40, 50, 60))
+  loc >= 0.7     2258   2258   2258   2258   1973   1660   (scores (0, 20, 30, 40, 50, 60))
+  loc >= 0.75    2254   2254   2254   2254   1969   1656   (scores (0, 20, 30, 40, 50, 60))
+  loc >= 0.8     2243   2243   2243   2243   1963   1651   (scores (0, 20, 30, 40, 50, 60))
+  loc >= 0.9     2172   2172   2172   2172   1909   1613   (scores (0, 20, 30, 40, 50, 60))
+  loc >= 0.95    2120   2120   2120   2120   1865   1574   (scores (0, 20, 30, 40, 50, 60))
+  loc >= 1.0     1535   1535   1535   1535   1361   1171   (scores (0, 20, 30, 40, 50, 60))
+  exact hits on 2,341: 0 
+  no cell reaches 2,341: on this axis the published record is exhausted, evidenced rather
+  than assumed.

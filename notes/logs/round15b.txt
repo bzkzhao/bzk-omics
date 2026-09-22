@@ -1,0 +1,19 @@
+published protein claims: 25; deposited protein groups: 4982
+matched 25 of 25 published claims to a deposited group
+
+testing the mapping: published against log2 of the deposited value, for cells the deposit provides
+  cells compared: 122
+  |difference| <= 0.01: 122 (100.0%)
+  quantiles of the difference: [-0.0, -0.0, 0.0]
+  correlation: 1.0000
+  the mapping is confirmed by the published values themselves
+
+the protein-grain census
+  published protein claims examined: 25
+    containing at least one drawn cell: 11 (44%)
+    with a whole arm drawn:             8
+    drawn cells: 28 of 150 (18.7%)
+  site level, for comparison: 95% of claims contain a drawn cell, 715 of 798 with a whole arm
+
+  Caveat: 25 published protein claims is a small denominator, and MOESM4 is the
+  'significantly up' table only, so this is not the whole protein selection.

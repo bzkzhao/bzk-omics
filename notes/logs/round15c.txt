@@ -1,0 +1,13 @@
+MOESM5 header: ['LFQ intensity WT_IFN-1', 'LFQ intensity WT_IFN-2', 'LFQ intensity WT_IFN-3', 'LFQ intensity KO_IFN-1', 'LFQ intensity KO_IFN-2', 'LFQ intensity KO_IFN-3', 'C: Only identified by site', 'C: Reverse', 'C: Potential contaminant', 'N: Peptides', 'N: Razor + unique peptides', 'N: Unique peptides', 'N: Sequence coverage [%]', 'N: Unique + razor sequence coverage [%]', 'N: Unique sequence coverage [%]', 'N: Mol. weight [kDa]', 'N: Q-value', 'N: Score', 'N: Intensity', 'N: MS/MS count', 'T: Protein IDs', 'T: Majority protein IDs', 'T: Protein names', 'T: Gene names', '', '', '', '']
+published claims: 323
+identifier column: 'T: Protein IDs'
+published sample columns, normalised: ['WT_IFN_1', 'WT_IFN_2', 'WT_IFN_3', 'KO_IFN_1', 'KO_IFN_2', 'KO_IFN_3']
+matched 306 of 323 claims to a deposited group
+
+testing three readings of MOESM5's values, on cells the deposit provides
+                raw log2: 1556 cells, within 0.01: 0.0%, median difference -26.609, correlation 0.7073
+          minus row mean: 1556 cells, within 0.01: 0.3%, median difference +1.361, correlation 0.2542
+     minus column median: 1556 cells, within 0.01: 0.1%, median difference +1.228, correlation 0.6885
+
+  No reading is confirmed by the published values. MOESM5 stays out of the census,
+  which therefore stands at MOESM4's 25 claims. What MOESM5's numbers are remains open.
