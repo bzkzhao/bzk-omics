@@ -1,0 +1,32 @@
+LL — the downshift band, from published fold changes
+  column SDs: [1.61, 1.65, 1.61, 1.89, 1.89, 1.92]
+  observed median gap over 43 claims: +1.055
+   downshift   predicted median gap  consistent with observed?
+         1.0                 +0.291                         no
+         1.2                 +0.476                         no
+         1.4                 +0.656                         no
+         1.6                 +0.848                         no
+         1.7                 +0.935                        yes
+        1.77                 +1.000                        yes
+         1.8                 +1.027                        yes
+         1.9                 +1.129                        yes
+         2.0                 +1.223                         no
+         2.2                 +1.423                         no
+         2.5                 +1.728                         no
+  bootstrap standard error on the observed median: 0.077
+  downshifts consistent with the observed gap: [1.7, 1.77, 1.8, 1.9]
+  Readout C recovered 1.76-1.78 from the cell values; this recovers it from the published
+  fold changes. It identifies a first moment near that value, not the realisation.
+
+MM — MOESM5 by argmax: every published column against every deposited LFQ column
+  matched 306 of 323 claims
+            published column               best deposited match       r                        second best       r
+      LFQ intensity WT_IFN-1     LFQ intensity KO_P_2hGradient1   0.747 LFQ intensity WT_INF_P_2hGradient1   0.742
+      LFQ intensity WT_IFN-2     LFQ intensity KO_P_2hGradient1   0.737 LFQ intensity WT_INF_P_2hGradient1   0.727
+      LFQ intensity WT_IFN-3     LFQ intensity KO_P_2hGradient1   0.738 LFQ intensity WT_INF_P_2hGradient1   0.736
+      LFQ intensity KO_IFN-1 LFQ intensity KO_INF_P_2hGradient1   0.719 LFQ intensity KO_INF_P_2hGradient2   0.716
+      LFQ intensity KO_IFN-2 LFQ intensity KO_INF_P_2hGradient1   0.718 LFQ intensity KO_INF_P_2hGradient2   0.716
+      LFQ intensity KO_IFN-3 LFQ intensity KO_INF_P_2hGradient1   0.721 LFQ intensity KO_INF_P_2hGradient2   0.719
+  If the argmax is the identity mapping, the values are IFN-column intensities after some
+  transform. If it points at the untreated columns, the header names the wrong samples.
+  If no column stands out, the numbers match nothing deposited.
