@@ -54,16 +54,19 @@ each committed before it ran, and each reported beside the others:
    under our departing Welch-based test.
 4. **An observation is recorded** (§4, after D7): **seven published claims have
    no measurement in the contrast they were tested in.** Their deposit
-   intensities sit only in untreated samples, so all twelve of their values in
-   the tested comparison are imputed, and all seven were published as
-   significantly enriched.
+   intensities sit only in untreated samples, so all **six** values entering the
+   tested comparison (three per arm) are imputed, and all seven were published as
+   significantly enriched. The sites themselves are real: each is measured without
+   IFN, with ordinary localisation and score. *(Corrected 2026-09-22 from "twelve",
+   the deposit's sample count.)*
    - A claim that S1 was *not* quantified from the deposit was **withdrawn**
      before this version: it came from comparing a rounded table at a tolerance
      of 1e-6 (`walk/CORRECTION-PXD018299-S1-provenance.md`). S1 **is** log2 of
      the deposit's summed intensities.
 5. **An open question about the population,** recorded and not acted on: the
    deposit holds twelve samples, treated and untreated, and the paper's
-   valid-value filter was probably applied across all twelve, where the
+   valid-value filter **must** have been applied across all twelve, since under any
+   within-IFN rule the seven rows above could not have appeared in S1; the
    reconstruction applied it across the six treated ones. Attempt 3's stopping
    rule closes further attempts without new information.
 6. **Defects, recorded and not rewritten.**
@@ -605,7 +608,8 @@ one.~~
   `walk/CORRECTION-PXD018299-S1-provenance.md`.
 - Seven published claims (deposit ids 124, 434, 562, 1070, 1140, 1233, 1903)
   have intensities **only in the untreated samples**. In the contrast the paper
-  tested, KO + IFN against WT + IFN, all twelve of their values are imputed.
+  tested, KO + IFN against WT + IFN, all six of their values are imputed (three
+  per arm; corrected 2026-09-22 from "twelve").
 - All seven pass the localisation cut with ordinary identification scores, and
   all seven were published as significantly enriched.
 

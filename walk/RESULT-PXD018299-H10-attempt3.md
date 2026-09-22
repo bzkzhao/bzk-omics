@@ -1,5 +1,12 @@
 # RESULT — PXD018299 under its named test, attempt 3 (H10) — final registered attempt
 
+> **Correction (2026-09-22).** This document's finding that Data Table S1 was not
+> produced from the deposited site table is **withdrawn**: it came from comparing a
+> rounded published table at a tolerance of 1e-6. S1 **is** log2 of the deposit's
+> summed intensities. See `walk/CORRECTION-PXD018299-S1-provenance.md`. The registered
+> verdicts below are unaffected; the `matrix: deposit, not the published S1` flag is
+> withdrawn with the finding.
+
 **Run on bzk's machine after registration**
 (`walk/PREREG-PXD018299-H10-attempt3.md`, committed at `e13f06c`), at `49cf3fc`,
 in 17.9 s. No author-parameter file existed. Output:

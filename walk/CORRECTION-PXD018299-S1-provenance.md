@@ -62,18 +62,32 @@ non-zero intensities all sit in the **untreated** samples:
 
 All seven pass the localisation cut (0.93 to 1.00) and carry ordinary scores, so
 identification is not in question. **In the contrast the paper tested, KO + IFN
-against WT + IFN, every one of their twelve values is imputed, and all seven
-were published as significantly enriched.** That is the strongest single
-instance in this project of a published claim resting entirely on generated
-values.
+against WT + IFN, every one of their six values (three per arm) is imputed, and
+all seven were published as significantly enriched.** *(Corrected 2026-09-22:
+this read "twelve", which is the deposit's sample count, not the contrast's.)*
+**The sites themselves are real** — each has measured intensity without IFN, passes
+the localisation cut and carries an ordinary identification score. What is generated
+is not the site but the quantity its claim was tested on.
+
+**Detection only without IFN has a second reading.** The publication states that
+GlyGly peptidomics does not distinguish ISG15 from ubiquitin or NEDD8, and leans on
+the IFN and knockout contrasts for the ISGylation reading. A site measured only in
+untreated cells is, by that reasoning, as consistent with constitutive ubiquitination
+as with ISGylation.
+
+**These seven are the strongest single instance in this project of published claims
+whose support rests entirely on generated values**, in the contrast they were tested
+in.
 
 ## A consequence for the reconstruction's population
 
 The deposit carries **twelve** samples: `KO`, `KO_IFN`, `WT` and `WT_IFN`, three
 each. Our reconstruction builds its matrix from the six IFN columns, which suits
-the contrast. **The paper's valid-value filter was probably applied across all
-twelve**, which would explain how these seven rows survived it: each has two or
-three values in an untreated group.
+the contrast. **The paper's valid-value filter must have been applied across all twelve.**
+Under any within-IFN rule, including "at least one valid value", these seven rows
+have nothing to survive on and could not appear in S1. Each has two or three values
+in an untreated group. *(Corrected 2026-09-22 from "probably": the seven rows make
+it evidenced.)*
 
 If so, the filtered population, and with it the permutation null and the FDR
 threshold, differs from ours. **This is recorded, not acted on.** Attempt 3's
