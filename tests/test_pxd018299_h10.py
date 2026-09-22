@@ -15,6 +15,7 @@ A case that agrees under both readings would establish nothing about which readi
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -549,9 +550,11 @@ def _run(paths: dict[str, Any], **overrides: Any) -> tuple[int, dict[str, Any]]:
     }
     settings.update(overrides)
     code = h10.main(**settings)
-    written = json.loads(
-        (Path(paths["fixtures_dir"]) / h10.FIXTURE_NAME).read_text(encoding="utf-8")
-    )
+    # The attempt's own file, not attempt 1's: reading `FIXTURE_NAME` unconditionally would hand
+    # back the wrong run's fixture the moment `attempt=2` is passed, and silently, because an
+    # attempt 1 file is usually sitting there from an earlier call.
+    name = h10.fixture_name_for(int(settings.get("attempt", 1)))
+    written = json.loads((Path(paths["fixtures_dir"]) / name).read_text(encoding="utf-8"))
     return code, written
 
 
@@ -760,3 +763,325 @@ def test_the_verdict_is_identical_with_and_without_the_author_file(
     # And the author configuration did reach readout A, so the two runs are not simply identical.
     assert plain["readout_a"]["primary"] == "default_cell"
     assert authored["readout_a"]["primary"] == "author_configuration"
+
+
+# ── attempt 2 ───────────────────────────────────────────────────────────────────────────────────
+
+
+def test_attempt_1s_variant_list_and_fixture_name_are_untouched() -> None:
+    """`perseus_s0.SIDEDNESS` gained a third value; attempt 1's eight variants did not.
+
+    Attempt 1 has run and its result is committed. Reading its variant list off a constant that
+    grows would have made that result a description of a twelve-variant run.
+    """
+    assert [v.name for v in h10.VARIANTS] == [
+        "joint+random",
+        "joint+random_excluding_trivial",
+        "joint+exhaustive_when_small",
+        "joint+exhaustive_excluding_trivial",
+        "per_side+random",
+        "per_side+random_excluding_trivial",
+        "per_side+exhaustive_when_small",
+        "per_side+exhaustive_excluding_trivial",
+    ]
+    assert [v.name for v in h10.ATTEMPT_2_VARIANTS] == [
+        "joint_half+random",
+        "joint_half+random_excluding_trivial",
+        "joint_half+exhaustive_when_small",
+        "joint_half+exhaustive_excluding_trivial",
+    ]
+    assert h10.variants_for(1) == h10.VARIANTS
+    assert h10.variants_for(2) == h10.ATTEMPT_2_VARIANTS
+    assert h10.fixture_name_for(1) == "pxd018299_h10.json"
+    assert h10.fixture_name_for(2) == "pxd018299_h10_attempt2.json"
+
+
+#: Attempt 1's synthetic end-to-end fixture, canonically serialised and hashed, **measured at
+#: `36b344a`** — the commit before attempt 2 was written — in a `git worktree` of it, with
+#: `PYTHONPATH` pointed at that tree so the worktree's `bzk` was the one imported rather than the
+#: editable install's.
+ATTEMPT_1_DIGEST = "512a0a4f374d732ca54b78101b35a515c3af0484f110fa53c7db010402ba4fd8"
+
+#: What a rerun must move, and which therefore cannot be in the digest. The first four are a
+#: run's own identity; the last two are the synthetic workbooks' content hashes, which move
+#: between runs because `openpyxl` stamps a creation time into every `.xlsx` it writes — a
+#: property of the test's fixture generator, not of the module under test.
+DIGEST_EXCLUSIONS = (
+    "runtime_seconds",
+    "anchor_published_content_hash",
+    "gate_published_content_hash",
+)
+DIGEST_EXCLUSIONS_UNDER = ("generated_at", "commit", "working_tree_clean")
+
+
+def _digest(written: dict[str, Any]) -> str:
+    written = json.loads(json.dumps(written))
+    for key in DIGEST_EXCLUSIONS:
+        written.pop(key, None)
+    for key in DIGEST_EXCLUSIONS_UNDER:
+        written["generated_under"].pop(key, None)
+    return hashlib.sha256(json.dumps(written, sort_keys=True).encode()).hexdigest()
+
+
+def test_attempt_1s_fixture_is_unchanged_by_attempt_2(tmp_path: Path) -> None:
+    """The synthetic end-to-end run at attempt 1, against a digest measured before attempt 2.
+
+    **Against the old code, not against itself.** A first version of this test ran the live module
+    twice and compared the two, which establishes determinism and nothing else — and it passed
+    under a mutation that turned attempt 2's direction split on for everyone, because both runs
+    carried it. The digest below comes from a worktree of `36b344a`.
+
+    It also caught a real change: `anchor_block` gained an `s1_gene_column` key for readout D′,
+    and that key reached attempt 1's `anchor_matrix` block. Attempt 1 has run and its result is
+    committed; a fixture that gains a field is a fixture of something else. D′ reports the column
+    instead.
+    """
+    _, written = _run(_synthetic(tmp_path))
+
+    assert _digest(written) == ATTEMPT_1_DIGEST
+    assert "attempt" not in written
+    assert "validation" not in written
+    assert all("direction_split" not in v for v in written["gate_g"]["variants"].values())
+
+
+def _counts(up: int, down: int, rows: int = 400) -> tuple[np.ndarray, np.ndarray]:
+    """Per-row seed counts with `up` rows called up by every seed and `down` called down."""
+    up_counts = np.zeros(rows, dtype=int)
+    down_counts = np.zeros(rows, dtype=int)
+    up_counts[:up] = 20
+    down_counts[up : up + down] = 20
+    return up_counts, down_counts
+
+
+def test_g2b_bands_are_inclusive_at_both_ends() -> None:
+    """§3's bands are [58, 86] and [168, 252]. Counts at the endpoints pass; one outside fails."""
+    for wt, ko in ((58, 168), (86, 252), (72, 210)):
+        up, down = _counts(wt, ko)
+        assert h10.direction_split(up, down, majority=10)["passes"], (wt, ko)
+    for wt, ko in ((57, 210), (253, 210), (72, 167), (72, 253)):
+        up, down = _counts(wt, ko)
+        assert not h10.direction_split(up, down, majority=10)["passes"], (wt, ko)
+
+
+def test_g2b_counts_each_direction_by_its_own_majority() -> None:
+    """A row called by a majority in neither direction is in neither count, and the overlap is
+    reported rather than assumed away."""
+    up = np.array([20, 9, 20, 0])
+    down = np.array([0, 9, 20, 20])
+
+    split = h10.direction_split(up, down, majority=10)
+
+    assert split["higher_in_wt"] == 2
+    assert split["higher_in_knockout"] == 2
+    assert split["both"] == 1
+
+
+def test_the_direction_orientation_puts_wt_above_zero() -> None:
+    """`direction > 0` means *higher in WT* under the argument order `gate_block` uses.
+
+    Asserted on the probe the module itself runs, and then on a whole synthetic protein: a row
+    raised in every WT column is counted in the WT band, not the knockout one. A swap would leave
+    both counts plausible and exchange the two bands silently.
+    """
+    values = np.zeros((1, 12))
+    assert h10.orientation_holds(values, [0, 1, 2, 3, 4, 5], [6, 7, 8, 9, 10, 11])
+
+    rng = np.random.default_rng(4)
+    matrix = rng.normal(20.0, 0.3, size=(80, 12))
+    matrix[:12, :6] += 5.0  # up in WT, under the WT-first column order below
+    gate = h10.gate_block(
+        values=matrix,
+        wt_columns=[0, 1, 2, 3, 4, 5],
+        ko_columns=[6, 7, 8, 9, 10, 11],
+        complete=np.ones(80, dtype=bool),
+        accessions=[f"SYNTHETIC-{i}" for i in range(80)],
+        calls=set(),
+        call_values={},
+        randomisations=40,
+        seeds=(0, 1, 2),
+        variants=[h10.ATTEMPT_2_VARIANTS[1]],
+        direction=True,
+        progress=False,
+    )
+    split = gate["variants"]["joint_half+random_excluding_trivial"]["direction_split"]
+
+    assert split["higher_in_wt"] >= 1
+    assert split["higher_in_knockout"] == 0
+
+
+def test_attempt_2_admits_only_what_passes_g2a_g2b_and_a() -> None:
+    """§3: *"A variant is admitted only if it passes G2a, G2b and A."*
+
+    The case is one where G2a passes and G2b fails — the shape attempt 1's own figures had, 33 up
+    against a band starting at 58 — so skipping G2b would admit a variant the registration
+    excludes.
+    """
+    names = [v.name for v in h10.ATTEMPT_2_VARIANTS]
+    gate = {
+        "variants": {
+            name: {
+                "f1": 0.99,
+                "passes": True,
+                "direction_split": {"passes": name != names[0]},
+            }
+            for name in names
+        }
+    }
+    attainability = {name: {"reached": True, "seed": 0} for name in names}
+
+    admitted = h10.admitted_variants(
+        gate, attainability, variants=h10.ATTEMPT_2_VARIANTS, direction=True
+    )
+
+    assert names[0] not in admitted
+    assert admitted == names[1:]
+    # Attempt 1's rule does not read the split at all, which is what keeps it unchanged.
+    assert h10.admitted_variants(gate, attainability, variants=h10.ATTEMPT_2_VARIANTS) == names
+
+
+# ── readout D′ ──────────────────────────────────────────────────────────────────────────────────
+
+
+def _dprime(supported: list[bool], gene_names: list[str], intensity: list[float]) -> dict[str, Any]:
+    return h10.dprime_block(
+        targets={
+            "results_curated": ["ADAR"],
+            "results_not_curated": ["DDX3X", "DHX9"],
+            "discussion": ["MAGE", "STAT1"],
+        },
+        gene_names=gene_names,
+        intensity=intensity,
+        claim_rows=list(range(len(gene_names))),
+        supported=np.array(supported, dtype=bool),
+    )
+
+
+def test_dprime_reports_the_three_tiers_separately() -> None:
+    """§4 lists them separately and they are different kinds of claim: a target in the paper's
+    Results is not the same evidence as one in its Discussion."""
+    block = _dprime(
+        [True, False, True, False],
+        ["ADAR", "DDX3X", "STAT1", "MAGEA4"],
+        [10.0, 9.0, 8.0, 7.0],
+    )
+
+    assert set(block["tiers"]) == {"results_curated", "results_not_curated", "discussion"}
+    assert block["tiers"]["results_curated"]["ADAR"]["any_site"] is True
+    assert block["tiers"]["results_not_curated"]["DDX3X"]["any_site"] is False
+    assert block["tiers"]["discussion"]["STAT1"]["any_site"] is True
+
+
+def test_dprime_matches_mage_by_prefix_and_nothing_else_by_prefix() -> None:
+    """§4's one declared exception. `STAT1` must not match `STAT1B`, and `MAGE` must match
+    `MAGEA4` — the asymmetry is the rule, and it is named in `prefix_matched_symbols`."""
+    block = _dprime([True, True], ["MAGEA4", "STAT1B"], [10.0, 9.0])
+
+    assert block["tiers"]["discussion"]["MAGE"]["absent_from_s1"] is False
+    assert block["tiers"]["discussion"]["MAGE"]["sites"] == 1
+    assert block["tiers"]["discussion"]["STAT1"]["absent_from_s1"] is True
+    assert block["prefix_matched_symbols"] == ["MAGE"]
+    assert h10.matches_symbol("MAGE", "MAGEA4;OTHER") is True
+    assert h10.matches_symbol("STAT1", "STAT1B") is False
+    assert h10.matches_symbol("STAT1", "OTHER;STAT1") is True
+
+
+def test_dprime_reports_an_absent_symbol_as_absent_and_not_as_unrecovered() -> None:
+    """§4: *"A symbol that matches nothing in S1 is reported as absent from S1, never as not
+    recovered."* A claim the file does not carry has no recovery figure, and reporting one would
+    assert a measurement over an empty set."""
+    block = _dprime([True], ["ADAR"], [10.0])
+    absent = block["tiers"]["results_not_curated"]["DHX9"]
+
+    assert absent == {"absent_from_s1": True, "sites": 0}
+    assert "any_site" not in absent
+    assert "largest_site" not in absent
+
+
+def test_dprime_takes_the_largest_site_by_published_intensity() -> None:
+    """Two peptides for one symbol, only the weaker supported: `any_site` is true and
+    `largest_site` is false, which is the whole reason both grains are reported."""
+    block = _dprime([True, False], ["ADAR", "ADAR"], [5.0, 9.0])
+    adar = block["tiers"]["results_curated"]["ADAR"]
+
+    assert adar["sites"] == 2
+    assert adar["any_site"] is True
+    assert adar["largest_site"] is False
+    assert adar["largest_site_intensity"] == pytest.approx(9.0)
+
+
+# ── the staged-file loophole ────────────────────────────────────────────────────────────────────
+
+
+def test_a_staged_but_uncommitted_file_does_not_count_as_committed(tmp_path: Path) -> None:
+    """The pre-registration's rule is *committed before the run*, and `git add` is not a commit.
+
+    `git ls-files --error-unmatch` answers *is this path in the index*, and a staged file is in
+    the index — so the check this replaced passed for a file nobody else could see. Asking `HEAD`
+    asks the commit.
+    """
+    import subprocess
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for command in (
+        ["git", "init", "-q"],
+        ["git", "config", "user.email", "t@example.com"],
+        ["git", "config", "user.name", "t"],
+    ):
+        subprocess.run(command, cwd=repo, check=True, capture_output=True)
+    (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+    subprocess.run(["git", "add", "seed.txt"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-qm", "seed"], cwd=repo, check=True, capture_output=True)
+
+    staged = repo / "author.json"
+    staged.write_text(json.dumps(AUTHOR), encoding="utf-8")
+    subprocess.run(["git", "add", "author.json"], cwd=repo, check=True, capture_output=True)
+
+    assert h10.is_tracked(staged, repo_root=repo) is False
+
+    subprocess.run(["git", "commit", "-qm", "author"], cwd=repo, check=True, capture_output=True)
+    assert h10.is_tracked(staged, repo_root=repo) is True
+
+
+def test_attempt_2_writes_its_own_fixture_and_never_attempt_1s(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """*"Attempt 1 is not replaced. Its result stands, and this attempt is reported beside it."*
+
+    Run end to end at attempt 2 into a directory already holding an attempt 1 fixture, and that
+    file's bytes are untouched while a second file appears beside it.
+
+    **G2b's bands are widened for this run alone, and that is not a loosening of the check.**
+    [58, 86] and [168, 252] are absolute counts calibrated to the deposit's 2,438 rows; a
+    synthetic matrix small enough to run in a test cannot reach 58 of anything, so with the
+    registered bands no variant is ever admitted here and the anchor path, readout D′ and the
+    `validation` labels would all go untested. What the bands themselves do is asserted directly,
+    at their own endpoints, by `test_g2b_bands_are_inclusive_at_both_ends`.
+    """
+    monkeypatch.setattr(h10, "G2B_WT_BAND", (0, 100))
+    monkeypatch.setattr(h10, "G2B_KO_BAND", (0, 100))
+    paths = _synthetic(tmp_path)
+    _run(paths)
+    attempt_1_path = Path(paths["fixtures_dir"]) / h10.FIXTURE_NAME
+    before = attempt_1_path.read_bytes()
+
+    _run(paths, attempt=2)
+
+    assert attempt_1_path.read_bytes() == before
+    attempt_2_path = Path(paths["fixtures_dir"]) / h10.FIXTURE_NAME_ATTEMPT_2
+    assert attempt_2_path.exists()
+    written = json.loads(attempt_2_path.read_text(encoding="utf-8"))
+    assert written["anchor_run"] is True
+    assert written["attempt"] == 2
+    assert written["validation"] == "in-sample; independent confirmation pending"
+    assert set(written["gate_g"]["variants"]) == {v.name for v in h10.ATTEMPT_2_VARIANTS}
+    assert all("direction_split" in v for v in written["gate_g"]["variants"].values())
+    assert written["readouts"]["validation"] == "in-sample; independent confirmation pending"
+    assert set(written["readouts"]["readout_d_prime"]["tiers"]) == {
+        "results_curated",
+        "results_not_curated",
+        "discussion",
+    }
+    # `_default_cell_supported` is `family_block_for`'s internal hand-off to D′ and must not reach
+    # the file: attempt 1's fixture would otherwise have gained a key it never had.
+    assert "_default_cell_supported" not in written["readouts"]

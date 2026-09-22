@@ -112,6 +112,9 @@ CASCADE_FIXTURE = FIXTURES_DIR / "pxd018299_published_cascade.json"
 TARGETS_FIXTURE = FIXTURES_DIR / "pxd018299_platform_targets.json"
 AUTHOR_PARAMETERS = REPO_ROOT / "walk" / "PXD018299-author-parameters.json"
 FIXTURE_NAME = "pxd018299_h10.json"
+#: Attempt 2 writes its own file. §"What it supersedes": *"Attempt 1 is not replaced. Its result
+#: stands, and this attempt is reported beside it."* Beside, not over.
+FIXTURE_NAME_ATTEMPT_2 = "pxd018299_h10_attempt2.json"
 
 GENERATED_BY = "python -m bzk.sources.pxd018299_h10"
 
@@ -197,9 +200,54 @@ class Variant:
 #: of something else.
 ATTEMPT_1_SIDEDNESS = ("joint", "per_side")
 
+#: Attempt 2's four, in `walk/PREREG-PXD018299-H10-attempt2.md` §2's order: `joint_half` crossed
+#: with the same four schemes, and *"no other convention is admitted"*. The order is load-bearing
+#: for §3's tie-break, exactly as attempt 1's is.
+ATTEMPT_2_SIDEDNESS = ("joint_half",)
+
+#: §3's G2b bands, **inclusive at both ends**: Perseus called 72 higher in WT and 210 higher in
+#: ISG15-/-, and the bands are those figures ±20%. They are read once, by `direction_split`, after
+#: every count is formed.
+G2B_WT_BAND = (58, 86)
+G2B_KO_BAND = (168, 252)
+
+#: The label every result block of attempt 2 carries. §1: the convention was fitted to Table 3, so
+#: nothing measured under it is independent of the table it was fitted on, whatever else it passes.
+ATTEMPT_2_VALIDATION = "in-sample; independent confirmation pending"
+
+#: §4's three tiers of publication-named targets. The curated fourteen come from the committed
+#: targets fixture (readout D's own source); these two lists are §4's own, and are the only place
+#: this module carries a symbol list of its own.
+DPRIME_NOT_CURATED = ("DDX3X", "DHX9")
+DPRIME_DISCUSSION = (
+    "TAP1",
+    "GBP1",
+    "STAT1",
+    "IFIT1",
+    "PSMB10",
+    "PSMB9",
+    "GBP2",
+    "PARP14",
+    "MAGE",
+)
+
+#: §4: *"MAGE is matched as any symbol beginning `MAGE`, and that rule is declared as such."*
+DPRIME_PREFIX_SYMBOLS = ("MAGE",)
+
 #: §4's eight, in the order the section lists them — sidedness outermost, scheme inner. The order
 #: is load-bearing: *"Ties go to the earlier variant in the list above."*
 VARIANTS = tuple(Variant(s, c) for s in ATTEMPT_1_SIDEDNESS for c in SCHEMES)
+
+ATTEMPT_2_VARIANTS = tuple(Variant(s, c) for s in ATTEMPT_2_SIDEDNESS for c in SCHEMES)
+
+
+def variants_for(attempt: int) -> tuple[Variant, ...]:
+    """The registered variant list for an attempt. Nothing else selects between the two."""
+    if attempt == 1:
+        return VARIANTS
+    if attempt == 2:
+        return ATTEMPT_2_VARIANTS
+    raise H10Error(f"attempt {attempt!r} is not 1 or 2; there are two registrations")
 
 
 # ── gate G ──────────────────────────────────────────────────────────────────────────────────────
@@ -235,6 +283,62 @@ def table_3_calls(
         if value is not None and str(value).strip() == "+":
             called.add(str(row[ids]).strip())
     return called, dict(sorted(seen.items()))
+
+
+def direction_split(up: np.ndarray, down: np.ndarray, *, majority: int) -> dict[str, Any]:
+    """G2b: how many rows the majority of seeds called higher in WT, and how many in ISG15-/-.
+
+    `walk/PREREG-PXD018299-H10-attempt2.md` §3 asks for the two counts *"over all 2,438 rows, with
+    the majority-of-seeds call"*, against the bands [58, 86] and [168, 252] — Perseus's 72 and 210
+    ±20%, **inclusive at both ends**, since §3 writes them as ranges and a count at an endpoint is
+    inside a range.
+
+    **The majority is applied per direction, not to significance and then to a direction.** A row
+    counts as higher in WT when at least a majority of the seeds called it *and* put it there; a
+    row called by many seeds in neither consistent direction is in neither count, which is the
+    honest answer for it. The two can in principle both hold at an even seed count (ten up and ten
+    down of twenty), so `both` is reported rather than assumed away.
+    """
+    in_wt = up >= majority
+    in_ko = down >= majority
+    wt, ko = int(in_wt.sum()), int(in_ko.sum())
+    return {
+        "higher_in_wt": wt,
+        "higher_in_knockout": ko,
+        "both": int((in_wt & in_ko).sum()),
+        "bands": {"higher_in_wt": list(G2B_WT_BAND), "higher_in_knockout": list(G2B_KO_BAND)},
+        "wt_in_band": G2B_WT_BAND[0] <= wt <= G2B_WT_BAND[1],
+        "knockout_in_band": G2B_KO_BAND[0] <= ko <= G2B_KO_BAND[1],
+        "passes": bool(
+            G2B_WT_BAND[0] <= wt <= G2B_WT_BAND[1] and G2B_KO_BAND[0] <= ko <= G2B_KO_BAND[1]
+        ),
+    }
+
+
+def orientation_holds(
+    values: np.ndarray, wt_columns: Sequence[int], ko_columns: Sequence[int]
+) -> bool:
+    """Whether `direction > 0` means *higher in WT* under the argument order actually used.
+
+    A probe rather than a comment: one synthetic row, higher in every WT column and zero in every
+    ISG15-/- one, pushed through `perseus_s0` with the **same two arguments in the same order**
+    `gate_block` uses. If that order were ever swapped, G2b's two bands would silently exchange
+    places and both would still look plausible — 33 and 145 against 58-86 and 168-252 is a miss
+    either way round, and a swap would be invisible in the figures.
+    """
+    probe = np.zeros((1, values.shape[1]))
+    probe[0, list(wt_columns)] = 1.0
+    outcome = perseus_s0(
+        probe[:, list(wt_columns)],
+        probe[:, list(ko_columns)],
+        s0=GATE_S0,
+        alpha=GATE_ALPHA,
+        randomisations=2,
+        seed=0,
+        sidedness="joint",
+        scheme="random",
+    )
+    return bool(outcome.direction[0] > 0)
 
 
 def gate_majority(seeds: Sequence[int]) -> int:
@@ -273,9 +377,11 @@ def gate_block(
     call_values: Mapping[str, int],
     randomisations: int = RANDOMISATIONS,
     seeds: Sequence[int] = SEEDS,
+    variants: Sequence[Variant] = VARIANTS,
+    direction: bool = False,
     progress: bool = True,
 ) -> dict[str, Any]:
-    """§4's gate, over all eight variants. Pure.
+    """§4's gate, over the attempt's variants. Pure.
 
     **The imputation is computed once per seed and shared by the eight variants.** They differ in
     how the null is drawn, not in the matrix they see, and imputing eight times per seed would be
@@ -284,9 +390,17 @@ def gate_block(
     The complete-case restriction is the gate's whole point (§4): a protein with no missing value
     cannot be moved by the draw, so its call is comparable with a published one without choosing a
     seed.
+
+    **`direction` adds attempt 2's G2b and changes nothing else.** It is off by default, so
+    attempt 1's block is byte-for-byte what it was — attempt 1 has already run and its result is
+    committed. The two counts it adds ride on the same twenty imputations and the same calls the
+    gate already makes, because running them again would be a second twenty draws wearing the same
+    seeds' names.
     """
     target = np.array([a in calls for a in accessions], dtype=bool)
-    counts = {variant.name: np.zeros(values.shape[0], dtype=int) for variant in VARIANTS}
+    counts = {variant.name: np.zeros(values.shape[0], dtype=int) for variant in variants}
+    up_counts = {variant.name: np.zeros(values.shape[0], dtype=int) for variant in variants}
+    down_counts = {variant.name: np.zeros(values.shape[0], dtype=int) for variant in variants}
     for index, seed in enumerate(seeds):
         filled = downshifted_normal(
             values,
@@ -295,8 +409,11 @@ def gate_block(
             seed=seed,
             scope=DEFAULT_SCOPE,
         ).values
-        for variant in VARIANTS:
+        for variant in variants:
             outcome = perseus_s0(
+                # **WT is the numerator**, which is turn 19's argument order and is what makes
+                # `direction > 0` mean *higher in WT*. `_orientation_holds` below asserts it on a
+                # probe rather than leaving it to this comment.
                 filled[:, list(wt_columns)],
                 filled[:, list(ko_columns)],
                 s0=GATE_S0,
@@ -307,13 +424,15 @@ def gate_block(
                 scheme=variant.scheme,
             )
             counts[variant.name] += outcome.significant.astype(int)
+            up_counts[variant.name] += (outcome.significant & (outcome.direction > 0)).astype(int)
+            down_counts[variant.name] += (outcome.significant & (outcome.direction < 0)).astype(int)
         if progress:
             print(f"[gate] seed {index + 1:>2}/{len(seeds)}", end="\r")
     if progress:
         print()
 
-    variants: dict[str, Any] = {}
-    for variant in VARIANTS:
+    scored: dict[str, Any] = {}
+    for variant in variants:
         called = counts[variant.name] >= gate_majority(seeds)
         metrics = gate_metrics(called[complete], target[complete])
         passes = (
@@ -322,11 +441,15 @@ def gate_block(
             and metrics["precision"]["share"] >= GATE_MIN_PRECISION
             and metrics["recall"]["share"] >= GATE_MIN_RECALL
         )
-        variants[variant.name] = {
+        scored[variant.name] = {
             **metrics,
             "called_complete_case": int(called[complete].sum()),
             "passes": bool(passes),
         }
+        if direction:
+            scored[variant.name]["direction_split"] = direction_split(
+                up_counts[variant.name], down_counts[variant.name], majority=gate_majority(seeds)
+            )
 
     complete_positive = int(target[complete].sum())
     return {
@@ -346,8 +469,8 @@ def gate_block(
         "complete_case_published_calls": complete_positive,
         "table_3_call_values": dict(call_values),
         "weakly_informative": complete_positive < GATE_WEAKLY_INFORMATIVE_BELOW,
-        "variants": variants,
-        "passes": any(v["passes"] for v in variants.values()),
+        "variants": scored,
+        "passes": any(v["passes"] for v in scored.values()),
         "thresholds": {"precision": GATE_MIN_PRECISION, "recall": GATE_MIN_RECALL},
     }
 
@@ -595,16 +718,31 @@ def check_a(
     return reached
 
 
-def admitted_variants(gate: Mapping[str, Any], attainability: Mapping[str, Any]) -> list[str]:
-    """§4: those passing both G and A, in the list's own order."""
+def admitted_variants(
+    gate: Mapping[str, Any],
+    attainability: Mapping[str, Any],
+    *,
+    variants: Sequence[Variant] = VARIANTS,
+    direction: bool = False,
+) -> list[str]:
+    """Attempt 1 §4: those passing both G and A. Attempt 2 §3: G2a **and G2b** and A.
+
+    `direction` is what makes it attempt 2's rule. It defaults off, so attempt 1's admission is
+    the function it always was — and a variant that passes G2a on precision and recall while
+    calling 33 rows up against a band of [58, 86] is exactly what G2b exists to exclude.
+    """
     return [
         v.name
-        for v in VARIANTS
-        if gate["variants"][v.name]["passes"] and attainability[v.name]["reached"]
+        for v in variants
+        if gate["variants"][v.name]["passes"]
+        and attainability[v.name]["reached"]
+        and (not direction or gate["variants"][v.name]["direction_split"]["passes"])
     ]
 
 
-def primary_variant(names: Sequence[str], gate: Mapping[str, Any]) -> str | None:
+def primary_variant(
+    names: Sequence[str], gate: Mapping[str, Any], *, variants: Sequence[Variant] = VARIANTS
+) -> str | None:
     """§4: the admitted variant with the highest G F1, ties to the earlier one in `VARIANTS`.
 
     The tie-break is positional and not alphabetical, because §4 says *"the earlier variant in the
@@ -612,7 +750,7 @@ def primary_variant(names: Sequence[str], gate: Mapping[str, Any]) -> str | None
     nothing — cannot win; it is not scored zero, which would rank it against variants whose F1
     exists.
     """
-    order = {v.name: i for i, v in enumerate(VARIANTS)}
+    order = {v.name: i for i, v in enumerate(variants)}
     scored = [
         (n, gate["variants"][n]["f1"]) for n in names if gate["variants"][n]["f1"] is not None
     ]
@@ -755,10 +893,20 @@ def is_tracked(path: Path, *, repo_root: Path = REPO_ROOT) -> bool:
     §6 A turns on *committed*, not on *present*: an untracked file on someone's disk is not a
     record, and a run that treated it as one would make readout A's primary depend on a file
     nobody else can see.
+
+    **`git cat-file -e HEAD:<path>` since 2026-09-22, and the change closes a loophole.** This
+    asked `git ls-files --error-unmatch`, which answers *is this path in the index* — and a file
+    that has been `git add`ed and not committed is in the index. So a staged file passed a check
+    whose whole purpose is that the values were **committed before the run**, which is the one
+    thing the pre-registration will not take on trust. Asking `HEAD` asks the commit.
     """
     try:
+        relative = path.resolve().relative_to(repo_root.resolve())
+    except ValueError:
+        relative = path
+    try:
         done = subprocess.run(
-            ["git", "ls-files", "--error-unmatch", str(path)],
+            ["git", "cat-file", "-e", f"HEAD:{relative.as_posix()}"],
             cwd=repo_root,
             capture_output=True,
             text=True,
@@ -786,10 +934,21 @@ def _supplement_path(supplement: SupplementaryFile, home: Path) -> Path:
         ) from exc
 
 
-def _write(fixtures_dir: Path, fixture: Mapping[str, Any]) -> Path:
-    path = fixtures_dir / FIXTURE_NAME
+def _write(fixtures_dir: Path, fixture: Mapping[str, Any], *, name: str = FIXTURE_NAME) -> Path:
+    path = fixtures_dir / name
     path.write_text(json.dumps(fixture, indent=2) + "\n")
     return path
+
+
+def fixture_name_for(attempt: int) -> str:
+    """Which file an attempt writes. **Attempt 2 never writes attempt 1's**, which is asserted
+    here rather than left to the call site: attempt 1's result is committed and stands."""
+    if attempt == 1:
+        return FIXTURE_NAME
+    if attempt == 2:
+        assert FIXTURE_NAME_ATTEMPT_2 != FIXTURE_NAME
+        return FIXTURE_NAME_ATTEMPT_2
+    raise H10Error(f"attempt {attempt!r} is not 1 or 2; there are two registrations")
 
 
 def _load_anchor(path: Path) -> LoadedCuration:
@@ -866,6 +1025,15 @@ def anchor_block(
         [[_float_cell(s1[int(c["row"])].get(name)) for name in published_columns] for c in claims],
         dtype=float,
     ).reshape(len(claims), len(published_columns))
+    #: S1's own gene-name column, located by content, and the mean of each row's six published
+    #: log2 intensities. Both are for readout D′ alone (attempt 2, §4) and are dropped from the
+    #: written block; they are read here because this is the one place S1 is open.
+    gene_column = resolve_column(
+        list(header), required=["gene"], forbidden=[], what="S1's gene-name column"
+    )
+    gene_names = [str(s1[int(c["row"])].get(gene_column) or "") for c in claims]
+    with np.errstate(invalid="ignore"):
+        intensity = np.nanmean(np.where(np.isfinite(published), published, np.nan), axis=1)
 
     families: dict[str, tuple[np.ndarray, list[str]]] = {}
     for family in COLUMN_FAMILIES:
@@ -900,6 +1068,9 @@ def anchor_block(
     return {
         "matrix": matrix,
         "claim_rows": claim_rows,
+        "s1_gene_names": [gene_names[i] for i in retained],
+        "s1_intensity": [float(intensity[i]) for i in retained],
+        "s1_gene_column": gene_column,
         "claims": [claims[i] for i in retained],
         "population_rows": len(rows),
         "rows_reaching_the_test": int(keep.sum()),
@@ -1031,6 +1202,11 @@ def family_block_for(
             readout_a["primary"] = "author_configuration"
 
     return {
+        # **Not written to the fixture** — `main` pops it before writing, so attempt 1's file is
+        # byte-for-byte what it was. It is here because readout D′ (attempt 2, §4) needs exactly
+        # the default cell's support, per matrix row, and recomputing it there would be a second
+        # median over the same draws that could differ from this one.
+        "_default_cell_supported": supported_default,
         "primary_variant": primary.name,
         "members": len(members),
         "default_cell_members": len(default),
@@ -1091,6 +1267,91 @@ def family_block_for(
                 for i in range(len(claim_rows))
             ],
         },
+    }
+
+
+def _symbols_in(cell: str) -> list[str]:
+    """S1's gene-name cell as the symbols it names. `;`-separated, as MaxQuant and Perseus write it."""
+    return [part.strip() for part in str(cell).split(";") if part.strip()]
+
+
+def matches_symbol(target: str, cell: str) -> bool:
+    """Whether an S1 gene-name cell names `target`. Exact, except for §4's declared prefix rule.
+
+    §4: *"MAGE is matched as any symbol beginning `MAGE`, and that rule is declared as such."* It
+    is one symbol and it is named in `DPRIME_PREFIX_SYMBOLS`, so a reader can see that `MAGE` is
+    the exception rather than that matching is loose. Everything else is exact after splitting on
+    `;` — `pxd018299_differential.py`'s own recorded reason holds here: substring matching lets
+    OAS1 hit OASL.
+    """
+    symbols = _symbols_in(cell)
+    if target in DPRIME_PREFIX_SYMBOLS:
+        return any(symbol.startswith(target) for symbol in symbols)
+    return target in symbols
+
+
+def dprime_block(
+    *,
+    targets: Mapping[str, Sequence[str]],
+    gene_names: Sequence[str],
+    intensity: Sequence[float],
+    gene_column: str = "",
+    claim_rows: Sequence[int],
+    supported: np.ndarray,
+) -> dict[str, Any]:
+    """Readout D′ (attempt 2, §4): the publication's own named targets, at two grains.
+
+    Three tiers, reported separately because §4 lists them separately and they are different kinds
+    of claim — a target in the paper's Results is not the same evidence as one in its Discussion.
+
+    Two grains per target: **any site**, at least one of its S1 peptides supported by the median
+    over the default cell's draws, and **largest site**, whether its highest-intensity S1 peptide
+    is the supported one. "Highest intensity" is the mean of that peptide's six published log2
+    values — §4 says *"highest-intensity"* and not which summary, and the mean over the six is the
+    one that uses every column the table publishes.
+
+    **A symbol matching nothing in S1 is `absent_from_s1`, never `not recovered`.** §4 requires
+    it, and the distinction is the same one `ONTOLOGY.md` draws everywhere else: a claim the file
+    does not carry has no recovery figure, and reporting one as unrecovered would assert a
+    measurement over an empty set.
+
+    **D′ decides nothing.** §4 gives it no registered expectation, and no verdict in this module
+    reads it.
+    """
+    tiers: dict[str, Any] = {}
+    for tier, symbols in targets.items():
+        entries: dict[str, Any] = {}
+        for symbol in symbols:
+            matched = [i for i, cell in enumerate(gene_names) if matches_symbol(symbol, cell)]
+            if not matched:
+                entries[symbol] = {"absent_from_s1": True, "sites": 0}
+                continue
+            calls = [bool(supported[claim_rows[i]]) for i in matched]
+            largest = max(
+                matched,
+                key=lambda i: intensity[i] if intensity[i] == intensity[i] else float("-inf"),
+            )
+            entries[symbol] = {
+                "absent_from_s1": False,
+                "sites": len(matched),
+                "any_site": any(calls),
+                "largest_site": bool(supported[claim_rows[largest]]),
+                "largest_site_intensity": float(intensity[largest]),
+            }
+        tiers[tier] = entries
+    return {
+        "rule": (
+            "Gene symbols matched against S1's own gene-name column, split on ';' and compared "
+            "exactly — except MAGE, matched as any symbol beginning 'MAGE', which PREREG attempt "
+            "2 §4 declares as such. `any_site` is at least one of the target's S1 peptides "
+            "supported by the median over the default cell's draws; `largest_site` is its "
+            "highest-intensity S1 peptide, by the mean of that peptide's six published log2 "
+            "values. A symbol matching nothing is `absent_from_s1`, never `not recovered`. D′ is "
+            "descriptive and decides nothing."
+        ),
+        "gene_column": gene_column,
+        "prefix_matched_symbols": list(DPRIME_PREFIX_SYMBOLS),
+        "tiers": tiers,
     }
 
 
@@ -1185,6 +1446,7 @@ def main(
     seeds: Sequence[int] = SEEDS,
     members: Sequence[Member] | None = None,
     repo_root: Path = REPO_ROOT,
+    attempt: int = 1,
     progress: bool = True,
 ) -> int:
     """Gate G, check A, then the anchor family if a variant survives both.
@@ -1193,7 +1455,17 @@ def main(
     have it, so the tests drive this end to end over synthetic bytes. `members` is injectable for
     the same reason and for one more: the registered family is 360 members and a test does not
     need 360 to establish that the readouts read them.
+
+    **`attempt` selects a registration, and 1 is the default.** Attempt 1 is
+    `walk/PREREG-PXD018299-H10.md`, which has already run; attempt 2 is
+    `walk/PREREG-PXD018299-H10-attempt2.md`, which replaces only its §1–§3 — the variants, the
+    checks and the admission — and adds readout D′. Everything else, including the whole anchor
+    path, is attempt 1's and is not re-specified here. The two write different files and attempt 2
+    labels every result block `in-sample`, because §1's convention was fitted on the table its
+    gate is scored against.
     """
+    registered = variants_for(attempt)
+    attempt_2 = attempt == 2
     started = time.monotonic()
     generated_at = datetime.now(UTC).isoformat()
 
@@ -1204,6 +1476,11 @@ def main(
     values, wt_columns, ko_columns, complete, accessions, calls, call_values = _gate_inputs(
         shotgun_curation, shotgun_deposit, gate_path
     )
+    if attempt_2 and not orientation_holds(values, wt_columns, ko_columns):
+        raise H10Error(
+            "the probe says `direction > 0` is not `higher in WT` under the argument order this "
+            "module uses. G2b's two bands would silently exchange places, so the run stops."
+        )
     gate = gate_block(
         values=values,
         wt_columns=wt_columns,
@@ -1214,11 +1491,14 @@ def main(
         call_values=call_values,
         randomisations=randomisations,
         seeds=seeds,
+        variants=registered,
+        direction=attempt_2,
         progress=progress,
     )
     print(
-        f"[gate] {sum(1 for v in gate['variants'].values() if v['passes'])} of {len(VARIANTS)} "
-        f"variant(s) pass; {gate['complete_case_published_calls']:,} complete-case published call(s)"
+        f"[gate] {sum(1 for v in gate['variants'].values() if v['passes'])} of "
+        f"{len(registered)} variant(s) pass; "
+        f"{gate['complete_case_published_calls']:,} complete-case published call(s)"
     )
 
     anchor_curation = _load_anchor(anchor_curation_path)
@@ -1237,7 +1517,7 @@ def main(
 
     numerator = anchor["matrix"][:, :3]
     denominator = anchor["matrix"][:, 3:]
-    passing = [v for v in VARIANTS if gate["variants"][v.name]["passes"]]
+    passing = [v for v in registered if gate["variants"][v.name]["passes"]]
     attainability = (
         check_a(
             numerator=numerator,
@@ -1251,10 +1531,10 @@ def main(
         else {}
     )
     attainability = {
-        v.name: attainability.get(v.name, {"reached": False, "seed": None}) for v in VARIANTS
+        v.name: attainability.get(v.name, {"reached": False, "seed": None}) for v in registered
     }
-    admitted = admitted_variants(gate, attainability)
-    primary = primary_variant(admitted, gate)
+    admitted = admitted_variants(gate, attainability, variants=registered, direction=attempt_2)
+    primary = primary_variant(admitted, gate, variants=registered)
 
     author = read_author_parameters(author_parameters_path, repo_root=repo_root)
     header = _header(
@@ -1266,32 +1546,61 @@ def main(
         anchor_run=primary is not None,
         author=author,
     )
-    block = {
+    # **Dropped from the written block**, all four for the same reason: they are inputs to readout
+    # D′ (attempt 2) or to the family, not figures. `s1_gene_column` is among them because adding
+    # it would have put a key in attempt 1's `anchor_matrix` that attempt 1 never had — caught by
+    # the byte-identity test, which is what that test is for. D′ reports it instead.
+    dropped = ("matrix", "claim_rows", "s1_gene_names", "s1_intensity", "s1_gene_column")
+    block: dict[str, Any] = {
         **header,
         "gate_g": gate,
         "check_a": attainability,
         "admitted_variants": admitted,
         "primary_variant": primary,
-        "anchor_matrix": {k: v for k, v in anchor.items() if k not in ("matrix", "claim_rows")},
+        "anchor_matrix": {k: v for k, v in anchor.items() if k not in dropped},
     }
+    if attempt_2:
+        block = {**block, "attempt": 2, "validation": ATTEMPT_2_VALIDATION}
 
+    name = fixture_name_for(attempt)
     if primary is None:
-        path = _write(fixtures_dir, {**block, "result": "named test not reproduced"})
+        result = f"named test not reproduced{' (attempt 2)' if attempt_2 else ''}"
+        path = _write(fixtures_dir, {**block, "result": result}, name=name)
         print(f"[h10] no variant admitted; the anchor readouts did not run. Wrote {path}")
         return 1
 
     family = family_block_for(
         anchor=anchor,
-        variants=[v for v in VARIANTS if v.name in admitted],
-        primary=next(v for v in VARIANTS if v.name == primary),
+        variants=[v for v in registered if v.name in admitted],
+        primary=next(v for v in registered if v.name == primary),
         members=list(members) if members is not None else list(family_members()),
         targets=_named_targets(targets_fixture_path),
         author=author,
         randomisations=randomisations,
         progress=progress,
     )
+    if attempt_2:
+        family = {
+            **family,
+            "validation": ATTEMPT_2_VALIDATION,
+            "readout_d_prime": dprime_block(
+                targets={
+                    "results_curated": _named_targets(targets_fixture_path),
+                    "results_not_curated": list(DPRIME_NOT_CURATED),
+                    "discussion": list(DPRIME_DISCUSSION),
+                },
+                gene_names=anchor["s1_gene_names"],
+                gene_column=anchor["s1_gene_column"],
+                intensity=anchor["s1_intensity"],
+                claim_rows=anchor["claim_rows"],
+                supported=family["_default_cell_supported"],
+            ),
+        }
+    family.pop("_default_cell_supported", None)
     elapsed = time.monotonic() - started
-    path = _write(fixtures_dir, {**block, "readouts": family, "runtime_seconds": elapsed})
+    path = _write(
+        fixtures_dir, {**block, "readouts": family, "runtime_seconds": elapsed}, name=name
+    )
     print(
         f"[h10] readout A {family['readout_a']['default_cell']['supported']:,} of {anchor['exposure']:,}"
     )
@@ -1300,5 +1609,20 @@ def main(
     return 0
 
 
+def _attempt_from_argv(argv: Sequence[str]) -> int:
+    """`--attempt N` off the command line, defaulting to 1.
+
+    A hand-rolled read rather than `argparse`: this entry point takes exactly one flag, and the
+    default has to be attempt 1 so that `python -m bzk.sources.pxd018299_h10` keeps meaning what
+    it meant when attempt 1 ran.
+    """
+    for index, token in enumerate(argv):
+        if token == "--attempt" and index + 1 < len(argv):
+            return int(argv[index + 1])
+        if token.startswith("--attempt="):
+            return int(token.split("=", 1)[1])
+    return 1
+
+
 if __name__ == "__main__":  # pragma: no cover - the entry point
-    sys.exit(main())
+    sys.exit(main(attempt=_attempt_from_argv(sys.argv[1:])))

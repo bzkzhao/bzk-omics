@@ -1558,6 +1558,44 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "set(written['gate_g']['variants']) == {v.name for v in h10.VARIANTS}",
             1,
         ),
+        # ── tests/test_pxd018299_h10.py, attempt 2, 2026-09-22 ────────────────────────────────
+        # **Eight further matches, all `PINNED`.** Each right side is a literal the test wrote, a
+        # constant the module declares and the test is checking is still what it was, or a value
+        # captured before the call (`before`, the attempt 1 file's bytes read a line earlier).
+        # None is a call compared against its own expression.
+        #
+        # Measured line by line:
+        #  - `h10.variants_for(1) == h10.VARIANTS` and its `(2)` sibling: the two attempts'
+        #    variant lists swapped inside `variants_for`, which reads `joint_half+random` against
+        #    `joint+random`.
+        #  - `_digest(written) == ATTEMPT_1_DIGEST`: attempt 1's run given the direction split too
+        #    (`direction=True` at the call), and separately S1's gene column reaching attempt 1's
+        #    `anchor_matrix`. **That second mutation was not planted — it was a real defect this
+        #    assertion caught**, which is why the digest is measured against a worktree of
+        #    `36b344a` rather than against a second run of the live code.
+        #  - `admitted == names[1:]` and `admitted_variants(…) == names`: G2b made unconditional,
+        #    so attempt 1's admission rule reads the split it must not read.
+        #  - `set(written['gate_g']['variants']) == ATTEMPT_2_VARIANTS` and
+        #    `attempt_1_path.read_bytes() == before`: `registered` pinned to `VARIANTS`, so
+        #    attempt 2 scores attempt 1's eight.
+        #  - `adar['largest_site_intensity'] == 9.0`: the largest site taken as the weakest, which
+        #    reads the other peptide's intensity.
+        ("test_pxd018299_h10.py", "_digest(written) == ATTEMPT_1_DIGEST", 1),
+        ("test_pxd018299_h10.py", "adar['largest_site_intensity'] == pytest.approx(9.0)", 1),
+        ("test_pxd018299_h10.py", "admitted == names[1:]", 1),
+        ("test_pxd018299_h10.py", "attempt_1_path.read_bytes() == before", 1),
+        (
+            "test_pxd018299_h10.py",
+            "h10.admitted_variants(gate, attainability, variants=h10.ATTEMPT_2_VARIANTS) == names",
+            1,
+        ),
+        ("test_pxd018299_h10.py", "h10.variants_for(1) == h10.VARIANTS", 1),
+        ("test_pxd018299_h10.py", "h10.variants_for(2) == h10.ATTEMPT_2_VARIANTS", 1),
+        (
+            "test_pxd018299_h10.py",
+            "set(written['gate_g']['variants']) == {v.name for v in h10.ATTEMPT_2_VARIANTS}",
+            1,
+        ),
     }
 )
 
