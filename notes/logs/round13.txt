@@ -1,0 +1,39 @@
+AA — the collateral channel, and the right denominator
+  fully measured published claims: 40
+    their q ranges span the 0.01 cut: 1
+    unstable across draws:           1
+    q range across draws: median 0.0015, max 0.0033
+  instability over claims with an imputed value: 209 of 751 (27.8%)
+  instability over ALL published claims:         210 of 791 (26.5%)
+
+BB — id 1107 (PKM K270): published against deposit, summed and per-multiplicity
+  S1:     [26.15, 26.346, 26.282, 22.505, 21.094, 22.518]
+  summed: [26.15, 26.346, 26.282, 22.505, nan, 22.518]
+          Intensity KO_IFN_1 ___n: [26.15]
+          Intensity KO_IFN_2 ___n: [26.346]
+          Intensity KO_IFN_3 ___n: [26.282]
+          Intensity WT_IFN_1 ___n: [22.505]
+          Intensity WT_IFN_2 ___n: []
+          Intensity WT_IFN_3 ___n: [22.518]
+  S1 fold change  +4.220;  summed +3.748
+  deposit Localization prob: '1'
+  deposit Proteins: 'P14618;P14618-2;P14618-3;H3BTN5;B4DNK4;H3BQ34;H3BR70'
+  deposit Gene names: 'PKM'
+  deposit Position: '270'
+
+CC — readings of the site table, against the paper's stated 2,341 GlyGly peptides
+                                     rows in the table:   2318
+                        minus reverse and contaminants:   2298
+                                  localisation >= 0.75:   2073
+                                     any IFN intensity:   2101
+                    any intensity in any of the twelve:   2225
+                 population rule (>=1 in an IFN group):   2101
+  expanded rows carrying intensity (all twelve samples):   2233
+   expanded rows carrying intensity (IFN samples only):   2106
+
+DD — the restricted population, with its denominators
+  rows 914; published claims inside it 677 of 798 (85%)
+  calls 717; hits 677; extra calls 40
+  recall within this population 1.000; precision 0.944
+  The published claims excluded by this filter are the sparse ones that were being missed,
+  so recall inside it cannot be read as agreement on the full set.
