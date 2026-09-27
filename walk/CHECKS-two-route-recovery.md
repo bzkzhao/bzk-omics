@@ -1,5 +1,18 @@
 # CHECKS — the downshift recovered twice, and MOESM5 matches nothing deposited
 
+> **Correction (2026-09-27).** The claim that the two recoveries are **independent
+> routes sharing no inputs** — this document's title, the heading of §1, the
+> sentence beginning *"The two bands overlap"*, and its closing clause *"by two
+> independent routes"* — is **withdrawn**: false as stated. The second route's
+> drawn cells are a subset of the first's drawn inputs; its measured cells are
+> rounded copies of cells in the reference both routes use; both routes reference
+> the same deposit column distribution; and its simulated draw width is fixed at
+> a width the first route recovered. The claim that this **supersedes round 15's
+> framing** is **withdrawn** with it: the second route is itself an observation
+> matched against a simulation, so round 15's framing is left standing. **The
+> band scan's figures, its sensitivity table and the bootstrap standard error are
+> unaffected.** See `walk/CORRECTION-PXD018299-two-route-independence.md`.
+
 **Run 2026-09-22 on bzk's machine.** Script: `notes/scripts/diagnose_round16.py`,
 log `notes/logs/round16.txt`. Not an independent path: the same instruments the
 registered runs use. **Attempt 3's registered verdict stands.**

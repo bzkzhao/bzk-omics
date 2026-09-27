@@ -44,17 +44,25 @@ paper's selection remains contested.
 value is the analysis's estimate of an unmeasured quantity. The finding is the
 rate at which published magnitudes rest on such estimates.
 
-## 2. The imputation setting is recoverable from the published numbers, twice
+## 2. The imputation setting is recoverable from the published numbers, by two overlapping statistics
 
-| route | evidence | recovered downshift |
+| route | inputs | recovered downshift |
 |---|---|---|
-| the drawn cell values, against the deposit's column statistics | supplement + deposit | 1.76 – 1.78 |
-| the published fold changes, through their gap against the measured-only part | supplement + deposit | 1.70 – 1.90 |
+| the drawn cell values, against the deposit's column statistics | the published table's drawn cells, referenced to the deposit's measured values in the same column | 1.76 – 1.78 |
+| the published fold changes, through their gap against the measured-only part | the same table's cells, drawn and measured together, against that same deposit reference; its simulated draw width is fixed at the width the first route recovered | 1.70 – 1.90 |
+
+Both routes' figures, and the column-by-column table the first is read from, are
+in `walk/CHECKS-two-route-recovery.md` and
+`walk/CHECKS-PXD018299-imputation-effects.md`.
 
 The second is informative because the prediction moves sharply with the
 parameter: a median gap of +0.29 at a downshift of 1.0 and +1.73 at 2.5, against
 an observed +1.055 with a bootstrap standard error of 0.077. **The two bands
-share no inputs and overlap on Perseus's default of 1.8.**
+overlap on Perseus's default of 1.8.** They are not independent: the second's
+drawn cells are a subset of the first's drawn inputs, its measured cells are
+rounded copies of cells in the reference the first uses, both reference the same
+deposit column distribution, and its draw width is fixed at the width the first
+recovered.
 
 This identifies a setting near 1.8 column standard deviations. It does not
 identify the particular draw, and the seed is not recorded anywhere.
@@ -107,7 +115,7 @@ are met and two are not:**
 
 | condition | met | why |
 |---|---|---|
-| imputation model | **yes** | recovered from the authors' published values, twice |
+| imputation model | **yes** | recovered from the authors' published values (§2) |
 | statistic | **yes** | its ordering matched the other paper's published Perseus calls exactly — established on that deposit's Supplementary Table 3, the only published table either paper provides that carries per-row test statistics |
 | threshold | **no** | theirs is unknown; candidate rules differ by 133 calls |
 | population | **no** | our filter was chosen to retain the published claim set |
