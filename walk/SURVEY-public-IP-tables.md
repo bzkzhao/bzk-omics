@@ -100,7 +100,7 @@ Column headers, title rows, counts and per-column deciles only.
 
 | | Prediction | Verdict |
 |---|---|---|
-| P1 | PXD055843 S3 is a Perseus export of about 4,400 rows, so a full table | **Not measurable.** S3 was not acquired (§5) |
+| P1 | PXD055843 S3 is a Perseus export of about 4,400 rows, so a full table | **Not measurable** on 2026-10-02 (S3 not acquired, §5). **Superseded 2026-10-03: held** (§7) |
 | P2 | Every PXD018299 BJC table is hits-only with no per-row statistics | **Held for Supplementary Data 1–3**, the scope set by amendment 4. None has a statistics column (§2). Each title row states its rows are above the FDR 0.01 / s0 0.1 cut-off. Because there is no statistic, non-significant rows cannot be counted by bin. "Hits-only" rests on the table's own title text |
 | P3a | Interactome has no type-prefix stamp | **Held.** sniff is False and the header row has 0 stamped cells (§2) |
 | P3b | Interactome is protein grain | **Held.** Its identity columns are `Protein IDs` / `Majority protein IDs` and it uses MaxQuant `proteinGroups` naming (§2) |
@@ -111,7 +111,7 @@ deposit file was read.
 
 ## 5. Unreachable and skipped
 
-- **PXD055843 S3: unreachable at the recorded location.** The ORA record
+- **PXD055843 S3: unreachable at the recorded location** (measured locally on 2026-10-03, §7). The ORA record
   `https://ora.ox.ac.uk/objects/uuid:49f62049-8742-40b7-b994-ab34667d7ab2` (HTTP 200) offers
   one file, `files/spk02cc75p`, which is `Mukhopadhyay_et_al_2024_USP24_is_an.pdf`
   (`application/pdf`). It has no supplementary data. No other source was tried (amendment 3).
@@ -360,4 +360,144 @@ Imputation markers (any header/title cell containing `imput`): none
 - BJC Supplementary Data 1: 0 of 6 sample headers match: []
 - BJC Supplementary Data 2: 0 of 6 sample headers match: []
 - BJC Supplementary Data 3: 6 of 6 sample headers match: ['LFQ intensity WT_IFN-1', 'LFQ intensity WT_IFN-2', 'LFQ intensity WT_IFN-3', 'LFQ intensity KO_IFN-1', 'LFQ intensity KO_IFN-2', 'LFQ intensity KO_IFN-3']
+````
+
+## 7. Addendum 2026-10-03: PXD055843 S3, run locally
+
+**Run on bzk's Mac**, `main` at `5b716ab`, because the ORA record holds no supplementary data
+(§5).
+- **File:** `Supplementary_Data_S3_ISG15_IP.xlsx`, SHA-256 `2ea450f3a63721fa6e59898392e8d07d2e002abbb5cf16004340fe838d3f52e9`, matching
+  `ROADMAP.md:11943–11944`.
+- **Command:** `uv run python walk/survey_ip_tables.py <file>`. The output is reproduced verbatim at
+  the end of this section.
+- **Blind,** as in §1–§6.
+
+**P1 decision rule, fixed in review before the run:**
+- **Full table** if any statistics column shows rows outside significance: blank `Significant`
+  cells, p/q values in `>=0.05`, or both signs of difference.
+- **Hits-only** if every row is `+`, every p/q is < 0.05, and the differences are all one sign.
+- **Not decidable** otherwise.
+
+**Fields.**
+- *Type:* sniff → **True**, with 11 stamped cells in header row 3.
+- *Structure:* 16 quantitative columns, named by raw-file path (`…_ISG01_…` to `…_ISG16_…`, `.d`
+  folders). The design is carried by **two title rows above the header**, not by the headers. Their
+  positions were checked separately, with output below:
+  - row 1: `only beads _ no Ab` at column 1, then `Set 1` at 5, `Set 2` at 9 and `Set 3` at 13;
+  - row 2: `sic (-IFN)`, `siUSP24 (-IFN)`, `sic (+IFN)` and `siUSP24 (+IFN)`, repeating across
+    columns 1–16.
+
+  So columns 1–4 are **one antibody-free bead control per condition**, and columns 5–16 are
+  **three IP sets per condition**. The script's role check reads headers only, which is why it
+  reports "none"; the control is named in the title rows. That the 16 quantitative headers are
+  columns 1–16 follows from their count and from Perseus placing main columns first. It was not
+  printed by position.
+- *Full or hits-only:* 4,410 rows. There is one test, `siUSP24 (+IFN)_sic (+IFN)`: **IP against IP
+  across conditions, not IP against beads.**
+
+  | Column | Result |
+  |---|---|
+  | `Significant` | 222 `+`, 4,188 blank |
+  | p, from −log10 | <0.01: 348; <0.05: 667; ≥0.05: 3,395; invalid: 0 |
+  | q | <0.01: 7; <0.05: 198; ≥0.05: 4,205; out of range: 0 |
+  | Difference and test statistic | >0: 1,815; <0: 2,593; =0: 2 |
+
+  A second column, `C: Student's T-test significant`, has no comparison suffix and 0 `+` in 4,410
+  rows.
+- *Missingness:* 0 of 70,560 cells are NaN, empty or zero.
+- *Imputation signs:* there are **no missing values anywhere**, including in the four
+  antibody-free bead-control columns, which hold a value for every one of the 4,410 proteins. No
+  header or title says `imput`. The values are on a log2-like scale: per-column minima are
+  3.17–5.06 and maxima 20.76–23.51.
+  - A complete table that includes antibody-free controls is consistent with imputation having run.
+    The table cannot distinguish measured values from imputed ones.
+  - **Not resolved here.** This is the question that blocks S1_TP (handoff §1), and it now covers
+    S3 as well (handoff §6.3).
+
+**P1: held.** 4,188 rows are unmarked, 3,395 have p ≥ 0.05, and both signs of difference occur.
+There are 4,410 rows against a prediction of about 4,400.
+
+**Observations, not verdicts.**
+- 222 rows are marked `Significant`, against 205 with q < 0.05. Perseus's call includes s0, which
+  the q-value column does not reflect.
+- Neither public IP table in this survey has a replicated IP-against-control design:
+  - PXD018299's interactome has no control (§2);
+  - S3 has one bead control per condition, with no missing values.
+
+  Both published tests compare IP against IP across conditions.
+
+**Title-row layout check** (openpyxl, rows 1–2, non-empty cells with their 1-based column),
+verbatim:
+
+```
+1 [(1, 'only beads _ no Ab'), (5, 'Set 1'), (9, 'Set 2'), (13, 'Set 3')]
+2 [(1, 'sic (-IFN)'), (2, 'siUSP24 (-IFN)'), (3, 'sic (+IFN)'), (4, 'siUSP24 (+IFN)'), (5, 'sic (-IFN)'), (6, 'siUSP24 (-IFN)'), (7, 'sic (+IFN)'), (8, 'siUSP24 (+IFN)'), (9, 'sic (-IFN)'), (10, 'siUSP24 (-IFN)'), (11, 'sic (+IFN)'), (12, 'siUSP24 (+IFN)'), (13, 'sic (-IFN)'), (14, 'siUSP24 (-IFN)'), (15, 'sic (+IFN)'), (16, 'siUSP24 (+IFN)')]
+```
+
+**Measurement output** (verbatim):
+
+````markdown
+# Survey of public IP tables — measurement output
+
+## PXD055843 Supplementary Data S3
+
+- file: `Supplementary_Data_S3_ISG15_IP.xlsx`
+- SHA-256: `2ea450f3a63721fa6e59898392e8d07d2e002abbb5cf16004340fe838d3f52e9`
+- sheets: ['ISGylome _ siUSP24 + IFN -siC +']
+- `PerseusAdapter.sniff` (first sheet): **True** → Perseus export
+
+### sheet `ISGylome _ siUSP24 + IFN -siC +`
+
+- rows in sheet: 4413; widest row: 27 cells
+- header row: 3; type-prefix stamped cells in it: 11
+- row 1 above the header (title), verbatim: ['only beads _ no Ab', 'Set 1', 'Set 2', 'Set 3']
+- row 2 above the header (title), verbatim: ['sic (-IFN)', 'siUSP24 (-IFN)', 'sic (+IFN)', 'siUSP24 (+IFN)', 'sic (-IFN)', 'siUSP24 (-IFN)', 'sic (+IFN)', 'siUSP24 (+IFN)', 'sic (-IFN)', 'siUSP24 (-IFN)', 'sic (+IFN)', 'siUSP24 (+IFN)', 'sic (-IFN)', 'siUSP24 (-IFN)', 'sic (+IFN)', 'siUSP24 (+IFN)']
+- data rows (any non-empty cell under a named header): **4410**
+- columns with a named header: 27; unnamed: 0
+- non-empty cells under no named header (not printed): 0
+
+Column groups — basis: Perseus type prefix (unprefixed = main/quantitative; M: listed as numeric)
+
+- **quantitative** (16): ['E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG01_S1-A1_1_931.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG02_S1-B1_1_932.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG03_S1-C1_1_933.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG04_S1-D1_1_934.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG05_S1-E1_1_936.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG06_S1-F1_1_937.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG07_S1-G1_1_938.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG08_S1-H1_1_939.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG09_S1-A2_1_941.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG10_S1-B2_1_942.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG11_S1-C2_1_943.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG12_S1-D2_1_944.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG13_S1-E2_1_946.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG14_S1-F2_1_947.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG15_S1-G2_1_948.d', 'E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG16_S1-H2_1_949.d']
+- **categorical** (2): ["C: Student's T-test Significant siUSP24 (+IFN)_sic (+IFN)", "C: Student's T-test significant"]
+- **numeric** (4): ["N: -Log Student's T-test p-value siUSP24 (+IFN)_sic (+IFN)", "N: Student's T-test q-value siUSP24 (+IFN)_sic (+IFN)", "N: Student's T-test Difference siUSP24 (+IFN)_sic (+IFN)", "N: Student's T-test Test statistic siUSP24 (+IFN)_sic (+IFN)"]
+- **text** (5): ['T: Protein.Group', 'T: Protein.Ids', 'T: Protein.Names', 'T: Genes', 'T: First.Protein.Description']
+
+Sample groups as the headers name them (trailing `-n`/`_n` = replicate):
+
+- sample headers naming a role (IP / control / input / IgG / mock / beads): none
+
+Statistics columns (Perseus test naming): ["C: Student's T-test Significant siUSP24 (+IFN)_sic (+IFN)", "C: Student's T-test significant", "N: -Log Student's T-test p-value siUSP24 (+IFN)_sic (+IFN)", "N: Student's T-test q-value siUSP24 (+IFN)_sic (+IFN)", "N: Student's T-test Difference siUSP24 (+IFN)_sic (+IFN)", "N: Student's T-test Test statistic siUSP24 (+IFN)_sic (+IFN)"]
+- `C: Student's T-test Significant siUSP24 (+IFN)_sic (+IFN)`: significance marker; {'+': 222, 'blank': 4188}
+- `C: Student's T-test significant`: significance marker; {'+': 0, 'blank': 4410}
+- `N: -Log Student's T-test p-value siUSP24 (+IFN)_sic (+IFN)`: -log10 p → p; 4410 numeric of 4410; bins {'<0.01': 348, '<0.05': 667, '>=0.05': 3395}; invalid (<0): 0
+- `N: Student's T-test q-value siUSP24 (+IFN)_sic (+IFN)`: p/q; 4410 numeric of 4410; bins {'<0.01': 7, '<0.05': 198, '>=0.05': 4205}; out of [0, 1]: 0
+- `N: Student's T-test Difference siUSP24 (+IFN)_sic (+IFN)`: difference; 4410 numeric of 4410; signs {'>0': 1815, '<0': 2593, '=0': 2}
+- `N: Student's T-test Test statistic siUSP24 (+IFN)_sic (+IFN)`: test statistic; 4410 numeric of 4410; signs {'>0': 1815, '<0': 2593, '=0': 2}
+
+Missingness over the quantitative block (cells under quantitative headers):
+
+- total cells 70560: NaN 0, empty 0, zero 0, non-numeric text 0, value 70560
+- any missing (NaN/empty/zero) in the quantitative block: **False** (0 of 70560)
+
+| column | NaN | empty | zero | text | value | min, deciles 10–90, max (non-zero finite) |
+|---|---|---|---|---|---|---|
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG01_S1-A1_1_931.d` | 0 | 0 | 0 | 0 | 4410 | 4.577 7.461 8.266 9.344 10.22 10.87 11.49 12.09 12.89 14.19 22.57 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG02_S1-B1_1_932.d` | 0 | 0 | 0 | 0 | 4410 | 4.388 7.427 8.159 9.167 10.12 10.82 11.39 12.05 12.87 14.24 23.51 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG03_S1-C1_1_933.d` | 0 | 0 | 0 | 0 | 4410 | 4.52 7.305 7.932 8.729 9.916 10.67 11.3 11.99 12.82 14.19 23.01 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG04_S1-D1_1_934.d` | 0 | 0 | 0 | 0 | 4410 | 4.506 7.573 8.483 9.541 10.34 10.95 11.59 12.24 13.04 14.31 21.83 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG05_S1-E1_1_936.d` | 0 | 0 | 0 | 0 | 4410 | 4.162 7.192 7.756 8.397 9.494 10.44 11.13 11.77 12.6 14 22.28 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG06_S1-F1_1_937.d` | 0 | 0 | 0 | 0 | 4410 | 4.527 7.772 8.876 9.85 10.49 11.06 11.62 12.23 13.03 14.36 23.17 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG07_S1-G1_1_938.d` | 0 | 0 | 0 | 0 | 4410 | 3.742 8.737 9.525 10.14 10.67 11.16 11.65 12.28 13.02 14.2 20.76 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG08_S1-H1_1_939.d` | 0 | 0 | 0 | 0 | 4410 | 3.434 8.121 9.151 9.837 10.35 10.86 11.4 11.99 12.8 14.06 21.22 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG09_S1-A2_1_941.d` | 0 | 0 | 0 | 0 | 4410 | 5.057 7.932 9.11 9.911 10.52 11.07 11.61 12.23 13 14.33 22.29 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG10_S1-B2_1_942.d` | 0 | 0 | 0 | 0 | 4410 | 3.644 7.494 8.438 9.551 10.29 10.92 11.46 12.08 12.93 14.27 22.71 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG11_S1-C2_1_943.d` | 0 | 0 | 0 | 0 | 4410 | 3.168 8.662 9.581 10.14 10.7 11.2 11.71 12.35 13.12 14.29 21.38 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG12_S1-D2_1_944.d` | 0 | 0 | 0 | 0 | 4410 | 3.565 8.26 9.234 9.884 10.4 10.9 11.41 12.06 12.83 14.06 21.17 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG13_S1-E2_1_946.d` | 0 | 0 | 0 | 0 | 4410 | 4.604 7.974 9.029 9.839 10.54 11.12 11.67 12.27 13.11 14.35 21.69 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG14_S1-F2_1_947.d` | 0 | 0 | 0 | 0 | 4410 | 4.361 8.248 9.324 10.01 10.61 11.12 11.69 12.32 13.16 14.33 22.11 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG15_S1-G2_1_948.d` | 0 | 0 | 0 | 0 | 4410 | 4.56 8.181 9.286 9.969 10.55 11.08 11.63 12.26 13.06 14.26 21.99 |
+| `E:\MS_Projects\Rishov_USP24_SCP00004\ISG15_IPs_Thermo_Ab\SCP0013_MSQ2590_20230403_RishovMukhopadhyay_ISG16_S1-H2_1_949.d` | 0 | 0 | 0 | 0 | 4410 | 4.639 8.694 9.525 10.08 10.58 11.08 11.53 12.15 12.88 14.07 20.87 |
+
+Imputation markers (any header/title cell containing `imput`): none
 ````
