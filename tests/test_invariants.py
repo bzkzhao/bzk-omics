@@ -430,18 +430,113 @@ def test_I21_leaves_a_hand_written_id_alone() -> None:
 
 
 def test_I21_is_silent_on_a_result_that_carries_no_adjusted_by_edge() -> None:
-    """The shape all 1,362 shipped results have: `not_applied`, no edge, digest-shaped id.
+    """The shape all 1,362 shipped results have: `not_applied`, no `ADJUSTED_BY`, digest-shaped id.
 
-    The id here is minted through the null door deliberately — with no `ADJUSTED_BY` edge that is
-    not a defect but the correct tuple, which is exactly why the trigger is the edge and not the
-    `protein_adjusted` value.
+    The id is minted with no baseline deliberately — with no `ADJUSTED_BY` edge that is not a
+    defect but the correct tuple, which is why the trigger is the edge and not the
+    `protein_adjusted` value. **Revised 2026-10-03 for ADR-0037:** I21 now recomputes from every
+    anchor edge a change-set carries, so this change-set carries all three the id encodes, as the
+    differential's own does (P1, measured). Carrying only `RESULT_FOR_SITE`, as this case did
+    before, is now refused — see the next case.
     """
+    rid = _result_id("bzk:obs1", None, protein_adjusted="not_applied")
+    nodes = _context() + [
+        n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR"),
+        n("DifferentialResult", id=rid, protein_adjusted="not_applied"),
+    ]
+    edges = [
+        e("WAS_GENERATED_BY", rid, _ANALYSIS),
+        e("RESULT_IN_CONTRAST", rid, _CONTRAST),
+        e("RESULT_FOR_SITE", rid, "bzk:obs1"),
+    ]
+    validate(nodes, edges, only="I21")
+
+
+def test_I21_refuses_a_change_set_carrying_some_of_the_anchors_an_id_encodes() -> None:
+    """Carrying one anchor edge obliges carrying the others (ADR-0037 D1, kept from I21)."""
     rid = _result_id("bzk:obs1", None, protein_adjusted="not_applied")
     nodes = [
         n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR"),
         n("DifferentialResult", id=rid, protein_adjusted="not_applied"),
     ]
-    validate(nodes, [e("RESULT_FOR_SITE", rid, "bzk:obs1")], only="I21")
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, [e("RESULT_FOR_SITE", rid, "bzk:obs1")], only="I21")
+    assert ei.value.invariant == "I21"
+    assert "carrying one obliges carrying the others" in str(ei.value)
+
+
+def _curation_change_set() -> tuple[list[dict[str, object]], list[dict[str, str]]]:
+    from bzk.curation.loader import load_path
+
+    loaded = load_path(Path(__file__).resolve().parents[1] / "data/curation/curation_PXD018299.json")
+    return [dict(node) for node in loaded.nodes], [dict(edge) for edge in loaded.edges]
+
+
+def test_I21_accepts_the_anchor_curation_record() -> None:
+    """Twelve `Sample`s anchored *into* by `PERFORMED_ON`, one `Experiment` by `CONTAINS`."""
+    validate(*_curation_change_set(), only="I21")
+
+
+def test_I21_refuses_a_sample_minted_through_the_null_door() -> None:
+    """The orientation case: `PERFORMED_ON` runs `Experiment` -> `Sample`, into the anchored node.
+
+    Read as an edge out of the node, as I21 did before ADR-0037, this anchor contributes nothing
+    and the null-door `Sample` below passes.
+    """
+    from bzk.ontology.keys import evidence_id
+
+    nodes, edges = _curation_change_set()
+    sample = next(node for node in nodes if node[NODE_TYPE_KEY] == "Sample")
+    old, new = sample["id"], evidence_id("Sample", sample)
+    sample["id"] = new
+    for edge in edges:
+        for end in ("from", "to"):
+            if edge[end] == old:
+                edge[end] = new
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, edges, only="I21")
+    assert ei.value.invariant == "I21"
+    assert "no Experiment at all (the null door)" in str(ei.value)
+
+
+def test_I21_refuses_two_counterparts_for_one_anchor() -> None:
+    """ADR-0037 D4: an id renders one id per anchor, so a second `USED` edge cannot be keyed."""
+    nodes, edges = _curation_change_set()
+    analysis = next(node for node in nodes if node[NODE_TYPE_KEY] == "Analysis")
+    second = "bzk:" + "0" * 32
+    nodes.append(n("Dataset", id=second, content_hash="sha256:" + "0" * 64))
+    edges.append(e("USED", analysis["id"], second))
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, edges, only="I21")
+    assert ei.value.invariant == "I21"
+    assert "2 distinct Dataset anchors" in str(ei.value)
+
+
+def test_I21_reads_a_several_pair_anchor_from_its_counterparts_label() -> None:
+    """ADR-0037 D3 and review R1: `PROTEIN_ASSIGNMENT_FOR` joins a `ProteinAssignment` to either
+    observation label, so the counterpart's label says which anchor the edge supplies.
+
+    Constructed: no producer emits a `ProteinAssignment` (ADR-0037 P4). The unstaged-counterpart
+    half of D3 has no case here because structural validation refuses it first.
+    """
+    from bzk.ontology.keys import evidence_id
+
+    props = {"basis": "ambiguous", "candidate_proteins": [MX1], "confidence": "ambiguous"}
+    obs = n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR")
+    honest = evidence_id("ProteinAssignment", props, {"SiteObservation": "bzk:obs1"})
+    door = evidence_id("ProteinAssignment", props)
+    validate(
+        [obs, n("ProteinAssignment", id=honest, **props)],
+        [e("PROTEIN_ASSIGNMENT_FOR", honest, "bzk:obs1")],
+        only="I21",
+    )
+    with pytest.raises(InvariantError) as ei:
+        validate(
+            [obs, n("ProteinAssignment", id=door, **props)],
+            [e("PROTEIN_ASSIGNMENT_FOR", door, "bzk:obs1")],
+            only="I21",
+        )
+    assert "no SiteObservation at all (the null door)" in str(ei.value)
 
 
 def test_I21_fires_under_the_full_validate_over_an_otherwise_valid_change_set() -> None:
@@ -482,26 +577,25 @@ def test_I21_fires_under_the_full_validate_over_an_otherwise_valid_change_set() 
     validate(*rekeyed(evidence_id("DifferentialResult", dr1, anchors)))  # must not raise
 
 
-def test_I21_reads_its_anchors_from_the_identity_table_and_all_five_point_outward() -> None:
-    """The recomputation is only right if every anchor is an edge *out of* the result.
+def test_I21_orients_every_anchor_from_its_declared_pair() -> None:
+    """ADR-0037 D3, measured at `f7f931c`: 12 anchored labels, 25 anchors, 5 running *into* the node.
 
-    §3's table is the authority and `_RESULT_ANCHORS` mirrors it, so a sixth anchor is recomputed
-    against without an edit here — the same derivation I20's edge list uses. What that derivation
-    cannot do on its own is check *direction*: an anchor whose relationship runs the other way
-    would contribute nothing to `anchors_of` and I21 would then refuse every correction with a
-    `null` in its recomputed tuple. That is the guard-against-the-wrong-endpoint shape, so it is
-    asserted rather than assumed.
+    Replaces the pre-ADR-0037 assertion that all five `DifferentialResult` anchors point outward,
+    which was true and is now one row of this table rather than the whole of it.
     """
-    from bzk.ontology.invariants import _RESULT_ANCHORS
+    from bzk.ontology.invariants import ANCHORS
 
-    # `_RESULT_ANCHORS` *is* `schema.IDENTITY["DifferentialResult"].anchors` — asserting the two
-    # equal was written here first and `test_tautology_sweep.py` caught it as a match on the spot,
-    # which is the one thing that comparison could ever have established. What is not a tautology
-    # is the count and the direction, and §3's table itself is guarded by `tests/test_schema.py`.
-    declared = {r.name: (r.src, r.dst) for r in schema.REL_TABLES}
-    assert len(_RESULT_ANCHORS) == 5
-    for label, rel in _RESULT_ANCHORS:
-        assert declared[rel] == ("DifferentialResult", label)
+    oriented = [(label, rel, out) for label, rows in ANCHORS.items() for _a, rel, out in rows]
+    assert len(ANCHORS) == 12
+    assert len(oriented) == 25
+    assert sorted(rel for _label, rel, out in oriented if not out) == [
+        "CONTAINS",
+        "HAS_SEQUENCE",
+        "PERFORMED_ON",
+        "REPORTS_PROTEIN",
+        "REPORTS_SITE",
+    ]
+    assert all(out for label, _rel, out in oriented if label == "DifferentialResult")
 
 
 def test_I10_enzyme_attribution_requires_a_live_association() -> None:

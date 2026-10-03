@@ -576,88 +576,150 @@ def _check_I20(nodes: list[Node], edges: list[Edge]) -> None:
         )
 
 
-#: `DifferentialResult`'s anchors, read from `schema.IDENTITY` — the §3 table the key builder
-#: mirrors — rather than listed here, so a sixth anchor is recomputed against without an edit. This
-#: reads each as an edge whose *source* is the result, which is true of all five and is asserted in
-#: `tests/test_invariants.py` rather than here: an anchor declared in the other direction would
-#: contribute `null` to the recomputation and refuse every correction, and that is a red test rather
-#: than a package that will not import.
-_RESULT_ANCHORS: tuple[tuple[str, str], ...] = schema.IDENTITY["DifferentialResult"].anchors
+#: Every anchor of every anchored label, oriented from the relationship's declared pairs (ADR-0037
+#: D3) rather than assumed. Five of the twenty-five run *into* the anchored node (`HAS_SEQUENCE`,
+#: `CONTAINS`, `PERFORMED_ON`, `REPORTS_SITE`, `REPORTS_PROTEIN`); reading every anchor as an edge
+#: out of the node — true of all five of `DifferentialResult`'s, which is all I21 checked before
+#: ADR-0037 — would leave those five contributing nothing and `Sample` never examined.
+#: (anchored label) -> ((anchor label, rel, anchored node is the edge's source), ...)
+def _orient_anchors() -> dict[str, tuple[tuple[str, str, bool], ...]]:
+    rels = {r.name: r for r in schema.REL_TABLES}
+    out: dict[str, tuple[tuple[str, str, bool], ...]] = {}
+    for label, spec in schema.IDENTITY.items():
+        oriented = []
+        for anchor, rel in spec.anchors:
+            pairs = rels[rel].pairs
+            if (label, anchor) in pairs:
+                oriented.append((anchor, rel, True))
+            elif (anchor, label) in pairs:
+                oriented.append((anchor, rel, False))
+            else:
+                raise RuntimeError(  # schema.py is malformed; refuse to import rather than guess
+                    f"§3 declares {label}'s anchor {anchor} via {rel}, which joins neither way"
+                )
+        if oriented:
+            out[label] = tuple(oriented)
+    return out
+
+
+ANCHORS: dict[str, tuple[tuple[str, str, bool], ...]] = _orient_anchors()
+_MULTI_PAIR_RELS: frozenset[str] = frozenset(r.name for r in schema.REL_TABLES if len(r.pairs) > 1)
 
 
 def _check_I21(nodes: list[Node], edges: list[Edge]) -> None:
-    """I21 — a correction's id names the baseline it was computed against (ADR-0025's null door).
+    """I21 — a digest-shaped id encodes the anchors its change-set carries (ADR-0037).
 
-    **What ADR-0025 left open, and it is not the acyclicity gap that record contemplated.** That ADR
-    made `ADJUSTED_BY` an anchor so two corrections of one site against different parents stop
-    minting one id. Nothing obliged a producer to *supply* it: `keys.identity_tuple` permits an
-    absent anchor outright, because not every anchor applies to every instance. Omit it and the
-    tuple carries `@DifferentialResult=␀null` — indistinguishable from a genuinely inapplicable
-    anchor — and the two corrections are one node again, at
-    `bzk:3473130e9cb7f1198196ee40b0e30727`, measured against shipped code before this was written.
+    **Generalised from `ADJUSTED_BY` to every anchored label on 2026-10-03.** Until then this
+    recomputed one label's id on one edge: a correction's id had to name the baseline it was
+    computed against (ADR-0025's null door — omit the anchor and the tuple carries
+    `@DifferentialResult=␀null`, indistinguishable from a genuinely inapplicable anchor, and two
+    corrections of one site against different parents are one node again, at
+    `bzk:3473130e9cb7f1198196ee40b0e30727`). ADR-0027 gives `Contrast` an `Experiment` anchor
+    with the same door, and ADR-0029 Q3 decided the check should be written once, generally.
 
-    **Nothing else sees it.** `_check_I4` reads the `ADJUSTED_BY` edge and never the id, so a result
-    minted through the null door with the edge present validates. `_check_I20` counts `RESULT_FOR_*`.
-    ADR-0019's structural validation recomputes no ids at all — measured, because a guard whose
-    failure arrives from somewhere else establishes the somewhere else, and one was withdrawn here
-    for exactly that on 2026-08-10. So this fires at its own line.
+    **The trigger is still the edge, not the node, and that is still what makes it writable.**
+    The node-triggered form — *every digest-shaped id recomputes* — is refused by real ingestion:
+    `bzk rebuild` stages 36 `Sample`s, and the differential 1,362 `SiteObservation`s, with **no**
+    anchor edge, because ADR-0019 permits re-staging a node as a referent. Measured twice, the
+    second time by `walk/anchor_recompute_dryrun.py` over the rebuild and the differential at
+    `856c3d1` (ADR-0037 *Pre-registration result*): zero null doors, zero mismatches, zero
+    multi-valued anchors, zero unresolved counterparts across 13,223 + 6,799 distinct triggered nodes.
 
-    **Acyclicity is subsumed rather than asserted.** A cycle needs each id to encode the other's,
-    which needs `sha256` to determine its own input — no fixed point in 12 iterations, and
-    unsatisfiable by construction rather than merely unreached. The weaker rule *the id must differ
-    from its no-baseline form* would close the null door and **not** this: two ids each minted
-    honestly against some third baseline, then cross-linked, pass it and are refused here at both
-    ends. That measurement is why this recomputes rather than compares against a null form.
+    **Carrying one anchor edge obliges carrying the others the id encodes**, as before: the id is
+    recomputed from the anchors the change-set names, so a change-set that names some of a node's
+    anchors and not others refuses. Every producer already does (P1, measured).
 
-    **Digest-shaped ids only, and that is a real limit.** `bzk:dr1` claims no digest and is left
-    alone, so the valid fixture's four `bzk:dr*` results and the six hand-built change-sets in
-    `tests/test_invariants.py` that mint one did not have to be re-keyed — and a hand-written cycle
-    survives exactly as ADR-0025 already records. **Nothing in this repository produces the case**:
-    no writer emits `protein_adjusted='applied'`, all 1,362 shipped results are `not_applied` and
-    none carries the edge, so this is exercised only by constructed cases, as I20's and ADR-0025's
-    own guard are.
+    **Refused rather than guessed** (ADR-0037 D3, D4): a node with two distinct counterparts for
+    one anchor, which no id can encode — `USED` and the four `*_SUPPORTED_BY` / `*_CITES` rels
+    declare no multiplicity, contradicting §3's *an anchor must be single-valued* (§11 Q15); and
+    an edge of a several-pair rel (`PROTEIN_ASSIGNMENT_FOR`) whose counterpart is not staged —
+    which structural validation already refuses before this runs, so that half of D3 is subsumed.
 
-    **The trigger is the edge, not the node, and that is what makes it writable at all.** The
-    general form — *every digest-shaped id recomputes* — was measured over `bzk rebuild` and the
-    differential before this scope was settled, and it is refused by the real ingestion: 1,362
-    `SiteObservation`s and 36 `Sample`s are staged with **no** anchor edge in the change-set that
-    stages them, because ADR-0019 permits a node to be re-staged as a referent (see `_check_I14`).
-    A change-set that emits `ADJUSTED_BY` is producing the relationship rather than re-staging a
-    referent, which is the one moment the baseline is known to be present.
+    **Acyclicity is subsumed rather than asserted**: a cycle needs each id to encode the other's,
+    which needs `sha256` to determine its own input. **Digest-shaped ids only**: `bzk:dr1` claims
+    no digest and is not held to one, so hand-built fixtures need no re-keying and a hand-written
+    cycle survives, as ADR-0025 records. **Not caught** (ADR-0037 D5): a node whose anchor *and*
+    edge are both omitted — nothing in the change-set names the anchor — which is a per-label
+    presence guard's job (ADR-0027 implied change 5 for `Contrast`).
     """
-    adjusted = _edges(edges, "ADJUSTED_BY")
-    if not adjusted:  # the shape all 1,362 shipped results have; nothing to recompute
-        return
+    by_id = {node.get("id"): node for node in nodes}
+    by_rel: dict[str, list[Edge]] = defaultdict(list)
+    for edge in edges:
+        by_rel[edge.get("type")].append(edge)
 
-    anchors_of: dict[Any, dict[str, str]] = defaultdict(dict)
-    for label, rel in _RESULT_ANCHORS:
-        for edge in _edges(edges, rel):
-            anchors_of[edge["from"]][label] = edge["to"]
-    results = _index(nodes, "DifferentialResult")
-
-    for edge in adjusted:
-        rid = edge["from"]
-        result = results.get(rid)
-        if result is None or not keys.is_digest_id(rid):
-            # A referent re-staged without its node is structural validation's business; a
-            # hand-written id asserts nothing about its own content and cannot be held to it.
-            continue
-        anchors = anchors_of[rid]
-        expected = keys.evidence_id("DifferentialResult", result, anchors)
-        if expected == rid:
-            continue
-        # Which of the two failures this is, since they read very differently to whoever has to
-        # fix it: a producer that never passed the anchor, or one that passed the wrong node.
-        without = {k: v for k, v in anchors.items() if k != "DifferentialResult"}
-        null_door = rid == keys.evidence_id("DifferentialResult", result, without)
-        raise InvariantError(
-            "I21",
-            f"DifferentialResult {rid!r} is ADJUSTED_BY {edge['to']!r} but its id encodes "
-            + ("no baseline at all" if null_door else "a different one")
-            + f"; the id naming this baseline is {expected!r}. Since ADR-0025 the baseline is "
-            "part of identity (§3), so a correction whose id omits it cannot be told from a "
-            "correction of the same site against a different parent (ONTOLOGY.md §8 I21).",
-        )
+    for label, oriented in ANCHORS.items():
+        for node in _nodes(nodes, label):
+            nid = node.get("id")
+            if not keys.is_digest_id(nid):
+                # A hand-written id asserts nothing about its own content and cannot be held to it.
+                continue
+            found: dict[str, dict[str, str]] = defaultdict(dict)  # anchor label -> {id: rel}
+            for anchor, rel, anchored_is_source in oriented:
+                for edge in by_rel.get(rel, ()):
+                    mine, other = (
+                        (edge["from"], edge["to"]) if anchored_is_source else (edge["to"], edge["from"])
+                    )
+                    if mine != nid:
+                        continue
+                    # A several-pair rel (`PROTEIN_ASSIGNMENT_FOR`) supplies the anchor whose
+                    # label its counterpart carries. The counterpart is always staged here:
+                    # structural validation runs first and refuses an edge naming an absent node,
+                    # so ADR-0037 D3's refusal of an unstaged one is subsumed, not repeated.
+                    if rel in _MULTI_PAIR_RELS and by_id[other].get(NODE_TYPE_KEY) != anchor:
+                        continue
+                    found[anchor][other] = rel
+            if not found:
+                continue  # a re-staged referent (ADR-0019): I21's own exemption, kept
+            for anchor, counterparts in found.items():
+                if len(counterparts) > 1:
+                    raise InvariantError(
+                        "I21",
+                        f"{label} {nid!r} carries {len(counterparts)} distinct {anchor} anchors "
+                        f"({sorted(counterparts)}), and an id renders one per anchor; §3 requires "
+                        "an anchor to be single-valued (ADR-0037 D4, §11 Q15, ONTOLOGY.md §8 I21)",
+                    )
+            anchors = {anchor: next(iter(c)) for anchor, c in found.items()}
+            children: dict[str, list[dict[str, Any]]] = {}
+            for child_label, child_rel, _fields in schema.IDENTITY[label].child_fields:
+                children[child_label] = [
+                    by_id[edge["from"]]
+                    for edge in by_rel.get(child_rel, ())
+                    if edge["to"] == nid and edge["from"] in by_id
+                ]
+            expected = keys.evidence_id(label, node, anchors, children or None)
+            if expected == nid:
+                continue
+            # Which failure this is, since they read very differently to whoever has to fix it: a
+            # producer that never passed an anchor it emitted the edge for, or one that passed a
+            # different node. The correction's wording is kept: it is the case I21 was written for.
+            omitted = [
+                anchor
+                for anchor in anchors
+                if nid
+                == keys.evidence_id(
+                    label, node, {k: v for k, v in anchors.items() if k != anchor}, children or None
+                )
+            ]
+            if label == "DifferentialResult" and "DifferentialResult" in anchors:
+                reading = "no baseline at all" if omitted == ["DifferentialResult"] else "a different one"
+                raise InvariantError(
+                    "I21",
+                    f"DifferentialResult {nid!r} is ADJUSTED_BY {anchors['DifferentialResult']!r} "
+                    f"but its id encodes {reading}; the id naming this baseline is {expected!r}. "
+                    "Since ADR-0025 the baseline is part of identity (§3), so a correction whose "
+                    "id omits it cannot be told from a correction of the same site against a "
+                    "different parent (ONTOLOGY.md §8 I21).",
+                )
+            reading = (
+                f"no {omitted[0]} at all (the null door)" if omitted else "a different anchor set"
+            )
+            raise InvariantError(
+                "I21",
+                f"{label} {nid!r} carries anchor edge(s) to {sorted(anchors)} but its id encodes "
+                f"{reading}, or the change-set omits anchor edges the id encodes — carrying one "
+                f"obliges carrying the others; the id naming the anchors this change-set carries "
+                f"is {expected!r} (ADR-0037, ONTOLOGY.md §8 I21).",
+            )
 
 
 def _check_gene_absence(nodes: list[Node], edges: list[Edge]) -> None:
