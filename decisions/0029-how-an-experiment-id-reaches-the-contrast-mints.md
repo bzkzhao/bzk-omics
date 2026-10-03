@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-08-31 |
-| Reviewed | 2026-09-03 — four findings, two grounds struck, one defect in the decision; held `Proposed`. Re-reviewed 2026-10-03 at `2aecd01` — findings E–F; E is a defect in Q1's decision, which is revised in place; held `Proposed` for bzk |
+| Reviewed | 2026-09-03 — four findings, two grounds struck, one defect in the decision; held `Proposed`. Re-reviewed 2026-10-03 at `2aecd01` — findings E–F; E is a defect in Q1's decision, which is revised in place; accepted by bzk 2026-10-03 as revised, after one correction to E's consequence sentence |
 | Supersedes | — |
 | Superseded by | — |
 
@@ -258,8 +258,14 @@ this function no anchor arrives on `DeclaredRun`"*: `Analysis`'s anchor comes fr
 keyword parameter. A pre-keyed `contrast` keyword arrives the same way. Under the revision, the
 anchored node arrives already keyed, so there is nothing left to thread.
 
-**What moves, and that it moves once.** The 1,362 results move from `bzk:48e94e96…` to the declared,
-anchored `bzk:8f9a0634…` in the single re-mint ADR-0027 already incurs. That is not a second move.
+**What moves, and ~~that it moves once~~ when it moves once.** The 1,362 results move from `bzk:48e94e96…` to the declared,
+anchored `bzk:8f9a0634…` in the single re-mint ADR-0027 already incurs. ~~That is not a second move.~~
+**Corrected before acceptance, 2026-10-03:** that holds only if implied changes 1–3 land in the
+same build as item 5. Built first and alone, they move the results to the declared but
+*unanchored* `bzk:f7c41f45…`, and item 5 moves them again. No result id is pinned in a tracked
+file (ADR-0036 *Landing verification* V5), so each move costs a differential rerun and nothing
+else. **The order that keeps it to one move: item 4's record first, then items 1–3, 5 and 6 as one
+build.**
 
 ### F — line drift since 2026-09-04, re-derived at `2aecd01`. No defect
 
