@@ -61,8 +61,9 @@ EXPECTED_SEED_STRUCK = 17
 #: `ff54bf2` on six findings, `Accepted` once the review's edits were applied. A status change is
 #: the one edit an `Accepted` record may not receive, so this pin moving is what says the
 #: round-trip closed rather than that someone retyped a header.
-#: 21/10/3 -> 21/11/3 on 2026-10-03: ADR-0036 landed `Proposed` (prompt 25).
-EXPECTED_STATUSES = {"Accepted": 21, "Proposed": 11, "Superseded": 3}
+#: 21/10/3 -> 21/11/3 on 2026-10-03: ADR-0036 landed `Proposed` (prompt 25); 21/11/3 -> 22/10/3
+#: the same day, when bzk accepted it as reviewed at `4825cd5`.
+EXPECTED_STATUSES = {"Accepted": 22, "Proposed": 10, "Superseded": 3}
 
 #: Supersessions recorded on one side only, with the reason each is permitted.
 #:

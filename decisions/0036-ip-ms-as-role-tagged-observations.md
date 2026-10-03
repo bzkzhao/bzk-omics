@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-03 |
+| Reviewed | 2026-10-03 — five findings; two defects in the decision (R1, R2), one rule tightened (R4), two stand (R3, R5). Reviewed by the drafter; accepted by bzk the same day |
 | Supersedes | `ONTOLOGY.md` §5.1's `EnrichmentObservation` headroom row (l.539) and §6.1's deferral paragraph (l.684) |
 | Superseded by | — |
 
@@ -22,7 +23,7 @@ pre-registration (handoff §7.3) and are not decided here.
 review.** Five findings. Two change what is decided (R1, R2) and one tightens a rule (R4). The
 edits are made in place: struck, not deleted, each marked with its finding. **Status stays
 `Proposed`. Acceptance is bzk's half of this round-trip**, because the drafter cannot supply the
-independence the round-trip exists for.
+independence the round-trip exists for. **Accepted by bzk on 2026-10-03, on the record as reviewed at `4825cd5`.**
 
 **R1 — D4 was written without ADR-0027 and ADR-0029. Defect in the decision; D4 is revised.**
 
