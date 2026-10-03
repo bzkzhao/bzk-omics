@@ -191,6 +191,22 @@ class LoadedCuration:
     analysis_id: str
     sample_ids: dict[str, str]  # record mapping key (verbatim) -> Sample id
     contrasts: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    #: record contrast id (``contrasts_of_interest[].id``) -> the `Contrast` node, anchored on this
+    #: record's `Experiment` (ADR-0027). **The loader is the only place a `Contrast` is minted**
+    #: (ADR-0029 E): producers receive these nodes and stage them as referents.
+    contrast_nodes: dict[str, Node] = field(default_factory=dict)
+
+    def contrast(self, contrast_id: str) -> Node:
+        """The `Contrast` this record declares under `contrast_id`, or a refusal naming the ids it
+        does declare — never the first entry, never one rebuilt from strings (ADR-0029 E)."""
+        node = self.contrast_nodes.get(contrast_id)
+        if node is None:
+            raise CurationError(
+                f"contrast {contrast_id!r} is not declared by this curation record; it declares "
+                f"{sorted(self.contrast_nodes)}. A contrast's arms are identifying (ONTOLOGY.md §3) "
+                "and are read from the record that declares them, not supplied by a caller"
+            )
+        return dict(node)
 
     def sample_mapping(self) -> SampleMapping:
         """The handover to an `ObservationAdapter` (`ARCHITECTURE.md` §3).
@@ -397,10 +413,38 @@ def load(record: Mapping[str, Any]) -> LoadedCuration:
     ]
     nodes += [_node("Sample", sample_ids[key], props) for key, props in samples.items()]
 
+    # ADR-0027 implied change 4 / ADR-0029 item 2: the record's contrasts are materialised here and
+    # nowhere else, anchored on this record's `Experiment`. Each entry needs a record-local `id` (the
+    # handle an analysis record names) and both arms; a duplicate handle would make that name
+    # ambiguous, so it is refused rather than resolved to whichever entry came last.
+    contrast_nodes: dict[str, Node] = {}
+    for i, entry in enumerate(record.get("contrasts_of_interest") or ()):
+        missing = [k for k in ("id", "numerator", "denominator") if not entry.get(k)]
+        if missing:
+            raise CurationInvalid(
+                f"contrasts_of_interest[{i}] lacks {missing}: a contrast is keyed by its two arms "
+                "and named by its id (ONTOLOGY.md §3)"
+            )
+        if entry["id"] in contrast_nodes:
+            raise CurationInvalid(
+                f"contrasts_of_interest declares id {entry['id']!r} twice; an analysis record names "
+                "a contrast by this id, so it must pick out one entry"
+            )
+        props = {"numerator": entry["numerator"], "denominator": entry["denominator"]}
+        contrast_id = evidence_id("Contrast", props, {"Experiment": experiment_id})
+        contrast_nodes[entry["id"]] = _node(
+            "Contrast",
+            contrast_id,
+            {**props, "label": f"{entry['numerator']} vs {entry['denominator']}"},
+        )
+    nodes += list(contrast_nodes.values())
+
     edges: list[Edge] = [
         {"type": "CONTAINS", "from": project_id, "to": experiment_id},
         {"type": "USED", "from": analysis_id, "to": dataset_id},
     ]
+    for node in contrast_nodes.values():
+        edges.append({"type": "CONTRAST_IN_EXPERIMENT", "from": node["id"], "to": experiment_id})
     for sample_id in sample_ids.values():
         edges.append({"type": "PERFORMED_ON", "from": experiment_id, "to": sample_id})
         edges.append({"type": "PRODUCED", "from": sample_id, "to": dataset_id})
@@ -418,9 +462,9 @@ def load(record: Mapping[str, Any]) -> LoadedCuration:
         dataset_id=dataset_id,
         analysis_id=analysis_id,
         sample_ids=sample_ids,
-        # Read and handed on, not materialised: `Contrast`'s reference-vs-evidence placement is
-        # unsettled (§11 Q1) and the adapter builds the contrast inline (HANDOFF §8).
+        # The raw entries, kept for the notes and ids a caller may report; the nodes are below.
         contrasts=tuple(record.get("contrasts_of_interest") or ()),
+        contrast_nodes=contrast_nodes,
     )
 
 

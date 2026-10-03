@@ -119,8 +119,9 @@ def declared() -> tuple[DeclaredAnalysis, DeclaredContrast]:
     )
     contrast = DeclaredContrast(
         column_suffix=COLUMN_SUFFIX,
-        numerator=entry["numerator"],
-        denominator=entry["denominator"],
+        # The loader's node for that entry: anchored on the record's Experiment, minted nowhere
+        # else (ADR-0029 item 3). `entry` above is still read, so the refusal names the record.
+        contrast=load_path(CURATION).contrast(contrast_id),
     )
     return declaration, contrast
 

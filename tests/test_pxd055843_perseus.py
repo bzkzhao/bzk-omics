@@ -102,8 +102,9 @@ def test_the_records_values_reach_the_declaration() -> None:
     assert declaration.parameters_json is None
     assert declaration.imputation["method"] == "downshifted_normal"
     assert declaration.imputation["seed"] is None
-    assert contrast.numerator == "siUSP24 (+ IFN-B)"
-    assert contrast.denominator == "siC (+IFN-B)"
+    # The loader's node since ADR-0029 item 3 (2026-10-03): the arms arrive inside it, anchored.
+    assert contrast.contrast["numerator"] == "siUSP24 (+ IFN-B)"
+    assert contrast.contrast["denominator"] == "siC (+IFN-B)"
     assert contrast.column_suffix == pxd055843_perseus.COLUMN_SUFFIX
 
 

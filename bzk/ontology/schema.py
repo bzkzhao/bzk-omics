@@ -271,7 +271,13 @@ IDENTITY: dict[str, Identity] = {
         fields=("candidate_proteins",),
         anchors=(("Dataset", "REPORTS_PROTEIN"),),
     ),
-    "Contrast": Identity(fields=("numerator", "denominator")),
+    # ADR-0027 (built 2026-10-03, under ADR-0029's order): a contrast is a comparison *within one
+    # experiment*, so two curations declaring the same condition strings — HAP1 and HCT116, or an
+    # IP run and the diGly run beside it (ADR-0036 D4) — mint two contrasts, not one.
+    "Contrast": Identity(
+        fields=("numerator", "denominator"),
+        anchors=(("Experiment", "CONTRAST_IN_EXPERIMENT"),),
+    ),
     "Analysis": Identity(
         fields=(
             "kind",
@@ -591,6 +597,7 @@ REL_TABLES: list[RelTable] = [
         "RESULT_FOR_PROTEIN", "DifferentialResult", "ProteinObservation", multiplicity="MANY_ONE"
     ),
     RelTable("RESULT_IN_CONTRAST", "DifferentialResult", "Contrast", multiplicity="MANY_ONE"),
+    RelTable("CONTRAST_IN_EXPERIMENT", "Contrast", "Experiment", multiplicity="MANY_ONE"),
     RelTable("ADJUSTED_BY", "DifferentialResult", "DifferentialResult", multiplicity="MANY_ONE"),
     RelTable("SAMPLE_GENERATED_BY", "Sample", "Analysis", multiplicity="MANY_ONE"),
     RelTable("CURATION_CITES", "Analysis", "Publication"),

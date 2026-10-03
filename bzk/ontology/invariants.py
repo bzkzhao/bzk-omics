@@ -577,7 +577,7 @@ def _check_I20(nodes: list[Node], edges: list[Edge]) -> None:
 
 
 #: Every anchor of every anchored label, oriented from the relationship's declared pairs (ADR-0037
-#: D3) rather than assumed. Five of the twenty-five run *into* the anchored node (`HAS_SEQUENCE`,
+#: D3) rather than assumed. Five of the twenty-six run *into* the anchored node (`HAS_SEQUENCE`,
 #: `CONTAINS`, `PERFORMED_ON`, `REPORTS_SITE`, `REPORTS_PROTEIN`); reading every anchor as an edge
 #: out of the node — true of all five of `DifferentialResult`'s, which is all I21 checked before
 #: ADR-0037 — would leave those five contributing nothing and `Sample` never examined.
@@ -657,7 +657,9 @@ def _check_I21(nodes: list[Node], edges: list[Edge]) -> None:
             for anchor, rel, anchored_is_source in oriented:
                 for edge in by_rel.get(rel, ()):
                     mine, other = (
-                        (edge["from"], edge["to"]) if anchored_is_source else (edge["to"], edge["from"])
+                        (edge["from"], edge["to"])
+                        if anchored_is_source
+                        else (edge["to"], edge["from"])
                     )
                     if mine != nid:
                         continue
@@ -701,7 +703,9 @@ def _check_I21(nodes: list[Node], edges: list[Edge]) -> None:
                 )
             ]
             if label == "DifferentialResult" and "DifferentialResult" in anchors:
-                reading = "no baseline at all" if omitted == ["DifferentialResult"] else "a different one"
+                reading = (
+                    "no baseline at all" if omitted == ["DifferentialResult"] else "a different one"
+                )
                 raise InvariantError(
                     "I21",
                     f"DifferentialResult {nid!r} is ADJUSTED_BY {anchors['DifferentialResult']!r} "
@@ -759,6 +763,30 @@ def _check_gene_absence(nodes: list[Node], edges: list[Edge]) -> None:
             )
 
 
+def _check_contrast_anchor(nodes: list[Node], edges: list[Edge]) -> None:
+    """Every digest-shaped `Contrast` id encodes an `Experiment` (ADR-0027 implied change 5).
+
+    Not a numbered invariant — ADR-0027 adds none — and not I21's job either: I21 recomputes an id
+    only when its change-set carries the anchor edge, and a `Contrast` is staged by every producer
+    as a referent *without* `CONTRAST_IN_EXPERIMENT` (ADR-0029 E). What a referent can still be
+    held to is the one thing ADR-0037 D5 says I21 cannot see: an id minted with the anchor omitted
+    altogether. A `Contrast` cannot anchor on itself, so the weaker test I21 refuses for
+    `ADJUSTED_BY` — *the id differs from its no-anchor form* — is sound here: there is no cycle for
+    it to miss. Hand-written ids (`bzk:c1`) claim no digest and are left alone, as in I21.
+    """
+    for contrast in _nodes(nodes, "Contrast"):
+        cid = contrast.get("id")
+        if keys.is_digest_id(cid) and cid == keys.evidence_id("Contrast", contrast):
+            raise InvariantError(
+                "CONTRAST_ANCHOR",
+                f"Contrast {cid!r} is minted with no Experiment anchor. Since ADR-0027 a contrast "
+                "is a comparison within one experiment, so the same two condition strings in two "
+                "curations are two contrasts; minted without the anchor they are one node again. "
+                "Only the curation loader mints a Contrast (ADR-0029 E) — take its node rather "
+                "than minting another",
+            )
+
+
 _CHECKS: dict[str, Callable[[list[Node], list[Edge]], None]] = {
     "I2": _check_I2,
     "I3": _check_I3,
@@ -771,6 +799,7 @@ _CHECKS: dict[str, Callable[[list[Node], list[Edge]], None]] = {
     "I20": _check_I20,
     "I21": _check_I21,
     "GENE_ABSENCE": _check_gene_absence,
+    "CONTRAST_ANCHOR": _check_contrast_anchor,
 }
 
 

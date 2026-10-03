@@ -76,7 +76,13 @@ def _perseus_adapter() -> PerseusAdapter:
         ),
         contrasts=[
             DeclaredContrast(
-                column_suffix="KO_IFN_WT_IFN", numerator="USP18-/- + IFN", denominator="WT + IFN"
+                column_suffix="KO_IFN_WT_IFN",
+                contrast={
+                    NODE_TYPE_KEY: "Contrast",
+                    "id": "bzk:contrast-dispatch",
+                    "numerator": "USP18-/- + IFN",
+                    "denominator": "WT + IFN",
+                },
             )
         ],
     )

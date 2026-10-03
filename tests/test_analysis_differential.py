@@ -33,10 +33,20 @@ RUN = DeclaredRun(
     localization_threshold=0.75,
     filters_applied=("reverse", "localization_prob>=0.75"),
     imputation={"method": "downshifted_normal", "seed": 0, "downshift_sd": 1.8},
-    numerator="KO_IFN",
-    denominator="WT_IFN",
     label="welch_t KO_IFN vs WT_IFN (BH)",
 )
+
+
+def _anchored_contrast(numerator: str, denominator: str) -> dict[str, object]:
+    """A `Contrast` as the curation loader mints it: anchored on an `Experiment` (ADR-0027)."""
+    from bzk.ontology.keys import evidence_id
+
+    props = {"numerator": numerator, "denominator": denominator}
+    cid = evidence_id("Contrast", props, {"Experiment": "bzk:experiment-test"})
+    return {NODE_TYPE_KEY: "Contrast", "id": cid, **props, "label": f"{numerator} vs {denominator}"}
+
+
+CONTRAST = _anchored_contrast("USP18-/- + IFN", "WT + IFN")
 
 
 def _n(label: str, node_id: str, **props: object) -> dict[str, object]:
@@ -82,7 +92,7 @@ def conn(tmp_path: Path) -> kuzu.Connection:
 def _write(conn: kuzu.Connection, results: list[SiteResult]) -> None:
     dataset, nodes, edges = _attached()
     change_set = site_change_set(
-        RUN, results, dataset=dataset, attached_nodes=nodes, attached_edges=edges
+        RUN, results, dataset=dataset, contrast=CONTRAST, attached_nodes=nodes, attached_edges=edges
     )
     store.write_change_set(conn, change_set.nodes, change_set.edges)
 
@@ -142,6 +152,7 @@ def test_two_results_over_one_observation_are_refused_rather_than_merged(
             SiteResult(OBS, log2fc=-2.0, p_value=0.2, adj_p_value=0.3),
         ],
         dataset=dataset,
+        contrast=CONTRAST,
         attached_nodes=nodes,
         attached_edges=edges,
     )
@@ -177,6 +188,7 @@ def test_a_result_whose_observation_is_not_in_the_batch_is_refused(conn: kuzu.Co
         RUN,
         [SiteResult("bzk:not-in-the-batch", log2fc=1.0, p_value=0.1, adj_p_value=0.2)],
         dataset=dataset,
+        contrast=CONTRAST,
         attached_nodes=nodes,
         attached_edges=edges,
     )
@@ -211,3 +223,34 @@ def test_the_module_computes_nothing_and_writes_nothing(conn: kuzu.Connection) -
     }
     for forbidden in ("write_change_set", "execute", "open", "read_text", "connect"):
         assert forbidden not in called, f"bzk/analysis/ calls {forbidden!r}"
+
+
+def test_the_contrast_is_staged_as_given_and_none_is_minted() -> None:
+    """ADR-0029 E: the loader is the only minting site, so the staged `Contrast` is the node passed
+    in, byte for byte, and the results anchor on its id — not on one rebuilt from strings."""
+    dataset, nodes, edges = _attached()
+    change_set = site_change_set(
+        RUN,
+        [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01)],
+        dataset=dataset,
+        contrast=CONTRAST,
+        attached_nodes=nodes,
+        attached_edges=edges,
+    )
+    staged = [n for n in change_set.nodes if n[NODE_TYPE_KEY] == "Contrast"]
+    assert staged == [CONTRAST]
+    in_contrast = [e for e in change_set.edges if e["type"] == "RESULT_IN_CONTRAST"]
+    assert [e["to"] for e in in_contrast] == [CONTRAST["id"]]
+
+
+def test_a_node_that_is_not_a_contrast_is_refused() -> None:
+    dataset, nodes, edges = _attached()
+    with pytest.raises(ValueError, match="Contrast"):
+        site_change_set(
+            RUN,
+            [],
+            dataset=dataset,
+            contrast=dataset,
+            attached_nodes=nodes,
+            attached_edges=edges,
+        )

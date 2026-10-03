@@ -337,11 +337,32 @@ def test_dataset_records_pipeline_metadata_without_branching(loaded: LoadedCurat
     assert dataset["external_accession"] == "SYNTHETIC-0001"
 
 
-def test_no_contrast_node_is_materialised(loaded: LoadedCuration) -> None:
-    """`Contrast`'s reference-vs-evidence placement is unsettled (§11 Q1), so the loader reads the
-    contrasts and hands them on rather than minting nodes (`HANDOFF.md` §8)."""
-    assert _nodes(loaded, "Contrast") == []
+def test_contrasts_are_materialised_and_anchored_on_the_experiment(loaded: LoadedCuration) -> None:
+    """ADR-0027 implied change 4 / ADR-0029 item 2, built 2026-10-03: the loader mints each declared
+    contrast, anchored on this record's `Experiment`, and is the only place one is minted.
+
+    Replaces `test_no_contrast_node_is_materialised`, which pinned the pre-ADR-0027 state."""
+    from bzk.ontology.keys import evidence_id
+
+    contrasts = _nodes(loaded, "Contrast")
+    assert len(contrasts) == 1
+    node = loaded.contrast("treated_vs_untreated")
+    props = {"numerator": node["numerator"], "denominator": node["denominator"]}
+    # Only that the id is not its no-anchor form: comparing it to `evidence_id(..., {Experiment})`
+    # would recompute the loader's own expression (`test_tautology_sweep.py`'s instance shape). The
+    # value itself is pinned for the real record in `pxd018299_curation_ids.json`.
+    assert node["id"] != evidence_id("Contrast", props)
+    assert {"type": "CONTRAST_IN_EXPERIMENT", "from": node["id"], "to": loaded.experiment_id} in (
+        loaded.edges
+    )
     assert [c["id"] for c in loaded.contrasts] == ["treated_vs_untreated"]
+
+
+def test_an_undeclared_contrast_id_is_refused(loaded: LoadedCuration) -> None:
+    from bzk.curation.loader import CurationError
+
+    with pytest.raises(CurationError, match="treated_vs_untreated"):
+        loaded.contrast("not_declared")
 
 
 def test_no_publication_node_is_invented(loaded: LoadedCuration) -> None:

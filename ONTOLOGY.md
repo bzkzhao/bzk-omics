@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.42 |
+| Version | 1.43 |
 | Last reviewed | 2026-08-31 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -36,7 +36,7 @@ ModificationSite ◄──[MEASURED_AT]── SiteObservation
 Modifier ◄────[ASSIGNS]──────────── ModifierAssignment
 Pathway                            Dataset
 Disease                            Analysis
-Drug                               DifferentialResult
+Drug                               DifferentialResult, Contrast
 Publication                        Person, Software
 ```
 
@@ -116,7 +116,7 @@ The identity **model** is identical for both: a node's identity is its label, it
 | `Dataset` | `content_hash` | — (the SHA-256 of the raw file is itself the anchor) | `label`, `source`, `external_accession`, `acquisition_mode`, `instrument`, `search_engine`, `search_engine_version`, `library_type`, `library_prediction_model`, `fasta_release`, `embargo_holder`, `embargo_reference`, `embargo_released_at` |
 | `SiteObservation` | `candidate_proteins` | `Dataset` (`REPORTS_SITE`), `ModificationSite` (`MEASURED_AT`) | `peptide_sequence`, `localization_prob`, `score`, `is_decoy`, `n_imputed`, `quant_ref`, `keying_basis`, `displaced_protein` |
 | `ProteinObservation` | `candidate_proteins` | `Dataset` (`REPORTS_PROTEIN`) | `quant_ref`, `n_peptides` |
-| `Contrast` | `numerator`, `denominator` | — (evidence node — §11 Q1 settled 2026-08-18 by ADR-0027; the Experiment anchor it specifies is not built, so nothing is cited here yet) | `label` |
+| `Contrast` | `numerator`, `denominator` | `Experiment` (`CONTRAST_IN_EXPERIMENT`) — evidence node; §11 Q1 settled 2026-08-18 by ADR-0027, built 2026-10-03 in ADR-0029's order. Minted only by the curation loader from the record's `contrasts_of_interest`; producers receive it pre-keyed and mint none (ADR-0029 E) | `label` |
 | `Analysis` | `kind`, `basis`, `confidence`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `parameters_json` | `Dataset` (`USED`) — one or more; for a curation analysis the asserted content stands in for it | `label`, `rationale`, `started_at`, `ended_at`, `workflow_id`, `workflow_revision` |
 | `Imputation` | `method`, `downshift_sd`, `width_sd`, `seed`, `scope` | `Analysis` (`IMPUTATION_FOR`) | `n_values_imputed`, `n_values_total`, `asserted_at`, `retracted_at` |
 | `ModifierAssignment` | `basis`, `candidate_modifiers`, `confidence` | `Modifier` (`ASSIGNS`), `SiteObservation` (`ASSIGNMENT_FOR`), `Analysis` (`ASSIGNMENT_SUPPORTED_BY`) / `Publication` (`ASSIGNMENT_CITES`) | `rationale`, `asserted_at`, `retracted_at` |
@@ -506,6 +506,7 @@ CREATE REL TABLE REPORTS_PROTEIN(FROM Dataset TO ProteinObservation, ONE_MANY);
 CREATE REL TABLE RESULT_FOR_SITE(FROM DifferentialResult TO SiteObservation, MANY_ONE);
 CREATE REL TABLE RESULT_FOR_PROTEIN(FROM DifferentialResult TO ProteinObservation, MANY_ONE);
 CREATE REL TABLE RESULT_IN_CONTRAST(FROM DifferentialResult TO Contrast, MANY_ONE);
+CREATE REL TABLE CONTRAST_IN_EXPERIMENT(FROM Contrast TO Experiment, MANY_ONE);
 CREATE REL TABLE ADJUSTED_BY(FROM DifferentialResult TO DifferentialResult, MANY_ONE);
 CREATE REL TABLE SAMPLE_GENERATED_BY(FROM Sample TO Analysis, MANY_ONE);
 CREATE REL TABLE CURATION_CITES(FROM Analysis TO Publication);
@@ -970,7 +971,7 @@ Normative. Violations are ingestion errors, not warnings.
     - the node's identifying fields;
     - the counterpart of every anchor edge of its label in that change-set;
     - for `Analysis`, its identity children there.
-  - **Orientation is read from the relationship's declared pair, not assumed.** Five of the twenty-five anchors run *into* the anchored node: `HAS_SEQUENCE`, `CONTAINS`, `PERFORMED_ON`, `REPORTS_SITE` and `REPORTS_PROTEIN`. For a relationship with several declared pairs, the counterpart's label says which anchor the edge supplies.
+  - **Orientation is read from the relationship's declared pair, not assumed.** Five of the twenty-six anchors run *into* the anchored node: `HAS_SEQUENCE`, `CONTAINS`, `PERFORMED_ON`, `REPORTS_SITE` and `REPORTS_PROTEIN`. For a relationship with several declared pairs, the counterpart's label says which anchor the edge supplies.
   - **A node carrying two counterparts for one anchor is refused**, because an id renders one id per anchor (§11 Q15).
   - **The trigger is the edge, not the node.** The node-triggered form is refused by real ingestion, which re-stages 36 `Sample`s and 1,362 `SiteObservation`s as referents with no anchor edge (ADR-0019). Over `bzk rebuild` and the differential at `856c3d1`, the edge-triggered form refused nothing: 13,223 and 6,799 distinct nodes triggered, with zero null doors, mismatches or multi-valued anchors (ADR-0037 *Pre-registration result*).
   - **What it cannot catch:** a node whose anchor *and* anchor edge are both omitted, because nothing in the change-set names the anchor. That is a per-label anchor-presence guard's job (ADR-0037 D5).

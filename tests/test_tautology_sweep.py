@@ -995,9 +995,9 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_rebuild.py", "store.ids_by_label(conn) == before", 1),
         (
             "test_rebuild.py",
-            "store.ids_by_label(open_graph(home)) == {'Project': [pinned['project']], 'Experiment': [pinned['experiment']], 'Dataset': [pinned['dataset']], 'Analysis': [pinned['analysis']], 'Sample': sorted(pinned['samples'].values())}",
+            "store.ids_by_label(open_graph(home)) == {'Project': [pinned['project']], 'Experiment': [pinned['experiment']], 'Dataset': [pinned['dataset']], 'Analysis': [pinned['analysis']], 'Sample': sorted(pinned['samples'].values()), 'Contrast': sorted(pinned['contrasts'].values())}",
             1,
-        ),
+        ),  # 2026-10-03: `Contrast` added with the loader's materialisation; same pin, same class
         # Classified individually 2026-08-09, with `Gene`. None is an instance; two of the six the
         # sweep first raised were withdrawn rather than pinned, because they asserted a partition on
         # a *returned* `ResolvedProteins` and `__post_init__` raises during construction — so they

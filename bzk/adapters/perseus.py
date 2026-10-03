@@ -251,16 +251,17 @@ class PerseusError(ValueError):
 
 @dataclass(frozen=True)
 class DeclaredContrast:
-    """One contrast the caller states, tying a Perseus column suffix to its two arms.
+    """One contrast the caller states, tying a Perseus column suffix to a `Contrast` node.
 
     Perseus builds the suffix from its own group names, which are not the platform's condition
-    labels, so the mapping is declared. `numerator` and `denominator` are identifying on `Contrast`
-    (§3); the suffix is not — it never reaches the graph and exists only to find the columns.
+    labels, so the mapping is declared. The suffix never reaches the graph and exists only to find
+    the columns. `contrast` is the node the curation loader minted (`LoadedCuration.contrast`),
+    staged here as a referent: **this adapter mints no `Contrast`** (ADR-0029 item 3, built
+    2026-10-03), so the arms and the `Experiment` anchor come from the one record that declares them.
     """
 
     column_suffix: str
-    numerator: str
-    denominator: str
+    contrast: Mapping[str, object]
 
 
 @dataclass(frozen=True)
@@ -351,6 +352,14 @@ class PerseusAdapter:
             )
         if not contrasts:
             raise PerseusError("at least one contrast must be declared; the file does not name one")
+        for declared_contrast in contrasts:
+            node = declared_contrast.contrast
+            if node.get(NODE_TYPE_KEY) != "Contrast" or not node.get("id"):
+                raise PerseusError(
+                    f"contrast for suffix {declared_contrast.column_suffix!r} is not a Contrast node "
+                    "with an id; pass the curation loader's (LoadedCuration.contrast) — the adapter "
+                    "does not mint one (ADR-0029 item 3)"
+                )
         self.declared = declared
         self.contrasts = list(contrasts)
         self.report: PerseusIngestReport | None = None
@@ -490,10 +499,8 @@ class PerseusAdapter:
 
         contrast_ids = {}
         for declared in self.contrasts:
-            props = {"numerator": declared.numerator, "denominator": declared.denominator}
-            contrast_id = evidence_id("Contrast", props)
-            contrast_ids[declared.column_suffix] = contrast_id
-            nodes.append(self._node("Contrast", contrast_id, props))
+            contrast_ids[declared.column_suffix] = str(declared.contrast["id"])
+            nodes.append(dict(declared.contrast))
 
         for line_no, row in rows:
             accessions = self._accessions(row[protein_column], line_no)

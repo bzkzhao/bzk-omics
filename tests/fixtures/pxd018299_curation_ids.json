@@ -19,5 +19,10 @@
     "Ratio mod/base WT_IFN_1": "bzk:6c386c87fe1cf76a2440391cacf83a81",
     "Ratio mod/base WT_IFN_2": "bzk:8eba35d340bb9299501c7d5e01315ffc",
     "Ratio mod/base WT_IFN_3": "bzk:c4e24faafe0d914738e1b36b44a22dd9"
-  }
+  },
+  "contrasts": {
+    "KO_IFN_vs_WT_IFN": "bzk:8f9a06344675831a26dd59b2bf8c4393",
+    "KO_vs_WT_unstimulated": "bzk:d78903eeb3746b372e2100d3b6e52906"
+  },
+  "contrasts_added": "2026-10-03, when the loader began minting Contrast (ADR-0027 implied change 4, in ADR-0029's order). No pinned id moved: the sixteen above are unchanged and these two are new nodes. Both equal ADR-0029 finding D's anchored ids, computed before this was built. Regenerate the pair with r.contrast_nodes: {k: v['id'] for k, v in r.contrast_nodes.items()}."
 }

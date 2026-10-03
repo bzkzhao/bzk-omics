@@ -84,6 +84,10 @@ from bzk.stats import benjamini_hochberg, downshifted_normal, presence_filter, w
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CURATION = REPO_ROOT / "data" / "curation" / "curation_PXD018299.json"
+# Read for one key only — `"contrast"`, the id of the curation record's contrast this run tests.
+# That is a pointer to a node the curation record declares, not one of the parameters this run is
+# checked against, so reading it carries none of the circularity the comment at `CONTRAST` avoids.
+ANALYSIS_RECORD = REPO_ROOT / "data" / "curation" / "analysis_PXD018299_KOIFN_vs_WTIFN.json"
 # Named `platform_targets`, never `welch_baseline`: `pxd018299_baseline.py` writes the notebook
 # transcription's per-target rows and this writes the platform path's, and the two are the pair the
 # whole slice exists to compare. A reader who mistook one for the other would be comparing a file
@@ -102,6 +106,8 @@ STATUS_VALUES = (STATUS_RECOVERED, STATUS_TESTED_NOT_RECOVERED, STATUS_ABSENT_FR
 # a human statement of what was done — and therefore a legitimate input. Transcribed here rather
 # than read from it for the reason `pxd018299_baseline.py` gives: that record is what this run is
 # checked *against*, so consuming its parameters would make the comparison partly circular.
+# **Column tokens, and only that** (ADR-0029 E, 2026-10-03): they select the intensity columns
+# below. They no longer name the `Contrast` node — the curation record does, via the loader.
 CONTRAST = ("KO_IFN", "WT_IFN")
 PRESENCE_MIN = 2
 PRESENCE_EITHER = True  # ">=2 replicates in either group"
@@ -474,14 +480,13 @@ def main() -> int:
             f"presence>={PRESENCE_MIN}_in_{'either' if PRESENCE_EITHER else 'both'}_group",
         ),
         imputation=IMPUTE | {"method": "downshifted_normal"},
-        numerator=CONTRAST[0],
-        denominator=CONTRAST[1],
         label=f"welch_t {CONTRAST[0]} vs {CONTRAST[1]} (BH)",
     )
     change_set = site_change_set(
         run,
         results,
         dataset=dataset,
+        contrast=curation.contrast(json.loads(ANALYSIS_RECORD.read_text())["contrast"]),
         attached_nodes=attached_nodes,
         attached_edges=assignment_edges,
     )

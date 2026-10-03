@@ -53,9 +53,18 @@ GROUPS = FIXTURES / "perseus_synthetic_groups.txt"
 PLAIN_P = FIXTURES / "perseus_synthetic_plain_pvalue.txt"
 NOT_PERSEUS = FIXTURES / "perseus_synthetic_not_perseus.txt"
 
-CONTRAST = DeclaredContrast(
-    column_suffix="KO_IFN_WT_IFN", numerator="USP18-/- + IFN", denominator="WT + IFN"
-)
+
+def _anchored_contrast(numerator: str, denominator: str) -> dict[str, object]:
+    """A `Contrast` as the curation loader mints it: anchored on an `Experiment` (ADR-0027)."""
+    from bzk.ontology.keys import evidence_id
+
+    props = {"numerator": numerator, "denominator": denominator}
+    cid = evidence_id("Contrast", props, {"Experiment": "bzk:experiment-test"})
+    return {NODE_TYPE_KEY: "Contrast", "id": cid, **props, "label": f"{numerator} vs {denominator}"}
+
+
+CONTRAST_NODE = _anchored_contrast("USP18-/- + IFN", "WT + IFN")
+CONTRAST = DeclaredContrast(column_suffix="KO_IFN_WT_IFN", contrast=CONTRAST_NODE)
 
 # What the user states about a run the platform did not witness (§5.4). `lfq` because a protein-
 # grain Perseus table is conventionally built on LFQ intensities; it is declared, not detected.
@@ -414,7 +423,9 @@ def test_refuses_when_a_declared_contrast_has_no_columns(mapping: SampleMapping)
     result — silently emitting nothing would read as "Perseus found nothing significant"."""
     adapter = PerseusAdapter(
         declared=DECLARED,
-        contrasts=[DeclaredContrast(column_suffix="KO_WT", numerator="KO", denominator="WT")],
+        contrasts=[
+            DeclaredContrast(column_suffix="KO_WT", contrast=_anchored_contrast("KO", "WT"))
+        ],
     )
     with pytest.raises(PerseusError) as exc:
         adapter.parse(TABLE, mapping)

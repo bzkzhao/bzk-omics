@@ -70,9 +70,9 @@ CHANGE_SETS = 0
 
 def _note(label: str, outcome: str, node_id: str) -> None:
     STATS[label][outcome] += 1
-    if outcome not in ("staged_digest", "triggered", "recompute_ok"):
-        if len(EXAMPLES[(label, outcome)]) < 3:
-            EXAMPLES[(label, outcome)].append(node_id)
+    quiet = outcome in ("staged_digest", "triggered", "recompute_ok")
+    if not quiet and len(EXAMPLES[(label, outcome)]) < 3:
+        EXAMPLES[(label, outcome)].append(node_id)
 
 
 def classify(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> None:

@@ -36,8 +36,6 @@ class DeclaredRun:
     localization_threshold: float | None
     filters_applied: tuple[str, ...]
     imputation: dict[str, Any]
-    numerator: str
-    denominator: str
     parameters_json: str | None = None
     #: Free-text, excluded from identity (§3). Never load-bearing.
     label: str | None = None
@@ -64,6 +62,7 @@ def site_change_set(
     results: list[SiteResult],
     *,
     dataset: Node,
+    contrast: Node,
     attached_nodes: list[Node],
     attached_edges: list[Edge],
 ) -> ChangeSet:
@@ -77,6 +76,13 @@ def site_change_set(
     refuses it without its `ModifierAssignment`, so those come too. Re-keying either here would put
     a second source of truth for identity beside the adapter's; taking the nodes it already built
     cannot disagree with it.
+
+    `contrast` is the `Contrast` the curation loader minted (`LoadedCuration.contrast`), passed
+    whole and staged as a referent, exactly as `dataset` is. **This function mints no `Contrast`**
+    (ADR-0029 E): until 2026-10-03 it minted one from `DeclaredRun.numerator` / `.denominator`,
+    which the PXD018299 caller filled with column tokens (`KO_IFN`, `WT_IFN`) while the curation
+    record declares `'USP18-/- + IFN'` / `'WT + IFN'` — two nodes for one comparison once the loader
+    materialised its own. One minting site cannot disagree with itself.
 
     `parameters_observed` is `True` and `kind` is `'processing'`: §5's enum offers
     `'processing' | 'curation' | 'external'` and there is no fourth value for *the platform ran it*
@@ -116,16 +122,13 @@ def site_change_set(
     nodes.append({NODE_TYPE_KEY: "Imputation", "id": imputation_id, **imputation})
     edges.append({"type": "IMPUTATION_FOR", "from": imputation_id, "to": analysis_id})
 
-    contrast: Node = {"numerator": run.numerator, "denominator": run.denominator}
-    contrast_id = evidence_id("Contrast", contrast)
-    nodes.append(
-        {
-            NODE_TYPE_KEY: "Contrast",
-            "id": contrast_id,
-            **contrast,
-            "label": f"{run.numerator} vs {run.denominator}",
-        }
-    )
+    if contrast.get(NODE_TYPE_KEY) != "Contrast" or not contrast.get("id"):
+        raise ValueError(
+            "site_change_set needs the curation loader's Contrast node (LoadedCuration.contrast), "
+            f"got {contrast.get(NODE_TYPE_KEY)!r} with id {contrast.get('id')!r}"
+        )
+    contrast_id = str(contrast["id"])
+    nodes.append(dict(contrast))
 
     for result in results:
         # I4. Site-grain and uncorrected by construction on this route: correcting against parent

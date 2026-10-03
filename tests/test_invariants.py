@@ -468,7 +468,9 @@ def test_I21_refuses_a_change_set_carrying_some_of_the_anchors_an_id_encodes() -
 def _curation_change_set() -> tuple[list[dict[str, object]], list[dict[str, str]]]:
     from bzk.curation.loader import load_path
 
-    loaded = load_path(Path(__file__).resolve().parents[1] / "data/curation/curation_PXD018299.json")
+    loaded = load_path(
+        Path(__file__).resolve().parents[1] / "data/curation/curation_PXD018299.json"
+    )
     return [dict(node) for node in loaded.nodes], [dict(edge) for edge in loaded.edges]
 
 
@@ -578,7 +580,8 @@ def test_I21_fires_under_the_full_validate_over_an_otherwise_valid_change_set() 
 
 
 def test_I21_orients_every_anchor_from_its_declared_pair() -> None:
-    """ADR-0037 D3, measured at `f7f931c`: 12 anchored labels, 25 anchors, 5 running *into* the node.
+    """ADR-0037 D3, measured at `f7f931c` (12 labels, 25 anchors); 13 and 26 since `Contrast` gained
+    its `Experiment` anchor (ADR-0027, built 2026-10-03). 5 run *into* the node.
 
     Replaces the pre-ADR-0037 assertion that all five `DifferentialResult` anchors point outward,
     which was true and is now one row of this table rather than the whole of it.
@@ -586,8 +589,8 @@ def test_I21_orients_every_anchor_from_its_declared_pair() -> None:
     from bzk.ontology.invariants import ANCHORS
 
     oriented = [(label, rel, out) for label, rows in ANCHORS.items() for _a, rel, out in rows]
-    assert len(ANCHORS) == 12
-    assert len(oriented) == 25
+    assert len(ANCHORS) == 13
+    assert len(oriented) == 26
     assert sorted(rel for _label, rel, out in oriented if not out) == [
         "CONTAINS",
         "HAS_SEQUENCE",
@@ -1154,3 +1157,27 @@ def test_structure_one_many_destination_appears_at_most_once() -> None:
         validate(nodes, edges)
     assert ei.value.invariant == "STRUCTURE"
     assert "ONE_MANY" in str(ei.value)
+
+
+# ── CONTRAST_ANCHOR: ADR-0027 implied change 5 ────────────────────────────────────────────────
+
+
+def test_contrast_anchor_refuses_a_contrast_minted_without_its_experiment() -> None:
+    """A referent `Contrast` carries no `CONTRAST_IN_EXPERIMENT` edge, so I21 never sees it; this is
+    the guard that does (ADR-0037 D5's limit, closed for this one label)."""
+    from bzk.ontology.keys import evidence_id
+
+    props = {"numerator": "USP18-/- + IFN", "denominator": "WT + IFN"}
+    door = n("Contrast", id=evidence_id("Contrast", props), **props)
+    with pytest.raises(InvariantError) as ei:
+        validate([door], [], only="CONTRAST_ANCHOR")
+    assert ei.value.invariant == "CONTRAST_ANCHOR"
+
+
+def test_contrast_anchor_accepts_an_anchored_or_hand_written_contrast() -> None:
+    from bzk.ontology.keys import evidence_id
+
+    props = {"numerator": "USP18-/- + IFN", "denominator": "WT + IFN"}
+    anchored = evidence_id("Contrast", props, {"Experiment": "bzk:experiment-test"})
+    validate([n("Contrast", id=anchored, **props)], [], only="CONTRAST_ANCHOR")
+    validate([n("Contrast", id="bzk:c1", **props)], [], only="CONTRAST_ANCHOR")

@@ -42,13 +42,22 @@ PXD018299_RECORD = "curation_PXD018299.json"
 # coincidence visible, and scoping is what makes the sentence above true rather than lucky. No
 # number here was re-measured — they are the same integers, now asserted against the subject they
 # name.
-EXPECTED_NODES = {"Project": 1, "Experiment": 1, "Sample": 12, "Dataset": 1, "Analysis": 1}
+# `Contrast` since 2026-10-03: the loader materialises the record's two contrasts (ADR-0027 / -0029).
+EXPECTED_NODES = {
+    "Project": 1,
+    "Experiment": 1,
+    "Sample": 12,
+    "Dataset": 1,
+    "Analysis": 1,
+    "Contrast": 2,
+}
 EXPECTED_EDGES = {
     "CONTAINS": 1,
     "PERFORMED_ON": 12,
     "PRODUCED": 12,
     "SAMPLE_GENERATED_BY": 12,
     "USED": 1,
+    "CONTRAST_IN_EXPERIMENT": 2,
 }
 
 
@@ -121,11 +130,12 @@ def test_rebuild_creates_schema_and_leaves_the_archive_alone(tmp_path: Any) -> N
     home = tmp_path / "home"
     _seed_cache(home, fx)
     report = rebuild(home=home, curation_dir=_only(tmp_path, PXD018299_RECORD))
-    assert report.tables_created == 57  # 24 node + 33 rel tables (ADR-0023 dropped two)
+    # 24 node + 34 rel tables: ADR-0023 dropped two, ADR-0027 added CONTRAST_IN_EXPERIMENT.
+    assert report.tables_created == 58
     assert report.curation_records == 1  # data/curation/curation_PXD018299.json
     # Statements issued, not the graph's size — the two agree here only because this replay finds
     # no deposit, so nothing is staged twice (`store.WriteReport`).
-    assert (report.nodes_staged, report.edges_staged) == (16, 38)
+    assert (report.nodes_staged, report.edges_staged) == (18, 40)
     assert (home / "graph.kuzu").exists()
     assert (home / "cache" / "uniprot" / "seq" / "P09914-2#sv2.txt").exists()  # archive untouched
     assert not hasattr(report, "drifts"), "rebuild no longer performs the drift check"
@@ -179,7 +189,7 @@ def test_rebuild_is_reproducible(tmp_path: Any) -> None:
     rebuild(home=home, curation_dir=curation)
     second = store.ids_by_label(open_graph(home))
     assert first == second
-    assert sum(len(v) for v in second.values()) == 16
+    assert sum(len(v) for v in second.values()) == 18
 
 
 def test_rebuilt_ids_match_the_committed_pin(tmp_path: Any) -> None:
@@ -200,6 +210,7 @@ def test_rebuilt_ids_match_the_committed_pin(tmp_path: Any) -> None:
         "Dataset": [pinned["dataset"]],
         "Analysis": [pinned["analysis"]],
         "Sample": sorted(pinned["samples"].values()),
+        "Contrast": sorted(pinned["contrasts"].values()),
     }
 
 
@@ -524,7 +535,7 @@ def test_main_exits_one_when_an_ingestion_was_skipped_and_zero_otherwise(
 
     def _report(skipped: int) -> rebuild_module.RebuildReport:
         return rebuild_module.RebuildReport(
-            tables_created=57, curation_records=1, nodes_staged=16, edges_staged=38,
+            tables_created=58, curation_records=1, nodes_staged=18, edges_staged=40,
             ingestions_skipped=skipped,
         )  # fmt: skip
 
