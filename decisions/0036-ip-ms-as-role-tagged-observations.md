@@ -16,6 +16,79 @@ code change.** The amendments are listed under *Implied changes, described and n
 concordance computation, its "measured well" rule and its predictions are a separate
 pre-registration (handoff §7.3) and are not decided here.
 
+## Review
+
+**Reviewed 2026-10-03 at `ed38432`, by the reviewer who drafted it, so this is not an independent
+review.** Five findings. Two change what is decided (R1, R2) and one tightens a rule (R4). The
+edits are made in place: struck, not deleted, each marked with its finding. **Status stays
+`Proposed`. Acceptance is bzk's half of this round-trip**, because the drafter cannot supply the
+independence the round-trip exists for.
+
+**R1 — D4 was written without ADR-0027 and ADR-0029. Defect in the decision; D4 is revised.**
+
+- ADR-0027 (**Accepted**) gives `Contrast` an `Experiment` anchor through a new
+  `CONTRAST_IN_EXPERIMENT` edge.
+- ADR-0029 (**Proposed, held at the reviewer's half**) supplies the anchor's two minting paths.
+  Its Q2 makes the loader materialise every `Contrast` and hand adapters pre-keyed ids. Its closing
+  list fixes the order of the work.
+- Under D3, an IP run is its own `Experiment`. So the accepted anchor alone separates the
+  IP-vs-IP contrast from the same-string diGly contrast.
+- This is the mechanism the repository already uses. `curation_PXD026748_shotgun.json` and
+  `curation_PXD026748.json` share an accession and a `Project`, and they separate same-condition
+  materials by `Experiment` (`modality` `proteomics` against `digly_proteomics`). ADR-0035 R1 and
+  `tests/test_curation_pxd026748_arms.py` pin those two sample sets as disjoint.
+- That left D4's role fields with one job: an IP-vs-bead contrast inside one `ip_ms` experiment. No
+  public deposit has a replicated version of that design. Landing the role fields and the anchor
+  separately would also re-mint every `DifferentialResult` twice.
+- **Revised:**
+  - `Contrast` gains no role fields.
+  - No IP contrast is written before ADR-0029's list is built.
+  - A contrast in an `ip_ms` experiment is differential association by construction.
+  - An arm containing a `no_antibody_control` sample is refused until a record adds roles to
+    `Contrast` identity.
+
+**R2 — making `role` required forces edits to every curation record. Measured; D2 is revised.**
+
+- Adding `role` to `Sample` identity with no absence classification makes `bzk/curation/loader.py`
+  refuse the anchor record. It raises `CurationIncomplete`: *"12 identifying value(s) are missing"*,
+  all of them `sample.role`. Measured in memory, then restored.
+- So D2 as written required `role` in all **54** mapping entries across the four committed records.
+- **Revised:** `role` is identifying, with its absence **determined by `Experiment.modality`**: NULL
+  unless `modality = 'ip_ms'`. The value `lysate` is dropped.
+- The ground is ADR-0035 R1: a lysate-derived material is already distinguished by its
+  experiment's modality, so `role` has nothing to add outside `ip_ms`.
+- **The re-mint is not avoided, and it is measured.** With `role` added and classified
+  `determined`, the PXD018299 record mints **12 of 12** `Sample` ids differently from
+  `tests/fixtures/pxd018299_curation_ids.json`, because an absent identifying field still renders.
+  The fixture is regenerated in the code step, with the explanation its note demands.
+- No curation record changes.
+
+**R3 — D2 and D8 each name a field of the node's anchor as a determiner.**
+
+- `Sample.role` is determined by `Experiment.modality`, through `PERFORMED_ON`.
+- The `DifferentialResult` counts are determined by `Analysis.parameters_observed`, through
+  `WAS_GENERATED_BY`.
+- ADR-0034 (Proposed) argues that such a determiner is legitimate. This record does not wait on
+  ADR-0034. Both anchors are single-valued, both determining fields are required on their nodes, and
+  §3's test asks only that something outside the moment of ingest forces the null.
+- **These are the second and third instances of the rule.** ADR-0034's review should know that
+  three records now rest on it.
+
+**R4 — D6's same-`Project` rule rests on curator prose. Tightened.**
+
+- `Project.title` is supplied by the curation turn (the PXD055843 record says so in its rationale).
+  Two records pair only if two curators typed the same title.
+- **Revised:** pair on the two `Dataset`s carrying the same `external_accession`. That value is
+  read from the deposit (`loader.py` l.347), not composed by a curator.
+
+**R5 — F2 resolved for ADR-0032; ADR-0029's I21 generalisation is not affected.**
+
+- ADR-0032 (Proposed) decides how the Perseus adapter reads an export's identity columns and
+  `sniff`. That bears on how S3 is *read*, not on where I22 runs. D5's producer list stands.
+- ADR-0029 Q3 declines a new invariant number for its null-anchor check and names an I21
+  generalisation instead. So **I22 is free for D5**, and D8's counts are not anchors and are
+  untouched by that check.
+
 ---
 
 ## Context
@@ -60,13 +133,13 @@ This restates handoff §2.1, which stands. IP intensities attach to `ProteinObse
 by an IP dataset. **Supersedes l.539** (the headroom row) and **l.684** (the deferral paragraph,
 replaced by D7's lift conditions).
 
-### D2. `Sample` gains `role` (identifying, required) and `bait` (identifying, determined by `role`).
+### D2. `Sample` gains `role` (identifying, ~~required~~ absence determined by `Experiment.modality` — R2) and `bait` (identifying, determined by `role`).
 
 **`role` records what was done to the material, not what the sample means in a comparison.**
 
 | `role` | Meaning | In public data |
 |---|---|---|
-| `lysate` | Material measured as drawn from the lysate, including peptide-level enrichment that belongs to the modality (anti-K-ε-GG) | Every existing `Sample` |
+| ~~`lysate`~~ | ~~Material measured as drawn from the lysate, including peptide-level enrichment that belongs to the modality (anti-K-ε-GG)~~ | ~~Every existing `Sample`~~ — **dropped on review (R2): NULL, determined by `modality`** |
 | `ip` | Protein-level affinity purification against `bait` | PXD018299 interactome (12), PXD055843 S3 Sets 1–3 (12) |
 | `no_antibody_control` | Beads processed as an `ip` with the antibody omitted | PXD055843 S3 (4) |
 
@@ -88,8 +161,9 @@ would otherwise differ only in `replicate`. That is a fragile separator, and it 
   methods state it in both papers (Boston Biochem A-380; Invitrogen 7H29L24). But it is
   conditionally reported in general, and ADR-0021 forbids a contingent null on an identifying field.
 
-**Re-mint cost.** Making `role` identifying re-mints every `Sample` id. Existing samples take
-`role = 'lysate'` explicitly, never a null default. **No node anchors on `Sample`** (`schema.py`
+**Re-mint cost.** Making `role` identifying re-mints every `Sample` id. ~~Existing samples take
+`role = 'lysate'` explicitly, never a null default.~~ **Existing samples take NULL, determined by
+`Experiment.modality` (R2); measured, 12 of 12 PXD018299 ids still move.** **No node anchors on `Sample`** (`schema.py`
 anchors, l.230–341), ~~so nothing downstream moves~~ so no graph anchor moves — but twelve `Sample` ids are pinned outside the graph (*Landing verification*, V5). The count is measured at landing.
 
 ### D3. `Experiment.modality` gains `ip_ms`.
@@ -97,10 +171,23 @@ anchors, l.230–341), ~~so nothing downstream moves~~ so no graph anchor moves 
 Each IP run is its own `Experiment`. Its samples are therefore separated from a same-condition
 lysate sample by the existing `PERFORMED_ON` anchor (`schema.py:258`).
 
-`role ∈ {ip, no_antibody_control}` if and only if `modality = 'ip_ms'`. An input control would
+`role` is non-null, and one of `ip` or `no_antibody_control`, if and only if `modality = 'ip_ms'` (wording revised by R2; the substance is unchanged). An input control would
 break this, and that is the visible commit that relaxes it.
 
-### D4. `Contrast` gains `numerator_role` and `denominator_role` (identifying, required).
+### D4. ~~`Contrast` gains `numerator_role` and `denominator_role` (identifying, required).~~ IP contrasts are separated by ADR-0027's `Experiment` anchor, and none is written before ADR-0029's list is built (revised on review, R1).
+
+**Revised decision (R1).**
+
+- `Contrast` identity is unchanged by this record.
+- The collision below is closed by ADR-0027's accepted anchor together with D3: an IP run is its
+  own `Experiment`.
+- Ordering: **no `ip_ms` contrast is minted before ADR-0029's implied changes 1–5 are built.**
+- The contrast kind is derived from the anchor: a contrast in an `ip_ms` experiment is
+  differential association, and the only permitted arm role there is `ip` with one `bait`.
+- An arm containing a `no_antibody_control` sample is refused. A later record that needs
+  background enrichment adds roles to `Contrast` identity, as a visible commit.
+
+The original text follows, struck where R1 removes its ground.
 
 **This closes a collision that option 1 would otherwise create on its first write.**
 
@@ -109,31 +196,36 @@ break this, and that is the visible commit that relaxes it.
 - An IP-vs-IP contrast curated in the same convention would mint the same id. `RESULT_IN_CONTRAST`
   could then no longer separate IP results from site results.
 
-**Why role fields, not ADR-0027's `Experiment` anchor.**
+~~**Why role fields, not ADR-0027's `Experiment` anchor.**~~
 
-- Role fields fix this collision directly.
+- ~~Role fields fix this collision directly.~~ **R1: so does the accepted anchor, under D3.**
 - They also admit an IP-vs-control contrast whose arms share a condition string. The anchor
-  cannot: both arms would sit in one `ip_ms` experiment with identical strings.
-- The anchor stays the answer to §11 Q1's cross-cell-line collision. That is a separate question,
-  not taken up here.
+  cannot: both arms would sit in one `ip_ms` experiment with identical strings. **R1: true, and no
+  public deposit needs it. Deferred.**
+- ~~The anchor stays the answer to §11 Q1's cross-cell-line collision. That is a separate question,
+  not taken up here.~~ **R1: the anchor is Accepted (ADR-0027) and its mints are settled by
+  ADR-0029. It is not a separate question.**
 
-**Contrast kinds**, derived from the role pair and never stored:
+**Contrast kinds**, ~~derived from the role pair~~ derived from the anchor's `modality` and the arms' sample roles (R1), and never stored:
 
 | Pair | Kind | Permitted |
 |---|---|---|
-| (`lysate`, `lysate`) | abundance or site | yes (every existing contrast) |
-| (`ip`, `ip`) | differential association | yes, both arms the same `bait` |
-| (`ip`, `no_antibody_control`) | background enrichment | yes |
+| non-`ip_ms` experiment, `role` NULL in both arms (R2) | abundance or site | yes (every existing contrast) |
+| (`ip`, `ip`) in an `ip_ms` experiment | differential association | yes, both arms the same `bait` |
+| (`ip`, `no_antibody_control`) | background enrichment | ~~yes~~ **no, until roles enter `Contrast` identity (R1)** |
 | any other | — | no |
 
-**Re-mint cost.** `DifferentialResult` anchors on `Contrast` (`schema.py:335`), so every result id
-moves, as under ADR-0025. That was affordable because ids are derived on demand and cited by
+**Re-mint cost.** ~~`DifferentialResult` anchors on `Contrast` (`schema.py:335`), so every result id
+moves, as under ADR-0025.~~ **R1: this record moves no `Contrast` or `DifferentialResult` id. The
+move belongs to ADR-0027's anchor, and happens once.** That was affordable because ids are derived on demand and cited by
 nothing outside the graph. Both premises are re-measured at landing, not inherited.
 
 ### D5. New invariant I22 — a contrast's arms are role-consistent.
 
 Every sample whose values enter an arm of a contrast has that arm's declared role. The pair is in
-D4's permitted set. Both `ip` arms share one `bait`.
+D4's permitted set. Both `ip` arms share one `bait`. **Revised by R1 and R2:** in a non-`ip_ms`
+experiment both arms' `role` is NULL; in an `ip_ms` experiment both arms are `ip` with one `bait`.
+Any `no_antibody_control` sample in an arm is refused.
 
 **Enforced at the producer, not in the graph, and this is stated so a pass is not misread.**
 `Contrast` has no edge to `Sample`. Arms are bound to columns upstream: `differential.py` takes
@@ -151,8 +243,8 @@ A graph-checkable form waits on a `Contrast`–`Sample` linkage. That is named h
 l.670's meaning changes from *"parent protein also enriched in anti-ISG15 IP-MS"* to:
 
 > the parent protein's ISG15-IP recovery rises in an (`ip`, `ip`) contrast whose condition strings
-> match the (`lysate`, `lysate`) contrast in which the site rises, with both experiments under one
-> `Project`.
+> match the ~~(`lysate`, `lysate`)~~ non-`ip_ms` contrast in which the site rises, ~~with both experiments under one
+> `Project`~~ with both `Dataset`s carrying the same `external_accession` (R4).
 
 - Permitted confidence stays `probable`.
 - **Cross-deposit pairing is not this basis.** The voided R1 join is the reason (handoff §2.3).
@@ -253,7 +345,8 @@ so the block was never machine-enforced. **It lifts only when all four hold**:
     available.
   - PXD055843: external results, mask unknown, so only the agreement row is available, and the
     result says so.
-- **Ids move for `Sample` (D2) and for `Contrast` and every `DifferentialResult` (D4).**
+- **Ids move for `Sample` (D2)** ~~and for `Contrast` and every `DifferentialResult` (D4)~~. **R1: the
+  `Contrast` and result move belongs to ADR-0027's anchor, not to this record.**
   `ModifierAssignment` does not anchor on either (`schema.py:303–311`).
 - **I4 gains a display obligation**: *abundance-uncorrected*, beside the existing
   *stoichiometry-uncorrected*.
@@ -272,15 +365,16 @@ Line numbers are at `a74cf18`.
 **`ONTOLOGY.md`**
 
 - l.115 — `Sample` identity row: add `role`, `bait`.
-- §3 absence table, after l.146 — `Sample.bait`, determined by `role`. `Sample.antibody` is
+- §3 absence table, after l.146 — `Sample.role`, determined by `Experiment.modality` (R2), and `Sample.bait`, determined by `role`. `Sample.antibody` is
   non-identifying; classify its absence per §3.
 - l.117 — `SiteObservation` non-identifying list: drop `n_imputed`, marked superseded.
-- l.119 — `Contrast` identity row: add `numerator_role`, `denominator_role`.
+- ~~l.119 — `Contrast` identity row: add `numerator_role`, `denominator_role`.~~ **R1: no change from
+  this record.** ADR-0027's anchor edits this row.
 - l.125 — `DifferentialResult` non-identifying list: add the four counts. Absence row as D8.
 - l.380 — modality comment: add `'ip_ms'`.
 - l.384–398 — `Sample` DDL: add `role`, `bait`, `antibody`.
 - l.428 — `SiteObservation.n_imputed`: superseded.
-- l.450–453 — `Contrast` DDL: add the two role columns.
+- ~~l.450–453 — `Contrast` DDL: add the two role columns.~~ **R1: none.**
 - l.455–464 — `DifferentialResult` DDL: add the four counts.
 - l.539 — strike the headroom row and point to this record.
 - l.670 — the basis row's meaning, per D6.
@@ -304,7 +398,7 @@ historical ADR:
 **`bzk/ontology/schema.py`**
 
 - `Sample` identity (l.246–259): add `role`, `bait`.
-- `Contrast` identity (l.274): add the two role fields.
+- ~~`Contrast` identity (l.274): add the two role fields.~~ **R1: none from this record.**
 - `ABSENCE`: add the new determined row(s).
 - DDL columns, including l.450's `n_imputed`, which is removed.
 - `tests/test_schema.py` compares `ABSENCE` with §3, so both homes move together.
@@ -323,8 +417,14 @@ contains the substring. Enumerate with a word boundary at landing.
   - Extending it later would widen the meaning of an existing basis value.
 - **Option 3 — defer enrichment and do G2 and G3 first.** Adopted as sequencing, not as an
   alternative. D2–D5 and D8 land before any IP result is written.
-- **`Experiment` anchor on `Contrast` instead of role fields.** Rejected for this purpose (D4). It
-  remains the candidate for §11 Q1.
+- ~~**`Experiment` anchor on `Contrast` instead of role fields.** Rejected for this purpose (D4). It
+  remains the candidate for §11 Q1.~~ **Adopted on review (R1).** The anchor is ADR-0027's, already
+  Accepted.
+- **Role fields on `Contrast` (D4 as drafted).** Deferred (R1) until a deposit has a replicated
+  IP-vs-control design.
+- **`role` required, with an explicit `lysate` value (D2 as drafted).** Rejected on review (R2):
+  it edits 54 mapping entries in four committed records and buys nothing that `modality` does not
+  already supply.
 - **A `control` role value.** Rejected (D2). A biological comparator is a contrast-level meaning.
 
 ---
