@@ -643,7 +643,7 @@ def _check_I21(nodes: list[Node], edges: list[Edge]) -> None:
     presence guard's job (ADR-0027 implied change 5 for `Contrast`).
     """
     by_id = {node.get("id"): node for node in nodes}
-    by_rel: dict[str, list[Edge]] = defaultdict(list)
+    by_rel: dict[str | None, list[Edge]] = defaultdict(list)
     for edge in edges:
         by_rel[edge.get("type")].append(edge)
 

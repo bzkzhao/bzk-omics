@@ -507,7 +507,7 @@ def test_I21_refuses_two_counterparts_for_one_anchor() -> None:
     analysis = next(node for node in nodes if node[NODE_TYPE_KEY] == "Analysis")
     second = "bzk:" + "0" * 32
     nodes.append(n("Dataset", id=second, content_hash="sha256:" + "0" * 64))
-    edges.append(e("USED", analysis["id"], second))
+    edges.append(e("USED", str(analysis["id"]), second))
     with pytest.raises(InvariantError) as ei:
         validate(nodes, edges, only="I21")
     assert ei.value.invariant == "I21"
