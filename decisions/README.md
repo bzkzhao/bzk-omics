@@ -86,6 +86,7 @@ This exists because a project with one developer and a compressed timeline will 
 | [0033](0033-frame-is-a-coverage-repair.md) | The frame is a coverage repair, not an admissibility criterion; C0 screens its candidates unamended |
 | [0034](0034-declaring-an-unrecorded-imputation.md) | Declaring an imputation whose parameters were never recorded; the determiner gains the parent's `parameters_observed` |
 | [0035](0035-a-perturbation-applied-after-the-sample-ends.md) | A perturbation applied after the biological sample ends: `Sample` is the material measured, and the unrepresentable relation between `Sample`s is declared in `unresolved`, not in §3. Reviewed 2026-09-19: the split it was written for is not in this deposit — the PLpro axis is assigned at seeding — and the relation it survives on is the cross-arm digest split |
+| [0036](0036-ip-ms-as-role-tagged-observations.md) | IP-MS enters as role-tagged `ProteinObservation`s; concordance is defined on an IP-vs-IP contrast within one deposit; imputation is counted on the result, per arm |
 
 ## Queued
 

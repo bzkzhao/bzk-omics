@@ -7,7 +7,7 @@
 | Supersedes | `ONTOLOGY.md` §5.1's `EnrichmentObservation` headroom row (l.539) and §6.1's deferral paragraph (l.684) |
 | Superseded by | — |
 
-Drafted by the reviewer against `a74cf18`. Numbered 0036 on landing if nothing lands first.
+Drafted by the reviewer against `a74cf18`; landed `Proposed` at the commit adding this file, numbered 0036 (free at landing). **Landed by the reviewer's own session, not by an independent executor** — see *Landing verification*, opening paragraph.
 **Every line reference below is to `a74cf18`.** `git diff 3a165a4 a74cf18 -- ONTOLOGY.md bzk/ decisions/`
 is empty, so the handoff's references and these agree. Re-derive them at landing.
 
@@ -90,7 +90,7 @@ would otherwise differ only in `replicate`. That is a fragile separator, and it 
 
 **Re-mint cost.** Making `role` identifying re-mints every `Sample` id. Existing samples take
 `role = 'lysate'` explicitly, never a null default. **No node anchors on `Sample`** (`schema.py`
-anchors, l.230–341), so nothing downstream moves. The count is measured at landing.
+anchors, l.230–341), ~~so nothing downstream moves~~ so no graph anchor moves — but twelve `Sample` ids are pinned outside the graph (*Landing verification*, V5). The count is measured at landing.
 
 ### D3. `Experiment.modality` gains `ip_ms`.
 
@@ -326,3 +326,59 @@ contains the substring. Enumerate with a word boundary at landing.
 - **`Experiment` anchor on `Contrast` instead of role fields.** Rejected for this purpose (D4). It
   remains the candidate for §11 Q1.
 - **A `control` role value.** Rejected (D2). A biological comparator is a contrast-level meaning.
+
+---
+
+## Landing verification
+
+**Run 2026-10-03 against `2714c76` (prompt 25's commit, directly on `a74cf18`), in the reviewer's
+container.** The reviewer who drafted this record also ran the verification, so the round-trip's
+independence rests on the review step, not on this one. Every check below is a command and its
+output, not a reading of the draft.
+
+**One deviation from prompt 25's scope, forced by the repository.** Prompt 25 §0 said no change to
+`tests/`. Landing a record changes `decisions/` and so moves `tests/test_decision_index.py`'s pins
+(`EXPECTED_FILES`, `EXPECTED_WRITTEN_ROWS`, `EXPECTED_STATUSES`). Without the move the suite turns
+red on a correct landing. The pins and `decisions/README.md`'s Written table are updated in the same
+commit. Nothing else under `tests/` is touched. The prompt was wrong to exclude it, and that is
+recorded as a prompt defect, not as a licence.
+
+| # | Claim | Verdict | Evidence |
+|---|---|---|---|
+| V1 | Every line reference in this record | **holds** | All 22 `ONTOLOGY.md`, 10 `schema.py`, `differential.py` l.39/40/119, `perseus.py` l.545, `query/graph.py` l.75/80, `curation_PXD018299.json` l.34–35, `ROADMAP.md` l.68/117/139, `HANDOFF.md` l.1326 and ADR-0013 l.18/72 re-read at `2714c76`. None moved: `ONTOLOGY.md`, `bzk/` and `decisions/` are unchanged since `3a165a4` apart from this file |
+| V2 | No node type anchors on `Sample` | **holds** | `schema.IDENTITY` enumerated (`uv run python`): 25 (label, anchor) pairs. Anchors on `Sample`: `[]` |
+| V3 | `DifferentialResult` anchors on `Contrast`; `ModifierAssignment` anchors on neither | **holds** | Anchors on `Contrast`: `[('DifferentialResult', 'Contrast', 'RESULT_IN_CONTRAST')]`. `ModifierAssignment` anchors: `Modifier`, `SiteObservation`, `Analysis`, `Publication` |
+| V4 | Re-mint scope | **`Sample` measured; `Contrast` and `DifferentialResult` not measurable here** | Loading all four `curation_*.json` records in memory through `bzk/curation/loader.py` mints **54 distinct `Sample` ids** (12 + 12 + 12 + 18). A cold rebuild cannot run here: the raw store and the UniProt cache are absent. And `python -m bzk.rebuild` does not write `Contrast` or `DifferentialResult` at all (`OPERATIONS.md` l.256); those come from `python -m bzk.sources.pxd018299_differential`. **Command for bzk's Mac**, after both: `uv run python -c "import kuzu,pathlib; c=kuzu.Connection(kuzu.Database(str(pathlib.Path.home()/'.bzk-omics/graph.kuzu'), read_only=True)); [print(l, c.execute(f'MATCH (n:{l}) RETURN count(n)').get_next()[0]) for l in ('Sample','Contrast','DifferentialResult')]"` |
+| V5 | Ids are cited by nothing outside the graph | **corrected for `Sample`; holds for `Contrast` and `DifferentialResult`** | `git grep -cE 'bzk:[0-9a-f]{32}'`: 66 distinct ids over 12 files. **`tests/fixtures/pxd018299_curation_ids.json` pins all twelve PXD018299 `Sample` ids** as a re-mint tripwire, read by `tests/test_curation_loader.py` (l.46, l.172, l.188, l.203) and `tests/test_rebuild.py` (l.31, l.196). D2 turns both red until the fixture is regenerated *with the explanation its own note demands*. `tests/test_perseus.py` l.86–87/301/307/780–781 carries two `Sample` id literals as fixture **inputs**, not re-derived, so they do not move. `tests/fixtures/pxd018299_platform_targets.json`'s 39 ids are all `observation` (`SiteObservation`). No `Contrast` or `DifferentialResult` id was found pinned in a tracked file |
+| V6 | `n_imputed` consumers | **holds; the list is now exact** | `git grep -cw n_imputed`, code and tests only: `bzk/ontology/schema.py` 1, `bzk/query/graph.py` 5, `bzk/stats/imputation.py` 2, `bzk/ui/app.py` 1, `tests/test_invariants.py` 1, `tests/test_query.py` 2. `bzk/sources/pxd018299_h10.py` is **not** matched with `-w`: its hit was the substring in `row_carries_an_imputed_cell` |
+| V7 | Nothing in `bzk/` or `tests/` names `isg15_interactome_concordance` | **holds** | `git grep -n isg15_interactome_concordance -- bzk tests`: no output, rc = 1 |
+| V8 | `EnrichmentObservation` homes | **holds** | `git grep -n EnrichmentObservation`: `ONTOLOGY.md` l.539, l.684, l.1061; `ROADMAP.md` l.117, l.139; `HANDOFF.md` l.1326; ADR-0013 l.18, l.72; the reviewer handoff l.20, l.69. No home the record omits |
+| V9 | `protein_adjusted` is already set on protein results | **holds** | `perseus.py` l.540–546: protein-grain results are the uncorrected kind by construction, so the adapter writes `not_applied` with a null `adjustment_method` |
+| V10 | PXD018299's matching proteome is keyed to no `Sample` | **holds** | `ROADMAP.md` l.68: the proteome run's fourteen columns have no curation sample, *"so there is no sample to key a cell to"* |
+
+### Findings for review — not corrected here, because they bear on what is decided
+
+**F1. D4 was written without ADR-0027's state, and ADR-0029's. Possible defect in the decision.**
+
+- ADR-0027 is **Accepted**. It decided that `Contrast` gains an `Experiment` anchor through a new
+  `CONTRAST_IN_EXPERIMENT` edge. Its implied changes (DDL, `schema.py` l.274, loader
+  materialisation, a guard) are queued and not made.
+- ADR-0029 is **Proposed and held**. It settles how the `Experiment` id reaches the two `Contrast`
+  mints, and it fixes an ordering for those changes.
+- D4 treats the anchor as "the answer to §11 Q1, not taken up here". Under D3, though, an IP run is
+  its own `Experiment`. So **the accepted anchor alone separates the IP-vs-IP contrast from the
+  same-string diGly contrast.**
+- That leaves role fields on `Contrast` serving only an (`ip`, `no_antibody_control`) contrast
+  inside one experiment, and no public deposit has a replicated one.
+- Landing both changes separately would also re-mint every `DifferentialResult` twice.
+- **For the review to decide:**
+  - Should D4 become an ordering dependency on ADR-0027/0029's anchor, with the arm roles declared
+    on the run and checked by I22 at the producer?
+  - Should `Contrast` role fields be deferred until a deposit needs them?
+
+**F2. Not reached by this verification.**
+
+- ADR-0032 (Proposed; what the Perseus adapter reads) bears on D5's second producer.
+- ADR-0029's "I21 generalisation" item may interact with D8's per-arm counts.
+
+Neither record was read for this landing.

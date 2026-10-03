@@ -49,8 +49,8 @@ ARCHITECTURE = ROOT / "ARCHITECTURE.md"
 #: The counts at `fdc8ef3`, pinned so a parser that stops matching fails loudly instead of
 #: comparing two empty sets. A legitimate addition moves these in the same commit — the same
 #: discipline `tests/test_tautology_sweep.py`'s floor carries, and for the same reason.
-EXPECTED_FILES = 34
-EXPECTED_WRITTEN_ROWS = 34
+EXPECTED_FILES = 35
+EXPECTED_WRITTEN_ROWS = 35
 EXPECTED_QUEUED_ROWS = 1
 EXPECTED_SEED_LINES = 18
 EXPECTED_SEED_STRUCK = 17
@@ -61,7 +61,8 @@ EXPECTED_SEED_STRUCK = 17
 #: `ff54bf2` on six findings, `Accepted` once the review's edits were applied. A status change is
 #: the one edit an `Accepted` record may not receive, so this pin moving is what says the
 #: round-trip closed rather than that someone retyped a header.
-EXPECTED_STATUSES = {"Accepted": 21, "Proposed": 10, "Superseded": 3}
+#: 21/10/3 -> 21/11/3 on 2026-10-03: ADR-0036 landed `Proposed` (prompt 25).
+EXPECTED_STATUSES = {"Accepted": 21, "Proposed": 11, "Superseded": 3}
 
 #: Supersessions recorded on one side only, with the reason each is permitted.
 #:
