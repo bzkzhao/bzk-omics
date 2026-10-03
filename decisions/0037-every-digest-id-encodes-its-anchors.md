@@ -148,6 +148,92 @@ raw store and the UniProt cache are absent.
 **Enforcement waits on P1–P3 holding.** If any fails, this record is revised before it is
 accepted, not after.
 
+## Pre-registration result — run on bzk's Mac at `856c3d1`, 2026-10-03
+
+Two commands were run in order, `rebuild` then `differential`, with output pasted back verbatim.
+The reviewer's reading follows.
+
+**Rebuild context.**
+- 4 curation records replayed and 3 deposits ingested.
+- 4,195 site observations, 4,768 protein observations, 48 refusals.
+- Exit **INCOMPLETE**: `Supplementary_Data_S1_TP.xlsx` has no adapter in the replay. That is
+  known, and it is outside this record.
+
+**Differential context.**
+- 1,362 tested; 48.9% imputed; 516 significant up.
+- 12 of 14 published targets recovered, with `OAS1` absent from the tested population. This is the
+  shipped baseline.
+
+### The instrument counts validations, not nodes. Corrected here, with no effect on P1–P3
+
+The rebuild's adapter and curation change-sets are each validated twice:
+- once by their producer: `maxquant_sites.py` l.408, `maxquant_protein_groups.py` l.442,
+  `loader.py` l.411;
+- once by `store.write_change_set` (`store.py` l.120).
+
+The wrap sees both, which is why it printed *14* change-sets for 4 records and 3 deposits. The
+differential's three change-sets are each validated once, so its counts are distinct as printed.
+Zero doubled is zero, so P1–P3 read the same either way.
+
+| label | rebuild, distinct (printed ÷ 2) | differential, distinct |
+|---|---|---|
+| `Analysis` | 7 triggered, 7 ok | 3 / 3 |
+| `Experiment` | 4 / 4 | 1 / 1 |
+| `Sample` | 90 staged, **54 triggered**, 54 ok | 24 staged, 12 triggered, 12 ok |
+| `SiteObservation` | 4,195 / 4,195 | 3,391 staged, 2,029 triggered, 2,029 ok |
+| `ProteinObservation` | 4,768 / 4,768 | — |
+| `ModifierAssignment` | 4,195 / 4,195 | 3,391 / 3,391 |
+| `DifferentialResult` | — | 1,362 / 1,362 |
+| `Imputation` | — | 1 / 1 |
+
+**36 `Sample`s staged without their anchor edge (90 − 54).** This is exactly the figure
+`_check_I21`'s docstring gives for the re-staged referents that rejected the node-triggered form.
+D2's ground is reproduced by an independent instrument. The differential's 1,362 re-staged
+`SiteObservation`s (3,391 − 2,029) are the docstring's other figure, reproduced the same way.
+
+### Verdicts
+
+| # | Verdict | Evidence |
+|---|---|---|
+| P1 | **Holds** | `null_door` = 0 and `mismatch` = 0 for every label in both runs |
+| P2 | **Holds** | `multi_valued_anchor` = 0. Q15 does not block enforcement |
+| P3 | **Holds** | `unresolved_counterpart` = 0 |
+| P4 | **Holds for 5 of 6. Fails for `ProteinAssignment`** | `SiteObservation`, `ProteinObservation`, `ModifierAssignment`, `DifferentialResult` and `Imputation` all trigger. `ProteinAssignment` does not appear at all, **because no producer in `bzk/` emits one**: `perseus.py` l.788 and `maxquant_sites.py` l.592 each say so, and a grep finds no mint. The prediction was wrong. For that label the rule is exercised only by constructed cases, as I21 has been for `ADJUSTED_BY` since it was written |
+
+### Absences the run shows are designed, recorded so they are not mistaken for gaps
+
+- **`ModifierAssignment`, all triggered nodes, lacking `Modifier`, `Analysis` and `Publication`.**
+  These are the automatic `inferred_default` / `ambiguous` assignments (§6.1), which by
+  construction name no single modifier, supporting analysis or citation.
+  - They are D5's first limit at scale. For 4,195 nodes, three of four anchors are absent on
+    purpose, and nothing in a change-set separates that from a producer that forgot them.
+- **`DifferentialResult`, all 1,362, lacking `ProteinObservation` and `DifferentialResult`.**
+  These are site-grain results (I20), all `not_applied` (I4).
+
+### Not confirmed at the time of writing
+
+The differential run rewrote `tests/fixtures/pxd018299_platform_targets.json`, as that command
+always does. **Whether the rewrite produced a diff was not reported.** The fixture's own note says a
+diff there is a finding, not a regeneration. This record's result does not depend on it, and it is
+left open here rather than assumed clean.
+
+## Review
+
+**Reviewed 2026-10-03 at `856c3d1`, by the reviewer who drafted it, so this is not an independent
+review.** Three findings, none a defect in the decision:
+
+- **R1 — P4's `ProteinAssignment` prediction was wrong** (above). The rule stands. Implied
+  change 4's tests carry a constructed `ProteinAssignment` case, because real ingestion will not
+  exercise one.
+- **R2 — the instrument's double count** (above). The instrument is not changed. Its
+  docstring's word *"classifies every change-set"* is accurate, and the doubling is a fact about
+  the callers.
+- **R3 — enforcement cost.** The generalised check recomputes one digest per triggered node. In
+  the rebuild that is 2 × 13,223 = 26,446 digests (the printed `triggered` column summed). `sha256` over a few hundred bytes makes this negligible
+  next to the rebuild's measured 84–150 s warm. No ground to defer.
+
+**Status stays `Proposed`. Acceptance is bzk's.**
+
 ## Consequences
 
 - `_check_I21` is generalised in place, not replaced. Its two error readings — *no baseline at all*
