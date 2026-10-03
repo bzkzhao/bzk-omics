@@ -122,6 +122,7 @@ deposit file was read.
   - any check of which `Intensity n` group matches which `LFQ` group (that needs per-row values);
   - any per-protein comparison between SD3 and the interactome. The counterpart judgement uses
     headers only.
+- Instrument fix (prompt 24, 2026-10-03): statistics binning now handles −log p and difference columns; rerun on the four files byte-identical.
 
 ## 6. Measurement output (verbatim)
 

@@ -108,6 +108,62 @@ def kind(v: Any) -> str:
     return "value"
 
 
+def _p_bins(ps: list[float]) -> dict[str, int]:
+    return {
+        "<0.01": sum(1 for p in ps if p < 0.01),
+        "<0.05": sum(1 for p in ps if 0.01 <= p < 0.05),
+        ">=0.05": sum(1 for p in ps if p >= 0.05),
+    }
+
+
+def _signs(fs: list[float]) -> dict[str, int]:
+    return {
+        ">0": sum(1 for f in fs if f > 0),
+        "<0": sum(1 for f in fs if f < 0),
+        "=0": sum(1 for f in fs if f == 0),
+    }
+
+
+def describe_statistic(header: str, cells: list[Any]) -> str:
+    """One report line for one statistics column: counts and bins only, never a value.
+
+    **Classified by what the header says the column holds, in this order (prompt 24 §2).** The
+    first version binned every numeric statistics column as a raw p-value, so a `-Log … p-value`
+    column — where a significant value is *large* — fell almost entirely into `>=0.05`, and a
+    `Difference` or `Test statistic` column was binned as though it were a probability. No table
+    surveyed on 2026-10-02 had a statistics column, so no number in the findings came through it.
+
+      1. `significant` — Perseus' `+` marker, counted against blank.
+      2. `-log` and `p-value` — converted x → p = 10^(−x), then binned as 3. x < 0 is not a −log10
+         probability and is counted as invalid rather than binned.
+      3. `p-value` or `q-value`, without `-log` — binned; a value outside [0, 1] is counted as
+         invalid rather than binned.
+      4. `difference` and 5. `test statistic` — sign counts only. A magnitude would be a value.
+      6. anything else `STATISTIC` matched — the numeric count, labelled unclassified. That
+         includes `-Log … q-value`, which is deliberately **not** converted.
+    """
+    h = strip_prefix(header).lower()
+    fs = [f for v in cells if (f := as_float(v)) is not None and not math.isnan(f)]
+    head = f"- `{header}`: "
+    tally = f"{len(fs)} numeric of {len(cells)}"
+    if "significant" in h:
+        plus = sum(1 for v in cells if str(v).strip() == "+")
+        return head + f"significance marker; {{'+': {plus}, 'blank': {len(cells) - plus}}}"
+    if "-log" in h and "p-value" in h:
+        valid = [f for f in fs if f >= 0]
+        bins = _p_bins([10 ** (-f) for f in valid])
+        return head + f"-log10 p → p; {tally}; bins {bins}; invalid (<0): {len(fs) - len(valid)}"
+    if ("p-value" in h or "q-value" in h) and "-log" not in h:
+        valid = [f for f in fs if 0 <= f <= 1]
+        bins = _p_bins(valid)
+        return head + f"p/q; {tally}; bins {bins}; out of [0, 1]: {len(fs) - len(valid)}"
+    if "difference" in h:
+        return head + f"difference; {tally}; signs {_signs(fs)}"
+    if "test statistic" in h:
+        return head + f"test statistic; {tally}; signs {_signs(fs)}"
+    return head + f"unclassified statistic; {tally}"
+
+
 def deciles(values: list[float]) -> str:
     if len(values) < 2:
         return "n<2"
@@ -237,22 +293,7 @@ def survey(path: Path) -> dict[str, Any]:
 
         stats = [header[j] for j in named if STATISTIC.search(strip_prefix(header[j]))]
         out += ["", f"Statistics columns (Perseus test naming): {stats if stats else 'none'}"]
-        for j in named:
-            c = header[j]
-            if c not in stats:
-                continue
-            cells = col(j)
-            if re.search("significant", c, re.IGNORECASE):
-                counts = Counter("+" if str(v).strip() == "+" else "blank" for v in cells)
-                out.append(f"- `{c}`: {dict(counts)}")
-            else:
-                fs = [f for v in cells if (f := as_float(v)) is not None and not math.isnan(f)]
-                bins = Counter(
-                    "<0.01" if f < 0.01 else "<0.05" if f < 0.05 else ">=0.05" for f in fs
-                )
-                out.append(
-                    f"- `{c}`: {len(fs)} numeric of {len(cells)}; bins {dict(sorted(bins.items()))}"
-                )
+        out += [describe_statistic(header[j], col(j)) for j in named if header[j] in stats]
         flags = [
             header[j]
             for j in named
