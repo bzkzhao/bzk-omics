@@ -4,7 +4,7 @@
 |---|---|
 | Status | Proposed |
 | Date | 2026-08-31 |
-| Reviewed | 2026-09-03 — four findings, two grounds struck, one defect in the decision; held `Proposed` |
+| Reviewed | 2026-09-03 — four findings, two grounds struck, one defect in the decision; held `Proposed`. Re-reviewed 2026-10-03 at `2aecd01` — findings E–F; E is a defect in Q1's decision, which is revised in place; held `Proposed` for bzk |
 | Supersedes | — |
 | Superseded by | — |
 
@@ -198,6 +198,85 @@ exists; `bzk/curation/loader.py` contains no `evidence_id("Contrast", …)` call
 `bzk/` are `differential.py` l.120 and `perseus.py` l.226 — and l.357–359 hands
 `contrasts_of_interest` on as a tuple without materialising. **Ruling (c).**
 
+### Second review, 2026-10-03 at `2aecd01` — the round-trip resumed because ADR-0036 now depends on this record
+
+ADR-0036 D4 (Accepted 2026-10-03) makes ADR-0027's anchor the thing that keeps an IP-vs-IP contrast
+apart from the same-condition diGly contrast. It also rules that **no `ip_ms` contrast is minted
+before this record's list is built.** So this record is on option 1's critical path, and its held
+round-trip was resumed. Two findings. **E is a defect in Q1's decision, and Q1 is revised in place
+below**, struck rather than deleted.
+
+### E — the two minting paths do not mint the same `Contrast`. Defect in the decision
+
+**Measured, not reasoned.**
+
+- `bzk/sources/pxd018299_differential.py` l.105 sets `CONTRAST = ("KO_IFN", "WT_IFN")`, which are
+  column tokens. l.477–478 hands them to `DeclaredRun` as `numerator` and `denominator`, and
+  `differential.py` l.119–120 mints the `Contrast` from them.
+- The curation record declares the same comparison as `'USP18-/- + IFN'` over `'WT + IFN'`
+  (`curation_PXD018299.json` l.34–35), with id `KO_IFN_vs_WT_IFN`.
+- The analysis record already names that id: `analysis_PXD018299_KOIFN_vs_WTIFN.json`,
+  `"contrast": "KO_IFN_vs_WT_IFN"`.
+
+| `Contrast` | unanchored (today) | anchored on the PXD018299 `Experiment` |
+|---|---|---|
+| as the writer mints it (`KO_IFN` / `WT_IFN`) | `bzk:48e94e961f0a3434b0439a2543cd7821` | `bzk:9a80a7bb8beff27049609113293baa63` |
+| as the record declares it, and as implied change 2's loader would mint it | `bzk:f7c41f45886d3cf7c5c5ce8d59b0e267` | `bzk:8f9a06344675831a26dd59b2bf8c4393` |
+
+**So the record's list, built as written, produces two `Contrast` nodes for one comparison.** The
+1,362 site results would hang off one that no curation record declares, and the loader's would
+carry nothing.
+
+- §*Q1 and Q2 got different answers* argued that the two layers cohere because both render the same
+  anchor. That holds for the anchor and fails for the properties, which the record never compared.
+- This is a two-homes defect that predates the anchor. The anchor would harden it, because the
+  loader's mint is exactly what implied change 2 adds.
+
+**The precedent for the fix is already in the tree.** `bzk/sources/pxd055843_perseus.py` l.95–111
+reads the contrast's arms from the curation record, by the id the analysis record names. It refuses
+a name the record does not carry, rather than transcribing.
+
+**The ground `CONTRAST`'s own comment gives does not reach the arms.**
+
+- l.101–104 transcribe rather than read in order to avoid circularity: the *analysis* record is
+  what the run is checked against.
+- The arms are not the analysis record's parameters. They are the *curation* record's identity of
+  a node.
+- The tuple's other use is legitimate and stays: l.294 selects intensity columns by token. Selecting
+  columns and naming a `Contrast` are two jobs, and only the first belongs to a column token.
+
+**Revision (applied to Q1 below).** `site_change_set` receives the `Contrast` **pre-keyed from the
+loaded curation**, as a required keyword-only `contrast` node, selected by the analysis record's
+contrast id. This is the same pattern as its existing `dataset` parameter.
+
+- The analysis layer mints no `Contrast`.
+- No `experiment_id` parameter is needed.
+- The loader becomes the only minting site, which is Q2's answer applied to both layers.
+
+**This is closer to the Q1 re-run's own ground than (a) was.** The re-run took (a) because *"in
+this function no anchor arrives on `DeclaredRun`"*: `Analysis`'s anchor comes from the `dataset`
+keyword parameter. A pre-keyed `contrast` keyword arrives the same way. Under the revision, the
+anchored node arrives already keyed, so there is nothing left to thread.
+
+**What moves, and that it moves once.** The 1,362 results move from `bzk:48e94e96…` to the declared,
+anchored `bzk:8f9a0634…` in the single re-mint ADR-0027 already incurs. That is not a second move.
+
+### F — line drift since 2026-09-04, re-derived at `2aecd01`. No defect
+
+| Cited | Now | Content |
+|---|---|---|
+| `differential.py` l.120 | l.120 | `evidence_id("Contrast", contrast)`. Holds |
+| `perseus.py` l.226 | **l.494** | `evidence_id("Contrast", props)` |
+| `pxd018299_differential.py` l.143 / l.304 / l.322 | **l.269 / l.463 / l.481** | `load_path`, `DeclaredRun`, `site_change_set`. Still all in `main()` (l.266), but 212 lines apart, not twelve |
+| `loader.py` l.153 / l.320 / l.324 / l.357–359 | **l.189 / l.384 / l.388 / l.421–423** | `experiment_id: str`, the `Experiment` mint, the `Sample` mint, and the contrasts handed on unmaterialised. The l.421 comment still says the placement is *"unsettled (§11 Q1)"*, which ADR-0027 settled |
+| `keys.py` l.303–311, l.334–341 | l.300–308, l.334–341 | Holds in substance |
+| `invariants.py` l.588, l.710 | l.588, l.710 | Holds |
+| test callers l.29, l.84, l.138, l.176 | same | Holds. **Four** `site_change_set` call sites and **two** `DeclaredRun` constructions, as measured |
+
+**D reproduces again.** All six ids in §*How many `Contrast` ids would change* reproduce digit for
+digit at `2aecd01`: before, anchored and null-anchored, for both contrasts. The evidence-id call
+count, unrestricted, is **24**, as Finding C's correction states.
+
 ### Q1 re-run — (a) stands, on a ground read off the tree, 2026-09-04
 
 Finding B struck both grounds the (a)-versus-(b) choice rested on and left the comparison unmade.
@@ -373,7 +452,12 @@ the anchor, the `RelTable` and the §3 cell, and never asks whether anything can
 
 ## Q1 — how `site_change_set` gets an `Experiment` id
 
-**Decision: a required keyword-only `experiment_id: str` parameter on `site_change_set`.**
+~~**Decision: a required keyword-only `experiment_id: str` parameter on `site_change_set`.**~~
+
+**Revised by Finding E, 2026-10-03.** `site_change_set` takes a required keyword-only `contrast`: the
+`Contrast` node the loader minted, selected by the analysis record's contrast id. The analysis layer
+mints no `Contrast`. The text below is the original analysis. It is kept because its option table
+and the (c)/(d) rejections still stand. Its choice of (a) does not.
 
 **The id exists in the caller, and this was verified rather than assumed.**
 `bzk/sources/pxd018299_differential.py` calls `load_path(CURATION)` at l.143 and `site_change_set` at
@@ -549,9 +633,15 @@ shape this instance took. It does not catch the class.**
 
 ## Implied changes, described and not made
 
-1. **`site_change_set` gains a required keyword-only `experiment_id: str`**, and the four call sites
+1. ~~**`site_change_set` gains a required keyword-only `experiment_id: str`**, and the four call sites
    supply it — `pxd018299_differential.py` l.322 from `curation.experiment_id`, and the three test
-   callers each with a value of their own.
+   callers each with a value of their own.~~ **Revised by E:** `site_change_set` gains a required
+   keyword-only `contrast` node and stops minting.
+   - `pxd018299_differential.py` passes the loader's `Contrast` for the analysis record's
+     `"contrast"` id, refusing an id the curation record does not carry, as
+     `pxd055843_perseus.py` l.95–111 does.
+   - `CONTRAST` keeps selecting columns (l.294) and no longer names the node.
+   - The three test callers each supply a node.
 2. **`bzk/curation/loader.py` materialises `Contrast`** — ADR-0027's implied change 4, promoted here
    from a peer of implied change 3 to its prerequisite.
 3. **The adapter receives contrast ids rather than minting them**, which removes `perseus.py` l.226
@@ -559,3 +649,6 @@ shape this instance took. It does not catch the class.**
 4. **A generalisation of I21 to every anchored node**, with its own record, before or with the
    anchor landing.
 5. **Then ADR-0027's implied changes 1, 3 and 5.** Not before the four above.
+6. **Added by E: every later producer of results takes its `Contrast` the same way.** The first such
+   producer is ADR-0036's protein-grain writer for the PXD018299 interactome. No producer mints a
+   `Contrast`.
