@@ -2,10 +2,11 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-03 |
 | Supersedes | — (amends I21's statement, `ONTOLOGY.md` l.968; I21 keeps its number) |
 | Superseded by | — |
+| Reviewed | 2026-10-03 — three findings, none a defect in the decision; before acceptance, D3's unstaged-counterpart refusal struck as subsumed by structural validation and P3 marked vacuous. Reviewed by the drafter; accepted by bzk the same day |
 
 Drafted against `f7f931c`. **Every number below was measured at `f7f931c` unless it is marked as a
 prediction.**
@@ -91,8 +92,11 @@ For each anchor `(A, R)` of label `L`:
 - if `(A, L)` is one of them, it is the destination.
 
 For a rel with several pairs (`PROTEIN_ASSIGNMENT_FOR`), the counterpart's label decides which
-anchor the edge supplies. If that counterpart is not staged in the change-set, the node is refused
-as unresolvable rather than guessed.
+anchor the edge supplies. ~~If that counterpart is not staged in the change-set, the node is refused
+as unresolvable rather than guessed.~~ **Subsumed, found while implementing, before acceptance:**
+structural validation (`invariants.py` l.205–209) refuses any edge naming a node absent from the
+change-set, and it runs before I21. So an unstaged counterpart never reaches this check, and the
+implementation reads the counterpart's label without a branch for its absence.
 
 ### D4. Two counterparts for one anchor in a change-set are refused.
 
@@ -197,7 +201,7 @@ D2's ground is reproduced by an independent instrument. The differential's 1,362
 |---|---|---|
 | P1 | **Holds** | `null_door` = 0 and `mismatch` = 0 for every label in both runs |
 | P2 | **Holds** | `multi_valued_anchor` = 0. Q15 does not block enforcement |
-| P3 | **Holds** | `unresolved_counterpart` = 0 |
+| P3 | **Holds, vacuously** | `unresolved_counterpart` = 0. **By construction**: every change-set measured then passed structural validation, which refuses an unstaged endpoint, so this count could not have been non-zero (found while implementing, before acceptance; see D3) |
 | P4 | **Holds for 5 of 6. Fails for `ProteinAssignment`** | `SiteObservation`, `ProteinObservation`, `ModifierAssignment`, `DifferentialResult` and `Imputation` all trigger. `ProteinAssignment` does not appear at all, **because no producer in `bzk/` emits one**: `perseus.py` l.788 and `maxquant_sites.py` l.592 each say so, and a grep finds no mint. The prediction was wrong. For that label the rule is exercised only by constructed cases, as I21 has been for `ADJUSTED_BY` since it was written |
 
 ### Absences the run shows are designed, recorded so they are not mistaken for gaps
@@ -232,7 +236,7 @@ review.** Three findings, none a defect in the decision:
   the rebuild that is 2 × 13,223 = 26,446 digests (the printed `triggered` column summed). `sha256` over a few hundred bytes makes this negligible
   next to the rebuild's measured 84–150 s warm. No ground to defer.
 
-**Status stays `Proposed`. Acceptance is bzk's.**
+**Status stays `Proposed`. Acceptance is bzk's.** **Accepted by bzk on 2026-10-03,** with the D3 and P3 corrections above made before the status changed.
 
 ## Consequences
 
