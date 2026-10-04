@@ -48,6 +48,14 @@ def _anchored_contrast(numerator: str, denominator: str) -> dict[str, object]:
 
 CONTRAST = _anchored_contrast("USP18-/- + IFN", "WT + IFN")
 
+#: ADR-0036 D8's per-arm counts, required on every `SiteResult` this module receives.
+ARMS = {
+    "n_values_numerator": 3,
+    "n_values_denominator": 3,
+    "n_imputed_numerator": 0,
+    "n_imputed_denominator": 1,
+}
+
 
 def _n(label: str, node_id: str, **props: object) -> dict[str, object]:
     return {NODE_TYPE_KEY: label, "id": node_id, **props}
@@ -112,7 +120,7 @@ def test_a_computed_run_lands_as_processing_with_parameters_observed(conn: kuzu.
     `'processing' | 'curation' | 'external'` that says the platform ran it — `'external'` is the one
     that says it did not, and there is no fourth.
     """
-    _write(conn, [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01)])
+    _write(conn, [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01, **ARMS)])
     assert _one(conn, "MATCH (a:Analysis) WHERE a.test = 'welch_t' RETURN a.kind") == "processing"
     assert _one(conn, "MATCH (a:Analysis) WHERE a.test = 'welch_t' RETURN a.parameters_observed")
     # Determined by `kind` — curation's fields, and an external tool is what did not run this.
@@ -121,7 +129,7 @@ def test_a_computed_run_lands_as_processing_with_parameters_observed(conn: kuzu.
 
 
 def test_every_result_reaches_its_analysis_contrast_and_observation(conn: kuzu.Connection) -> None:
-    _write(conn, [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01)])
+    _write(conn, [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01, **ARMS)])
     assert _one(conn, "MATCH (r:DifferentialResult) RETURN count(r)") == 1
     for rel in ("WAS_GENERATED_BY", "RESULT_FOR_SITE", "RESULT_IN_CONTRAST"):
         assert _one(conn, f"MATCH ()-[e:{rel}]->() RETURN count(e)") == 1
@@ -130,6 +138,24 @@ def test_every_result_reaches_its_analysis_contrast_and_observation(conn: kuzu.C
     # §11 Q11: `WAS_DERIVED_FROM` restates `RESULT_FOR_SITE` and is deliberately not stored, which
     # is the choice `perseus.py` already makes. A second home for one fact is what Q11 exists over.
     assert _one(conn, "MATCH ()-[e:WAS_DERIVED_FROM]->() RETURN count(e)") == 0
+
+
+def test_the_per_arm_counts_land_on_the_result_as_passed(conn: kuzu.Connection) -> None:
+    """ADR-0036 D8: the counts reach the stored node unaltered and each in its own column.
+
+    Four different values, so a swapped pair of columns fails rather than passing by symmetry.
+    """
+    counts = {
+        "n_values_numerator": 3,
+        "n_values_denominator": 2,
+        "n_imputed_numerator": 1,
+        "n_imputed_denominator": 2,
+    }
+    _write(conn, [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01, **counts)])
+    assert _one(conn, "MATCH (r:DifferentialResult) RETURN r.n_values_numerator") == 3
+    assert _one(conn, "MATCH (r:DifferentialResult) RETURN r.n_values_denominator") == 2
+    assert _one(conn, "MATCH (r:DifferentialResult) RETURN r.n_imputed_numerator") == 1
+    assert _one(conn, "MATCH (r:DifferentialResult) RETURN r.n_imputed_denominator") == 2
 
 
 def test_two_results_over_one_observation_are_refused_rather_than_merged(
@@ -148,8 +174,8 @@ def test_two_results_over_one_observation_are_refused_rather_than_merged(
     change_set = site_change_set(
         RUN,
         [
-            SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01),
-            SiteResult(OBS, log2fc=-2.0, p_value=0.2, adj_p_value=0.3),
+            SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01, **ARMS),
+            SiteResult(OBS, log2fc=-2.0, p_value=0.2, adj_p_value=0.3, **ARMS),
         ],
         dataset=dataset,
         contrast=CONTRAST,
@@ -164,8 +190,8 @@ def test_rewriting_a_result_with_different_numbers_updates_it_rather_than_forkin
     conn: kuzu.Connection,
 ) -> None:
     """ADR-0020's identity rule where it bites: a re-run must not double the table."""
-    _write(conn, [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01)])
-    _write(conn, [SiteResult(OBS, log2fc=9.9, p_value=0.5, adj_p_value=0.6)])
+    _write(conn, [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01, **ARMS)])
+    _write(conn, [SiteResult(OBS, log2fc=9.9, p_value=0.5, adj_p_value=0.6, **ARMS)])
     assert _one(conn, "MATCH (r:DifferentialResult) RETURN count(r)") == 1
     assert _one(conn, "MATCH (r:DifferentialResult) RETURN r.log2fc") == 9.9
     # An `r.id == first` line was written here and **withdrawn rather than pinned**: it cannot
@@ -186,7 +212,7 @@ def test_a_result_whose_observation_is_not_in_the_batch_is_refused(conn: kuzu.Co
     dataset, nodes, edges = _attached()
     change_set = site_change_set(
         RUN,
-        [SiteResult("bzk:not-in-the-batch", log2fc=1.0, p_value=0.1, adj_p_value=0.2)],
+        [SiteResult("bzk:not-in-the-batch", log2fc=1.0, p_value=0.1, adj_p_value=0.2, **ARMS)],
         dataset=dataset,
         contrast=CONTRAST,
         attached_nodes=nodes,
@@ -231,7 +257,7 @@ def test_the_contrast_is_staged_as_given_and_none_is_minted() -> None:
     dataset, nodes, edges = _attached()
     change_set = site_change_set(
         RUN,
-        [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01)],
+        [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01, **ARMS)],
         dataset=dataset,
         contrast=CONTRAST,
         attached_nodes=nodes,

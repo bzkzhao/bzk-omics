@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.43 |
+| Version | 1.44 |
 | Last reviewed | 2026-08-31 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -114,7 +114,7 @@ The identity **model** is identical for both: a node's identity is its label, it
 | `Experiment` | `title`, `modality`, `organism_taxid` | `Project` (`CONTAINS`) | — |
 | `Sample` | `cell_line` / `model_system`, `source_type`, `genotype`, `treatment`, `timepoint_h`, `replicate`, `replicate_type`, `organism_taxid` | `Experiment` (`PERFORMED_ON`) | `label` |
 | `Dataset` | `content_hash` | — (the SHA-256 of the raw file is itself the anchor) | `label`, `source`, `external_accession`, `acquisition_mode`, `instrument`, `search_engine`, `search_engine_version`, `library_type`, `library_prediction_model`, `fasta_release`, `embargo_holder`, `embargo_reference`, `embargo_released_at` |
-| `SiteObservation` | `candidate_proteins` | `Dataset` (`REPORTS_SITE`), `ModificationSite` (`MEASURED_AT`) | `peptide_sequence`, `localization_prob`, `score`, `is_decoy`, `n_imputed`, `quant_ref`, `keying_basis`, `displaced_protein` |
+| `SiteObservation` | `candidate_proteins` | `Dataset` (`REPORTS_SITE`), `ModificationSite` (`MEASURED_AT`) | `peptide_sequence`, `localization_prob`, `score`, `is_decoy`, `quant_ref`, `keying_basis`, `displaced_protein` |
 | `ProteinObservation` | `candidate_proteins` | `Dataset` (`REPORTS_PROTEIN`) | `quant_ref`, `n_peptides` |
 | `Contrast` | `numerator`, `denominator` | `Experiment` (`CONTRAST_IN_EXPERIMENT`) — evidence node; §11 Q1 settled 2026-08-18 by ADR-0027, built 2026-10-03 in ADR-0029's order. Minted only by the curation loader from the record's `contrasts_of_interest`; producers receive it pre-keyed and mint none (ADR-0029 E) | `label` |
 | `Analysis` | `kind`, `basis`, `confidence`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `parameters_json` | `Dataset` (`USED`) — one or more; for a curation analysis the asserted content stands in for it | `label`, `rationale`, `started_at`, `ended_at`, `workflow_id`, `workflow_revision` |
@@ -122,7 +122,7 @@ The identity **model** is identical for both: a node's identity is its label, it
 | `ModifierAssignment` | `basis`, `candidate_modifiers`, `confidence` | `Modifier` (`ASSIGNS`), `SiteObservation` (`ASSIGNMENT_FOR`), `Analysis` (`ASSIGNMENT_SUPPORTED_BY`) / `Publication` (`ASSIGNMENT_CITES`) | `rationale`, `asserted_at`, `retracted_at` |
 | `EnzymeAssociation` | `direction`, `basis`, `confidence` | `SiteObservation` (`ASSOCIATION_FOR`), `Protein` (`ASSOCIATION_ENZYME`), `Analysis` (`ASSOCIATION_SUPPORTED_BY`) / `Publication` (`ASSOCIATION_CITES`) | `effect_size`, `adj_p_value`, `rationale`, `asserted_at`, `retracted_at` |
 | `ProteinAssignment` | `basis`, `candidate_proteins`, `confidence` | `SiteObservation` (`PROTEIN_ASSIGNMENT_FOR`) / `ProteinObservation` (`PROTEIN_ASSIGNMENT_FOR`), `Protein` (`ASSIGNS_PROTEIN`) | `rationale`, `asserted_at`, `retracted_at` |
-| `DifferentialResult` | `protein_adjusted`, `adjustment_method` (I4's required declaration of result *kind*. A single site-level `Analysis` emits **both** where a matched proteome exists — the uncorrected result (not_applied) and the corrected one (applied, carrying `ADJUSTED_BY` to the protein result it used) — so they share `WAS_GENERATED_BY`, observation and contrast and are separated *only* by these fields; the correction is a within-analysis step, not a separate `Analysis`. Holding both is what lets a user see what the correction did — `ARCHITECTURE.md` §4) | `Analysis` (`WAS_GENERATED_BY`), `SiteObservation` (`RESULT_FOR_SITE`) / `ProteinObservation` (`RESULT_FOR_PROTEIN`), `Contrast` (`RESULT_IN_CONTRAST`), `DifferentialResult` (`ADJUSTED_BY`) — the self-anchor, see the note below the table | `log2fc`, `p_value`, `adj_p_value` |
+| `DifferentialResult` | `protein_adjusted`, `adjustment_method` (I4's required declaration of result *kind*. A single site-level `Analysis` emits **both** where a matched proteome exists — the uncorrected result (not_applied) and the corrected one (applied, carrying `ADJUSTED_BY` to the protein result it used) — so they share `WAS_GENERATED_BY`, observation and contrast and are separated *only* by these fields; the correction is a within-analysis step, not a separate `Analysis`. Holding both is what lets a user see what the correction did — `ARCHITECTURE.md` §4) | `Analysis` (`WAS_GENERATED_BY`), `SiteObservation` (`RESULT_FOR_SITE`) / `ProteinObservation` (`RESULT_FOR_PROTEIN`), `Contrast` (`RESULT_IN_CONTRAST`), `DifferentialResult` (`ADJUSTED_BY`) — the self-anchor, see the note below the table | `log2fc`, `p_value`, `adj_p_value`, `n_values_numerator`, `n_values_denominator`, `n_imputed_numerator`, `n_imputed_denominator` |
 
 | `Person` | `orcid`, `name` | — | — |
 | `Software` | `name`, `version` | — | `container_digest` |
@@ -425,7 +425,6 @@ CREATE NODE TABLE SiteObservation(
   localization_prob DOUBLE,     -- 0–1
   score DOUBLE,
   is_decoy BOOLEAN,
-  n_imputed INT64,              -- values generated rather than measured; see §6.5
   quant_ref STRING,             -- the columnar TABLE holding this observation's per-sample
                                 -- values, or NULL if none are retained (I11's violation
                                 -- state). The join key is `id`, not this — §2, ADR-0004
@@ -461,6 +460,10 @@ CREATE NODE TABLE DifferentialResult(
                                 -- 'native' = source already ratiometric. See I4.
   adjustment_method STRING,     -- NULL if 'not_applied'
                                 -- 'residual_vs_protein_lfc' | 'maxquant_mod_base_ratio'
+  n_values_numerator INT64,     -- How many values entered the test in each arm, and of those
+  n_values_denominator INT64,   -- how many were generated rather than measured.
+  n_imputed_numerator INT64,    -- All four are NULL iff the generating Analysis has
+  n_imputed_denominator INT64,  -- parameters_observed = false (§6.5, ADR-0036 D8).
   PRIMARY KEY (id));
 
 CREATE NODE TABLE Analysis(
@@ -847,11 +850,15 @@ CREATE NODE TABLE Imputation(
 CREATE REL TABLE IMPUTATION_FOR(FROM Imputation TO Analysis, MANY_ONE);
 ```
 
-`SiteObservation` gains `n_imputed INT64` — how many of that site's values were generated rather than measured.
+`DifferentialResult` carries four counts (ADR-0036 D8): `n_values_numerator` and `n_values_denominator`, how many values entered the test in each arm, and `n_imputed_numerator` and `n_imputed_denominator`, how many of those were generated rather than measured. They belong to the result and not to the observation because imputation belongs to the `Analysis`: one observation imputed by two analyses has two counts, and a count on the observation could hold only one of them.
+
+**All four are NULL exactly when the generating `Analysis` has `parameters_observed = false`.** That absence is determined, not contingent: an analysis that ran outside the platform hands over its results without the mask that says which values it generated, so the counts are unrecoverable rather than not yet known. ADR-0036 D8 also excepts an export that carries a mask, but no recorded field says whether one does and no producer reads one, so the rule is enforced without that exception; a producer that reads a mask names the field that records it and amends the guard in the same change. The rule is a non-identifying field's, so it lives here, in the DDL comment and in I15's write-time check rather than in §3's absence table, which classifies identifying fields only.
+
+*Retired 2026-10-04:* `SiteObservation.n_imputed`, which counted generated values on the observation. It was declared and read but never written by any producer.
 
 **Known limitation.** `Imputation` attaches to an `Analysis`, so the model assumes one imputation configuration per analysis. Perseus permits different settings for different matrices — a diGly peptidome and its matched proteome may legitimately be imputed differently within what a researcher considers one analysis. The current model forces either two `Analysis` nodes or a single over-generalised parameter set. Acceptable for v0.1, since two `Analysis` nodes is a correct if verbose representation, but it should be revisited if it proves awkward in practice.
 
-A `DifferentialResult` whose underlying values are more than half imputed is flagged **substantially imputed** in every view and export. A seed is mandatory for stochastic methods: without it, the analysis is not reproducible even from the same inputs, which defeats I9.
+A `DifferentialResult` is flagged **substantially imputed** in every view and export when (a) more than half of its values are generated, **or** (b) either arm's values are all generated. (b) catches what (a) misses: a 2-vs-2 comparison with one arm entirely imputed (2 of 4); a protein ISGylated only in the knockout, and so absent from every WT+IFN IP (3 of 6); and a single imputed bead arm (1 of 4). Where the counts are NULL the flag is undeterminable, and it is shown as such — never as `false`. A seed is mandatory for stochastic methods: without it, the analysis is not reproducible even from the same inputs, which defeats I9.
 
 ---
 
@@ -960,7 +967,7 @@ Normative. Violations are ingestion errors, not warnings.
 - **I12 — No tryptic assumptions.** Core code makes no assumption that peptides terminate in K or R, that a peptide carries at most one modification, or that a peptide maps to exactly one protein. Immunopeptidomics violates the first, multi-modified peptides the second, shared peptides the third. These are free to accommodate now and expensive to retrofit.
 - **I13 — Pipeline metadata is data.** `acquisition_mode`, `search_engine`, `library_type` and `test` are recorded fields, never branch conditions. Any conditional on their value outside `adapters/` or the statistics registry is a defect — it is how the abstraction leaks and how the next pipeline change becomes a rewrite.
 - **I14 — No false singletons.** An **observation** whose `candidate_proteins` names several proteins is never rendered against one of them without a `ProteinAssignment` of confidence `confirmed`. Where assignment is `razor` or `leading`, views and exports name the candidate set. Measured prevalence is 82% at site grain and 72–77% at protein grain (`ROADMAP.md` § Measured findings), so this is the default path, not an exception. Phrased on the observation rather than on *a peptide* since ADR-0022: a `ProteinObservation` has no peptide, which is why the protein grain went uncovered until `perseus.py` met it. **Enforced at write time in two places** — a `ProteinAssignment` reaching `ASSIGNS_PROTEIN` from a multi-candidate set must be `confirmed`, and a `ProteinObservation` naming several candidates must carry `RESOLVES_TO_PROTEIN` to *every* one of them rather than to a subset. At site grain `MEASURED_AT` (`RESOLVES_TO_SITE` until ADR-0023) remains `MANY_ONE` and the single site it names is not treated as a violation: a `ModificationSite` key carries a protein-specific position, so pointing at all candidates is not available, and making the pick an ingestion error would reject 82% of sites with no satisfying alternative — `razor` is `ambiguous` by §6.3's own table. That half stays a display and export obligation, which is what *rendered* has always meant.
-- **I15 — Imputation is declared.** Every `Analysis` producing differential results links to an `Imputation`, including `method = 'none'`. Stochastic methods record a seed; without one the analysis is irreproducible from its own inputs and I9 fails. Results whose underlying values are more than half generated are labelled *substantially imputed* wherever they appear.
+- **I15 — Imputation is declared.** Every `Analysis` producing differential results links to an `Imputation`, including `method = 'none'`. Stochastic methods record a seed; without one the analysis is irreproducible from its own inputs and I9 fails. Results are labelled *substantially imputed* wherever they appear when more than half of their values are generated **or** either arm's values are all generated (ADR-0036 D8); where the generating analysis's `parameters_observed` is `false` the per-arm counts are absent and the label is shown as undeterminable, never as false.
 - **I17 — Reviewed preferred, never silently.** Where a candidate protein set contains both reviewed (Swiss-Prot) and unreviewed (TrEMBL) entries, and the reviewed entry is **valid at the site's position**, the site keys against it and the observation records `keying_basis = 'reviewed_preferred'` with the displaced accession in `displaced_protein` (§5, §6.3). Measured on PXD018299, the search engine's razor pick was unreviewed in 4 of 8 sampled sites despite a reviewed alternative being present. **Reworded 2026-08-07 by ADR-0024**, whose last sentence read *"The promotion is an inference and is recorded as one."* It is not an inference — it is a keying rule, and calling it an inference is what put it in the `ProteinAssignment` basis enum and into conflict with I14. *Never silently* is the binding half and is unchanged.
 - **I18 — Embargo is enforced at the boundary.** No `Dataset` with `source = 'embargoed'` and `embargo_released_at IS NULL` may contribute to any export, report, figure file or shared artifact. Queries and views within the local instance are unrestricted. The check sits at the export boundary, not at query time, so the data remains fully usable to its holder while being incapable of leaking.
 - **I19 — Observed and reported provenance are distinguished.** Every `Analysis` sets `parameters_observed`. Where `false`, the analysis was run outside the platform and its parameters are as stated by the user rather than as executed; every derived `DifferentialResult` is labelled accordingly in views and exports. An externally computed result is never presented with the same provenance standing as one the platform produced.

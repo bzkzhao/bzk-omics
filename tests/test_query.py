@@ -62,7 +62,6 @@ def conn(tmp_path: Path) -> kuzu.Connection:
             keying_basis="reviewed_preferred",
             displaced_protein=IFIT1_2,
             is_decoy=False,
-            n_imputed=1,
             quant_ref="site_values",
         ),
         _n(
@@ -95,6 +94,12 @@ def conn(tmp_path: Path) -> kuzu.Connection:
             adj_p_value=0.001,
             protein_adjusted="native",
             adjustment_method="ratio_mod_base",
+            # ADR-0036 D8: the denominator arm is wholly generated, so (b) flags it while (a) —
+            # 3 of 6, not more than half — would not.
+            n_values_numerator=3,
+            n_values_denominator=3,
+            n_imputed_numerator=0,
+            n_imputed_denominator=3,
         ),
         _n(
             "ProteinAssignment",
@@ -251,9 +256,34 @@ def test_a_differential_row_carries_its_quantity_test_and_candidate_set(
     assert row.gene_symbols == ("MX1",)
     assert row.protein_adjusted == "native" and row.adjustment_method == "ratio_mod_base"
     assert row.assignment_confidence == "ambiguous"
-    # I15's flag is not derivable from the graph: no column holds it and the denominator lives in
-    # `quant.duckdb`. The numerator travels instead, and a `False` here would assert the clause met.
-    assert row.substantially_imputed is None and row.n_imputed == 1
+    # I15's flag, computed from the result's own per-arm counts (ADR-0036 D8), which travel with it.
+    assert (row.n_values_numerator, row.n_values_denominator) == (3, 3)
+    assert (row.n_imputed_numerator, row.n_imputed_denominator) == (0, 3)
+    assert row.substantially_imputed is True
+
+
+@pytest.mark.parametrize(
+    ("nv_num", "nv_den", "ni_num", "ni_den", "expected"),
+    [
+        (3, 3, 0, 0, False),  # nothing generated
+        (3, 3, 0, 3, True),  # (b) only: 3 of 6 is not more than half
+        (2, 2, 0, 2, True),  # (b) only: the 2-vs-2 case
+        (3, 1, 0, 1, True),  # (b) only: the single imputed bead arm
+        (3, 3, 2, 2, True),  # (a) only: 4 of 6, neither arm entire
+        (3, 3, 1, 2, False),  # 3 of 6 and neither arm entire
+        (3, 3, None, 2, None),  # undeterminable
+        (None, None, None, None, None),  # external
+    ],
+)
+def test_substantially_imputed_is_more_than_half_or_a_whole_arm(
+    nv_num: int | None,
+    nv_den: int | None,
+    ni_num: int | None,
+    ni_den: int | None,
+    expected: bool | None,
+) -> None:
+    """ADR-0036 D8's rule, case by case; the expected values are literals, never recomputed."""
+    assert gq.substantially_imputed(nv_num, nv_den, ni_num, ni_den) is expected
 
 
 def test_a_site_keying_row_carries_the_basis_and_the_displaced_accession(

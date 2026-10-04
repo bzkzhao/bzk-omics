@@ -551,6 +551,12 @@ class PerseusAdapter:
                 # stays null (§3 classifies that absence as determined by `protein_adjusted`).
                 result["protein_adjusted"] = "not_applied"
                 result["adjustment_method"] = None
+                # ADR-0036 D8: an external analysis, and this adapter reads no imputation mask, so
+                # the per-arm counts are unrecoverable and I15 requires all four absent (§6.5).
+                result["n_values_numerator"] = None
+                result["n_values_denominator"] = None
+                result["n_imputed_numerator"] = None
+                result["n_imputed_denominator"] = None
                 contrast_id = contrast_ids[declared.column_suffix]
                 result_id = evidence_id(
                     "DifferentialResult",

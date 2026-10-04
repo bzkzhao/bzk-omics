@@ -687,7 +687,7 @@ def test_I14_a_group_observation_resolving_to_every_member_is_accepted() -> None
 
 def test_I15_analysis_with_results_must_declare_imputation() -> None:
     nodes = [
-        n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR", n_imputed=4),
+        n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR"),
         n(
             "Analysis",
             id="bzk:an1",
@@ -697,7 +697,8 @@ def test_I15_analysis_with_results_must_declare_imputation() -> None:
             filters_applied=["reverse"],
             parameters_observed=True,
         ),
-        n("DifferentialResult", id="bzk:dr1", log2fc=3.4, protein_adjusted="not_applied"),
+        # Valid per-arm counts (ADR-0036 D8), so the missing Imputation is the only refusal here.
+        n("DifferentialResult", id="bzk:dr1", log2fc=3.4, protein_adjusted="not_applied", **_ARMS),
     ]
     edges = [
         e("WAS_GENERATED_BY", "bzk:dr1", "bzk:an1"),
@@ -707,6 +708,90 @@ def test_I15_analysis_with_results_must_declare_imputation() -> None:
         validate(nodes, edges, only="I15")
     assert ei.value.invariant == "I15"
     assert "declares no Imputation" in str(ei.value)
+
+
+# ── I15's counts: ADR-0036 D8, §6.5 ─────────────────────────────────────────────────────────────
+
+#: A valid processing result's counts, in DDL order: 3 values per arm, none generated.
+_ARMS: dict[str, object] = {
+    "n_values_numerator": 3,
+    "n_values_denominator": 3,
+    "n_imputed_numerator": 0,
+    "n_imputed_denominator": 0,
+}
+
+
+def _d8(observed: bool, **counts: object) -> tuple[list[dict[str, object]], list[dict[str, str]]]:
+    """One result under one `Analysis`, with a valid seeded `Imputation`, so that the counts are
+    the only thing I15 can refuse. `observed` is the analysis's `parameters_observed`."""
+    nodes = [
+        n("SiteObservation", id="bzk:obs1", peptide_sequence="LLQFIDKELVR"),
+        n(
+            "Analysis",
+            id="bzk:an1",
+            kind="processing" if observed else "external",
+            quantity="intensity",
+            localization_threshold=0.75,
+            filters_applied=["reverse"],
+            parameters_observed=observed,
+        ),
+        n("Imputation", id="bzk:imp1", method="downshifted_normal", seed=0),
+        n("DifferentialResult", id="bzk:dr1", log2fc=3.4, protein_adjusted="not_applied", **counts),
+    ]
+    edges = [
+        e("IMPUTATION_FOR", "bzk:imp1", "bzk:an1"),
+        e("WAS_GENERATED_BY", "bzk:dr1", "bzk:an1"),
+        e("RESULT_FOR_SITE", "bzk:dr1", "bzk:obs1"),
+    ]
+    return nodes, edges
+
+
+def _refusal(observed: bool, **counts: object) -> str:
+    with pytest.raises(InvariantError) as ei:
+        validate(*_d8(observed, **counts), only="I15")
+    assert ei.value.invariant == "I15"
+    message = str(ei.value)
+    assert "bzk:dr1" in message and "§6.5" in message and "ADR-0036 D8" in message
+    return message
+
+
+def test_I15_a_processing_result_missing_a_count_is_refused() -> None:
+    counts = {k: v for k, v in _ARMS.items() if k != "n_imputed_denominator"}
+    message = _refusal(True, **counts)
+    assert "lacks ['n_imputed_denominator']" in message
+
+
+def test_I15_an_external_result_carrying_a_count_is_refused() -> None:
+    # F-b: no recorded field says an export carries a mask, so `false` admits no counts at all.
+    message = _refusal(False, n_imputed_numerator=1)
+    assert "carries ['n_imputed_numerator']" in message and "parameters_observed = false" in message
+
+
+def test_I15_more_imputed_than_entered_is_refused() -> None:
+    message = _refusal(True, **(_ARMS | {"n_imputed_numerator": 4}))
+    assert "['n_imputed_numerator'] must lie between 0 and its arm's n_values" in message
+
+
+def test_I15_an_arm_with_no_values_is_refused() -> None:
+    message = _refusal(True, **(_ARMS | {"n_values_denominator": 0}))
+    assert "['n_values_denominator'] must be at least 1" in message
+
+
+def test_I15_a_bool_is_not_a_count() -> None:
+    # `True` is an `int` to Python and would pass as 1; a flag in a count column is a producer bug.
+    message = _refusal(True, **(_ARMS | {"n_values_numerator": True}))
+    assert "['n_values_numerator'] must be integers" in message
+
+
+def test_I15_a_valid_processing_result_and_a_valid_external_result_are_accepted() -> None:
+    whole_arm = {
+        "n_values_numerator": 3,
+        "n_values_denominator": 2,
+        "n_imputed_numerator": 1,
+        "n_imputed_denominator": 2,
+    }
+    validate(*_d8(True, **whole_arm), only="I15")  # must not raise
+    validate(*_d8(False), only="I15")  # must not raise: absent counts are what `false` requires
 
 
 def test_I15_stochastic_imputation_requires_a_seed() -> None:

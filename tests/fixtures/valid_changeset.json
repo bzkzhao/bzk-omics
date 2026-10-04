@@ -189,27 +189,43 @@
       "log2fc": 3.4,
       "p_value": 1.2e-05,
       "protein_adjusted": "applied",
-      "adjustment_method": "residual_vs_protein_lfc"
+      "adjustment_method": "residual_vs_protein_lfc",
+      "n_values_numerator": 3,
+      "n_values_denominator": 3,
+      "n_imputed_numerator": 0,
+      "n_imputed_denominator": 3
     },
     {
       "id": "bzk:dr2",
       "__label__": "DifferentialResult",
       "log2fc": 1.1,
-      "protein_adjusted": "not_applied"
+      "protein_adjusted": "not_applied",
+      "n_values_numerator": 3,
+      "n_values_denominator": 3,
+      "n_imputed_numerator": 1,
+      "n_imputed_denominator": 1
     },
     {
       "id": "bzk:dr3",
       "__label__": "DifferentialResult",
       "log2fc": 2.7,
       "p_value": 0.0003,
-      "protein_adjusted": "not_applied"
+      "protein_adjusted": "not_applied",
+      "n_values_numerator": 3,
+      "n_values_denominator": 3,
+      "n_imputed_numerator": 0,
+      "n_imputed_denominator": 0
     },
     {
       "id": "bzk:dr4",
       "__label__": "DifferentialResult",
       "log2fc": 4.1,
       "p_value": 8e-06,
-      "protein_adjusted": "not_applied"
+      "protein_adjusted": "not_applied",
+      "n_values_numerator": 3,
+      "n_values_denominator": 3,
+      "n_imputed_numerator": 2,
+      "n_imputed_denominator": 2
     }
   ],
   "edges": [

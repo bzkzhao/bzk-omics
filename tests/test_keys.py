@@ -599,3 +599,25 @@ def test_every_node_table_can_be_keyed() -> None:
     for table in schema.NODE_TABLES:
         assert table.name in schema.IDENTITY, f"{table.name} has no identity spec"
         identity_tuple(table.name, {})  # must not raise
+
+
+# ── ADR-0036 D8: the per-arm counts are non-identifying ─────────────────────────────────────────
+
+
+def test_a_results_per_arm_counts_do_not_move_its_id() -> None:
+    """D8 adds four columns to `DifferentialResult` and moves no id, made machine-checkable.
+
+    Pinned to the id the same anchors and fields minted before the counts existed, not only
+    compared with each other: two ids that agree could both have moved.
+    """
+    row = {"protein_adjusted": "not_applied", "adjustment_method": None}
+    counts = {
+        "n_values_numerator": 3,
+        "n_values_denominator": 3,
+        "n_imputed_numerator": 1,
+        "n_imputed_denominator": 3,
+    }
+    without = evidence_id("DifferentialResult", row, CORRECTED_ANCHORS)
+    with_counts = evidence_id("DifferentialResult", row | counts, CORRECTED_ANCHORS)
+    assert without == "bzk:13af75744dd7de6c11924830079986aa"
+    assert with_counts == "bzk:13af75744dd7de6c11924830079986aa"

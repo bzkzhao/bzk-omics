@@ -453,7 +453,6 @@ NODE_TABLES: list[NodeTable] = [
             ("localization_prob", "DOUBLE"),
             ("score", "DOUBLE"),
             ("is_decoy", "BOOLEAN"),
-            ("n_imputed", "INT64"),
             ("quant_ref", "STRING"),
             ("keying_basis", "STRING"),
             ("displaced_protein", "STRING"),
@@ -481,6 +480,10 @@ NODE_TABLES: list[NodeTable] = [
             ("adj_p_value", "DOUBLE"),
             ("protein_adjusted", "STRING"),
             ("adjustment_method", "STRING"),
+            ("n_values_numerator", "INT64"),
+            ("n_values_denominator", "INT64"),
+            ("n_imputed_numerator", "INT64"),
+            ("n_imputed_denominator", "INT64"),
         ],
     ),
     NodeTable(

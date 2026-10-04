@@ -460,9 +460,79 @@ def _check_I14(nodes: list[Node], edges: list[Edge]) -> None:
             )
 
 
+#: ADR-0036 D8's per-arm counts on a `DifferentialResult`, in (numerator, denominator) order for
+#: the values and then the generated values among them (§6.5).
+_ARM_COUNTS: tuple[str, ...] = (
+    "n_values_numerator",
+    "n_values_denominator",
+    "n_imputed_numerator",
+    "n_imputed_denominator",
+)
+
+
+def _check_arm_counts(result: Node, parameters_observed: object) -> None:
+    """I15's display half acquiring its precondition: the counts *substantially imputed* is read
+    from are present exactly where the platform ran the analysis (ONTOLOGY.md §6.5, ADR-0036 D8).
+
+    `parameters_observed = false` means the analysis ran elsewhere and its mask is unrecoverable, so
+    all four are NULL — with no exception for an export that carries a mask, because nothing records
+    whether one does (§6.5). An unset flag is I19's refusal, not this one's.
+    """
+    rid = result.get("id")
+    cite = "(ONTOLOGY.md §6.5, ADR-0036 D8)"
+    if parameters_observed is False:
+        present = [f for f in _ARM_COUNTS if result.get(f) is not None]
+        if present:
+            raise InvariantError(
+                "I15",
+                f"DifferentialResult {rid} carries {present}, but its Analysis has "
+                "parameters_observed = false: an analysis run outside the platform hands over no "
+                f"mask, so all four per-arm counts must be absent {cite}.",
+            )
+        return
+    if parameters_observed is not True:
+        return
+    missing = [f for f in _ARM_COUNTS if result.get(f) is None]
+    if missing:
+        raise InvariantError(
+            "I15",
+            f"DifferentialResult {rid} lacks {missing}; a result of an analysis the platform ran "
+            "(parameters_observed = true) records how many values entered the test in each arm "
+            f"and how many of them were generated {cite}.",
+        )
+    not_int = [
+        f for f in _ARM_COUNTS if isinstance(result[f], bool) or not isinstance(result[f], int)
+    ]
+    if not_int:
+        raise InvariantError(
+            "I15",
+            f"DifferentialResult {rid}: {not_int} must be integers, got "
+            f"{[type(result[f]).__name__ for f in not_int]} {cite}.",
+        )
+    empty = [f for f in _ARM_COUNTS[:2] if result[f] < 1]
+    if empty:
+        raise InvariantError(
+            "I15",
+            f"DifferentialResult {rid}: {empty} must be at least 1 — an arm with no values cannot "
+            f"enter a test {cite}.",
+        )
+    over = [
+        imputed
+        for imputed, values in zip(_ARM_COUNTS[2:], _ARM_COUNTS[:2], strict=True)
+        if not 0 <= result[imputed] <= result[values]
+    ]
+    if over:
+        raise InvariantError(
+            "I15",
+            f"DifferentialResult {rid}: {over} must lie between 0 and its arm's n_values — more "
+            f"values cannot be generated than entered the test {cite}.",
+        )
+
+
 def _check_I15(nodes: list[Node], edges: list[Edge]) -> None:
     """I15 — an Analysis producing differential results declares an Imputation (incl. 'none'),
-    and a stochastic method records a seed."""
+    a stochastic method records a seed, and each result carries the per-arm counts its
+    *substantially imputed* label is read from where, and only where, the platform ran it."""
     imputed_analyses = {e["to"] for e in _edges(edges, "IMPUTATION_FOR")}
     produced_by = {e["to"] for e in _edges(edges, "WAS_GENERATED_BY")}
     for analysis_id in produced_by:
@@ -479,6 +549,12 @@ def _check_I15(nodes: list[Node], edges: list[Edge]) -> None:
                 f"Imputation {imp.get('id')} uses stochastic method "
                 f"{imp.get('method')!r} without a seed; the result is irreproducible.",
             )
+    analyses = _index(nodes, "Analysis")
+    results = _index(nodes, "DifferentialResult")
+    for edge in _edges(edges, "WAS_GENERATED_BY"):
+        result, analysis = results.get(edge["from"]), analyses.get(edge["to"])
+        if result is not None and analysis is not None:
+            _check_arm_counts(result, analysis.get("parameters_observed"))
 
 
 def _check_I16(nodes: list[Node], edges: list[Edge]) -> None:

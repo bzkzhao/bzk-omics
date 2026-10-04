@@ -43,12 +43,21 @@ class DeclaredRun:
 
 @dataclass(frozen=True)
 class SiteResult:
-    """One tested observation's statistics. `observation_id` is the `SiteObservation` it measures."""
+    """One tested observation's statistics. `observation_id` is the `SiteObservation` it measures.
+
+    The four counts are ADR-0036 D8's: how many values entered the test in each arm, and how many of
+    those were generated. Required, because every run this module emits has
+    `parameters_observed = True` and so its mask is in hand (§6.5).
+    """
 
     observation_id: str
     log2fc: float
     p_value: float
     adj_p_value: float
+    n_values_numerator: int
+    n_values_denominator: int
+    n_imputed_numerator: int
+    n_imputed_denominator: int
 
 
 @dataclass(frozen=True)
@@ -87,6 +96,9 @@ def site_change_set(
     `parameters_observed` is `True` and `kind` is `'processing'`: §5's enum offers
     `'processing' | 'curation' | 'external'` and there is no fourth value for *the platform ran it*
     — `'external'` is the one that means it did not.
+
+    Each result carries its `SiteResult`'s per-arm counts (ADR-0036 D8), which `True` makes
+    obligatory: I15 refuses a platform-run result without them (§6.5).
     """
     nodes: list[Node] = [dataset, *attached_nodes]
     edges: list[Edge] = list(attached_edges)
@@ -141,6 +153,10 @@ def site_change_set(
             "adj_p_value": result.adj_p_value,
             "protein_adjusted": "not_applied",
             "adjustment_method": None,
+            "n_values_numerator": result.n_values_numerator,
+            "n_values_denominator": result.n_values_denominator,
+            "n_imputed_numerator": result.n_imputed_numerator,
+            "n_imputed_denominator": result.n_imputed_denominator,
         }
         # The three numbers are **excluded** from identity (§3): a result is identified by which
         # analysis, which observation, which contrast and which correction state, so re-running the

@@ -64,6 +64,35 @@ class Provenance:
         return not self.provenanced
 
 
+def substantially_imputed(
+    n_values_numerator: int | None,
+    n_values_denominator: int | None,
+    n_imputed_numerator: int | None,
+    n_imputed_denominator: int | None,
+) -> bool | None:
+    """§8 I15's *substantially imputed*, as ADR-0036 D8 defines it — the rule's only home in code.
+
+    `True` when (a) more than half of the result's values are generated, **or** (b) either arm's
+    values are all generated; (b) is what catches a wholly imputed arm in a small comparison, where
+    it can be half or less of the values. `None` when any count is absent: the flag is then
+    undeterminable, and is never reported as `False` (§6.5).
+    """
+    if (
+        n_values_numerator is None
+        or n_values_denominator is None
+        or n_imputed_numerator is None
+        or n_imputed_denominator is None
+    ):
+        return None
+    more_than_half = 2 * (n_imputed_numerator + n_imputed_denominator) > (
+        n_values_numerator + n_values_denominator
+    )
+    whole_arm = (
+        n_imputed_numerator == n_values_numerator or n_imputed_denominator == n_values_denominator
+    )
+    return more_than_half or whole_arm
+
+
 @dataclass(frozen=True)
 class DifferentialRow:
     """One `DifferentialResult`, with everything §8 requires to travel beside its numbers.
@@ -72,12 +101,11 @@ class DifferentialRow:
     result), and `candidate_proteins` plus `assignment_confidence` come from the observation and
     its `ProteinAssignment` (I14's display half). `protein_adjusted` is I4's declared state.
 
-    **`substantially_imputed` is `None`, and that is a finding rather than an omission.** §8 I15
-    says a result *"whose underlying values are more than half imputed"* is flagged in every view
-    and export — but the `DifferentialResult` DDL has no such column, and the graph holds the
-    numerator (`SiteObservation.n_imputed`) without the denominator, which lives per-sample in
-    `quant.duckdb`. So the flag is not derivable from the graph alone. `n_imputed` is carried
-    instead of a guessed boolean, because a `False` here would assert the clause is satisfied.
+    **`substantially_imputed` is computed from the result's own per-arm counts** (ADR-0036 D8), by
+    `substantially_imputed()`. The four counts travel beside it, so the label can be read back to
+    the numbers it came from. Where the generating `Analysis` has `parameters_observed = false` the
+    counts are absent and the flag is `None` — undeterminable, never `False`, because a `False`
+    would assert §8 I15's clause is satisfied for a result whose mask nobody holds.
     """
 
     result_id: str
@@ -93,9 +121,11 @@ class DifferentialRow:
     adj_p_value: float | None
     protein_adjusted: str | None
     adjustment_method: str | None
-    n_imputed: int | None
-    #: Always `None` — see the class docstring. Kept in the shape so a caller reads the absence
-    #: rather than not finding the field and assuming the flag does not apply.
+    n_values_numerator: int | None
+    n_values_denominator: int | None
+    n_imputed_numerator: int | None
+    n_imputed_denominator: int | None
+    #: `None` where the counts are absent — see the class docstring. Never defaulted to `False`.
     substantially_imputed: bool | None
     candidate_proteins: tuple[str, ...]
     assignment_confidence: str | None
@@ -131,8 +161,9 @@ class ImputationState:
     `IMPUTATION_FOR` is `MANY_ONE` (§6.5 DDL), so several `Imputation`s may attach to one
     `Analysis`. `ROADMAP.md`'s scope table said *"One per `Analysis`"* until 2026-08-09 and
     contradicted the normative DDL; this type follows the DDL. §8 I15's *substantially imputed* is
-    defined on a `DifferentialResult`, so it is not derivable here and is not offered — a caller
-    wanting it reads `DifferentialRow.substantially_imputed`.
+    defined on a `DifferentialResult`, from that result's per-arm counts (ADR-0036 D8), so it is not
+    derivable from an `Analysis` and is not offered here — a caller wanting it reads
+    `DifferentialRow.substantially_imputed`.
     """
 
     analysis_id: str
@@ -356,11 +387,15 @@ def differential_table(
         "OPTIONAL MATCH (o)-[:MEASURED_AT]->(s:ModificationSite) "
         "OPTIONAL MATCH (pa:ProteinAssignment)-[:PROTEIN_ASSIGNMENT_FOR]->(o) "
         "RETURN r.id, r.log2fc, r.p_value, r.adj_p_value, r.protein_adjusted, "
-        "r.adjustment_method, o.id, o.candidate_proteins, o.n_imputed, s.id, pa.confidence "
+        "r.adjustment_method, r.n_values_numerator, r.n_values_denominator, "
+        "r.n_imputed_numerator, r.n_imputed_denominator, o.id, o.candidate_proteins, s.id, "
+        "pa.confidence "
         "ORDER BY r.id",
         id=analysis_id,
     ):
-        (rid, log2fc, p_value, adj_p, adjusted, method, oid, candidates, n_imp, sid, conf) = record
+        (rid, log2fc, p_value, adj_p, adjusted, method) = record[:6]
+        (nv_num, nv_den, ni_num, ni_den) = record[6:10]
+        (oid, candidates, sid, conf) = record[10:]
         candidates = tuple(str(c) for c in (candidates or []))
         # `RESULT_FOR_PROTEIN` runs to a `ProteinObservation`, not to a `Protein`, so the protein
         # ids come through it rather than from it.
@@ -399,8 +434,11 @@ def differential_table(
                 adj_p_value=adj_p,
                 protein_adjusted=adjusted,
                 adjustment_method=method,
-                n_imputed=n_imp,
-                substantially_imputed=None,
+                n_values_numerator=nv_num,
+                n_values_denominator=nv_den,
+                n_imputed_numerator=ni_num,
+                n_imputed_denominator=ni_den,
+                substantially_imputed=substantially_imputed(nv_num, nv_den, ni_num, ni_den),
                 candidate_proteins=candidates,
                 assignment_confidence=str(conf) if conf else None,
                 provenance=_provenance(conn, "DifferentialResult", str(rid)),

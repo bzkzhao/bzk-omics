@@ -269,6 +269,25 @@ def _intensity_columns(header: list[str], arm: str) -> list[int]:
     return [header.index(w) for w in wanted]
 
 
+def _require_counts_reconcile(
+    results: list[SiteResult], n_values_imputed: int, n_values_total: int
+) -> None:
+    """The per-arm counts (ADR-0036 D8) must add up to the imputation's own totals.
+
+    Each row's counts are a split of one mask; summed over every tested row they are the mask
+    again, so a disagreement means the split, the row set or the arm widths went wrong between the
+    imputation and the write — and the graph would then carry counts no run produced.
+    """
+    imputed = sum(r.n_imputed_numerator + r.n_imputed_denominator for r in results)
+    values = sum(r.n_values_numerator + r.n_values_denominator for r in results)
+    if imputed != n_values_imputed or values != n_values_total:
+        raise SystemExit(
+            f"per-arm counts sum to {imputed:,} imputed of {values:,} values, but the imputation "
+            f"reports {n_values_imputed:,} of {n_values_total:,} — refusing to write counts that do "
+            "not reconcile with the mask they were read from (ADR-0036 D8)"
+        )
+
+
 def main() -> int:
     assert PXD018299_SITES.expected_content_hash is not None
     path = verify(PXD018299_SITES.expected_content_hash, filename=PXD018299_SITES.filename)
@@ -325,6 +344,9 @@ def main() -> int:
     imputed = downshifted_normal(both, **IMPUTE)
     filled_num = imputed.values[:, : numerator.shape[1]]
     filled_den = imputed.values[:, numerator.shape[1] :]
+    # ADR-0036 D8: which of each row's values were generated, split exactly where the values were.
+    imputed_num = imputed.imputed_mask[:, : numerator.shape[1]].sum(axis=1)
+    imputed_den = imputed.imputed_mask[:, numerator.shape[1] :].sum(axis=1)
 
     result = welch_t(filled_num, filled_den)
     adjusted = benjamini_hochberg(result.p_value)
@@ -410,8 +432,13 @@ def main() -> int:
                 log2fc=float(result.log2fc[i]),
                 p_value=float(result.p_value[i]),
                 adj_p_value=float(adjusted[i]),
+                n_values_numerator=int(numerator.shape[1]),
+                n_values_denominator=int(denominator.shape[1]),
+                n_imputed_numerator=int(imputed_num[i]),
+                n_imputed_denominator=int(imputed_den[i]),
             )
         )
+    _require_counts_reconcile(results, imputed.n_values_imputed, imputed.n_values_total)
 
     # ── the per-target record into `tests/fixtures/` ────────────────────────────────────────────
     #

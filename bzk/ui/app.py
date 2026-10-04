@@ -82,6 +82,27 @@ def _unknown(reason: str) -> str:
     return f"unknown — {reason}"
 
 
+#: Why a result's per-arm counts, and so its *substantially imputed* flag, are absent (§6.5).
+_COUNTS_NOT_RECORDED = (
+    "counts not recorded — the analysis ran outside the platform (parameters_observed = false), "
+    "so its mask is unrecoverable (ADR-0036 D8)"
+)
+
+
+def _arm_counts(row: query.DifferentialRow) -> str:
+    """Generated over entered, per arm — the numbers the *substantially imputed* flag is read from."""
+    counts = (
+        row.n_imputed_numerator,
+        row.n_values_numerator,
+        row.n_imputed_denominator,
+        row.n_values_denominator,
+    )
+    if any(c is None for c in counts):
+        return _unknown(_COUNTS_NOT_RECORDED)
+    ni_num, nv_num, ni_den, nv_den = counts
+    return f"{ni_num}/{nv_num} · {ni_den}/{nv_den}"
+
+
 def site_panel(conn: Any, site_ids: Sequence[str]) -> None:
     st.header("1 · Site provenance")
     st.caption(
@@ -219,14 +240,11 @@ def absences_panel(conn: Any, analysis_ids: Sequence[str]) -> None:
                         "protein_adjusted": r.protein_adjusted or "—",
                         # Never False and never blank — see `_unknown`.
                         "substantially imputed": (
-                            _unknown(
-                                "denominator is in quant.duckdb, which the read layer does "
-                                "not reach"
-                            )
+                            _unknown(_COUNTS_NOT_RECORDED)
                             if r.substantially_imputed is None
                             else r.substantially_imputed
                         ),
-                        "n_imputed": r.n_imputed,
+                        "imputed (num · den)": _arm_counts(r),
                         # I14's display half, on every row that carries a number.
                         "candidate proteins": ", ".join(r.candidate_proteins) or "—",
                         "assignment confidence": r.assignment_confidence or "—",

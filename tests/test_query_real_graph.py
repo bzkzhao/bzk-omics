@@ -39,6 +39,7 @@ finding about the graph rather than about this file.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import kuzu
@@ -47,6 +48,7 @@ import pytest
 from bzk.query import graph as gq
 
 GRAPH = Path.home() / ".bzk-omics" / "graph.kuzu"
+TARGETS_FIXTURE = Path(__file__).parent / "fixtures" / "pxd018299_platform_targets.json"
 TARGETS = (
     "ADAR", "EIF2AK2", "DDX58", "DDX60", "DHX58", "OAS1", "OAS2",
     "IFIH1", "STAT1", "PSMB9", "PSMB10", "PSMA7", "PSME2", "TAP1",
@@ -89,9 +91,23 @@ def test_the_welch_run_is_stored_and_every_row_carries_the_test_that_produced_it
     assert all(r.quantity == "intensity_multiplicity_summed" for r in rows)
     # I4: uncorrected by construction on this route, and stated rather than left null.
     assert all(r.protein_adjusted == "not_applied" and r.adjustment_method is None for r in rows)
-    # I15's display half is still not derivable from the graph — the denominator is per-sample in
-    # `quant.duckdb`, and writing rows did not move it.
-    assert all(r.substantially_imputed is None for r in rows)
+    # I15's display half, from each result's per-arm counts (ADR-0036 D8): three values per arm,
+    # summing to the run's own imputation totals in the targets fixture, and a flag on every row.
+    # **This module is gated off on the current replay** (the `conn` fixture's 2,029-observation
+    # gate; the replay holds 4,195), so these lines assert nothing until that gate is revisited.
+    assert all(
+        r.n_values_numerator == 3
+        and r.n_values_denominator == 3
+        and r.n_imputed_numerator is not None
+        and r.n_imputed_denominator is not None
+        for r in rows
+    )
+    population = json.loads(TARGETS_FIXTURE.read_text())["population"]
+    imputed = sum((r.n_imputed_numerator or 0) + (r.n_imputed_denominator or 0) for r in rows)
+    assert imputed == population["n_values_imputed"]
+    values = sum((r.n_values_numerator or 0) + (r.n_values_denominator or 0) for r in rows)
+    assert values == population["n_values_total"]
+    assert all(r.substantially_imputed is not None for r in rows)
 
 
 def test_an_analysis_that_stored_no_results_now_says_none_found_not_not_stored(

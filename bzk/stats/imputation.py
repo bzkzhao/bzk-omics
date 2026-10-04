@@ -5,7 +5,7 @@ measured values and nulls; what to do about the nulls is an analysis decision th
 recorded."* And `ONTOLOGY.md` §6.5 is unambiguous about what it produces: *"a **generated number,
 not a measurement**, and it materially determines the result."* Everything here exists to keep those
 two facts attached to the numbers it makes — the count of generated values comes back with them
-(I15's `n_values_imputed`), and `SiteObservation.n_imputed` records it per site.
+(I15's `n_values_imputed`), and each `DifferentialResult` records it per arm (ADR-0036 D8).
 
 Default entry per §4: `downshifted_normal`, 1.8 SD downshift, 0.3 SD width, matching Perseus.
 A seed is mandatory for a stochastic method — I15, and without one I9 fails too.
@@ -24,9 +24,9 @@ class ImputationOutcome:
     """The filled matrix and what it cost, kept together so the count cannot be dropped.
 
     `n_values_imputed` / `n_values_total` are I15's fields verbatim, and `imputed_mask` is what
-    `SiteObservation.n_imputed` is computed from (§6.5). Returning the matrix alone would make the
-    generated-versus-measured distinction unrecoverable one function call later, which is exactly
-    what I15 exists to prevent.
+    a `DifferentialResult`'s per-arm counts are computed from (§6.5, ADR-0036 D8). Returning the
+    matrix alone would make the generated-versus-measured distinction unrecoverable one function
+    call later, which is exactly what I15 exists to prevent.
     """
 
     values: np.ndarray

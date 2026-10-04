@@ -570,6 +570,15 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_keys.py", "protein == 'uniprot:P20591'", 1),
         ("test_keys.py", "sequence == 'uniprot:P20591#sv4'", 1),
         ("test_keys.py", "site == 'uniprot:P20591#sv4#K48#unimod:121'", 1),
+        # ADR-0036 D8, classified 2026-10-04: a result's id is unmoved by its four per-arm counts.
+        # **Not instances.** The literal is the id `evidence_id` minted for the same row and anchors
+        # at `ce69808`, *before* the counts existed, so it pins the pre-D8 id rather than restating
+        # whatever the call now returns. Made to fail by adding `n_values_numerator` to
+        # `schema.IDENTITY["DifferentialResult"].fields`: both ids move (a null field still renders
+        # into the tuple), so the test fails on its first line, `without` → `bzk:ac4728f1…`. The
+        # same mutation also fails `test_schema`'s §3 mirror and one recorded sweep instance.
+        ("test_keys.py", "with_counts == 'bzk:13af75744dd7de6c11924830079986aa'", 1),
+        ("test_keys.py", "without == 'bzk:13af75744dd7de6c11924830079986aa'", 1),
         # I20's DDL-derivation check, classified 2026-08-10. **The closest call in `PINNED` and it
         # is not an instance, for a reason that had to be measured.** Both sides read
         # `schema.REL_TABLES`, so the right side looks like the expression that produced the left —
@@ -707,6 +716,13 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         # Which two of the fourteen are absent, not merely how many. `DDX58` is the one that
         # matters: absent under its own name while the gene is present as `RIGI`.
         ("test_query_real_graph.py", "absent == ['DDX58', 'OAS1']", 1),
+        # ADR-0036 D8, classified 2026-10-04. **Not instances: independent origins.** The left side
+        # sums the per-arm counts stored on the graph's results; the right is the targets fixture's
+        # `population`, written by the same run from `ImputationOutcome`'s whole-matrix totals, not
+        # from the counts. **Not made to fail here**: the module is gated off on the current replay
+        # (2,029 observations required, 4,195 present), and this container has no graph at all.
+        ("test_query_real_graph.py", "imputed == population['n_values_imputed']", 1),
+        ("test_query_real_graph.py", "values == population['n_values_total']", 1),
         # Classified individually 2026-08-09, with the interface. Neither is an instance: the right
         # side of each is the `Absence` enum or a literal, and neither is produced by the left.
         # Both are the two halves of one contract that has to be asserted as two — a mapping can be
