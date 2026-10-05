@@ -244,8 +244,9 @@ The Perseus adapter reads statistics, not samples. **It proves its contrast colu
 declared arms by recomputing the Difference column from them.**
 
 - For every row whose Difference and every arm value are finite, `Difference` must equal
-  `mean(numerator columns) − mean(denominator columns)` within the registered tolerance (PV sets
-  it; 1e-6 is the prediction). At least one row must be checkable.
+  `mean(numerator columns) − mean(denominator columns)` within **1e-3, absolute**. At least one
+  row must be checkable. **The tolerance is fixed here, before PV runs** (review R2, 2026-10-05):
+  a threshold chosen after seeing PV's numbers would be fitted to them.
 - **Any disagreement refuses the contrast.** The rule fails closed: a wrong arm, a wrong order or
   a near-duplicate column set (the 9-key substring arm, M2) changes the means.
 - **It proves direction as well as membership.** The reversed order differs by twice the
@@ -258,6 +259,35 @@ declared arms by recomputing the Difference column from them.**
   adapter's existing `withheld_because`.
 - The suffix (`DeclaredContrast.column_suffix`) stays as the locator of the statistics columns. It
   no longer carries the binding.
+
+**Why 1e-3, and not 1e-6 as first drafted.** The tolerance has to clear the rounding a correct
+binding carries and stay far below the error a wrong one makes.
+
+- **Perseus stores its main matrix in single precision**, checked on 2026-10-05 against the two
+  builds of its plugin API that are still public. `JurgenCox/perseus-plugins` returned 404 on that
+  date, so the mirrors were used.
+  - `jdrudolph/perseus-plugins` `master` (`PerseusApi` 1.4.0.0; bundled DLLs dated 2016-05-30):
+    the source declares `public abstract float Get(int i, int j)` on `MatrixIndexer`, and the
+    bundled `BaseLibS.dll` agrees (`get_Item` returns `float32`).
+  - `cox-labs/PluginInterop` `master` (bundled DLLs dated 2020-11-05): `MatrixIndexer.Get` now
+    returns `float64`, but `PerseusApi.dll`'s `PerseusFactory` references `FloatMatrixIndexer` and
+    not `DoubleMatrixIndexer`, and `FloatMatrixIndexer` stores `float32[,]` blocks.
+  - **PXD055843's Perseus, v1.6.2.3, falls between those two builds and was not itself
+    inspected.** The finding is a bracket, not a reading of that version.
+  - Reproduce: fetch both archives from `codeload.github.com`, then read `MatrixIndexer`'s source
+    and the DLLs' method and field signatures with `dnfile` (`pip install dnfile`). Element type
+    `0x0c` is `float32`, `0x0d` `float64`.
+- **What that costs a correct binding.** A `float32` near log2 intensities of 10–30 carries about
+  7 significant digits. **I believe, and have not verified here,** that .NET Framework's default
+  `float` formatting writes 7 significant digits, which puts the export's quantum at 1e-5. Each
+  value then carries up to ±5e-6, so each arm mean does too, and the difference of two means up to
+  1e-5. Allowing the Difference column its own rounding, the worst case is about **2e-5**. That is
+  twenty times 1e-6, so **1e-6 could refuse a correct binding on rounding alone.**
+- **What a wrong binding costs.** A reversed order misses by twice the Difference on every row. A
+  swapped or extra column moves an arm mean by a third of a between-sample difference, typically
+  ≥0.05 log2. 1e-3 sits 50 times above the correct-binding worst case and 50 times below that.
+- **1e-3 is also the threshold PV3 and PV4 were already registered at**, so the rule and those
+  predictions use one number.
 
 **Cost, measured:** all six `tests/fixtures/perseus_synthetic_*.txt` carry no sample columns, and
 22 test call sites construct a `PerseusAdapter` (20 in `test_perseus.py`, 1 each in
@@ -497,21 +527,30 @@ by the analysis record's digest; writes nothing.
 
 | # | Line | Kind | Prediction |
 |---|---|---|---|
-| PV1 | declared order, values as stored | reasoned, moderate | max \|dev\| ≤ 1e-6 over every row carrying a Difference. Ground: the record measured the matrix dense (136,980 cells), which the methods explain as post-imputation, and Perseus' Difference is the difference of group means on the matrix it tested |
+| PV1 | declared order, values as stored | reasoned, moderate | **max \|dev\| ≤ 1e-3, D6's rule.** ~~≤ 1e-6~~ — revised before any run (review R2): see *Why 1e-3* under D6. Ground: the record measured the matrix dense (136,980 cells), which the methods explain as post-imputation, and Perseus' Difference is the difference of group means on the matrix it tested |
+| PV1b | PV1's value, read for precision | reasoned, low | 1e-6 < max \|dev\| ≤ 2e-5: `float32` values written at 7 significant digits. **Not a gate.** Below 1e-6 means the export carried full precision and my formatting belief is wrong; above 2e-5 but within 1e-3 means rounding I have not accounted for. D6 holds either way |
 | PV2 | reversed order | reasoned, high | max \|dev\| > 0.5 (twice the largest Difference) |
 | PV3 | 9-column substring numerator | reasoned, high | max \|dev\| > 1e-3 |
-| PV4 | declared order, log2 of stored | reasoned, moderate | max \|dev\| > 1e-3: the stored values are already log2. **Exactly one of PV1 and PV4 holds** |
+| PV4 | declared order, log2 of stored | reasoned, moderate | max \|dev\| > 1e-3: the stored values are already log2. **Exactly one of PV1's and PV4's lines comes in ≤ 1e-3** *(reworded with R2: "exactly one of PV1 and PV4 holds" was false of the expected case, where both predictions hold)* |
 | PV5 | rows checked | identity | PV1's row count equals `PV0`, the number of rows carrying a finite Difference; no figure registered, none measured here |
 
-**Instrument corrected before any run (`b0fb91e` → this commit).** As landed, `--s1` printed no
+**Instrument corrected before any run (`8ed075a` → `27b8dbc`).** As landed, `--s1` printed no
 denominator for PV5, and a Difference or arm column absent under its composed name made every row
 skip, so PV1 would have read `max |dev| 0 over 0 rows` — a pass that never ran. It now refuses
 before printing if any column it reads is absent, and prints `PV0`. Predictions PV1–PV5 are
 unchanged; M1–M10's output is byte-identical.
 
-**If PV1 and PV4 both fail,** the export's values are not those the test ran on; D6 is not built
-and this record is revised. **If PV2 holds instead of PV1,** the record's arm order is reversed:
-that `Contrast` re-mints (order is identifying), with 0 results attached.
+**What each outcome does, read off the printed values against 1e-3.** *(Rewritten with R2. The
+first draft said "if PV1 and PV4 both fail", which got the PV4 case backwards: PV4's line agreeing
+would prove the binding, on log2 of the stored values.)*
+
+- **PV1's line ≤ 1e-3** (expected): the binding is proven on the values as stored.
+- **PV1's line > 1e-3 and PV4's ≤ 1e-3:** the stored values are linear and the test ran on their
+  log2. The binding is proven, and D6 is revised to declare the transform before it is built.
+- **Both lines > 1e-3:** the export's values are not those the test ran on. D6 is not built and
+  this record is revised. **The tolerance is not loosened to meet the data.**
+- **PV2's line ≤ 1e-3 instead of PV1's:** the record's arm order is reversed. That `Contrast`
+  re-mints (order is identifying), with 0 results attached.
 
 ## Not measurable here
 
