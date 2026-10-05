@@ -233,10 +233,41 @@ survey's blindness rule currently forbids deriving from per-row values. *The pro
 today drops an unreachable family without a word* — an I11 finding, carried below, not decided
 here.
 
-**Platform-run producers.** `site_change_set` and the coming protein-grain IP writer receive the
-loader's arms and read the arm columns through the binding. Reading the retained matrix
-(`quant_store` cells keyed by `Sample` id) is the same binding executed at ingestion, and is
-permitted; whichever is used, the input is keyed by `Sample` id.
+**Platform-run producers read raw columns through the binding** (review R1, 2026-10-05).
+`site_change_set` and the coming protein-grain IP writer receive the loader's arms and read the
+arm columns from the file through the binding. ~~Reading the retained matrix (`quant_store` cells
+keyed by `Sample` id) is the same binding executed at ingestion, and is permitted; whichever is used,
+the input is keyed by `Sample` id.~~ **The retained-matrix route is deferred** until a build
+pre-registers that it reads the same values as the raw route, cell for cell.
+
+**R1's first ground was refuted when checked, and is recorded as refuted.** It was that two rows
+might key to one observation, so a route keyed by observation would test fewer units. The
+existing data says they do not:
+- **PXD018299: 2,029 ingested rows, 2,029 `SiteObservation`s.** The real-graph test pinned 2,029
+  sites when PXD018299 was the only site deposit (`tests/test_query_real_graph.py` l.64). The
+  differential's population line reads `2,341 → 2,298 → 2,056 → 2,029 → 1,362` (handoff 10-04
+  §3.1, M1), whose 2,029 is consistent with the ingested count; which printed line it is was not
+  re-derived here.
+- **The two-deposit graph: 4,195 = 2,029 + 2,166**, the second being PXD026748's `sites_emitted`
+  (M11, from its committed fixture; 4,195 from handoff 10-05 §3.3). The `Dataset` anchor keeps the
+  deposits apart, so any convergence would have shown as a shortfall. There is none.
+- **Tested rows are one-to-one with results:** 1,362 tested (the same population line), and 1,362
+  `DifferentialResult`s in the graph (handoff 10-05 §3.3, MA). Two tested rows sharing an
+  observation would mint one result id.
+
+**R1 stands on two other grounds.**
+- **The retained matrix cannot detect convergence if it ever happens.** Measured (M11):
+  `write_cells` accepts a batch carrying one key twice, retains one cell and reports
+  `cells_staged 2`. A future deposit whose rows did converge would lose a value silently, and the
+  count would not show it. The raw route maps each row to its observation through the adapter's
+  report, which is the record the population counts above were read from.
+- **The two routes apply different value conventions, unmeasured against each other.** The raw
+  route reads `float(cell or 0.0)` and folds `0` to `NaN`. The store keeps a reported `0` as `0`
+  (`maxquant.cell_value`), and a reader would have to fold it again. Probably equivalent, but not
+  measured.
+
+**Cost:** none in this record's build. The raw route is what `pxd018299_differential.py` already
+reads; D5 changes how it names columns, not where it reads them.
 
 ### D6. An aggregate-only producer proves its binding arithmetically.
 
@@ -406,6 +437,9 @@ copy guarded against §8.
 `curation_PXD055843.json`: arms as M4 prints them.
 
 **Carried, not decided here**
+- `quant_store.write_cells` accepts a repeated key within one batch, retains one cell and reports
+  the batch's length as `cells_staged` (M11). No current deposit triggers it (D5). It is the
+  over-reporting shape `base.py` warns about, recorded for its own prompt.
 - The protein-groups adapter drops a family it cannot reach from the mapping keys without reporting
   it (M8). An I11 question for step 3.
 - F-d (unknown keys in `mapping` entries) is not touched: D1 refuses unknown keys in *contrast*
@@ -511,7 +545,13 @@ M10 grain of every applied/native result in the committed fixtures
   valid_changeset bzk:dr2: RESULT_FOR_PROTEIN not_applied
   valid_changeset bzk:dr3: RESULT_FOR_SITE not_applied
   valid_changeset bzk:dr4: RESULT_FOR_SITE not_applied
+M11 retained-matrix writes under a repeated key
+  one batch, key repeated: accepted; cells_staged 2, cells retained 1
+  PXD026748 sites_emitted (tests/fixtures/pxd026748_digly_ingest.json): 2166
 ```
+
+M11 was added with review R1, run at `923ba7b`, where `bzk/` and `tests/` differ from `ebc0750`
+only in `tests/test_decision_index.py`'s pins. M1–M10 come out byte-identical ahead of it.
 
 **One measurement was run and discarded as vacuous.** Declaring arms in a record copy and reloading
 it changed no node id — but M3 shows the loader drops the new keys, so the result says nothing about

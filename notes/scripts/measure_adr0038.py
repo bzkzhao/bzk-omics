@@ -304,6 +304,34 @@ def measure() -> None:
             )
 
 
+def measure_store() -> None:
+    """M11: what `quant_store.write_cells` does with one key twice in a batch, and across batches."""
+    import tempfile
+
+    from bzk.quant import store as quant_store
+    from bzk.quant.store import Cell
+
+    print("M11 retained-matrix writes under a repeated key")
+    connection = quant_store.connect(Path(tempfile.mkdtemp()))
+    q = "intensity_multiplicity_summed"
+    first = Cell(observation_id="bzk:o1", sample_id="bzk:s1", quantity=q, value=1.0)
+    second = Cell(observation_id="bzk:o1", sample_id="bzk:s1", quantity=q, value=2.0)
+    try:
+        staged = quant_store.write_cells(
+            connection, "SiteObservation", [first, second]
+        ).cells_staged
+        kept = len(quant_store.read_cells(connection, "SiteObservation", "bzk:o1"))
+        print(f"  one batch, key repeated: accepted; cells_staged {staged}, cells retained {kept}")
+    except Exception as exc:  # noqa: BLE001 - the measurement is which branch runs
+        print(f"  one batch, key repeated: refused ({type(exc).__name__})")
+    fixture = json.loads((ROOT / "tests" / "fixtures" / "pxd026748_digly_ingest.json").read_text())
+    print(
+        f"  PXD026748 sites_emitted (tests/fixtures/pxd026748_digly_ingest.json): "
+        f"{fixture['report']['sites_emitted']}"
+    )
+    connection.close()
+
+
 def recompute(rows, columns, num: list[str], den: list[str], diff: str, f=lambda v: v):
     """Max |Difference - (mean(num) - mean(den))| over rows where every value is finite."""
     from bzk.adapters.perseus import _cell_value
@@ -371,4 +399,8 @@ def perseus_s1() -> None:
 
 
 if __name__ == "__main__":
-    perseus_s1() if "--s1" in sys.argv else measure()
+    if "--s1" in sys.argv:
+        perseus_s1()
+    else:
+        measure()
+        measure_store()
