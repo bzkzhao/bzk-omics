@@ -501,7 +501,13 @@ by the analysis record's digest; writes nothing.
 | PV2 | reversed order | reasoned, high | max \|dev\| > 0.5 (twice the largest Difference) |
 | PV3 | 9-column substring numerator | reasoned, high | max \|dev\| > 1e-3 |
 | PV4 | declared order, log2 of stored | reasoned, moderate | max \|dev\| > 1e-3: the stored values are already log2. **Exactly one of PV1 and PV4 holds** |
-| PV5 | rows checked | identity | PV1's row count equals the number of rows carrying a Difference; no figure registered, none measured here |
+| PV5 | rows checked | identity | PV1's row count equals `PV0`, the number of rows carrying a finite Difference; no figure registered, none measured here |
+
+**Instrument corrected before any run (`b0fb91e` → this commit).** As landed, `--s1` printed no
+denominator for PV5, and a Difference or arm column absent under its composed name made every row
+skip, so PV1 would have read `max |dev| 0 over 0 rows` — a pass that never ran. It now refuses
+before printing if any column it reads is absent, and prints `PV0`. Predictions PV1–PV5 are
+unchanged; M1–M10's output is byte-identical.
 
 **If PV1 and PV4 both fail,** the export's values are not those the test ran on; D6 is not built
 and this record is revised. **If PV2 holds instead of PV1,** the record's arm order is reversed:

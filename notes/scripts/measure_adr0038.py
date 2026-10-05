@@ -323,6 +323,18 @@ def recompute(rows, columns, num: list[str], den: list[str], diff: str, f=lambda
     return worst, checked
 
 
+def absent_columns(columns: dict[str, int], names: list[str]) -> list[str]:
+    """Every name PV reads that the composed header does not carry."""
+    return [name for name in names if name not in columns]
+
+
+def difference_rows(rows, columns, diff: str) -> int:
+    """PV5's denominator: rows whose Difference is a finite number."""
+    from bzk.adapters.perseus import _cell_value
+
+    return sum(1 for _, row in rows if _cell_value(row, columns, diff) is not None)
+
+
 def perseus_s1() -> None:
     from bzk.adapters.perseus import DIFFERENCE, PerseusAdapter
     from bzk.sources import pxd055843_perseus as src
@@ -337,6 +349,12 @@ def perseus_s1() -> None:
     num, den = declared_arms(loaded)[("curation_PXD055843.json", "siUSP24_IFN_vs_siC_IFN")]
     sub = [k for k in loaded["curation_PXD055843.json"][0]["mapping"] if "siUSP24 (+ IFN-B)" in k]
     print(f"PV rows {len(rows)}; arms {len(num)}/{len(den)}; substring numerator {len(sub)}")
+    # A missing column makes every `_cell_value` None, so `recompute` would skip every row and
+    # report `max |dev| 0 over 0 rows` - a pass that never ran. Refused before any PV line prints.
+    missing = absent_columns(columns, [diff, *num, *den, *sub])
+    if missing:
+        raise SystemExit(f"PV refused: {len(missing)} column(s) absent from the header: {missing}")
+    print(f"PV0 rows carrying a finite Difference: {difference_rows(rows, columns, diff)}")
     for label, n, d, f in (
         ("PV1 declared order, values as stored", num, den, lambda v: v),
         ("PV2 reversed order, values as stored", den, num, lambda v: v),
