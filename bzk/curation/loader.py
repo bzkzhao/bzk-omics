@@ -136,6 +136,9 @@ _SAMPLE_FIELDS = (
     "timepoint_h",
     "replicate",
     "replicate_type",
+    "role",
+    "bait",
+    "antibody",
 )
 
 
@@ -303,6 +306,65 @@ def _check_known_keys(record: Mapping[str, Any]) -> None:
         )
 
 
+#: ADR-0036 D2's closed `Sample.role` enum, and the one `Experiment.modality` that requires a role
+#: (D3). Mirrors the `Sample` DDL comment in ONTOLOGY.md §5.
+_SAMPLE_ROLES: frozenset[str] = frozenset({"ip", "no_antibody_control"})
+_IP_MODALITY = "ip_ms"
+
+
+def _check_sample_roles(modality: Any, samples: Mapping[str, Mapping[str, Any]]) -> None:
+    """Refuse a sample whose `role`, `bait` or `antibody` breaks ADR-0036 D2/D3.
+
+    `role` and `bait` are identifying and their absences are classified `determined` in §3 — by
+    `Experiment.modality` and by `role` respectively. Layer 2 only asks whether an absence is
+    classified, not whether its determiner holds, so without this a null `role` in an `ip_ms`
+    experiment would load and mint the same id as a sample the record never meant. This is the first
+    determiner condition the loader checks; the older `determined` rows are not checked here.
+
+    `bait` must be a `uniprot:` CURIE because that is the only protein CURIE the platform mints, and
+    `antibody` is NULL unless `role = 'ip'` because a sample with no IP has no antibody. Every fault
+    in every sample is reported in one message, so a curator sees the whole of it at once.
+    """
+    roles = sorted(_SAMPLE_ROLES)
+    faults: list[str] = []
+    for key, sample in samples.items():
+        path = f"mapping[{key!r}]"
+        role, bait, antibody = sample.get("role"), sample.get("bait"), sample.get("antibody")
+        if role is not None and role not in _SAMPLE_ROLES:
+            faults.append(f"{path}.role = {role!r} is not in the closed enum {roles}")
+        if role is not None and modality != _IP_MODALITY:
+            faults.append(
+                f"{path}.role = {role!r} but experiment.modality = {modality!r}: role is NULL "
+                f"unless modality = {_IP_MODALITY!r}"
+            )
+        if role is None and modality == _IP_MODALITY:
+            faults.append(
+                f"{path}.role = None but experiment.modality = {_IP_MODALITY!r}, which requires a "
+                f"role, one of {roles}"
+            )
+        if bait is not None and role != "ip":
+            faults.append(
+                f"{path}.bait = {bait!r} but role = {role!r}: bait is NULL unless role = 'ip'"
+            )
+        if bait is None and role == "ip":
+            faults.append(
+                f"{path}.bait = None but role = 'ip': bait is identifying, and §3 classifies its "
+                "absence only where role is not 'ip'"
+            )
+        if bait is not None and not (isinstance(bait, str) and bait.startswith("uniprot:")):
+            faults.append(f"{path}.bait = {bait!r} is not a uniprot: CURIE")
+        if antibody is not None and role != "ip":
+            faults.append(
+                f"{path}.antibody = {antibody!r} but role = {role!r}: antibody is NULL unless "
+                "role = 'ip'"
+            )
+    if faults:
+        raise CurationInvalid(
+            f"{len(faults)} sample role fault(s) (ADR-0036 D2/D3, ONTOLOGY.md §3): "
+            + "; ".join(faults)
+        )
+
+
 def _curation_analysis(record: Mapping[str, Any]) -> dict[str, Any]:
     """The §5.3 curation `Analysis`, with the loader defaults settled in `HANDOFF.md` §8."""
     basis = record.get("basis")
@@ -372,6 +434,7 @@ def load(record: Mapping[str, Any]) -> LoadedCuration:
         key: {"label": key, **{name: entry.get(name) for name in _SAMPLE_FIELDS}}
         for key, entry in mapping.items()
     }
+    _check_sample_roles(experiment["modality"], samples)
 
     # Both layers run over everything before anything is raised, so one pass tells the curator the
     # whole of what is outstanding. Markers first: their notes are richer than layer 2's generic

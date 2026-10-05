@@ -490,6 +490,13 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "{s['id'] for s in mapping.samples} == set(loaded.sample_ids.values())",
             1,
         ),
+        # ADR-0036 D2/D3, classified 2026-10-05. **Not an instance**: the right side is a hand-written
+        # literal — eleven `ip` and one control, as `_ip_ms_record` builds them — and is not
+        # produced by the loader call on the left. A loader-side mutation cannot reach this line:
+        # writing `role` onto the node after minting is refused first by I21's recompute inside
+        # `load`. Made to fail from the data side instead: the control entry given `role = 'ip'` and
+        # a bait, so all twelve load as `ip`; this line fails at index 11.
+        ("test_curation_loader.py", "roles == ['ip'] * 11 + ['no_antibody_control']", 1),
         ("test_drift.py", "drift.STALE_AFTER_DAYS == int(stated.group(1))", 1),
         ("test_drift.py", "drift.read_receipt(home) == receipt", 1),
         (

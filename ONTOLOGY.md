@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.44 |
+| Version | 1.45 |
 | Last reviewed | 2026-08-31 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
@@ -112,7 +112,7 @@ The identity **model** is identical for both: a node's identity is its label, it
 |---|---|---|---|
 | `Project` | `title` | — | `created_at` |
 | `Experiment` | `title`, `modality`, `organism_taxid` | `Project` (`CONTAINS`) | — |
-| `Sample` | `cell_line` / `model_system`, `source_type`, `genotype`, `treatment`, `timepoint_h`, `replicate`, `replicate_type`, `organism_taxid` | `Experiment` (`PERFORMED_ON`) | `label` |
+| `Sample` | `cell_line` / `model_system`, `source_type`, `genotype`, `treatment`, `timepoint_h`, `replicate`, `replicate_type`, `organism_taxid`, `role`, `bait` | `Experiment` (`PERFORMED_ON`) | `label`, `antibody` |
 | `Dataset` | `content_hash` | — (the SHA-256 of the raw file is itself the anchor) | `label`, `source`, `external_accession`, `acquisition_mode`, `instrument`, `search_engine`, `search_engine_version`, `library_type`, `library_prediction_model`, `fasta_release`, `embargo_holder`, `embargo_reference`, `embargo_released_at` |
 | `SiteObservation` | `candidate_proteins` | `Dataset` (`REPORTS_SITE`), `ModificationSite` (`MEASURED_AT`) | `peptide_sequence`, `localization_prob`, `score`, `is_decoy`, `quant_ref`, `keying_basis`, `displaced_protein` |
 | `ProteinObservation` | `candidate_proteins` | `Dataset` (`REPORTS_PROTEIN`) | `quant_ref`, `n_peptides` |
@@ -144,6 +144,8 @@ The last two rows are the exception to the digest rule: provenance agents key on
 | `Sample` | `cell_line` | determined | `source_type` — NULL for tissue |
 | `Sample` | `model_system` | determined | `source_type` — NULL in vitro; exactly one of this and `cell_line` is present |
 | `Sample` | `timepoint_h` | determined | `treatment` — NULL where `treatment = 'none'`. The column is hours *since treatment* (§5 DDL), so an untreated arm has no elapsed-since-treatment and the value does not exist. Classified 2026-08-07, when the curation loader refused six PXD018299 samples over it: the column carried no DDL comment, so "unknown" and "inapplicable" were indistinguishable and the null looked contingent. Defining what the column measures is what settled it — the classification followed, it was not chosen to clear a refusal |
+| `Sample` | `role` | determined | `Experiment.modality` — NULL unless `modality = 'ip_ms'` (ADR-0036 D2, D3) |
+| `Sample` | `bait` | determined | `role` — NULL unless `role = 'ip'` (ADR-0036 D2) |
 | `Analysis` | `basis` | determined | `kind` — curation only (§5.3) |
 | `Analysis` | `confidence` | determined | `kind` — curation only (§5.3) |
 | `Analysis` | `quantity` | determined | `kind` — a curation analysis consumes none (I16) |
@@ -377,7 +379,7 @@ CREATE NODE TABLE Project(id STRING, title STRING, created_at TIMESTAMP, PRIMARY
 
 CREATE NODE TABLE Experiment(
   id STRING, title STRING,
-  modality STRING,              -- 'digly_proteomics' | 'proteomics' | 'rnaseq'
+  modality STRING,              -- 'digly_proteomics' | 'proteomics' | 'rnaseq' | 'ip_ms'
   organism_taxid INT64,
   PRIMARY KEY (id));
 
@@ -395,6 +397,13 @@ CREATE NODE TABLE Sample(
                                 -- than being unknown (§3 absence table).
   replicate INT64,
   replicate_type STRING,        -- 'biological' | 'technical'
+  role STRING,                  -- 'ip' | 'no_antibody_control'. NULL unless the experiment's
+                                -- modality is 'ip_ms' (§3 absence table, ADR-0036 D2/D3).
+  bait STRING,                  -- uniprot: CURIE of the protein the antibody targets.
+                                -- NULL unless role = 'ip' (§3 absence table).
+  antibody STRING,              -- Non-identifying. Clone or catalogue number; NULL unless
+                                -- role = 'ip', and may be NULL even then: it is
+                                -- conditionally reported (ADR-0036 D2).
   PRIMARY KEY (id));
 
 CREATE NODE TABLE Dataset(

@@ -583,3 +583,131 @@ def test_the_inline_key_reads_are_all_declared() -> None:
     stale = sorted(loader._INLINE_KEYS - reads)
     assert not undeclared, f"`record.get` reads {undeclared}, which `_INLINE_KEYS` does not declare"
     assert not stale, f"`_INLINE_KEYS` declares {stale}, which no `record.get` call reads"
+
+
+# ── ADR-0036 D2/D3: `Sample.role`, `bait` and `antibody` ────────────────────────────────────────
+
+#: The control entry in `_ip_ms_record`; every other entry is an `ip` against ISG15.
+_CONTROL = "Ratio mod/base WT_1"
+
+
+def _ip_ms_record() -> dict[str, Any]:
+    """The real PXD018299 record turned into a valid `ip_ms` one, here and not on disk.
+
+    Every entry is an `ip` against ISG15 except `_CONTROL`, a `no_antibody_control` with no bait.
+    The antibody is the clone ADR-0036 D2 quotes from the methods; nothing here is a claim that
+    this dataset was an IP.
+    """
+    record = _record(REAL_RECORD)
+    record["experiment"]["modality"] = "ip_ms"
+    for key, entry in record["mapping"].items():
+        if key == _CONTROL:
+            entry["role"] = "no_antibody_control"
+        else:
+            entry.update(role="ip", bait="uniprot:P05161", antibody="Boston Biochem A-380")
+    return record
+
+
+def _role_refusal(record: dict[str, Any]) -> str:
+    with pytest.raises(CurationInvalid) as exc:
+        load(record)
+    message = str(exc.value)
+    assert "ADR-0036 D2/D3" in message and "ONTOLOGY.md §3" in message
+    return message
+
+
+def test_a_valid_ip_ms_record_loads() -> None:
+    loaded_record = load(_ip_ms_record())
+    roles = sorted(sample["role"] for sample in _nodes(loaded_record, "Sample"))
+    assert roles == ["ip"] * 11 + ["no_antibody_control"]
+
+
+def test_R1_a_role_outside_the_closed_enum_is_refused() -> None:
+    record = _ip_ms_record()
+    entry = record["mapping"]["Ratio mod/base WT_2"]
+    entry.update(role="lysate", bait=None, antibody=None)
+    message = _role_refusal(record)
+    assert message.startswith("1 sample role fault(s)")
+    assert "mapping['Ratio mod/base WT_2'].role = 'lysate' is not in the closed enum" in message
+
+
+def test_R2_a_role_outside_ip_ms_is_refused() -> None:
+    record = _record(REAL_RECORD)
+    record["mapping"]["Ratio mod/base WT_2"].update(role="ip", bait="uniprot:P05161")
+    message = _role_refusal(record)
+    assert message.startswith("1 sample role fault(s)")
+    assert (
+        "mapping['Ratio mod/base WT_2'].role = 'ip' but experiment.modality = 'digly_proteomics'"
+        in message
+    )
+
+
+def test_R3_an_ip_ms_sample_without_a_role_is_refused() -> None:
+    record = _ip_ms_record()
+    record["mapping"]["Ratio mod/base WT_2"].update(role=None, bait=None, antibody=None)
+    message = _role_refusal(record)
+    assert message.startswith("1 sample role fault(s)")
+    assert "mapping['Ratio mod/base WT_2'].role = None but experiment.modality = 'ip_ms'" in message
+
+
+def test_R4_a_bait_on_a_control_is_refused() -> None:
+    record = _ip_ms_record()
+    record["mapping"][_CONTROL]["bait"] = "uniprot:P05161"
+    message = _role_refusal(record)
+    assert message.startswith("1 sample role fault(s)")
+    assert (
+        f"mapping[{_CONTROL!r}].bait = 'uniprot:P05161' but role = 'no_antibody_control'" in message
+    )
+
+
+def test_R5_an_ip_without_a_bait_is_refused() -> None:
+    record = _ip_ms_record()
+    record["mapping"]["Ratio mod/base WT_2"]["bait"] = None
+    message = _role_refusal(record)
+    assert message.startswith("1 sample role fault(s)")
+    assert "mapping['Ratio mod/base WT_2'].bait = None but role = 'ip'" in message
+
+
+def test_R6_a_bait_that_is_not_a_uniprot_curie_is_refused() -> None:
+    record = _ip_ms_record()
+    record["mapping"]["Ratio mod/base WT_2"]["bait"] = "P05161"
+    message = _role_refusal(record)
+    assert message.startswith("1 sample role fault(s)")
+    assert "mapping['Ratio mod/base WT_2'].bait = 'P05161' is not a uniprot: CURIE" in message
+
+
+def test_R7_an_antibody_on_a_control_is_refused() -> None:
+    record = _ip_ms_record()
+    record["mapping"][_CONTROL]["antibody"] = "Boston Biochem A-380"
+    message = _role_refusal(record)
+    assert message.startswith("1 sample role fault(s)")
+    assert f"mapping[{_CONTROL!r}].antibody = 'Boston Biochem A-380'" in message
+
+
+def test_every_role_fault_is_named_in_one_message() -> None:
+    record = _ip_ms_record()
+    record["mapping"]["Ratio mod/base WT_2"]["bait"] = None
+    record["mapping"]["Ratio mod/base WT_3"]["bait"] = "P05161"
+    message = _role_refusal(record)
+    assert message.startswith("2 sample role fault(s)")
+    assert "mapping['Ratio mod/base WT_2'].bait = None" in message
+    assert "mapping['Ratio mod/base WT_3'].bait = 'P05161'" in message
+
+
+def test_role_separates_two_samples_that_agree_on_every_other_field() -> None:
+    """D2's purpose: a bead control and its IP for one condition are two samples, not one."""
+    record = _ip_ms_record()
+    ip = record["mapping"]["Ratio mod/base WT_2"]
+    control = {k: v for k, v in ip.items() if k not in ("bait", "antibody")}
+    control["role"] = "no_antibody_control"
+    record["mapping"]["beads WT_2"] = control
+    ids = load(record).sample_ids
+    assert ids["Ratio mod/base WT_2"] != ids["beads WT_2"]
+
+
+def test_the_committed_records_carry_no_role_bait_or_antibody() -> None:
+    records = sorted(CURATION_DIR.glob("curation_*.json"))
+    assert len(records) == 4, records
+    for path in records:
+        for sample in _nodes(load_path(path), "Sample"):
+            assert (sample["role"], sample["bait"], sample["antibody"]) == (None, None, None), path
