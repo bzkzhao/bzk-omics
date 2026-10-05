@@ -271,6 +271,9 @@ reads; D5 changes how it names columns, not where it reads them.
 
 ### D6. An aggregate-only producer proves its binding arithmetically.
 
+**Refuted by PV on 2026-10-05 (*Results*, below): not built as decided. A revision is pending,
+and must be re-registered and tested on a different export before any build.**
+
 The Perseus adapter reads statistics, not samples. **It proves its contrast columns belong to the
 declared arms by recomputing the Difference column from them.**
 
@@ -437,6 +440,9 @@ copy guarded against §8.
 `curation_PXD055843.json`: arms as M4 prints them.
 
 **Carried, not decided here**
+- **Perseus placeholder statistics** (*Results*, exploratory). S1 carries 27 rows whose Difference,
+  test statistic and −log p are `0` and q is `1`, inconsistent with their own arm values. The
+  adapter would ingest them as measured nulls. ADR-0032 or its own prompt; blocks PXD055843.
 - `quant_store.write_cells` accepts a repeated key within one batch, retains one cell and reports
   the batch's length as `cells_staged` (M11). No current deposit triggers it (D5). It is the
   over-reporting shape `base.py` warns about, recorded for its own prompt.
@@ -597,9 +603,118 @@ would prove the binding, on log2 of the stored values.)*
 - **Results per contrast in the graph.** Command for bzk's Mac, read-only:
   `uv run python -c "import kuzu,pathlib; c=kuzu.Connection(kuzu.Database(str(pathlib.Path.home()/'.bzk-omics/graph.kuzu'), read_only=True)); r=c.execute('MATCH (r:DifferentialResult)-[:RESULT_IN_CONTRAST]->(c:Contrast) RETURN c.id, count(r)'); [print(*r.get_next()) for _ in iter(r.has_next, False)]"`.
   Predicted (identity, from the code): one line, `bzk:8f9a06344675831a26dd59b2bf8c4393 1362`.
-- PV above.
+  **Held** (*Results*).
+- PV above — **run; see *Results*.**
 
 ---
+
+## Results — run on bzk's Mac at `4d6a23f`, 2026-10-05
+
+Both runs were made after every edit to D5 and D6 was public (`4d6a23f`, tree `e92166f…`). The
+outputs below are as bzk pasted them. The PV block was pasted in two parts: the four PV lines first,
+then the two lines above them, from `--s1 | head -2`.
+
+### Results per contrast
+
+```
+bzk:8f9a06344675831a26dd59b2bf8c4393 1362
+```
+
+**Held, exactly.** All 1,362 results sit in `KO_IFN_vs_WT_IFN`. D3's re-mint cost is now measured
+on the graph: options (a) and (b) would move all 1,362 results, option (c) none.
+
+### PV — pre-registered
+
+```
+PV rows 7610; arms 3/3; substring numerator 9
+PV0 rows carrying a finite Difference: 7610
+PV1 declared order, values as stored: max |dev| 1.09 over 7610 rows
+PV2 reversed order, values as stored: max |dev| 7.54 over 7610 rows
+PV3 substring numerator, as stored: max |dev| 5.64 over 7610 rows
+PV4 declared order, log2 of stored: max |dev| 3.33 over 7610 rows
+```
+
+| # | Prediction | Measured | Verdict |
+|---|---|---|---|
+| PV1 (D6's rule) | max \|dev\| ≤ 1e-3 | 1.09 | **refuted** |
+| PV1b | 1e-6 < max \|dev\| ≤ 2e-5 | 1.09 | **refuted** — and see D3 below: even among agreeing rows, p99 is 6e-5, three times the bound |
+| PV2 | > 0.5 | 7.54 | held |
+| PV3 | > 1e-3 | 5.64 | held |
+| PV4 | > 1e-3 | 3.33 | held |
+| PV5 | PV1's rows = `PV0` | 7,610 = 7,610 | held |
+
+**By the outcome table registered before the run, both PV1's and PV4's lines exceed 1e-3, so D6 is
+not built as decided, this record is revised, and the tolerance is not loosened.** Nothing below
+changes that verdict.
+
+### Exploratory — not pre-registered
+
+Two read-only diagnostics were run after PV, to find what the revision must say. They cannot
+rescue D6 at the registered tolerance and are not offered as doing so. Both are committed with this
+section, byte-identical to what ran: `notes/scripts/adr0038_pv_diag1.py` (sha256
+`96da1617…b6f2c5`) and `notes/scripts/adr0038_pv_diag2.py` (`8271e47d…96dba`). Each reads the
+instrument by relative path, so it runs from the repository root. Column headers in the first
+diagnostic's D1–D2 lines are shortened here to their `Set | condition` part; the full headers are
+in `curation_PXD055843.json`'s `mapping`.
+
+```
+D1 numerator columns: Set 1/2/3 | siUSP24 (+ IFN-B) (TP04, TP08, TP12)
+D1 denominator columns: Set 1/2/3 | siC (+IFN-B) (TP03, TP07, TP11)
+D2 other quantitative-looking columns: the 6 -IFN-B columns and the 6 USP2 columns (TP01, TP02, TP05, TP06, TP09, TP10, TP13–TP18)
+D3 declared order: n 7610; <=2e-5 4813; <=1e-3 7583; <=0.1 7586; median 1.5e-05; p90 3.77e-05; p99 6e-05; max 1.09
+D3 reversed order: n 7610; <=2e-5 0; <=1e-3 9; <=0.1 660; median 0.591; p90 1.66; p99 3.56; max 7.54
+D4 rows with any arm value in its column's lowest 10%: 1426, agreeing within 1e-3: 1399
+D4 rows with no arm value in its column's lowest 10%: 6184, agreeing within 1e-3: 6184
+D5 signed deviation: mean -0.000907, median -8.6e-16
+D6 worst: dev 1.09; Difference 0; arm values [9.412, 10.154, 9.761, 7.964, 9.393, 8.707]
+D6 worst: dev 1.09; Difference 0; arm values [9.74, 10.308, 8.979, 7.383, 8.688, 9.7]
+D6 worst: dev 0.996; Difference 0; arm values [9.056, 8.63, 7.726, 9.68, 9.659, 9.061]
+E1 statistics columns present: ["-Log Student's T-test p-value siUSP24_IFN_siCTRL_IFN", "Student's T-test q-value siUSP24_IFN_siCTRL_IFN"] | other columns carrying the suffix: ["Student's T-test Significant siUSP24_IFN_siCTRL_IFN", "Student's T-test Test statistic siUSP24_IFN_siCTRL_IFN"]
+E2 rows: 7610; Difference exactly 0: 27; refused at 1e-3: 27; refused with Difference exactly 0: 27
+E3 raw Difference cells among refused rows: [('0', 27)]
+E4 "-Log Student's T-test p-value siUSP24_IFN_siCTRL_IFN" among refused rows: [('0', 27)]
+   among the 7583 agreeing rows, blank cells: 0
+E4 "Student's T-test q-value siUSP24_IFN_siCTRL_IFN" among refused rows: [('1', 27)]
+   among the 7583 agreeing rows, blank cells: 0
+E4 "Student's T-test Significant siUSP24_IFN_siCTRL_IFN" among refused rows: [('', 27)]
+   among the 7583 agreeing rows, blank cells: 7169
+E4 "Student's T-test Test statistic siUSP24_IFN_siCTRL_IFN" among refused rows: [('0', 27)]
+   among the 7583 agreeing rows, blank cells: 0
+E5 refused deviations, sorted: [1.088, 1.085, 0.996, 0.82, 0.76, 0.737, 0.732, 0.685, 0.637, 0.548, 0.537, 0.488, 0.454, 0.393, 0.337, 0.265, 0.265, 0.258, 0.254, 0.241, 0.214, 0.146, 0.115, 0.104, 0.095, 0.075, 0.062]
+```
+
+**What they establish.**
+- **The declared binding agrees on every row the file actually tested.** 7,583 of 7,610 rows agree
+  within 1e-3, at rounding level (median 1.5e-5, p99 6e-5). Reversed, only 9 do. The arithmetic
+  discriminates as D6 intended.
+- **The 27 refused rows are exactly the 27 rows with Difference `0`, and each carries one
+  quadruple:** Difference `0`, test statistic `0`, −log p `0` (p = 1), q `1`, Significant blank.
+  Their arm means differ by 0.062 to 1.088. **A test statistic of 0 is impossible for a two-sample
+  test whose group means differ**, so these cells are not the result of testing the stored values.
+  They are a placeholder written into the statistics columns. The set partitions cleanly: no
+  agreeing row has Difference exactly `0`.
+- **The mechanism is not established.** The rows sit among those with low values (D4), which fits
+  rows Perseus did not test, for example ones failing a valid-value requirement. That is a
+  hypothesis, and the file cannot settle it.
+- **PV1b's precision model was wrong in kind as well as size.** The bound counted rounding only;
+  even the agreeing rows' p99 is three times it.
+
+**A finding that outlives D6.** `PerseusAdapter` keeps a reported `0` as `0` (`_cell_value`), so
+ingesting S1 today would mint **27 `DifferentialResult`s with log2FC 0, p 1 and q 1 that no test
+produced**, indistinguishable from a measured null. That is a generated value displayed as a
+measurement, which I15/I19's discipline and `CLAUDE.md`'s *flag rather than hide* both refuse.
+Carried below; it belongs to ADR-0032 (what the Perseus adapter reads) or to its own prompt, and
+blocks PXD055843's ingestion until settled, alongside the imputation question.
+
+### What the revision must not do, and must do
+
+- **Not:** exclude these rows from the check on S1 and call D6 confirmed. That fits the rule to the
+  file that broke it.
+- **Must:** define any exclusion from the file's statistics columns alone, independent of the
+  binding under test, so it cannot hide a wrong binding. Then re-register it, and test it on a
+  different export before D6 is built. PXD055843 S3 is the candidate: it is on bzk's Mac and
+  carries one IP-vs-IP test.
+- The revision is drafted separately, for review. This section records results only.
 
 ## Landing verification
 
