@@ -22,6 +22,7 @@ import math
 import re
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 from bzk.adapters import maxquant_protein_groups as mpg
@@ -398,9 +399,159 @@ def perseus_s1() -> None:
         print(f"{label}: max |dev| {worst:.3g} over {checked} rows")
 
 
+#: PXD055843 Supplementary Data S3 - digest and name as walk/SURVEY-public-IP-tables.md section 7
+#: records them. No curation record covers S3 (it waits on the PI and ADR-0032), so its arms are
+#: declared here, by exact composed header, as the pre-registration's curator statement.
+S3_DIGEST = "sha256:2ea450f3a63721fa6e59898392e8d07d2e002abbb5cf16004340fe838d3f52e9"
+S3_FILE = "Supplementary_Data_S3_ISG15_IP.xlsx"
+S3_SUFFIX = "siUSP24 (+IFN)_sic (+IFN)"
+_S3_DIR = (
+    "E:\\MS_Projects\\Rishov_USP24_SCP00004\\ISG15_IPs_Thermo_Ab\\"
+    "SCP0013_MSQ2590_20230403_RishovMukhopadhyay_"
+)
+S3_IP_NUM = [
+    f"Set 1 | siUSP24 (+IFN) | {_S3_DIR}ISG08_S1-H1_1_939.d",
+    f"Set 2 | siUSP24 (+IFN) | {_S3_DIR}ISG12_S1-D2_1_944.d",
+    f"Set 3 | siUSP24 (+IFN) | {_S3_DIR}ISG16_S1-H2_1_949.d",
+]
+S3_IP_DEN = [
+    f"Set 1 | sic (+IFN) | {_S3_DIR}ISG07_S1-G1_1_938.d",
+    f"Set 2 | sic (+IFN) | {_S3_DIR}ISG11_S1-C2_1_943.d",
+    f"Set 3 | sic (+IFN) | {_S3_DIR}ISG15_S1-G2_1_948.d",
+]
+S3_BEADS_NUM = f"only beads _ no Ab | siUSP24 (+IFN) | {_S3_DIR}ISG04_S1-D1_1_934.d"
+S3_BEADS_DEN = f"only beads _ no Ab | sic (+IFN) | {_S3_DIR}ISG03_S1-C1_1_933.d"
+
+
+def untested(row, columns, diff: str, minus_log_p: str, statistic: str | None) -> bool:
+    """D6-revised's placeholder rule, from the statistics columns alone: Difference 0, -log p 0
+    (p = 1), and test statistic 0 where the file carries one. Reads no arm column."""
+    from bzk.adapters.perseus import _cell_value
+
+    d = _cell_value(row, columns, diff)
+    lp = _cell_value(row, columns, minus_log_p)
+    t = _cell_value(row, columns, statistic) if statistic else 0.0
+    return d == 0 and lp == 0 and t == 0
+
+
+def perseus_s3() -> None:
+    from bzk.adapters.perseus import DIFFERENCE, MINUS_LOG_P, Q_VALUE, PerseusAdapter, _cell_value
+    from bzk.provenance.raw_store import verify
+    from bzk.sources import pxd055843_perseus as src
+
+    path = verify(S3_DIGEST, filename=S3_FILE, home=Path.home() / ".bzk-omics")
+    declaration, contrast = src.declared()  # only to construct an adapter; _read uses neither
+    header, rows = PerseusAdapter(declaration, [contrast])._read(path.read_bytes(), path)
+    columns = {name: i for i, name in enumerate(header)}
+    diff = DIFFERENCE.format(suffix=S3_SUFFIX)
+    minus_log_p = MINUS_LOG_P.format(suffix=S3_SUFFIX)
+    q_value = Q_VALUE.format(suffix=S3_SUFFIX)
+    statistic = f"Student's T-test Test statistic {S3_SUFFIX}"
+    needed = [
+        diff,
+        minus_log_p,
+        q_value,
+        statistic,
+        *S3_IP_NUM,
+        *S3_IP_DEN,
+        S3_BEADS_NUM,
+        S3_BEADS_DEN,
+    ]
+    missing = absent_columns(columns, needed)
+    if missing:
+        raise SystemExit(f"T refused: {len(missing)} column(s) absent from the header: {missing}")
+    flagged = [r for r in rows if untested(r[1], columns, diff, minus_log_p, statistic)]
+    tested = [r for r in rows if not untested(r[1], columns, diff, minus_log_p, statistic)]
+    q_of_flagged = sorted({_cell_value(r[1], columns, q_value) for r in flagged}, key=str)
+    print(
+        f"T0 rows {len(rows)}; untested by rule {len(flagged)}; tested {len(tested)}; "
+        f"q among untested {q_of_flagged}"
+    )
+    print(f"T0 rows carrying a finite Difference: {difference_rows(rows, columns, diff)}")
+    for label, n, d in (
+        ("T1 IP 3 v 3, declared order", S3_IP_NUM, S3_IP_DEN),
+        ("T2 IP + beads 4 v 4", [*S3_IP_NUM, S3_BEADS_NUM], [*S3_IP_DEN, S3_BEADS_DEN]),
+        ("T3 IP 3 v 3, reversed", S3_IP_DEN, S3_IP_NUM),
+    ):
+        worst, checked = recompute(tested, columns, n, d, diff)
+        devs = sorted(
+            abs(
+                _cell_value(r, columns, diff)
+                - (
+                    sum(_cell_value(r, columns, c) for c in n) / len(n)
+                    - sum(_cell_value(r, columns, c) for c in d) / len(d)
+                )
+            )
+            for _, r in tested
+        )
+        within = sum(v <= 1e-3 for v in devs)
+        median = devs[len(devs) // 2] if devs else float("nan")
+        print(
+            f"{label}: max |dev| {worst:.3g} over {checked} tested rows; "
+            f"within 1e-3 {within}; median {median:.3g}"
+        )
+    on_flagged = recompute(flagged, columns, S3_IP_NUM, S3_IP_DEN, diff)
+    print(f"T4 untested rows, IP 3 v 3: max |dev| {on_flagged[0]:.3g} over {on_flagged[1]} rows")
+
+
+def perseus_s1_origin() -> None:
+    """ORIGIN: where S1's untested rows come from. Prints counts only, per row class."""
+    from bzk.adapters.perseus import DIFFERENCE, MINUS_LOG_P, PerseusAdapter, _cell_value
+    from bzk.sources import pxd055843_perseus as src
+
+    path = src.locate()
+    declaration, contrast = src.declared()
+    header, rows = PerseusAdapter(declaration, [contrast])._read(path.read_bytes(), path)
+    columns = {name: i for i, name in enumerate(header)}
+    diff = DIFFERENCE.format(suffix=src.COLUMN_SUFFIX)
+    minus_log_p = MINUS_LOG_P.format(suffix=src.COLUMN_SUFFIX)
+    statistic = f"Student's T-test Test statistic {src.COLUMN_SUFFIX}"
+    record = json.loads((CURATION / "curation_PXD055843.json").read_text())
+    groups: dict[str, list[str]] = {}
+    for key, sample in record["mapping"].items():
+        groups.setdefault(f"{sample['genotype']} / {sample['treatment']}", []).append(key)
+    num, den = declared_arms({p.name: _load(p) for p in RECS})[
+        ("curation_PXD055843.json", "siUSP24_IFN_vs_siC_IFN")
+    ]
+    tested_cols = num + den
+    missing = absent_columns(columns, [diff, minus_log_p, statistic, *record["mapping"]])
+    if missing:
+        raise SystemExit(f"ORIGIN refused: {len(missing)} column(s) absent: {missing}")
+    # A column's lowest 10%: where a downshifted-normal draw lands. A proxy, not a mask.
+    floor = {}
+    for c in record["mapping"]:
+        values = sorted(v for _, r in rows if (v := _cell_value(r, columns, c)) is not None)
+        floor[c] = values[int(0.10 * len(values))]
+
+    def profile(row: list[str]) -> tuple[int, int]:
+        low = sum(_cell_value(row, columns, c) <= floor[c] for c in tested_cols)
+        other_high = sum(
+            all(_cell_value(row, columns, c) > floor[c] for c in keys)
+            for keys in groups.values()
+            if not set(keys) & set(tested_cols)
+        )
+        return low, other_high
+
+    for label, flag in (("untested", True), ("tested", False)):
+        selected = [
+            r for _, r in rows if untested(r, columns, diff, minus_log_p, statistic) is flag
+        ]
+        profiles = [profile(r) for r in selected]
+        lows = sorted(p[0] for p in profiles)
+        print(
+            f"ORIGIN {label}: rows {len(selected)}; tested-arm values in their column's lowest 10% "
+            f"(of 6): median {lows[len(lows) // 2]}, distribution {dict(sorted(Counter(lows).items()))}; "
+            f"rows with >=1 other group wholly above it: {sum(p[1] >= 1 for p in profiles)}"
+        )
+
+
 if __name__ == "__main__":
     if "--s1" in sys.argv:
         perseus_s1()
+    elif "--s3" in sys.argv:
+        perseus_s3()
+    elif "--s1-origin" in sys.argv:
+        perseus_s1_origin()
     else:
         measure()
         measure_store()

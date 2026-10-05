@@ -271,8 +271,9 @@ reads; D5 changes how it names columns, not where it reads them.
 
 ### D6. An aggregate-only producer proves its binding arithmetically.
 
-**Refuted by PV on 2026-10-05 (*Results*, below): not built as decided. A revision is pending,
-and must be re-registered and tested on a different export before any build.**
+**Refuted by PV on 2026-10-05 (*Results*, below): not built as decided.** Revised as
+*D6-revised*, after D6, which is pre-registered on a different export (*PV-S3*) and not built until
+that has run and the record is accepted.
 
 The Perseus adapter reads statistics, not samples. **It proves its contrast columns belong to the
 declared arms by recomputing the Difference column from them.**
@@ -330,6 +331,82 @@ consistent with their Difference values in the build.
 
 **This decision rests on a prediction not yet tested on real data** — PV, below. If PV refutes it,
 D6 is not built and this record is revised before acceptance.
+
+### D6-revised. Untested rows are recognised from the statistics columns; every tested row proves the binding.
+
+**Proposed 2026-10-05, after PV refuted D6 as registered. For review. Not built until its own
+pre-registration (*PV-S3*, below) has run on a different export and the record is accepted.**
+D6 above stays as written, refuted; this replaces it if it survives.
+
+**(a) An untested row is recognised from the statistics columns alone.** A row is *untested* when
+its Difference is `0`, its −log p is `0` (p = 1), and its test statistic is `0` where the file
+carries that column.
+- **It reads no arm column**, so the binding under test cannot influence which rows it excludes.
+  That is what keeps the proof failing closed: a wrong binding still has to agree on every row the
+  file tested.
+- **Where the rule came from, stated so S1 is not counted as evidence for it.** S1's 27 refused
+  rows each carry Difference `0`, statistic `0`, −log p `0` and q `1`, and no agreeing row has
+  Difference `0` (*Results*, E2–E4). So the rule picks out exactly those 27 on S1, by
+  construction. **S1 shaped the rule and cannot confirm it.** PV-S3 is the test.
+- q is recorded beside the rule, not in it: q is computed across rows, so it is not a property of
+  one row's test.
+- **Can a tested row carry all three zeros? Yes, in exactly one case.** Equal group means give a
+  Difference of 0, a statistic of 0 and p = 1, a genuine null. Other degenerate cases come out
+  differently: zero variance with unequal means gives an infinite statistic, and zero variance with
+  equal means gives an undefined one, not 0. On continuous log2 intensities exactly equal means
+  are very unlikely, though not impossible once values are rounded. **None occurred in S1:** no
+  tested row has Difference exactly `0` (*Results*, E2). The cost is in *Limits* below.
+
+**Where untested rows come from: a hypothesis, not established.** S1's methods filter for
+*"identification in all three replicates of at least one group"*, over all six groups. A protein
+can pass that filter on a group outside the test (the −IFN or USP2 groups) while having **no valid
+value in either tested group**. Perseus then has nothing to test, and writes the placeholder.
+- **What fits:** every refused row sits among the low-valued rows (D4), which is where an imputed
+  draw lands.
+- **What does not fit:** the usual Perseus workflow imputes *before* testing. The record quotes the
+  methods' filter and imputation, but not where the test sits relative to them. Under that order,
+  every row had values at test time and none should be untested. Either the order was different
+  here, or the cause is something else.
+- **What the file can show is a profile, not the cause.** *ORIGIN*, pre-registered below, checks
+  whether the 27 rows look as the hypothesis predicts. Settling it needs the Perseus session or the
+  pre-imputation matrix, so it joins the imputation question already with the PI.
+
+**(b) Every tested row must agree within 1e-3, and at least one row must be tested.** The tolerance
+is R2's, unchanged.
+- **R2's support, as far as it goes.** The tolerance was fixed before PV, on single-precision
+  storage measured in the bracketing builds. On S1, all 7,583 tested rows agree within it, and
+  those are exactly the rows rule (a) keeps (E2). The median is 1.5e-5 and p99 6e-5, about 17 times
+  inside 1e-3. Reversed, only 9 rows fall within it.
+- **What is not established:** the largest deviation among S1's tested rows lies somewhere between
+  6e-5 and 1e-3, and was not printed. So the margin at the top is unknown, and **all of this is
+  in-sample.** T1 prints the maximum over S3's tested rows, out of sample.
+
+**(c) An untested row mints no `DifferentialResult`.** Its `ProteinObservation` and its cells are
+ingested as usual, and the adapter's report counts it as `rows_untested`.
+- **This is the carried finding's fix, not only D6's.** Without it, S1 would put 27 results with
+  log2FC 0, p 1 and q 1 into the graph that no test produced, indistinguishable from a measured
+  null.
+- **It is a statement about what the Perseus adapter reads**, so ADR-0032 (Proposed) should take it
+  into its review.
+- **Untested rows are shown, not hidden** (`CLAUDE.md`: *flag rather than hide*). Minting no result
+  removes a false measurement; it must not make the row disappear.
+  - The ingestion report counts them per contrast, and the source module prints the count.
+  - A view of such an observation says *not tested by the source analysis* instead of showing
+    nothing. "No result" in a view otherwise cannot distinguish *untested* from *absent from the
+    file* or *dropped by a fault*.
+  - **The view must not infer "untested" from absence alone.** Two ways for the build prompt to
+    choose between: a non-identifying per-contrast count on the external `Analysis`, which the
+    view's derived count must equal; or an explicit marker per untested row. Either way the count
+    is the check.
+
+**Limits, stated so a pass is not misread.**
+- **A real test with exactly equal group means looks the same as a placeholder,** so it is dropped
+  too. Its arithmetic would have passed; rule (a) never reads it.
+- **A file with no test-statistic column recognises untested rows on Difference and p alone.**
+  That is weaker. S1 and S3 both carry the column.
+- **The rule covers the placeholder Perseus wrote in these two files.** Another tool, or another
+  Perseus version, may mark untested rows differently. An unrecognised placeholder would then fail
+  (b), loudly, rather than pass.
 
 ### D7. I4's display labels, per grain and kind.
 
@@ -715,6 +792,77 @@ blocks PXD055843's ingestion until settled, alongside the imputation question.
   different export before D6 is built. PXD055843 S3 is the candidate: it is on bzk's Mac and
   carries one IP-vs-IP test.
 - The revision is drafted separately, for review. This section records results only.
+
+## Pre-registration — ORIGIN, on bzk's Mac (exploratory hypothesis; not a gate)
+
+Command: `uv run python notes/scripts/measure_adr0038.py --s1-origin`. It reads S1 by digest,
+prints counts per row class only, and writes nothing. S1's values have been seen (PV and the two
+diagnostics), but **these profiles have not**.
+
+**What it measures.** A column's lowest 10% stands in for where a downshifted-normal draw lands. It
+is a proxy, not an imputation mask, because the file has none. For each row it counts how many of
+the six tested-arm values fall in their columns' lowest 10%, and how many groups outside the test
+have all three values above it.
+
+| # | Prediction, if the hypothesis holds | Kind |
+|---|---|---|
+| O1 | Untested rows: median ≥ 4 of 6 tested-arm values in the lowest 10%. Tested rows: median ≤ 1 | reasoned, low |
+| O2 | ≥ 24 of 27 untested rows have at least one other group wholly above the lowest 10% | reasoned, low |
+
+**Outcomes.**
+- **Both hold:** the hypothesis is supported, not proven. It goes to the PI as a question, with
+  this evidence.
+- **Either fails:** the record says the origin is unknown, and drops the hypothesis.
+- **Neither outcome touches D6-revised.** Rule (a) reads the statistics columns, not the cause.
+
+## Pre-registration — PV-S3, for D6-revised, on bzk's Mac
+
+Committed with D6-revised and before any of S3's values are read. S3's composed headers were read
+on bzk's Mac on 2026-10-05, headers only (no cell values), and are the source of the arms below.
+S3 is in the content store under the survey's digest
+(`sha256:2ea450f3…f52e9`, `Supplementary_Data_S3_ISG15_IP.xlsx`, stored that day; `already_present`).
+
+Command: `uv run python notes/scripts/measure_adr0038.py --s3`. It reads S3 by digest and writes
+nothing. It refuses before printing if any column it reads is absent.
+
+**Arms, declared here by exact composed header,** because no curation record covers S3 (it waits on
+the PI and ADR-0032). This is the pre-registration's own curator statement, not a curation record.
+
+| Arm | Columns (title rows, run) |
+|---|---|
+| IP numerator | `Set 1/2/3 \| siUSP24 (+IFN)`: ISG08, ISG12, ISG16 |
+| IP denominator | `Set 1/2/3 \| sic (+IFN)`: ISG07, ISG11, ISG15 |
+| Beads, numerator side | `only beads _ no Ab \| siUSP24 (+IFN)`: ISG04 |
+| Beads, denominator side | `only beads _ no Ab \| sic (+IFN)`: ISG03 |
+
+Full headers are `S3_IP_NUM`, `S3_IP_DEN`, `S3_BEADS_NUM` and `S3_BEADS_DEN` in the instrument. The test's suffix, `siUSP24 (+IFN)_sic (+IFN)`, is
+read off the header. **The bead columns carry the same condition labels as the IP columns.** So if
+Perseus grouped by condition, the paper's test was 4 against 4 with the beads included, and T1/T2
+decide which.
+
+| # | Line | Kind | Prediction |
+|---|---|---|---|
+| T0 | untested by rule; q among them | reasoned, high — **not blind**: the survey dated "Difference and test statistic … =0: 2" (§7) | **2** untested rows, q = 1 on both. What is unseen is whether both carry the full signature (−log p 0 as well) |
+| T0b | rows with a finite Difference | identity | 4,410 |
+| **T1** | IP 3 v 3, declared order, tested rows | reasoned, moderate | **max \|dev\| ≤ 1e-3 — D6-revised's gate.** Ground: the paper reports IP against IP across conditions, and the survey found one IP-vs-IP test |
+| T2 | IP + beads, 4 v 4 | reasoned, moderate | max \|dev\| > 1e-3. **Exactly one of T1's and T2's lines comes in ≤ 1e-3** |
+| T3 | IP 3 v 3, reversed | reasoned, high | max \|dev\| > 1e-3, with few rows within 1e-3 |
+| T4 | untested rows, IP 3 v 3 | reasoned, moderate | max \|dev\| > 1e-3: their arm means differ, as S1's did. If it is 0, both are genuine exact nulls and (a)'s limit is what dropped them |
+| T5 | T1's median, for precision | reasoned, low; not a gate | ≤ 1e-4 (S1's agreeing rows: 1.5e-5) |
+
+**What each outcome does.**
+- **T1 ≤ 1e-3 and T0 holds:** D6-revised is supported on an export that did not shape it. It may
+  be built once bzk accepts the record.
+- **T1 > 1e-3 and T2 ≤ 1e-3:** the paper's test included the beads. **The mechanism still worked**,
+  because it identified the true binding, so D6-revised stands. But the declared 3 v 3 was wrong,
+  and **I22 (D2) would refuse the arms that reproduce the paper's own test**, since an arm mixing
+  `ip` and `no_antibody_control` is refused. That conflict is resolved in this record before any S3
+  curation, though not before D6-revised's build.
+- **T1 and T2 both > 1e-3:** D6-revised is refuted. The arithmetic proof is dropped. The Perseus
+  binding is revised to a declared-only standing, labelled as such, and the tolerance is not
+  loosened.
+- **T0 or T4 off prediction** (count not 2, signature incomplete, or untested rows' means equal):
+  rule (a) is revised and re-registered before any build.
 
 ## Landing verification
 
