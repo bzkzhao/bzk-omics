@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-05 |
+| Reviewed | 2026-10-05 to 2026-10-07 — R1 and R2 accepted on the evidence; D6 refuted by PV and replaced by D6-revised, which PV-S3 supported out of sample. Drafted and reviewed by the same reviewer session; accepted by bzk on 2026-10-07 |
 | Supersedes | — |
 | Superseded by | — |
 
@@ -11,6 +12,12 @@
 site; R1/D4's refusal of a control arm; D2's closed `role` enum; D7's label scope. It also widens
 the loader's rule R7 on `antibody`, built at `190e696`. ADR-0036 stays `Accepted` and is not
 edited; the `Supersedes` row stays `—` because no decision of it is replaced.
+
+**Accepted by bzk on 2026-10-07, on the record as it stands at `59bb0d2`.** What is accepted is
+D1–D5, **D6-revised in place of D6** (D6 stays in the text, refuted), D7 and D8. Two items stay
+open and do not block the build: the origin of untested rows (with the PI, beside the imputation
+question; both block PXD055843's ingestion), and `write_cells`' over-reporting (M11; its own
+prompt).
 
 Drafted against `ebc0750`. **Every number below was measured at `ebc0750`, in a scratch clone, by
 `notes/scripts/measure_adr0038.py` (landed in the same commit as this file), unless it is marked as
