@@ -71,7 +71,11 @@ The prompt ends at the report.
    - Say what, if anything, checks that the two agree.
    - Expected: nothing does. This is handoff 10-05 §7's *unguarded mirror*, and §2.4 closes it.
 6. **The shape guard and its exception.**
-   - Quote `tests/test_schema.py` l.81–98 and `tests/test_decision_index.py` l.73–82.
+   - Quote `tests/test_schema.py` l.81–98, and `tests/test_decision_index.py` **l.75–84** —
+     the reason at l.75–83 and the `ONE_SIDED_SUPERSESSION` pin itself at l.84.
+   - **The range moved by one** when ADR-0039 was accepted: its acceptance commit added a
+     line to the `EXPECTED_STATUSES` transition log above it. ADR-0039 l.96 still cites
+     l.73–82 and is `Accepted`, so it is not edited; read it as l.75–84 and say so.
    - State what ADR-0039 decides the guard must now do, and what the pin keys on.
    - Expected: refuse a same-shape pair unless pinned with the record that decided the two names
      are distinct facts; the pin keys on the **pair, its endpoints and its multiplicity**, so a
