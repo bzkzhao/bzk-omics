@@ -68,8 +68,9 @@ EXPECTED_SEED_STRUCK = 17
 #: when bzk accepted it.
 #: 24/9/3 -> 24/10/3 on 2026-10-05: ADR-0038 landed `Proposed`; 24/10/3 -> 25/9/3 on 2026-10-07,
 #: when bzk accepted it as it stood at `59bb0d2` (D6-revised in place of D6).
-#: 25/9/3 -> 25/10/3 on 2026-10-07: ADR-0039 landed `Proposed`.
-EXPECTED_STATUSES = {"Accepted": 25, "Proposed": 10, "Superseded": 3}
+#: 25/9/3 -> 25/10/3 on 2026-10-07: ADR-0039 landed `Proposed`; 25/10/3 -> 26/9/3 the same
+#: day, when bzk accepted it.
+EXPECTED_STATUSES = {"Accepted": 26, "Proposed": 9, "Superseded": 3}
 
 #: Supersessions recorded on one side only, with the reason each is permitted.
 #:

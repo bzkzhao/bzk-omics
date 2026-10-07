@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-07 |
+| Reviewed | 2026-10-07 — reviewed against ADR-0023 and ADR-0038 at `a83a3f7`, and against the rehearsal of prompt 29 at `dfe6640`, which measured the guard's one failure and the three `tests/test_rebuild.py` pins it sits beside. Accepted by bzk on 2026-10-07 |
 | Supersedes | — |
 | Superseded by | — |
 
