@@ -801,13 +801,26 @@ def test_attempt_1s_variant_list_and_fixture_name_are_untouched() -> None:
 #: `36b344a`** — the commit before attempt 2 was written — in a `git worktree` of it, with
 #: `PYTHONPATH` pointed at that tree so the worktree's `bzk` was the one imported rather than the
 #: editable install's. Re-measured unchanged at `e13f06c`, before attempt 3 was written.
-ATTEMPT_1_DIGEST = "512a0a4f374d732ca54b78101b35a515c3af0484f110fa53c7db010402ba4fd8"
+#:
+#: **Re-measured 2026-10-07 under the widened exclusions below**, which drop the interpreter and
+#: `numpy` version strings from the hashed payload. The value before that change was
+#: `512a0a4f374d732ca54b78101b35a515c3af0484f110fa53c7db010402ba4fd8`, and it stopped reproducing
+#: when `uv` moved the interpreter — not when anything the module computes moved. That the readouts
+#: are unchanged was established by running this digest at `e13f06c` and at `e356356` under two
+#: interpreters and two `numpy` builds (3.12.14/2.5.1 and 3.13.16/2.5.3): one value across all four,
+#: which is this one.
+ATTEMPT_1_DIGEST = "ae47810465eb7a0a0ed2f9bd58ea347d278610006949a82d5b19c5b369e2f86c"
 
 #: Attempt 2's, the same way, measured at **`e13f06c`** — the commit before attempt 3 was
 #: written. Its run needs the G2b bands widened to reach the anchor at synthetic scale, so the
 #: measurement widened them exactly as `_run_attempt_2` below does; a digest of a run that
 #: stopped at the gate would pin the gate and nothing after it.
-ATTEMPT_2_DIGEST = "eb593fe7a529c2b27a6da0ec714ad6cd9dd96826e0c7c5614c7f04418e708b27"
+#: Re-measured 2026-10-07 with attempt 1, same reason. The value before was
+#: `eb593fe7a529c2b27a6da0ec714ad6cd9dd96826e0c7c5614c7f04418e708b27`. Unlike attempt 1's, this one
+#: could not be cross-checked at `e13f06c` — neither this constant nor `_run_attempt_2` exists
+#: there — so it rests on the same exclusion change and on agreeing across the two environments
+#: above, not on a reading at the commit it was first measured at.
+ATTEMPT_2_DIGEST = "5ac522bac4eee2d218865fe33265ec20b66712140e3ffb9b7578b1898a48e700"
 
 #: What a rerun must move, and which therefore cannot be in the digest. The first four are a
 #: run's own identity; the last two are the synthetic workbooks' content hashes, which move
@@ -818,7 +831,21 @@ DIGEST_EXCLUSIONS = (
     "anchor_published_content_hash",
     "gate_published_content_hash",
 )
-DIGEST_EXCLUSIONS_UNDER = ("generated_at", "commit", "working_tree_clean")
+#: `python` and `numpy` were added 2026-10-07, for the reason the `openpyxl` timestamps were
+#: excluded: they are a property of the environment the fixture was generated in, not of the module
+#: under test. They had been inside the hashed payload, so a `uv` interpreter bump moved the digest
+#: with no behavioural change, and the failure it produced was indistinguishable from the readouts
+#: moving — which is what the pin exists to detect. Telling the two apart cost a worktree at a
+#: month-old commit.
+#:
+#: **They are excluded rather than asserted separately, and that is the deliberate half.** An
+#: assertion on the recorded versions would fail on every upgrade, and
+#: `tests/test_tautology_sweep.py`'s `_ARCHIVE_DIGEST_EVIDENCE` carries `green_scope=("-q",)` — the
+#: whole suite must stay green under its mutation — so any environment-sensitive failure anywhere
+#: re-breaks the sweep as a second, unrelated-looking red. That coupling is how this defect
+#: presented: two failures, one cause. The versions each pin was measured under are recorded above
+#: in prose, where they inform a reader without arming a tripwire.
+DIGEST_EXCLUSIONS_UNDER = ("generated_at", "commit", "working_tree_clean", "python", "numpy")
 
 
 def _digest(written: dict[str, Any]) -> str:
