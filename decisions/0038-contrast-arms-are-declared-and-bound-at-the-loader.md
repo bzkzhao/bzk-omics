@@ -334,6 +334,9 @@ D6 is not built and this record is revised before acceptance.
 
 ### D6-revised. Untested rows are recognised from the statistics columns; every tested row proves the binding.
 
+**Supported out of sample by PV-S3 on 2026-10-07 (*Results — PV-S3 and ORIGIN*, below): T1
+7.27e-5 over all 4,408 tested rows, T0 as predicted. Buildable once bzk accepts the record.**
+
 **Proposed 2026-10-05, after PV refuted D6 as registered. For review. Not built until its own
 pre-registration (*PV-S3*, below) has run on a different export and the record is accepted.**
 D6 above stays as written, refuted; this replaces it if it survives.
@@ -863,6 +866,68 @@ decide which.
   loosened.
 - **T0 or T4 off prediction** (count not 2, signature incomplete, or untested rows' means equal):
   rule (a) is revised and re-registered before any build.
+
+## Results — PV-S3 and ORIGIN, run on bzk's Mac at `05f9f3e`, 2026-10-07
+
+Both runs were made after D6-revised, PV-S3 and ORIGIN were public (`05f9f3e`, tree
+`475921e…`). Output as bzk pasted it.
+
+```
+T0 rows 4410; untested by rule 2; tested 4408; q among untested [1.0]
+T0 rows carrying a finite Difference: 4410
+T1 IP 3 v 3, declared order: max |dev| 7.27e-05 over 4408 tested rows; within 1e-3 4408; median 1.1e-05
+T2 IP + beads 4 v 4: max |dev| 2.4 over 4408 tested rows; within 1e-3 13; median 0.219
+T3 IP 3 v 3, reversed: max |dev| 9.65 over 4408 tested rows; within 1e-3 5; median 0.941
+T4 untested rows, IP 3 v 3: max |dev| 0.565 over 2 rows
+ORIGIN untested: rows 27; tested-arm values in their column's lowest 10% (of 6): median 6, distribution {5: 5, 6: 22}; rows with >=1 other group wholly above it: 25
+ORIGIN tested: rows 7583; tested-arm values in their column's lowest 10% (of 6): median 0, distribution {0: 6184, 1: 375, 2: 238, 3: 218, 4: 168, 5: 162, 6: 238}; rows with >=1 other group wholly above it: 7115
+```
+
+### PV-S3
+
+| # | Prediction | Measured | Verdict |
+|---|---|---|---|
+| T0 | 2 untested, q = 1 on both | 2; q `[1.0]` | **held.** Both carry the full signature: the rule requires Difference, −log p and statistic all `0` |
+| T0b | 4,410 rows with a finite Difference | 4,410 | held |
+| **T1** (gate) | IP 3 v 3, max \|dev\| ≤ 1e-3 | **7.27e-5**; all 4,408 tested rows within | **held** |
+| T2 | IP + beads 4 v 4, > 1e-3; exactly one of T1, T2 agrees | 2.4; 13 rows within | held — only T1 agrees |
+| T3 | reversed, > 1e-3, few within | 9.65; 5 within | held |
+| T4 | untested rows' means differ, > 1e-3 | 0.565 | held |
+| T5 | T1's median ≤ 1e-4 (not a gate) | 1.1e-5 | held |
+
+**By the outcome table registered before the run, "T1 ≤ 1e-3 and T0 holds": D6-revised is supported
+on an export that did not shape it, and may be built once bzk accepts the record.**
+
+**What else it settles.**
+- **The paper's S3 test was IP against IP, 3 v 3; the beads were not in the groups** (T2, 2.4). So
+  the conflict the second outcome anticipated, I22 refusing the arms that reproduce the paper's
+  test, does not arise. The bead columns stay available for a separate background-enrichment
+  contrast (D2), which is a different comparison from the paper's.
+- **The tolerance's margin at the top is now measured, out of sample:** the largest tested-row
+  deviation is 7.27e-5, about 14 times inside 1e-3. The worst reversed or 4 v 4 binding still
+  misses on all but 5 and 13 of 4,408 rows.
+- **The placeholder signature is the same in a second Perseus export** from the same laboratory.
+  That is two files from one pipeline, not a general property of Perseus; *Limits* under D6-revised
+  stands.
+
+### ORIGIN — exploratory, not a gate
+
+| # | Prediction | Measured | Verdict |
+|---|---|---|---|
+| O1 | untested median ≥ 4 of 6 low; tested median ≤ 1 | 6; 0 | held |
+| O2 | ≥ 24 of 27 untested with another group wholly above the tail | 25 | held |
+
+**Both held, so by the registered outcome the hypothesis is supported, not proven, and goes to the
+PI as a question.** Two limits on how much support that is, read off the same output:
+- **O2 barely discriminates.** 7,115 of 7,583 tested rows (94%) meet the same condition, against 25
+  of 27 (93%) untested. It was a necessary condition of the hypothesis, not evidence for it.
+- **An all-low profile does not imply untested.** 238 tested rows have all six tested-arm values in
+  their columns' lowest 10%, against 22 untested rows. The lowest-10% proxy cannot tell an imputed
+  value from a measured low one, so this neither supports nor contradicts the hypothesis. It does
+  say that the proxy, unlike rule (a), could not have identified the untested rows.
+
+The question for the PI, with this evidence: in the S1 and S3 Perseus sessions, did the two-sample
+test run before imputation, or on a different valid-value filter from the one the methods give?
 
 ## Landing verification
 
