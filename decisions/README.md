@@ -89,6 +89,7 @@ This exists because a project with one developer and a compressed timeline will 
 | [0036](0036-ip-ms-as-role-tagged-observations.md) | IP-MS enters as role-tagged `ProteinObservation`s; concordance is defined on an IP-vs-IP contrast within one deposit; imputation is counted on the result, per arm |
 | [0037](0037-every-digest-id-encodes-its-anchors.md) | I21 generalised: a digest-shaped id encodes every anchor its change-set carries — edge-triggered, orientation read from the declared pair, multi-valued anchors refused; enforcement waits on a dry run over real ingestion |
 | [0038](0038-contrast-arms-are-declared-and-bound-at-the-loader.md) | Contrast arms are declared in curation by mapping key and become `Contrast`–`Sample` edges; I22 runs at the loader at mint; producers read columns only through each format's binding, Perseus by recomputing its Difference; background enrichment admitted with distinct arm labels (0 ids move); I4 labelled per grain and kind. Amends ADR-0036's mechanism |
+| [0039](0039-the-shape-guard-admits-pinned-exceptions.md) | The shape guard admits pinned exceptions: a pair sharing endpoints and multiplicity is refused unless pinned with the record that decided the two names are distinct facts, the pin keyed on the pair, its endpoints and its multiplicity. `NUMERATOR_SAMPLE`/`DENOMINATOR_SAMPLE` is the one entry (ADR-0038 D4), which stands. Amends the scope of ADR-0023's guard, not its three decisions; records ADR-0038's drafting defect at l.504-505 |
 
 ## Queued
 
