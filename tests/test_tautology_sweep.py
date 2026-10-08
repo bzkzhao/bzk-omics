@@ -497,6 +497,49 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         # `load`. Made to fail from the data side instead: the control entry given `role = 'ip'` and
         # a bait, so all twelve load as `ip`; this line fails at index 11.
         ("test_curation_loader.py", "roles == ['ip'] * 11 + ['no_antibody_control']", 1),
+        # ADR-0038 D1/D2/D4, classified 2026-10-08 (prompt 29). **None is an instance**; each was
+        # made to fail by a mutation that leaves the other side alone. The arm edges against the
+        # carried arms: two outputs of one `load`, but the right side is not the expression that
+        # produced the left — dropping each arm's last edge in the emission loop fails it.
+        (
+            "test_curation_loader.py",
+            (
+                "[e['to'] for e in loaded.edges if e['type'] == rel and e['from'] == node['id']] == "
+                "list(members)"
+            ),
+            1,
+        ),
+        # Every minted contrast carries arms: fails when the `contrast_arms` comprehension keeps
+        # only the first contrast, on PXD018299's two.
+        (
+            "test_curation_loader.py",
+            "set(loaded_record.contrast_arms) == set(loaded_record.contrast_nodes)",
+            1,
+        ),
+        # A hand-written literal: fails when an arm field is written onto the `Contrast` node.
+        (
+            "test_curation_loader.py",
+            "set(node) == {NODE_TYPE_KEY, 'id', 'numerator', 'denominator', 'label'}",
+            1,
+        ),
+        # The role mirror: the left side of each is parsed from ONTOLOGY.md §5's `Sample` comment,
+        # the right is the code's constant. Each fails when its clause of the comment is edited.
+        ("test_curation_loader.py", "bait.group(1) == invariants.IP_ROLE", 1),
+        (
+            "test_curation_loader.py",
+            "set(re.findall(\"'(\\\\w+)'\", antibody.group(1))) == loader._ANTIBODY_ROLES",
+            1,
+        ),
+        (
+            "test_curation_loader.py",
+            "set(re.findall(\"'(\\\\w+)'\", enum)) == loader._SAMPLE_ROLES",
+            1,
+        ),
+        (
+            "test_curation_loader.py",
+            "{loader._IP_MODALITY, invariants.IP_MODALITY} == {modality.group(1)}",
+            1,
+        ),
         ("test_drift.py", "drift.STALE_AFTER_DAYS == int(stated.group(1))", 1),
         ("test_drift.py", "drift.read_receipt(home) == receipt", 1),
         (

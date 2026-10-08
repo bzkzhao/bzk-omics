@@ -608,6 +608,12 @@ REL_TABLES: list[RelTable] = [
     ),
     RelTable("RESULT_IN_CONTRAST", "DifferentialResult", "Contrast", multiplicity="MANY_ONE"),
     RelTable("CONTRAST_IN_EXPERIMENT", "Contrast", "Experiment", multiplicity="MANY_ONE"),
+    # ADR-0038 D4: a contrast's arms, declared in curation by mapping key and written only by the
+    # loader. Two relationships because they are two facts (ADR-0023); non-identifying, so neither
+    # appears in `IDENTITY`. Same shape as each other, admitted by ADR-0039's pin in
+    # `tests/test_schema.py`.
+    RelTable("NUMERATOR_SAMPLE", "Contrast", "Sample", multiplicity="MANY_MANY"),
+    RelTable("DENOMINATOR_SAMPLE", "Contrast", "Sample", multiplicity="MANY_MANY"),
     RelTable("ADJUSTED_BY", "DifferentialResult", "DifferentialResult", multiplicity="MANY_ONE"),
     RelTable("SAMPLE_GENERATED_BY", "Sample", "Analysis", multiplicity="MANY_ONE"),
     RelTable("CURATION_CITES", "Analysis", "Publication"),

@@ -31,12 +31,32 @@
       "id": "PLproWT_vs_PLproMut_in_WT",
       "numerator": "WT + IFN-alpha, lysate + PLpro WT",
       "denominator": "WT + IFN-alpha, lysate + PLpro mutant",
+      "numerator_samples": [
+        "Intensity 05_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_rep1",
+        "Intensity 15_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_rep2",
+        "Intensity 21_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_rep3"
+      ],
+      "denominator_samples": [
+        "Intensity 07_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_mut_rep1",
+        "Intensity 11_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_mut_rep2",
+        "Intensity 17_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-WT_mut_rep3"
+      ],
       "note": "The claim-defining axis: sites whose ISG15 modification PLpro removes. The publication did not test pairwise contrasts. It ran a two-way ANOVA (PLpro treatment x genotype) and retained sites with p < 0.01 on any of the three terms. This contrast is the curator's statement of interest, not a transcription of the test run."
     },
     {
       "id": "PLproWT_vs_PLproMut_in_ISG15KO",
       "numerator": "ISG15-/- + IFN-alpha, lysate + PLpro WT",
       "denominator": "ISG15-/- + IFN-alpha, lysate + PLpro mutant",
+      "numerator_samples": [
+        "Intensity 01_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_rep1",
+        "Intensity 13_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_rep2",
+        "Intensity 19_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_rep3"
+      ],
+      "denominator_samples": [
+        "Intensity 03_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_mut_rep1",
+        "Intensity 09_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_mut_rep2",
+        "Intensity 23_Ap_WNE14_trap5_CMB-812_FRIMP_denzel_Gly-Gly-KO_mut_rep3"
+      ],
       "note": "Negative control. Without ISG15 there is no ISGylation for PLpro to remove, so a PLpro-dependent change here is not deISGylation. That includes deubiquitination by PLpro, which carries the same GlyGly remnant."
     }
   ],

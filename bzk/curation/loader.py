@@ -183,6 +183,21 @@ class CurationInvalid(CurationError):
 
 
 @dataclass(frozen=True)
+class ContrastArms:
+    """One contrast's arms as the loader resolved them, and the kind derived from them.
+
+    The arms are `Sample` ids in the order the record declares their mapping keys (ADR-0038 D1).
+    **`kind` is derived, never stored**: it is computed here from the anchor's `modality` and the
+    arms' roles by `invariants.contrast_kind` — D2's table, I22 — and no node property or DDL
+    column holds it (ADR-0036 D4's rule, kept by ADR-0038 D2).
+    """
+
+    numerator: tuple[str, ...]
+    denominator: tuple[str, ...]
+    kind: str
+
+
+@dataclass(frozen=True)
 class LoadedCuration:
     """One curation record as a change-set, plus the ids an adapter needs to attach to it."""
 
@@ -198,6 +213,10 @@ class LoadedCuration:
     #: record's `Experiment` (ADR-0027). **The loader is the only place a `Contrast` is minted**
     #: (ADR-0029 E): producers receive these nodes and stage them as referents.
     contrast_nodes: dict[str, Node] = field(default_factory=dict)
+    #: record contrast id -> its resolved arms and derived kind (ADR-0038 D1). Carried beside the
+    #: node rather than on it: the arms are materialised as `NUMERATOR_SAMPLE` /
+    #: `DENOMINATOR_SAMPLE` edges (D4), which are non-identifying, and never enter `props`.
+    contrast_arms: dict[str, ContrastArms] = field(default_factory=dict)
 
     def contrast(self, contrast_id: str) -> Node:
         """The `Contrast` this record declares under `contrast_id`, or a refusal naming the ids it
@@ -206,7 +225,7 @@ class LoadedCuration:
         if node is None:
             raise CurationError(
                 f"contrast {contrast_id!r} is not declared by this curation record; it declares "
-                f"{sorted(self.contrast_nodes)}. A contrast's arms are identifying (ONTOLOGY.md §3) "
+                f"{sorted(self.contrast_nodes)}. A contrast's two labels are identifying (ONTOLOGY.md §3) "
                 "and are read from the record that declares them, not supplied by a caller"
             )
         return dict(node)
@@ -280,6 +299,125 @@ def _pending_owed(record: Mapping[str, Any]) -> list[Owed]:
     return owed
 
 
+#: The keys a `contrasts_of_interest` entry may carry (ADR-0038 D1). `note` is not read for meaning;
+#: it travels on `LoadedCuration.contrasts` with the rest of the raw entry.
+CONTRAST_ENTRY_KEYS: frozenset[str] = frozenset(
+    {"id", "numerator", "denominator", "numerator_samples", "denominator_samples", "note"}
+)
+_ARM_FIELDS: tuple[tuple[str, str], ...] = (
+    ("numerator_samples", "NUMERATOR_SAMPLE"),
+    ("denominator_samples", "DENOMINATOR_SAMPLE"),
+)
+
+
+def _check_contrast_entry_keys(record: Mapping[str, Any]) -> None:
+    """Refuse a contrast entry carrying a key this module does not read (ADR-0038 D1).
+
+    `_check_known_keys`' rule one level in, and for the same reason: measured before ADR-0038
+    (its M3), a misspelled `numerator_sampels` loaded clean and was dropped, so a contrast whose
+    arm field was mistyped would have been refused as *declaring no arm* — the absence reported
+    instead of the typo beside it. Run second, after `_check_known_keys` and before every other
+    check, for that reason; every entry's unknown keys are named in one message.
+    """
+    faults = [
+        f"contrasts_of_interest[{i}] carries {sorted(set(entry) - CONTRAST_ENTRY_KEYS)}"
+        for i, entry in enumerate(record.get("contrasts_of_interest") or ())
+        if set(entry) - CONTRAST_ENTRY_KEYS
+    ]
+    if faults:
+        raise CurationInvalid(
+            f"{len(faults)} contrast entry key fault(s): " + "; ".join(faults) + ". A contrast "
+            f"entry recognises {sorted(CONTRAST_ENTRY_KEYS)}; a key outside it would be dropped "
+            "without a word, so it is refused rather than half-loaded (ADR-0038 D1)."
+        )
+
+
+def _resolve_arms(
+    record: Mapping[str, Any], sample_ids: Mapping[str, str]
+) -> dict[str, tuple[tuple[str, ...], tuple[str, ...]]]:
+    """Resolve every contrast's arms to the `Sample` ids this record minted, or refuse (ADR-0038 D1).
+
+    **Exact membership in `mapping`, no normalisation**: an arm key is a mapping key verbatim, and
+    a key the record does not carry names no sample this loader minted. Refused, each in its own
+    words, and all of them in one message as `_check_sample_roles` does:
+
+    - an arm field absent — every contrast declares both, with no optional form (D8);
+    - an arm that is not a list of strings, or is empty;
+    - a key repeated within an arm, or absent from `mapping`;
+    - a sample in both arms;
+    - an entry whose `numerator` equals its `denominator`, and two entries with one
+      (`numerator`, `denominator`) pair — the two labels are what `Contrast` identity is minted
+      from, so either collapses what the record declares as distinct (D3).
+
+    Role consistency is **not** checked here. It is I22, which `invariants.validate` runs over the
+    change-set this loader emits, so the table has one home.
+    """
+    faults: list[str] = []
+    seen_pairs: dict[tuple[Any, Any], int] = {}
+    arms: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {}
+    for i, entry in enumerate(record.get("contrasts_of_interest") or ()):
+        path = f"contrasts_of_interest[{i}]"
+        pair = (entry["numerator"], entry["denominator"])
+        if pair[0] == pair[1]:
+            faults.append(
+                f"{path}.numerator and .denominator are both {pair[0]!r}: a Contrast is minted "
+                "from the two labels, so they must differ (ADR-0038 D3)"
+            )
+        if pair in seen_pairs:
+            faults.append(
+                f"{path} repeats the (numerator, denominator) pair {pair!r} of "
+                f"contrasts_of_interest[{seen_pairs[pair]}]: one pair mints one Contrast id, so "
+                "the two entries would be one node (ADR-0038 D3)"
+            )
+        seen_pairs.setdefault(pair, i)
+        resolved: dict[str, list[str]] = {}
+        for side, _rel in _ARM_FIELDS:
+            keys = entry.get(side)
+            if keys is None:
+                faults.append(
+                    f"{path}.{side} is absent: every contrast declares both arms by mapping key, "
+                    "and there is no optional form (ADR-0038 D1, D8)"
+                )
+                continue
+            if not isinstance(keys, list) or not all(isinstance(k, str) for k in keys):
+                faults.append(f"{path}.{side} = {keys!r} is not a list of mapping keys")
+                continue
+            if not keys:
+                faults.append(f"{path}.{side} is empty: an arm with no sample compares nothing")
+                continue
+            repeated = sorted({k for k in keys if keys.count(k) > 1})
+            if repeated:
+                faults.append(
+                    f"{path}.{side} names {repeated} more than once: an arm is a set of samples"
+                )
+            absent = sorted({k for k in keys if k not in sample_ids})
+            if absent:
+                faults.append(
+                    f"{path}.{side} names {absent}, which are not keys of mapping: an arm key is "
+                    "a mapping key verbatim, matched exactly and never normalised"
+                )
+            if not repeated and not absent:
+                resolved[side] = keys
+        if len(resolved) < len(_ARM_FIELDS):
+            continue
+        numerator, denominator = (resolved[side] for side, _rel in _ARM_FIELDS)
+        both = sorted(set(numerator) & set(denominator))
+        if both:
+            faults.append(
+                f"{path} puts {both} in both arms: a sample is never compared against itself"
+            )
+            continue
+        arms[entry["id"]] = (
+            tuple(sample_ids[k] for k in numerator),
+            tuple(sample_ids[k] for k in denominator),
+        )
+    if faults:
+        raise CurationInvalid(
+            f"{len(faults)} contrast arm fault(s) (ADR-0038 D1, D3, D8): " + "; ".join(faults)
+        )
+    return arms
+
+
 def _check_known_keys(record: Mapping[str, Any]) -> None:
     """Refuse a record carrying a top-level key this module does not read.
 
@@ -306,10 +444,14 @@ def _check_known_keys(record: Mapping[str, Any]) -> None:
         )
 
 
-#: ADR-0036 D2's closed `Sample.role` enum, and the one `Experiment.modality` that requires a role
-#: (D3). Mirrors the `Sample` DDL comment in ONTOLOGY.md §5.
-_SAMPLE_ROLES: frozenset[str] = frozenset({"ip", "no_antibody_control"})
-_IP_MODALITY = "ip_ms"
+#: ADR-0036 D2's closed `Sample.role` enum, widened by ADR-0038 D2 with `isotype_control`; the one
+#: `Experiment.modality` that requires a role (ADR-0036 D3); and the roles that may carry an
+#: `antibody` (R7, widened by ADR-0038 D2). All three mirror the `Sample` DDL comment in ONTOLOGY.md
+#: §5, and `tests/test_curation_loader.py` parses that comment and holds them to it. The modality is
+#: `invariants.IP_MODALITY` rather than a second literal, since I22 reads it too.
+_SAMPLE_ROLES: frozenset[str] = frozenset({"ip", "no_antibody_control", "isotype_control"})
+_IP_MODALITY = invariants.IP_MODALITY
+_ANTIBODY_ROLES: frozenset[str] = frozenset({"ip", "isotype_control"})
 
 
 def _check_sample_roles(modality: Any, samples: Mapping[str, Mapping[str, Any]]) -> None:
@@ -322,8 +464,10 @@ def _check_sample_roles(modality: Any, samples: Mapping[str, Mapping[str, Any]])
     determiner condition the loader checks; the older `determined` rows are not checked here.
 
     `bait` must be a `uniprot:` CURIE because that is the only protein CURIE the platform mints, and
-    `antibody` is NULL unless `role = 'ip'` because a sample with no IP has no antibody. Every fault
-    in every sample is reported in one message, so a curator sees the whole of it at once.
+    `antibody` is NULL unless `role` is `ip` or `isotype_control`: a sample with no antibody in its
+    pull-down has none, and an isotype control's reagent is the same kind of fact as an IP's
+    (ADR-0038 D2). Every fault in every sample is reported in one message, so a curator sees the
+    whole of it at once.
     """
     roles = sorted(_SAMPLE_ROLES)
     faults: list[str] = []
@@ -353,10 +497,10 @@ def _check_sample_roles(modality: Any, samples: Mapping[str, Mapping[str, Any]])
             )
         if bait is not None and not (isinstance(bait, str) and bait.startswith("uniprot:")):
             faults.append(f"{path}.bait = {bait!r} is not a uniprot: CURIE")
-        if antibody is not None and role != "ip":
+        if antibody is not None and role not in _ANTIBODY_ROLES:
             faults.append(
                 f"{path}.antibody = {antibody!r} but role = {role!r}: antibody is NULL unless "
-                "role = 'ip'"
+                f"role is one of {sorted(_ANTIBODY_ROLES)}"
             )
     if faults:
         raise CurationInvalid(
@@ -407,6 +551,7 @@ def load(record: Mapping[str, Any]) -> LoadedCuration:
     a misspelled key name is otherwise reported as the absence of the key it was meant to be.
     """
     _check_known_keys(record)
+    _check_contrast_entry_keys(record)
     analysis_props = _curation_analysis(record)
 
     project = {"title": (record.get("project") or {}).get("title")}
@@ -478,14 +623,14 @@ def load(record: Mapping[str, Any]) -> LoadedCuration:
 
     # ADR-0027 implied change 4 / ADR-0029 item 2: the record's contrasts are materialised here and
     # nowhere else, anchored on this record's `Experiment`. Each entry needs a record-local `id` (the
-    # handle an analysis record names) and both arms; a duplicate handle would make that name
+    # handle an analysis record names) and both labels; a duplicate handle would make that name
     # ambiguous, so it is refused rather than resolved to whichever entry came last.
     contrast_nodes: dict[str, Node] = {}
     for i, entry in enumerate(record.get("contrasts_of_interest") or ()):
         missing = [k for k in ("id", "numerator", "denominator") if not entry.get(k)]
         if missing:
             raise CurationInvalid(
-                f"contrasts_of_interest[{i}] lacks {missing}: a contrast is keyed by its two arms "
+                f"contrasts_of_interest[{i}] lacks {missing}: a contrast is keyed by its two labels "
                 "and named by its id (ONTOLOGY.md §3)"
             )
         if entry["id"] in contrast_nodes:
@@ -501,6 +646,10 @@ def load(record: Mapping[str, Any]) -> LoadedCuration:
             {**props, "label": f"{entry['numerator']} vs {entry['denominator']}"},
         )
     nodes += list(contrast_nodes.values())
+    # ADR-0038 D1: the arms go on the entry and into `LoadedCuration`, never into `props` above.
+    # `props` is what the `Contrast` id is minted from, so an arm reaching it would re-mint every
+    # contrast — and every result anchored on one — for a fact D4's edges already carry.
+    arms = _resolve_arms(record, sample_ids)
 
     edges: list[Edge] = [
         {"type": "CONTAINS", "from": project_id, "to": experiment_id},
@@ -508,14 +657,37 @@ def load(record: Mapping[str, Any]) -> LoadedCuration:
     ]
     for node in contrast_nodes.values():
         edges.append({"type": "CONTRAST_IN_EXPERIMENT", "from": node["id"], "to": experiment_id})
+    # ADR-0038 D4: the arms, materialised as two non-identifying relationships. Written here and
+    # nowhere else; a producer stages its `Contrast` as a referent without them.
+    for handle, (numerator, denominator) in arms.items():
+        contrast_id = contrast_nodes[handle]["id"]
+        for (_side, rel), members in zip(_ARM_FIELDS, (numerator, denominator), strict=True):
+            edges += [{"type": rel, "from": contrast_id, "to": sid} for sid in members]
     for sample_id in sample_ids.values():
         edges.append({"type": "PERFORMED_ON", "from": experiment_id, "to": sample_id})
         edges.append({"type": "PRODUCED", "from": sample_id, "to": dataset_id})
         edges.append({"type": "SAMPLE_GENERATED_BY", "from": sample_id, "to": analysis_id})
 
     # The loader's output is held to the same contract as an adapter's (ADR-0019). Running it here
-    # rather than at the call site means a record can never be half-written into the graph.
+    # rather than at the call site means a record can never be half-written into the graph. This is
+    # also where I22 is enforced at mint (ADR-0038 D2): the change-set carries both arms' samples
+    # and the anchor's `modality`, which no producer's does.
     invariants.validate(nodes, edges)
+    by_id = {node["id"]: node for node in nodes}
+    modality = experiment["modality"]
+    contrast_arms = {
+        handle: ContrastArms(
+            numerator=numerator,
+            denominator=denominator,
+            kind=invariants.contrast_kind(
+                contrast_nodes[handle]["id"],
+                modality,
+                [by_id[sid] for sid in numerator],
+                [by_id[sid] for sid in denominator],
+            ),
+        )
+        for handle, (numerator, denominator) in arms.items()
+    }
 
     return LoadedCuration(
         nodes=nodes,
@@ -528,6 +700,7 @@ def load(record: Mapping[str, Any]) -> LoadedCuration:
         # The raw entries, kept for the notes and ids a caller may report; the nodes are below.
         contrasts=tuple(record.get("contrasts_of_interest") or ()),
         contrast_nodes=contrast_nodes,
+        contrast_arms=contrast_arms,
     )
 
 

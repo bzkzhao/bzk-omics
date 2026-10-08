@@ -58,6 +58,9 @@ EXPECTED_EDGES = {
     "SAMPLE_GENERATED_BY": 12,
     "USED": 1,
     "CONTRAST_IN_EXPERIMENT": 2,
+    # ADR-0038 D4: three samples per arm, two arms, two contrasts.
+    "NUMERATOR_SAMPLE": 6,
+    "DENOMINATOR_SAMPLE": 6,
 }
 
 
@@ -130,12 +133,13 @@ def test_rebuild_creates_schema_and_leaves_the_archive_alone(tmp_path: Any) -> N
     home = tmp_path / "home"
     _seed_cache(home, fx)
     report = rebuild(home=home, curation_dir=_only(tmp_path, PXD018299_RECORD))
-    # 24 node + 34 rel tables: ADR-0023 dropped two, ADR-0027 added CONTRAST_IN_EXPERIMENT.
-    assert report.tables_created == 58
+    # 24 node + 36 rel tables: ADR-0023 dropped two, ADR-0027 added CONTRAST_IN_EXPERIMENT, and
+    # ADR-0038 D4 added NUMERATOR_SAMPLE and DENOMINATOR_SAMPLE.
+    assert report.tables_created == 60
     assert report.curation_records == 1  # data/curation/curation_PXD018299.json
     # Statements issued, not the graph's size — the two agree here only because this replay finds
     # no deposit, so nothing is staged twice (`store.WriteReport`).
-    assert (report.nodes_staged, report.edges_staged) == (18, 40)
+    assert (report.nodes_staged, report.edges_staged) == (18, 52)
     assert (home / "graph.kuzu").exists()
     assert (home / "cache" / "uniprot" / "seq" / "P09914-2#sv2.txt").exists()  # archive untouched
     assert not hasattr(report, "drifts"), "rebuild no longer performs the drift check"

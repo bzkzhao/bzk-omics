@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.45 |
-| Last reviewed | 2026-08-31 |
+| Version | 1.46 |
+| Last reviewed | 2026-10-08 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
 | Authoritative for | Node types, edge types, field semantics, invariants |
@@ -116,7 +116,7 @@ The identity **model** is identical for both: a node's identity is its label, it
 | `Dataset` | `content_hash` | — (the SHA-256 of the raw file is itself the anchor) | `label`, `source`, `external_accession`, `acquisition_mode`, `instrument`, `search_engine`, `search_engine_version`, `library_type`, `library_prediction_model`, `fasta_release`, `embargo_holder`, `embargo_reference`, `embargo_released_at` |
 | `SiteObservation` | `candidate_proteins` | `Dataset` (`REPORTS_SITE`), `ModificationSite` (`MEASURED_AT`) | `peptide_sequence`, `localization_prob`, `score`, `is_decoy`, `quant_ref`, `keying_basis`, `displaced_protein` |
 | `ProteinObservation` | `candidate_proteins` | `Dataset` (`REPORTS_PROTEIN`) | `quant_ref`, `n_peptides` |
-| `Contrast` | `numerator`, `denominator` | `Experiment` (`CONTRAST_IN_EXPERIMENT`) — evidence node; §11 Q1 settled 2026-08-18 by ADR-0027, built 2026-10-03 in ADR-0029's order. Minted only by the curation loader from the record's `contrasts_of_interest`; producers receive it pre-keyed and mint none (ADR-0029 E) | `label` |
+| `Contrast` | `numerator`, `denominator` | `Experiment` (`CONTRAST_IN_EXPERIMENT`) — evidence node; §11 Q1 settled 2026-08-18 by ADR-0027, built 2026-10-03 in ADR-0029's order. Minted only by the curation loader from the record's `contrasts_of_interest`; producers receive it pre-keyed and mint none (ADR-0029 E). Its arms are declared in curation by mapping key (ADR-0038 D1) and materialised as D4's two arm edges (§5), which are not anchors: identity is unchanged | `label` |
 | `Analysis` | `kind`, `basis`, `confidence`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `parameters_json` | `Dataset` (`USED`) — one or more; for a curation analysis the asserted content stands in for it | `label`, `rationale`, `started_at`, `ended_at`, `workflow_id`, `workflow_revision` |
 | `Imputation` | `method`, `downshift_sd`, `width_sd`, `seed`, `scope` | `Analysis` (`IMPUTATION_FOR`) | `n_values_imputed`, `n_values_total`, `asserted_at`, `retracted_at` |
 | `ModifierAssignment` | `basis`, `candidate_modifiers`, `confidence` | `Modifier` (`ASSIGNS`), `SiteObservation` (`ASSIGNMENT_FOR`), `Analysis` (`ASSIGNMENT_SUPPORTED_BY`) / `Publication` (`ASSIGNMENT_CITES`) | `rationale`, `asserted_at`, `retracted_at` |
@@ -397,13 +397,14 @@ CREATE NODE TABLE Sample(
                                 -- than being unknown (§3 absence table).
   replicate INT64,
   replicate_type STRING,        -- 'biological' | 'technical'
-  role STRING,                  -- 'ip' | 'no_antibody_control'. NULL unless the experiment's
-                                -- modality is 'ip_ms' (§3 absence table, ADR-0036 D2/D3).
+  role STRING,                  -- 'ip' | 'no_antibody_control' | 'isotype_control'. NULL
+                                -- unless the experiment's modality is 'ip_ms' (§3 absence
+                                -- table, ADR-0036 D2/D3; 'isotype_control' ADR-0038 D2).
   bait STRING,                  -- uniprot: CURIE of the protein the antibody targets.
                                 -- NULL unless role = 'ip' (§3 absence table).
   antibody STRING,              -- Non-identifying. Clone or catalogue number; NULL unless
-                                -- role = 'ip', and may be NULL even then: it is
-                                -- conditionally reported (ADR-0036 D2).
+                                -- role ∈ {'ip', 'isotype_control'} (ADR-0038 D2), and may be
+                                -- NULL even then: it is conditionally reported (ADR-0036 D2).
   PRIMARY KEY (id));
 
 CREATE NODE TABLE Dataset(
@@ -519,6 +520,8 @@ CREATE REL TABLE RESULT_FOR_SITE(FROM DifferentialResult TO SiteObservation, MAN
 CREATE REL TABLE RESULT_FOR_PROTEIN(FROM DifferentialResult TO ProteinObservation, MANY_ONE);
 CREATE REL TABLE RESULT_IN_CONTRAST(FROM DifferentialResult TO Contrast, MANY_ONE);
 CREATE REL TABLE CONTRAST_IN_EXPERIMENT(FROM Contrast TO Experiment, MANY_ONE);
+CREATE REL TABLE NUMERATOR_SAMPLE(FROM Contrast TO Sample, MANY_MANY);
+CREATE REL TABLE DENOMINATOR_SAMPLE(FROM Contrast TO Sample, MANY_MANY);
 CREATE REL TABLE ADJUSTED_BY(FROM DifferentialResult TO DifferentialResult, MANY_ONE);
 CREATE REL TABLE SAMPLE_GENERATED_BY(FROM Sample TO Analysis, MANY_ONE);
 CREATE REL TABLE CURATION_CITES(FROM Analysis TO Publication);
@@ -578,7 +581,7 @@ This state exists because the platform's first real user is expected to supply u
 
 To compute anything from a dataset, the platform must know which raw files correspond to which experimental conditions — the **sample-to-condition mapping**. Where SDRF-Proteomics accompanies a submission this is machine-readable. Most PRIDE submissions do not include it, so the mapping is inferred from filenames, submission metadata, or the methods section of the associated paper.
 
-That inference is an assertion about an experiment this laboratory did not perform, and it is frequently wrong. Treated as configuration, an error is invisible in the graph and its correction is destructive: the file is edited, results are recomputed, and nothing records that the design was ever inferred or ever different. Treated as an activity, the provenance chain from `DifferentialResult` through `Contrast` to `Sample` terminates in a recorded curation event with an author, a basis, and a supersession path.
+That inference is an assertion about an experiment this laboratory did not perform, and it is frequently wrong. Treated as configuration, an error is invisible in the graph and its correction is destructive: the file is edited, results are recomputed, and nothing records that the design was ever inferred or ever different. Treated as an activity, the provenance chain from `DifferentialResult` through `Contrast` to `Sample` — the last step by the arm edges `NUMERATOR_SAMPLE` and `DENOMINATOR_SAMPLE` (ADR-0038 D4) — terminates in a recorded curation event with an author, a basis, and a supersession path.
 
 Invariant I5 already requires it. `Sample` is an entity node; a `Sample` conjured from a configuration file reaches no `prov:Activity` and is therefore permanently and correctly flagged `unprovenanced`. Configuration is not an available option.
 
@@ -992,6 +995,21 @@ Normative. Violations are ingestion errors, not warnings.
   - **The trigger is the edge, not the node.** The node-triggered form is refused by real ingestion, which re-stages 36 `Sample`s and 1,362 `SiteObservation`s as referents with no anchor edge (ADR-0019). Over `bzk rebuild` and the differential at `856c3d1`, the edge-triggered form refused nothing: 13,223 and 6,799 distinct nodes triggered, with zero null doors, mismatches or multi-valued anchors (ADR-0037 *Pre-registration result*).
   - **What it cannot catch:** a node whose anchor *and* anchor edge are both omitted, because nothing in the change-set names the anchor. That is a per-label anchor-presence guard's job (ADR-0037 D5).
   - **The worked instance: a correction's id names the baseline it was computed against.** Every `DifferentialResult` that carries an `ADJUSTED_BY` edge must carry the id `evidence_id` produces from its identifying fields and the anchor ids its own change-set names. ADR-0025 made `ADJUSTED_BY` an anchor; nothing obliged a producer to *supply* it, and the key builder permits an absent anchor outright because not every anchor applies to every instance (`keys.identity_tuple`). **This closes the null door, measured before the invariant was written.** Two corrections against different baselines, both minted with the self-anchor omitted, mint one id — `bzk:3473130e9cb7f1198196ee40b0e30727` — so ADR-0025's collision returns by the same path the amendment was written to close, and I4, I20 and ADR-0019's structural validation all accept it: I4 reads the edge and never the id, I20 counts `RESULT_FOR_*`, and structural validation recomputes no ids at all. A null self-anchor renders `@DifferentialResult=␀null`, identical to a legitimately absent one, so no reader downstream can separate them either. **Acyclicity is subsumed, not asserted separately.** A cycle in `ADJUSTED_BY` needs each id to encode the other's, which needs `sha256` to determine its own input — no fixed point in 12 iterations, and unsatisfiable by construction rather than merely unreached — and a cycle assembled from ids each minted against some *third* baseline is refused at both ends, because neither encodes the target its edge names. That second case is why this is an identity check and not the weaker *the id must differ from its no-baseline form*, which the crossed cycle passes. **Three limits, stated so a pass cannot be misread.** A hand-written id is outside it — `bzk:dr1` claims no digest — so the fixture route ADR-0025 records stays exactly as open as it was, and no fixture or test change-set had to be re-keyed. It obliges a change-set carrying an `ADJUSTED_BY` edge to carry that result's other anchor edges too, since without them the recomputation cannot reproduce the id; ADR-0019's self-containment already implies this and I20 already imposes it for `RESULT_FOR_*`. And **nothing in this repository produces the case**: no writer emits `protein_adjusted='applied'`, all 1,362 shipped results are `not_applied` and none carries the edge, so it is exercised only by constructed cases — as I20's and ADR-0025's own guard are. Minted 2026-08-10; generalised 2026-10-03 (ADR-0037). Enforced at write time.
+- **I22 — A contrast's arms are role-consistent.** *Minted 2026-10-08 by ADR-0038 D2, over the arms D1 declares and D4 materialises.* Every `Contrast` carries a numerator and a denominator arm of `Sample`s, by `NUMERATOR_SAMPLE` and `DENOMINATOR_SAMPLE`. Both arms are non-empty — every contrast declares them, with no optional form (D8) — no sample is in both, and the arms' roles pair as the table permits. The contrast's **kind** is derived from the anchor `Experiment`'s `modality` and the arms' roles, and is **never stored**: no property or column holds it (ADR-0036 D4's rule, kept).
+
+  | `Experiment.modality` | Numerator arm | Denominator arm | Kind |
+  |---|---|---|---|
+  | not `ip_ms` | every `role` NULL | every `role` NULL | `condition` |
+  | `ip_ms` | all `ip`, one `bait` | all `ip`, the same `bait` | `differential_association` |
+  | `ip_ms` | all `ip`, one `bait` | all one control role | `background_enrichment` |
+  | `ip_ms` | any control | any | refused: a control is never the numerator |
+  | `ip_ms` | mixed roles, or two control roles, in one arm | | refused |
+
+  - **A control role is any `role` but `ip`** — `no_antibody_control` or `isotype_control` (§5).
+  - **Not part of I22: whether an arm must be one condition.** A pooled control arm spanning conditions is a standard choice and would fail such a rule (§11 Q16).
+  - **Enforced at the curation loader, at contrast mint.** The loader is the only `Contrast` minter (ADR-0029 E), and the one place both arms' samples and the anchor's `modality` are in hand.
+  - **Its graph form runs over D4's edges** wherever a change-set carries a `Contrast` with its `CONTRAST_IN_EXPERIMENT` edge: the loader's own change-set, and the store write that replays it. Arm edges on a `Contrast` without that edge are refused, since the `modality` cannot then be read.
+  - **Vacuous at every adapter.** A producer stages its `Contrast` as a referent without either edge (ADR-0029 E), so I22 has nothing to check there. That is sound **only while the loader is the only `Contrast` minter**. Enforced at write time.
 
 ---
 
@@ -1264,6 +1282,11 @@ Domain logic lives in subtypes, never in code that consumes a contract. Any func
     - **The contradiction.** §3 says *an anchor must be single-valued*. Yet `USED` (`Analysis`→`Dataset`), `ASSIGNMENT_SUPPORTED_BY`, `ASSIGNMENT_CITES`, `ASSOCIATION_SUPPORTED_BY` and `ASSOCIATION_CITES` are anchors whose relationships declare no multiplicity, so structural validation lets a node carry two of them.
     - **What enforces single-valuedness today.** I21 refuses two counterparts for one anchor in a change-set, because an id renders one per anchor. No such node exists in real ingestion (ADR-0037 P2).
     - **Why it is not settled here.** ADR-0036's concordance assignment is likely to want an `Analysis` that `USED` two `Dataset`s, the IP result's and the site result's. That is exactly the case the declaration would forbid. So both are settled together, before the concordance writer.
+
+16. **Must an arm be one condition, and are pooled control arms exempt?** *Opened 2026-10-08 by ADR-0038 D2.*
+    - **The case.** All ten arms the committed records declare are one condition each (ADR-0038 M4). A pooled bead arm spanning conditions is a standard IP-MS choice, and a one-condition rule would refuse it.
+    - **What holds today.** I22 (§8) checks roles and baits, not conditions, so a pooled arm is admitted.
+    - **To settle:** whether I22 should carry a one-condition rule and, if so, whether control arms are exempt from it.
 
 **Resolved**
 

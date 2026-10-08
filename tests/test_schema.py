@@ -78,6 +78,22 @@ def test_schema_rel_tables_match_ontology() -> None:
 # closes the class; noticing it once does not.
 
 
+#: Same-shape relationship pairs admitted by ADR-0039, each with the record that decided the two
+#: names are distinct facts. **Keyed on the pair, its endpoints and its multiplicity** (ADR-0039
+#: D3): any other same-shape group fails as before — a third `Contrast → Sample, MANY_MANY`
+#: relationship beside these two included — and a pin whose pair changes shape stops matching the
+#: DDL and fails too. A whitelist of one, after `ONE_SIDED_SUPERSESSION` in
+#: `tests/test_decision_index.py`; adding an entry without writing its record is the thing this
+#: guard refuses.
+PINNED_SAME_SHAPE: dict[tuple[frozenset[str], tuple[tuple[str, str], ...], str], str] = {
+    (
+        frozenset({"NUMERATOR_SAMPLE", "DENOMINATOR_SAMPLE"}),
+        (("Contrast", "Sample"),),
+        "MANY_MANY",
+    ): "0038-contrast-arms-are-declared-and-bound-at-the-loader.md#D4",
+}
+
+
 def test_no_two_relationships_share_endpoints_and_multiplicity() -> None:
     """`RESOLVES_TO_SITE` and `MEASURED_AT` were `SiteObservation → ModificationSite`, `MANY_ONE`,
     both of them — one fact stored twice, kept in step by nothing. §1's diagram drew one and §3's
@@ -86,16 +102,44 @@ def test_no_two_relationships_share_endpoints_and_multiplicity() -> None:
 
     Checked against the DDL rather than `schema.py`, so amending the document without the mirror
     still fails here.
+
+    **Amended by ADR-0039**: a same-shape group is admitted only when `PINNED_SAME_SHAPE` names
+    exactly that group at exactly that shape. A pin the DDL no longer realises — one of the pair
+    renamed, dropped or moved to another shape — fails as stale rather than passing by having
+    nothing left to match, and each pin's record must exist and carry the decision it cites.
     """
     _, rels = _parse_ontology()
     by_shape: dict[tuple[tuple[tuple[str, str], ...], str | None], list[str]] = {}
     for name, (pairs, mult) in rels.items():
         by_shape.setdefault((pairs, mult), []).append(name)
-    duplicates = {shape: names for shape, names in by_shape.items() if len(names) > 1}
+    groups = {
+        (frozenset(names), pairs, mult)
+        for (pairs, mult), names in by_shape.items()
+        if len(names) > 1
+    }
+    duplicates = sorted(
+        (sorted(names), pairs, mult)
+        for names, pairs, mult in groups
+        if (names, pairs, mult) not in PINNED_SAME_SHAPE
+    )
     assert not duplicates, (
         f"relationships sharing endpoints and multiplicity: {duplicates}. Two names for one fact "
-        "diverge; pick one and drop the other (ADR-0023) rather than keeping an alias."
+        "diverge; pick one and drop the other (ADR-0023) rather than keeping an alias — or, if they "
+        "are two facts, pin the pair with the record that decided so (ADR-0039)."
     )
+    stale = sorted(
+        (sorted(names), pairs, mult)
+        for names, pairs, mult in PINNED_SAME_SHAPE
+        if (names, pairs, mult) not in groups
+    )
+    assert not stale, (
+        f"pinned same-shape pairs the DDL no longer carries at that shape: {stale}. A pin keys on "
+        "the pair, its endpoints and its multiplicity (ADR-0039 D3); re-decide it, don't re-key it."
+    )
+    decisions = ONTOLOGY.parent / "decisions"
+    for record in PINNED_SAME_SHAPE.values():
+        filename, _, decision = record.partition("#")
+        assert f"### {decision}." in (decisions / filename).read_text(), record
 
 
 def test_no_relationship_is_the_exact_reverse_of_another() -> None:

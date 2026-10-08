@@ -4,7 +4,7 @@ The invariants of ONTOLOGY.md §8 are errors, not warnings (CLAUDE.md): a violat
 `InvariantError`, which ingestion must let propagate rather than downgrade.
 
 **Enforced here** (write-time, over the staged change-set):
-  I2, I3, I4, I10, I14, I15, I16, I19, I20, I21 — one checker each — plus **change-set structural
+  I2, I3, I4, I10, I14, I15, I16, I19, I20, I21, I22 — one checker each — plus **change-set structural
   validation** (ADR-0019): every referent an edge names is present, every edge endpoint carries
   the node label `schema.py` declares for that relationship, every edge type is a relationship in
   the DDL, every relationship's multiplicity is respected (a MANY_ONE source or a ONE_MANY
@@ -863,6 +863,132 @@ def _check_contrast_anchor(nodes: list[Node], edges: list[Edge]) -> None:
             )
 
 
+#: The one `Experiment.modality` whose samples carry a `role`, and the role that pulls down a bait
+#: (ADR-0036 D2/D3). Read by I22 and by `bzk/curation/loader.py`, which binds its `_IP_MODALITY` to
+#: this rather than writing the literal again; both are held to §5's `Sample` DDL comment by
+#: `tests/test_curation_loader.py`.
+IP_MODALITY = "ip_ms"
+IP_ROLE = "ip"
+
+
+def contrast_kind(
+    contrast_id: object, modality: object, numerator: list[Node], denominator: list[Node]
+) -> str:
+    """ADR-0038 D2's table: a contrast's kind, derived from its anchor's `modality` and the roles
+    of its arms' samples — or I22's refusal.
+
+    | modality   | numerator          | denominator             | kind                       |
+    |------------|--------------------|-------------------------|----------------------------|
+    | not ip_ms  | every role NULL    | every role NULL         | `condition`                |
+    | ip_ms      | all `ip`, one bait | all `ip`, the same bait | `differential_association` |
+    | ip_ms      | all `ip`, one bait | all one control role    | `background_enrichment`    |
+    | ip_ms      | any control        | any                     | refused                    |
+    | ip_ms      | mixed roles, or two control roles, in one arm | | refused                 |
+
+    A *control role* is any role but `ip`: the closed enum is `ip` and two controls (§5), and a
+    control is never the numerator. **The kind is derived, never stored** — nothing writes it to a
+    node or a column (ADR-0036 D4's rule, kept by ADR-0038 D2). Whether an arm must be one
+    condition is **not** part of I22 (§11 Q16).
+    """
+
+    def refuse(why: str) -> InvariantError:
+        return InvariantError(
+            "I22", f"Contrast {contrast_id!r} {why} (ADR-0038 D2, ONTOLOGY.md §8 I22)"
+        )
+
+    roles: list[object] = []
+    for side, samples in (("numerator", numerator), ("denominator", denominator)):
+        if not samples:
+            raise refuse(f"has an empty {side} arm; every contrast declares both (ADR-0038 D8)")
+        found = sorted({s.get("role") for s in samples}, key=repr)
+        if len(found) > 1:
+            raise refuse(
+                f"mixes roles {found} in its {side} arm; an arm is one role, so mixed roles and "
+                "two control roles in one arm are both refused"
+            )
+        roles.append(found[0])
+    num_role, den_role = roles
+    if modality != IP_MODALITY:
+        if num_role is None and den_role is None:
+            return "condition"
+        raise refuse(
+            f"is in a {modality!r} experiment, where every role is NULL, but its arms carry roles "
+            f"{num_role!r} / {den_role!r}"
+        )
+    if num_role != IP_ROLE:
+        raise refuse(
+            f"has a {num_role!r} numerator arm in an {IP_MODALITY!r} experiment: the numerator is "
+            f"an {IP_ROLE!r} arm, and a control is never the numerator"
+        )
+    baits = sorted({s.get("bait") for s in numerator}, key=repr)
+    if len(baits) != 1:
+        raise refuse(f"has a numerator arm pulling down {baits}; an IP arm has one bait")
+    if den_role == IP_ROLE:
+        den_baits = sorted({s.get("bait") for s in denominator}, key=repr)
+        if den_baits != baits:
+            raise refuse(
+                f"compares IP arms against different baits, {baits} and {den_baits}; a "
+                "differential association compares one bait across conditions"
+            )
+        return "differential_association"
+    if den_role is None:
+        raise refuse(f"has a denominator arm with no role in an {IP_MODALITY!r} experiment")
+    return "background_enrichment"
+
+
+def _check_I22(nodes: list[Node], edges: list[Edge]) -> None:
+    """I22 — a contrast's arms are role-consistent (ADR-0038 D2), over D4's arm edges.
+
+    Applies to every `Contrast` this change-set **mints**, which is the one carrying its
+    `CONTRAST_IN_EXPERIMENT` anchor edge: it must carry both arms (D8), no sample in both, and arms
+    `contrast_kind` accepts against the anchor's `modality`. Arm edges on a `Contrast` without its
+    anchor edge are refused, since without the anchor the modality — and so the kind — cannot be
+    read, and the loader writes the two together.
+
+    **Where this is vacuous, and why that is sound.** It runs at all five `validate` sites. It is
+    non-vacuous at two: the curation loader's own call, and the store write that replays the
+    loader's change-set. Every adapter change-set stages its `Contrast` as a referent, without the
+    anchor edge and without arm edges (ADR-0029 E), so I22 passes there vacuously. **That is sound
+    only while the loader is the only `Contrast` minter** (ADR-0029 E): a second minter whose
+    change-set omitted the anchor would mint a contrast this check never sees.
+    """
+    anchor = {e["from"]: e["to"] for e in _edges(edges, "CONTRAST_IN_EXPERIMENT")}
+    arms: dict[str, dict[Any, list[Any]]] = {
+        rel: defaultdict(list) for rel in ("NUMERATOR_SAMPLE", "DENOMINATOR_SAMPLE")
+    }
+    for rel, by_contrast in arms.items():
+        for edge in _edges(edges, rel):
+            by_contrast[edge["from"]].append(edge["to"])
+    samples = _index(nodes, "Sample")
+    experiments = _index(nodes, "Experiment")
+    for contrast in _nodes(nodes, "Contrast"):
+        cid = contrast.get("id")
+        numerator = arms["NUMERATOR_SAMPLE"].get(cid, [])
+        denominator = arms["DENOMINATOR_SAMPLE"].get(cid, [])
+        if cid not in anchor:
+            if numerator or denominator:
+                raise InvariantError(
+                    "I22",
+                    f"Contrast {cid!r} carries arm edges but no CONTRAST_IN_EXPERIMENT, so the "
+                    "modality its kind is derived from cannot be read; the loader writes the arms "
+                    "and the anchor together (ADR-0038 D4, ONTOLOGY.md §8 I22)",
+                )
+            continue  # a referent (ADR-0029 E): nothing here to check, by construction
+        both = sorted(set(numerator) & set(denominator))
+        if both:
+            raise InvariantError(
+                "I22",
+                f"Contrast {cid!r} puts {both} in both arms; a sample is never compared against "
+                "itself (ADR-0038 D1, ONTOLOGY.md §8 I22)",
+            )
+        contrast_kind(
+            cid,
+            experiments[anchor[cid]].get("modality"),
+            [samples[s] for s in numerator],
+            [samples[s] for s in denominator],
+        )
+
+
 _CHECKS: dict[str, Callable[[list[Node], list[Edge]], None]] = {
     "I2": _check_I2,
     "I3": _check_I3,
@@ -874,6 +1000,7 @@ _CHECKS: dict[str, Callable[[list[Node], list[Edge]], None]] = {
     "I19": _check_I19,
     "I20": _check_I20,
     "I21": _check_I21,
+    "I22": _check_I22,
     "GENE_ABSENCE": _check_gene_absence,
     "CONTRAST_ANCHOR": _check_contrast_anchor,
 }

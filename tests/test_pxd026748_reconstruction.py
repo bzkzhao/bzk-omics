@@ -86,6 +86,10 @@ def _record(tmp_path: Path, *, name: str, filename: str, content_hash: str, pref
     record["file"] = filename
     record["content_hash"] = content_hash
     record["mapping"] = _mapping(prefix)
+    # The mapping is re-keyed to this test's columns, and a contrast's arms name mapping keys
+    # verbatim (ADR-0038 D1); the synthetic contrast would name keys this record no longer
+    # carries. Nothing here reads a contrast, so the derived record declares none.
+    record.pop("contrasts_of_interest")
     path = tmp_path / name
     path.write_text(json.dumps(record), encoding="utf-8")
     return path

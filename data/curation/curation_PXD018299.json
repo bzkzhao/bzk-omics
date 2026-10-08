@@ -33,12 +33,32 @@
       "id": "KO_IFN_vs_WT_IFN",
       "numerator": "USP18-/- + IFN",
       "denominator": "WT + IFN",
+      "numerator_samples": [
+        "Ratio mod/base KO_IFN_1",
+        "Ratio mod/base KO_IFN_2",
+        "Ratio mod/base KO_IFN_3"
+      ],
+      "denominator_samples": [
+        "Ratio mod/base WT_IFN_1",
+        "Ratio mod/base WT_IFN_2",
+        "Ratio mod/base WT_IFN_3"
+      ],
       "note": "Primary contrast. Corresponds to Figure 2f of the publication."
     },
     {
       "id": "KO_vs_WT_unstimulated",
       "numerator": "USP18-/-",
       "denominator": "WT",
+      "numerator_samples": [
+        "Ratio mod/base KO_1_181212063719",
+        "Ratio mod/base KO_2",
+        "Ratio mod/base KO_3"
+      ],
+      "denominator_samples": [
+        "Ratio mod/base WT_1",
+        "Ratio mod/base WT_2",
+        "Ratio mod/base WT_3"
+      ],
       "note": "Negative control. Publication reports no significant change, consistent with USP18 being expressed at very low levels when the IFN pathway is inactive."
     }
   ],

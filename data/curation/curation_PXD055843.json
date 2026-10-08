@@ -37,6 +37,16 @@
       "id": "siUSP24_IFN_vs_siC_IFN",
       "numerator": "siUSP24 (+ IFN-B)",
       "denominator": "siC (+IFN-B)",
+      "numerator_samples": [
+        "Set 1 | siUSP24 (+ IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP04_S1-D5_463.d",
+        "Set 2 | siUSP24 (+ IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP08_S1-H5_467.d",
+        "Set 3 | siUSP24 (+ IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP12_S1-D6_471.d"
+      ],
+      "denominator_samples": [
+        "Set 1 | siC (+IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP03_S1-C5_462.d",
+        "Set 2 | siC (+IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP07_S1-G5_466.d",
+        "Set 3 | siC (+IFN-B) | E:\\Proteomics-SCP00004\\SCP0004_MSQ2531_20221219_Rishov-AdanPinto_TP11_S1-C6_470.d"
+      ],
       "note": "The only contrast the file's statistics columns carry. Perseus wrote the suffix 'siUSP24_IFN_siCTRL_IFN' into all six of them, measured here off the composed header; an adapter needs that string as DeclaredContrast.column_suffix and takes it from the caller, since nothing reads it out of this record. The arms above are the file's own condition strings verbatim, and their order rests on Perseus' numerator-first convention rather than on any statement - see unresolved."
     }
   ],

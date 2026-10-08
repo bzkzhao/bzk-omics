@@ -326,6 +326,9 @@ def test_ids_do_not_depend_on_the_label_column(
     """
     changed = copy.deepcopy(synthetic)
     changed["mapping"]["Intensity CTRL_1 renamed"] = changed["mapping"].pop("Intensity CTRL_1")
+    # The key is renamed wherever the record names it, its arm included (ADR-0038 D1).
+    (contrast,) = changed["contrasts_of_interest"]
+    contrast["denominator_samples"] = ["Intensity CTRL_1 renamed", "Intensity CTRL_2"]
     assert set(load(changed).sample_ids.values()) == set(loaded.sample_ids.values())
 
 
@@ -597,6 +600,11 @@ def _ip_ms_record() -> dict[str, Any]:
     Every entry is an `ip` against ISG15 except `_CONTROL`, a `no_antibody_control` with no bait.
     The antibody is the clone ADR-0036 D2 quotes from the methods; nothing here is a claim that
     this dataset was an IP.
+
+    **I22 shapes the contrasts too** (ADR-0038 D2): `KO_vs_WT_unstimulated`'s denominator is
+    narrowed to `_CONTROL` alone, since `WT_1`–`WT_3` would otherwise mix `ip` with a control in
+    one arm. So the record carries one contrast of each IP kind — `KO_IFN_vs_WT_IFN` IP against
+    IP, `KO_vs_WT_unstimulated` IP against the bead control.
     """
     record = _record(REAL_RECORD)
     record["experiment"]["modality"] = "ip_ms"
@@ -605,7 +613,14 @@ def _ip_ms_record() -> dict[str, Any]:
             entry["role"] = "no_antibody_control"
         else:
             entry.update(role="ip", bait="uniprot:P05161", antibody="Boston Biochem A-380")
+    unstimulated = _contrast_entry(record, "KO_vs_WT_unstimulated")
+    unstimulated["denominator_samples"] = [_CONTROL]
     return record
+
+
+def _contrast_entry(record: dict[str, Any], handle: str) -> dict[str, Any]:
+    (entry,) = (c for c in record["contrasts_of_interest"] if c["id"] == handle)
+    return cast("dict[str, Any]", entry)
 
 
 def _role_refusal(record: dict[str, Any]) -> str:
@@ -711,3 +726,383 @@ def test_the_committed_records_carry_no_role_bait_or_antibody() -> None:
     for path in records:
         for sample in _nodes(load_path(path), "Sample"):
             assert (sample["role"], sample["bait"], sample["antibody"]) == (None, None, None), path
+
+
+# ── ADR-0038 D1/D8: arms declared by mapping key and resolved at the loader ────────────────────
+
+
+def _arm_refusal(record: dict[str, Any]) -> str:
+    with pytest.raises(CurationInvalid) as exc:
+        load(record)
+    message = str(exc.value)
+    assert "contrast arm fault(s) (ADR-0038 D1, D3, D8)" in message
+    return message
+
+
+def test_a_contrast_entry_key_outside_the_recognised_set_is_refused(
+    synthetic: dict[str, Any],
+) -> None:
+    """ADR-0038 M3 measured the misspelling loading clean and being dropped. Refused first, so the
+    typo is named rather than the arm it failed to supply."""
+    (entry,) = synthetic["contrasts_of_interest"]
+    entry["numerator_sampels"] = entry.pop("numerator_samples")
+    with pytest.raises(CurationInvalid) as exc:
+        load(synthetic)
+    message = str(exc.value)
+    assert message.startswith("1 contrast entry key fault(s): ")
+    assert "contrasts_of_interest[0] carries ['numerator_sampels']" in message
+    assert "numerator_samples is absent" not in message
+    assert str(sorted(loader.CONTRAST_ENTRY_KEYS)) in message
+
+
+def test_the_recognised_contrast_entry_keys_are_d1s() -> None:
+    assert loader.CONTRAST_ENTRY_KEYS == {
+        "id",
+        "numerator",
+        "denominator",
+        "numerator_samples",
+        "denominator_samples",
+        "note",
+    }
+
+
+def test_an_absent_arm_is_refused_there_is_no_optional_form(synthetic: dict[str, Any]) -> None:
+    del synthetic["contrasts_of_interest"][0]["denominator_samples"]
+    message = _arm_refusal(synthetic)
+    assert message.startswith("1 contrast arm fault(s)")
+    assert "contrasts_of_interest[0].denominator_samples is absent" in message
+
+
+def test_an_arm_that_is_not_a_list_of_keys_is_refused(synthetic: dict[str, Any]) -> None:
+    synthetic["contrasts_of_interest"][0]["numerator_samples"] = "Intensity TREAT_1"
+    message = _arm_refusal(synthetic)
+    assert (
+        "contrasts_of_interest[0].numerator_samples = 'Intensity TREAT_1' is not a list of "
+        "mapping keys" in message
+    )
+
+
+def test_an_empty_arm_is_refused(synthetic: dict[str, Any]) -> None:
+    synthetic["contrasts_of_interest"][0]["numerator_samples"] = []
+    message = _arm_refusal(synthetic)
+    assert "contrasts_of_interest[0].numerator_samples is empty" in message
+
+
+def test_a_key_absent_from_mapping_is_refused_with_no_normalisation(
+    synthetic: dict[str, Any],
+) -> None:
+    """Exact membership: the trailing space a spreadsheet export leaves names no sample."""
+    synthetic["contrasts_of_interest"][0]["numerator_samples"] = [
+        "Intensity TREAT_1 ",
+        "Intensity TREAT_2",
+    ]
+    message = _arm_refusal(synthetic)
+    assert (
+        "contrasts_of_interest[0].numerator_samples names ['Intensity TREAT_1 '], which are not "
+        "keys of mapping" in message
+    )
+
+
+def test_a_key_repeated_within_an_arm_is_refused(synthetic: dict[str, Any]) -> None:
+    synthetic["contrasts_of_interest"][0]["numerator_samples"] = [
+        "Intensity TREAT_1",
+        "Intensity TREAT_1",
+    ]
+    message = _arm_refusal(synthetic)
+    assert (
+        "contrasts_of_interest[0].numerator_samples names ['Intensity TREAT_1'] more than once"
+        in message
+    )
+
+
+def test_a_sample_in_both_arms_is_refused(synthetic: dict[str, Any]) -> None:
+    synthetic["contrasts_of_interest"][0]["numerator_samples"].append("Intensity CTRL_1")
+    message = _arm_refusal(synthetic)
+    assert "contrasts_of_interest[0] puts ['Intensity CTRL_1'] in both arms" in message
+
+
+def test_a_numerator_equal_to_its_denominator_is_refused(synthetic: dict[str, Any]) -> None:
+    synthetic["contrasts_of_interest"][0]["denominator"] = "treated"
+    message = _arm_refusal(synthetic)
+    assert "contrasts_of_interest[0].numerator and .denominator are both 'treated'" in message
+
+
+def test_two_entries_with_one_pair_are_refused(synthetic: dict[str, Any]) -> None:
+    second = copy.deepcopy(synthetic["contrasts_of_interest"][0])
+    second["id"] = "treated_vs_untreated_again"
+    synthetic["contrasts_of_interest"].append(second)
+    message = _arm_refusal(synthetic)
+    assert (
+        "contrasts_of_interest[1] repeats the (numerator, denominator) pair "
+        "('treated', 'untreated') of contrasts_of_interest[0]" in message
+    )
+
+
+def test_every_arm_fault_is_named_in_one_message(synthetic: dict[str, Any]) -> None:
+    (entry,) = synthetic["contrasts_of_interest"]
+    entry["numerator_samples"] = []
+    entry["denominator_samples"] = ["Intensity CTRL_9"]
+    message = _arm_refusal(synthetic)
+    assert message.startswith("2 contrast arm fault(s)")
+    assert "numerator_samples is empty" in message
+    assert "denominator_samples names ['Intensity CTRL_9']" in message
+
+
+def test_arms_resolve_to_edges_and_ride_beside_the_node(loaded: LoadedCuration) -> None:
+    """D1/D4: the arms are `Sample` ids on `LoadedCuration` and two edge types in the change-set,
+    and nothing of them reaches the `Contrast` node — its properties are the ones it had."""
+    node = loaded.contrast("treated_vs_untreated")
+    arms = loaded.contrast_arms["treated_vs_untreated"]
+    ids = loaded.sample_ids
+    assert arms.numerator == (ids["Intensity TREAT_1"], ids["Intensity TREAT_2"])
+    assert arms.denominator == (ids["Intensity CTRL_1"], ids["Intensity CTRL_2"])
+    assert arms.kind == "condition"
+    for rel, members in (
+        ("NUMERATOR_SAMPLE", arms.numerator),
+        ("DENOMINATOR_SAMPLE", arms.denominator),
+    ):
+        assert [e["to"] for e in loaded.edges if e["type"] == rel and e["from"] == node["id"]] == (
+            list(members)
+        )
+    assert set(node) == {NODE_TYPE_KEY, "id", "numerator", "denominator", "label"}
+
+
+def test_the_arm_edges_are_not_identifying() -> None:
+    """D4: absent from `IDENTITY`, which is an allow-list — so no anchor, and no id moves."""
+    for spec in schema.IDENTITY.values():
+        assert not {rel for _, rel in spec.anchors} & {"NUMERATOR_SAMPLE", "DENOMINATOR_SAMPLE"}
+    assert schema.IDENTITY["Contrast"].fields == ("numerator", "denominator")
+
+
+def test_the_committed_records_declare_thirty_arm_keys_three_against_three() -> None:
+    """ADR-0038 M4: five contrasts, 30 keys, 3 against 3, no overlap; every one a `condition`."""
+    edges = 0
+    for path in sorted(CURATION_DIR.glob("curation_*.json")):
+        loaded_record = load_path(path)
+        for arms in loaded_record.contrast_arms.values():
+            assert (len(arms.numerator), len(arms.denominator)) == (3, 3), path
+            assert not set(arms.numerator) & set(arms.denominator), path
+            assert arms.kind == "condition", path
+        assert set(loaded_record.contrast_arms) == set(loaded_record.contrast_nodes), path
+        edges += sum(
+            e["type"] in ("NUMERATOR_SAMPLE", "DENOMINATOR_SAMPLE") for e in loaded_record.edges
+        )
+    assert edges == 30
+
+
+# ── ADR-0038 D2: I22, each row of the table, on records constructed here ──────────────────────
+#
+# No committed record is `ip_ms`, so every IP row below runs on `_ip_ms_record`, built here and
+# never written to disk.
+
+_KO_UNSTIMULATED = [
+    "Ratio mod/base KO_1_181212063719",
+    "Ratio mod/base KO_2",
+    "Ratio mod/base KO_3",
+]
+
+
+def _i22_refusal(record: dict[str, Any]) -> str:
+    with pytest.raises(invariants.InvariantError) as exc:
+        load(record)
+    assert exc.value.invariant == "I22"
+    return str(exc.value)
+
+
+def _sample_by_key(result: LoadedCuration, key: str) -> dict[str, Any]:
+    (node,) = (n for n in result.nodes if n["id"] == result.sample_ids[key])
+    return node
+
+
+def test_I22_derives_each_permitted_kind() -> None:
+    """Rows 1–3: `condition` on every committed record (above), and both IP kinds here."""
+    arms = load(_ip_ms_record()).contrast_arms
+    assert arms["KO_IFN_vs_WT_IFN"].kind == "differential_association"
+    assert arms["KO_vs_WT_unstimulated"].kind == "background_enrichment"
+
+
+def test_I22_admits_an_isotype_control_arm_carrying_its_antibody() -> None:
+    """`isotype_control` joins the enum and R7 widens to it (ADR-0038 D2)."""
+    record = _ip_ms_record()
+    record["mapping"][_CONTROL].update(role="isotype_control", antibody="normal rabbit IgG")
+    loaded_record = load(record)
+    assert loaded_record.contrast_arms["KO_vs_WT_unstimulated"].kind == "background_enrichment"
+    control = _sample_by_key(loaded_record, _CONTROL)
+    assert (control["role"], control["bait"], control["antibody"]) == (
+        "isotype_control",
+        None,
+        "normal rabbit IgG",
+    )
+
+
+def test_I22_refuses_a_control_numerator() -> None:
+    record = _ip_ms_record()
+    entry = _contrast_entry(record, "KO_vs_WT_unstimulated")
+    entry["numerator_samples"], entry["denominator_samples"] = [_CONTROL], _KO_UNSTIMULATED
+    message = _i22_refusal(record)
+    assert "has a 'no_antibody_control' numerator arm in an 'ip_ms' experiment" in message
+    assert "a control is never the numerator" in message
+
+
+def test_I22_refuses_mixed_roles_in_one_arm() -> None:
+    record = _ip_ms_record()
+    _contrast_entry(record, "KO_vs_WT_unstimulated")["denominator_samples"] = [
+        _CONTROL,
+        "Ratio mod/base WT_2",
+    ]
+    message = _i22_refusal(record)
+    assert "mixes roles ['ip', 'no_antibody_control'] in its denominator arm" in message
+
+
+def test_I22_refuses_two_control_roles_in_one_arm() -> None:
+    record = _ip_ms_record()
+    record["mapping"]["Ratio mod/base WT_2"].update(role="isotype_control", bait=None)
+    _contrast_entry(record, "KO_vs_WT_unstimulated")["denominator_samples"] = [
+        _CONTROL,
+        "Ratio mod/base WT_2",
+    ]
+    message = _i22_refusal(record)
+    assert "mixes roles ['isotype_control', 'no_antibody_control'] in its denominator" in message
+
+
+def test_I22_refuses_an_ip_arm_with_two_baits() -> None:
+    record = _ip_ms_record()
+    record["mapping"]["Ratio mod/base KO_IFN_1"]["bait"] = "uniprot:P0CG48"
+    message = _i22_refusal(record)
+    assert "has a numerator arm pulling down ['uniprot:P05161', 'uniprot:P0CG48']" in message
+
+
+def test_I22_refuses_ip_arms_against_different_baits() -> None:
+    record = _ip_ms_record()
+    for n in (1, 2, 3):
+        record["mapping"][f"Ratio mod/base KO_IFN_{n}"]["bait"] = "uniprot:P0CG48"
+    message = _i22_refusal(record)
+    assert (
+        "compares IP arms against different baits, ['uniprot:P0CG48'] and ['uniprot:P05161']"
+        in message
+    )
+
+
+def _ip_change_set() -> tuple[LoadedCuration, list[dict[str, Any]], list[dict[str, Any]]]:
+    loaded_record = load(_ip_ms_record())
+    return (
+        loaded_record,
+        [dict(n) for n in loaded_record.nodes],
+        [dict(e) for e in loaded_record.edges],
+    )
+
+
+def test_I22_graph_form_refuses_arm_edges_without_the_anchor() -> None:
+    """Arms and anchor are written together; without the anchor the modality cannot be read."""
+    loaded_record, nodes, edges = _ip_change_set()
+    cid = loaded_record.contrast_nodes["KO_IFN_vs_WT_IFN"]["id"]
+    edges = [e for e in edges if not (e["type"] == "CONTRAST_IN_EXPERIMENT" and e["from"] == cid)]
+    with pytest.raises(invariants.InvariantError) as exc:
+        invariants.validate(nodes, edges, only="I22")
+    assert exc.value.invariant == "I22"
+    assert "carries arm edges but no CONTRAST_IN_EXPERIMENT" in str(exc.value)
+
+
+def test_I22_graph_form_refuses_a_minted_contrast_without_an_arm() -> None:
+    """D8 at the graph: a change-set carrying the anchor is minting the contrast, so it carries
+    both arms."""
+    loaded_record, nodes, edges = _ip_change_set()
+    cid = loaded_record.contrast_nodes["KO_IFN_vs_WT_IFN"]["id"]
+    edges = [e for e in edges if not (e["type"] == "DENOMINATOR_SAMPLE" and e["from"] == cid)]
+    with pytest.raises(invariants.InvariantError) as exc:
+        invariants.validate(nodes, edges, only="I22")
+    assert "has an empty denominator arm; every contrast declares both (ADR-0038 D8)" in str(
+        exc.value
+    )
+
+
+def test_I22_graph_form_refuses_a_sample_in_both_arms() -> None:
+    loaded_record, nodes, edges = _ip_change_set()
+    cid = loaded_record.contrast_nodes["KO_IFN_vs_WT_IFN"]["id"]
+    shared = loaded_record.contrast_arms["KO_IFN_vs_WT_IFN"].denominator[0]
+    edges.append({"type": "NUMERATOR_SAMPLE", "from": cid, "to": shared})
+    with pytest.raises(invariants.InvariantError) as exc:
+        invariants.validate(nodes, edges, only="I22")
+    assert f"puts [{shared!r}] in both arms" in str(exc.value)
+
+
+def test_I22_graph_form_refuses_a_role_outside_ip_ms() -> None:
+    """Row 1's NULLs: the loader's R2 refuses this first, so only the graph form can reach it —
+    which is where it matters, at a store write no loader rule guards."""
+    loaded_record = load_path(REAL_RECORD)
+    nodes = [dict(n) for n in loaded_record.nodes]
+    numerator = set(loaded_record.contrast_arms["KO_IFN_vs_WT_IFN"].numerator)
+    for sample in (n for n in nodes if n["id"] in numerator):
+        sample.update(role="ip", bait="uniprot:P05161")
+    with pytest.raises(invariants.InvariantError) as exc:
+        invariants.validate(nodes, list(loaded_record.edges), only="I22")
+    assert "is in a 'digly_proteomics' experiment, where every role is NULL" in str(exc.value)
+
+
+def test_I22_graph_form_refuses_an_ip_ms_arm_with_no_role() -> None:
+    """R3's case at the graph: an `ip_ms` denominator whose samples carry no role."""
+    loaded_record, nodes, edges = _ip_change_set()
+    (control,) = (n for n in nodes if n["id"] == loaded_record.sample_ids[_CONTROL])
+    control["role"] = None
+    with pytest.raises(invariants.InvariantError) as exc:
+        invariants.validate(nodes, edges, only="I22")
+    assert "has a denominator arm with no role in an 'ip_ms' experiment" in str(exc.value)
+
+
+def test_I22_runs_in_every_validate_not_only_when_asked() -> None:
+    """P1: an entry in `invariants._CHECKS`, so the store write's unfiltered `validate` runs it. The
+    loader would refuse without it — its own `contrast_kind` call reads the same table — so this is
+    the test that sees I22 dropped from `_CHECKS`."""
+    loaded_record, nodes, edges = _ip_change_set()
+    cid = loaded_record.contrast_nodes["KO_IFN_vs_WT_IFN"]["id"]
+    edges = [e for e in edges if not (e["type"] == "DENOMINATOR_SAMPLE" and e["from"] == cid)]
+    with pytest.raises(invariants.InvariantError) as exc:
+        invariants.validate(nodes, edges)
+    assert exc.value.invariant == "I22"
+
+
+def test_I22_is_vacuous_on_a_referent_contrast() -> None:
+    """Every producer stages its `Contrast` without the anchor or the arms (ADR-0029 E), and I22
+    has nothing to check there. Sound only while the loader is the only `Contrast` minter."""
+    node = load(_ip_ms_record()).contrast("KO_vs_WT_unstimulated")
+    invariants.validate([node], [], only="I22")
+
+
+# ── The `Sample` role mirror (handoff 10-05 §7's unguarded mirror) ────────────────────────────
+
+
+def _sample_ddl_comments() -> dict[str, str]:
+    """`Sample`'s DDL in ONTOLOGY.md §5, as {column -> its comment, continuation lines joined}."""
+    text = (REPO_ROOT / "ONTOLOGY.md").read_text()
+    body = re.search(r"CREATE NODE TABLE Sample\((.*?)PRIMARY KEY", text, re.DOTALL)
+    assert body, "no `Sample` table in ONTOLOGY.md"
+    comments: dict[str, str] = {}
+    column = None
+    for line in body.group(1).splitlines():
+        code, _, comment = line.partition("--")
+        if code.strip():
+            column = code.split()[0]
+            comments[column] = comment.strip()
+        elif column and comment:
+            comments[column] += " " + comment.strip()
+    return comments
+
+
+def test_the_role_vocabulary_mirrors_the_sample_ddl_comment() -> None:
+    """`_SAMPLE_ROLES`, `_IP_MODALITY` and R7's `_ANTIBODY_ROLES` against §5's `Sample` comment,
+    parsed rather than restated — the house pattern of `schema.py` ↔ §4–§7, `ABSENCE` ↔ §3 and
+    `CURATION_BASIS` ↔ §5.3. Built with ADR-0038 D2, the change that would otherwise have widened
+    one home and not the other."""
+    comments = _sample_ddl_comments()
+    enum, _, rest = comments["role"].partition(". ")
+    assert set(re.findall(r"'(\w+)'", enum)) == loader._SAMPLE_ROLES, comments["role"]
+    modality = re.search(r"modality is '(\w+)'", rest)
+    # Both names against the document, not against each other: the loader binds its name to
+    # `invariants.IP_MODALITY`, so comparing the two would hold by construction.
+    assert modality and {loader._IP_MODALITY, invariants.IP_MODALITY} == {modality.group(1)}
+    antibody = re.search(r"NULL unless role ∈ \{([^}]*)\}", comments["antibody"])
+    assert antibody, comments["antibody"]
+    assert set(re.findall(r"'(\w+)'", antibody.group(1))) == loader._ANTIBODY_ROLES
+    bait = re.search(r"NULL unless role = '(\w+)'", comments["bait"])
+    assert bait and bait.group(1) == invariants.IP_ROLE
+    assert loader._ANTIBODY_ROLES <= loader._SAMPLE_ROLES

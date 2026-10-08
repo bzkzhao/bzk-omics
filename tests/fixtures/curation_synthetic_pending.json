@@ -33,7 +33,15 @@
       "id": "treated_vs_untreated",
       "numerator": "treated",
       "denominator": "untreated",
-      "note": "Read by the loader and deliberately NOT materialised as a Contrast node — the reference-vs-evidence placement is unsettled (ONTOLOGY.md §11 Q1) and the adapter constructs the contrast inline (HANDOFF.md §8)."
+      "numerator_samples": [
+        "Intensity TREAT_1",
+        "Intensity TREAT_2"
+      ],
+      "denominator_samples": [
+        "Intensity CTRL_1",
+        "Intensity CTRL_2"
+      ],
+      "note": "Materialised by the loader as a Contrast node anchored on this record's Experiment (ADR-0027, built under ADR-0029, which makes the loader the only Contrast minter); its arms are declared below by mapping key and materialised as NUMERATOR_SAMPLE / DENOMINATOR_SAMPLE edges (ADR-0038 D1, D4). Corrected 2026-10-08: this note said the contrast was deliberately not materialised and that the adapter constructed it inline, which stopped being true when ADR-0029 built ADR-0027."
     }
   ],
   "mapping": {

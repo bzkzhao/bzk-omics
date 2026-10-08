@@ -433,6 +433,10 @@ def test_main_names_the_supplement_when_only_it_is_missing(tmp_path: Path) -> No
         name: dict(next(iter(record["mapping"].values())), replicate=i + 1)
         for i, name in enumerate(SAMPLE_COLUMNS[:4])
     }
+    # The mapping is re-keyed to this test's columns, and a contrast's arms name mapping keys
+    # verbatim (ADR-0038 D1); the synthetic contrast would name keys this record no longer
+    # carries. Nothing here reads a contrast, so the derived record declares none.
+    record.pop("contrasts_of_interest")
     curation_path = tmp_path / "curation_SYNTHETIC.json"
     curation_path.write_text(json.dumps(record), encoding="utf-8")
 
@@ -548,6 +552,10 @@ def _run_main(tmp_path: Path, sheet_rows: list[list[Any]]) -> dict[str, Any]:
     record["mapping"] = {
         name: dict(base, replicate=i + 1) for i, name in enumerate(SAMPLE_COLUMNS[:4])
     }
+    # The mapping is re-keyed to this test's columns, and a contrast's arms name mapping keys
+    # verbatim (ADR-0038 D1); the synthetic contrast would name keys this record no longer
+    # carries. Nothing here reads a contrast, so the derived record declares none.
+    record.pop("contrasts_of_interest")
     curation_path = tmp_path / "curation_SYNTHETIC.json"
     curation_path.write_text(json.dumps(record), encoding="utf-8")
 
