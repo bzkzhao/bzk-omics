@@ -2,27 +2,27 @@
 
 **Repository:** `main` at the commit adding this prompt.
 
-**Precondition — the Mac graph must be current, and this is a build-time check, not a Mac one.**
-Prompt 29's cold rebuild (its §5) had not run when this prompt was written: the Mac graph was last
-built at `190e696`, and `ce9e83e` changed the loader and added two rel tables. **§5's differential
-run here is meaningless against a store built before `ce9e83e`** — it would compare figures from a
-graph whose `Contrast` carries no arm edges. The container work (§0–§4) does not depend on it and
-may proceed either way. Before §5 runs, confirm prompt 29's rebuild landed and its figures held
-(58 → 60 tables; replay 18/52, 18/52, 16/38, 23/63; edge statements 31,379). If it has not, do
-§0–§4, report, and leave §5 for bzk.
+**Precondition — satisfied on bzk's Mac on 2026-10-08, after this prompt was committed and while
+§0–§4 were being built.** Prompt 29's cold rebuild ran, then the differential on the
+**pre-prompt-30** code. So the `tests/fixtures/pxd018299_platform_targets.json` committed at
+`402fce8` is §5's before-baseline, and the Mac graph is current.
 
-**The rebuild's figures, in full** — prompt 29 §5 pre-registered seven lines, and §5 below rests on
-three of them that a count-only check would not catch:
-- all **16 labels 0 gone / 0 new**;
-- 58 → **60** tables;
-- replay 18/40, 18/40, 16/38, 23/57 → **18/52, 18/52, 16/38, 23/63**;
-- edge statements 31,349 → **31,379**;
-- node statements 32,793, observations 4,195 / 4,768, 48 refusals and `INCOMPLETE` **unchanged**;
-- **30 arm edges** in the graph;
-- **M1 `[4b]` unchanged**.
+**What held, measured:**
+- 58 → **60 tables**; replay **18/52, 18/52, 16/38, 23/63**; edge statements 31,349 → **31,379**;
+- node statements 32,793, observations 4,195 / 4,768, 48 refusals and `INCOMPLETE` unchanged;
+- **`NUMERATOR_SAMPLE` 15, `DENOMINATOR_SAMPLE` 15** — the 30 arm edges, counted in the graph;
+- **M1 `[4b]` unchanged**: 2,341 → 2,298 → 2,056 → 2,029 → 1,362; 3,997 of 8,172; 516; 12 of 14;
+  4,090 / 5,450. `git status` showed only the deferred prompt 22, so the targets fixture came back
+  **byte-identical**;
+- the Mac's loader ids, diffed against the reviewer's container at the same commit: identical
+  across all four records.
 
-§5's own predictions — `DifferentialResult` ids 0 moved, 1,362 results, `[4b]` unchanged — are
-only meaningful if the last three held. Confirm all seven, not the counts alone.
+**One line of prompt 29 §5 was not checkable, and is recorded as such:** *"all 16 labels 0 gone / 0
+new"*. `rebuild` drops the stores (`bzk/rebuild.py` l.154), so the pre-rebuild graph was gone before
+an after-snapshot could be taken — prompt 28 managed it only because its Step A ran **before** the
+build was pulled. The loader-level half is established independently (I1 at `ce9e83e`), and the
+fixture byte-identity covers the derived ids this prompt can reach. **For prompt 31: if a
+graph-level sweep is wanted, Step A must run before the pull.**
 
 **Governing:**
 - `decisions/0038-contrast-arms-are-declared-and-bound-at-the-loader.md`:
@@ -286,17 +286,24 @@ Then stop.
 
 ---
 
-## 5. For bzk's Mac — only after prompt 29's rebuild has landed
+## 5. For bzk's Mac — the graph is current; this is the differential only
 
 Pull, run the differential, `git status`. Pre-registered:
 
-- `tests/fixtures/` byte-identical — the targets fixture carries no contrast string.
-- `[4b]`'s figures as handoff 10-05 §3.3 M1, unchanged. The binding returns the same columns the
-  token picked (B1), so every downstream number is the same.
-- `DifferentialResult` ids **0 moved**; **1,362** in `KO_IFN_vs_WT_IFN`.
+- **`tests/fixtures/pxd018299_platform_targets.json` byte-identical.** This is the id check and the
+  one to report. The fixture pins `population.tested = 1362` and 14 targets carrying 39 `bzk:`
+  observation ids; the run rewrites it, so a clean `git status` means every pinned id and every
+  figure came back the same. **Do not report "`DifferentialResult` ids 0 moved" from a before/after
+  of the graph** — the cold rebuild emptied the results, so this fixture is the only prior state.
+- `git status --short` shows **only** `?? notes/prompts/22-walk-two-route-independence.md`, deferred
+  by decision and expected.
+- `[4b]` unchanged — 2,341 → 2,298 → 2,056 → 2,029 → 1,362; 3,997 of 8,172; 516; 12 of 14;
+  4,090 / 5,450; **1,362** results in `KO_IFN_vs_WT_IFN`. B1 was re-measured in the reviewer's
+  clone at `402fce8` and returns M7's six headers in arm order, so every downstream number should
+  be identical. **Any movement here is a finding, not a rounding difference.**
 - The `Analysis` node: `label` changes from `welch_t KO_IFN vs WT_IFN (BH)` to
-  `welch_t KO_IFN_vs_WT_IFN (BH)`, **and nothing else on it changes**. Report the node's
-  properties before and after, not just the label.
+  `welch_t KO_IFN_vs_WT_IFN (BH)`, **and nothing else on it changes**. Report the node's properties
+  before and after, not just the label.
 
 ---
 
