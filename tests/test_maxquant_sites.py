@@ -11,6 +11,7 @@ them — `residue_mismatch` — is the sequence-drift measurement the slice exis
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -21,7 +22,10 @@ from bzk.adapters.maxquant_sites import (
     DeclaredSiteAnalysis,
     MaxQuantSiteAdapter,
     MaxQuantSiteError,
+    _sample_columns,
+    bind_column,
 )
+from bzk.curation.loader import load_path
 from bzk.ontology import invariants, schema
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.resolve.nodes import Resolver
@@ -620,3 +624,108 @@ def test_a_refused_row_contributes_no_cells(tmp_path: Path) -> None:
     parsed = _adapter().parse(_write(tmp_path, [_row(residue="R")]), _mapping())
     assert [r.reason for r in parsed.refusals] == ["residue_mismatch"]
     assert parsed.cells == []
+
+
+# ── ADR-0038 D5: `bind_column`, the only route from a `Sample` to a column ──────────────────────
+#
+# A producer never names a column: it asks for (`Sample` id, quantity) and receives the exact header
+# or a refusal. What separates this from `_sample_columns` is the family. Ingestion places a sample
+# if *any* family's column is present, because it retains every family (I11); a producer asking for
+# one quantity must be refused when only another family's column exists. B1 binds the real
+# record's arms against the real header as `ROADMAP.md` records it — neither is the deposit, which
+# this module never reads.
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+CURATION = REPO_ROOT / "data" / "curation" / "curation_PXD018299.json"
+INTENSITY = "intensity_multiplicity_summed"
+
+
+def _real_header() -> list[str]:
+    """PXD018299's sites header as `ROADMAP.md` records it — the line ADR-0038 M7 read.
+
+    Read from the record rather than from the deposit, which the container does not hold; the
+    column count is asserted so a truncated or moved line fails here rather than binding nothing.
+    """
+    lines = (REPO_ROOT / "ROADMAP.md").read_text().splitlines()
+    at = next(
+        i
+        for i, line in enumerate(lines)
+        if line.startswith("**`PXD018299` / `HAP1_USP18KO_GlyGlyKSites.txt`")
+    )
+    quoted = next(line for line in lines[at + 1 :] if line.startswith(">"))
+    header = re.findall(r"`([^`]+)`", quoted)
+    assert len(header) == 159, len(header)
+    return header
+
+
+def _one(mapping_key: str, sample_id: str = "bzk:s1") -> SampleMapping:
+    return SampleMapping(
+        curation_analysis_id="bzk:curation1",
+        samples=[{NODE_TYPE_KEY: "Sample", "id": sample_id, "mapping_key": mapping_key}],
+    )
+
+
+def test_B1_the_binding_returns_M7s_six_headers_in_arm_order() -> None:
+    """The six arm samples of `KO_IFN_vs_WT_IFN`, asked for `Intensity`, on the real header.
+
+    The arms are keyed `Ratio mod/base …` and the run reads `Intensity …`, so this is the
+    cross-family case D5 exists for. **Pinned as ordered lists**: the matrix's columns are the arm's
+    replicates in declaration order, and a reordering would change every per-row statistic.
+    """
+    curation = load_path(CURATION)
+    mapping = curation.sample_mapping()
+    arms = curation.contrast_arms["KO_IFN_vs_WT_IFN"]
+    header = _real_header()
+    bound = {
+        side: [bind_column(mapping, sample, INTENSITY, header) for sample in samples]
+        for side, samples in (("numerator", arms.numerator), ("denominator", arms.denominator))
+    }
+    assert bound == {
+        "numerator": ["Intensity KO_IFN_1", "Intensity KO_IFN_2", "Intensity KO_IFN_3"],
+        "denominator": ["Intensity WT_IFN_1", "Intensity WT_IFN_2", "Intensity WT_IFN_3"],
+    }
+
+
+def test_the_binding_carries_a_run_id_through_unaltered() -> None:
+    """`KO_1_181212063719`: the replicate whose label carries an instrument run id, which a pick
+    by condition token and replicate number (`Intensity KO_1`) would not have found at all."""
+    curation = load_path(CURATION)
+    mapping = curation.sample_mapping()
+    arms = curation.contrast_arms["KO_vs_WT_unstimulated"]
+    header = _real_header()
+    assert [bind_column(mapping, s, INTENSITY, header) for s in arms.numerator] == [
+        "Intensity KO_1_181212063719",
+        "Intensity KO_2",
+        "Intensity KO_3",
+    ]
+
+
+def test_B2_the_refusal_is_per_family() -> None:
+    """The l.147 difference: another family's column does not stand in for the one asked for.
+
+    `_sample_columns` places the sample, because ingestion retains whichever families exist; the
+    binding, asked for `Intensity`, refuses it.
+    """
+    mapping = _one("Ratio mod/base WT_1")
+    header = ["Ratio mod/base WT_1"]
+    assert _sample_columns(mapping, {h: i for i, h in enumerate(header)}) == [("bzk:s1", "WT_1")]
+    assert bind_column(mapping, "bzk:s1", "ratio_mod_base", header) == "Ratio mod/base WT_1"
+    with pytest.raises(MaxQuantSiteError, match="has no 'intensity_multiplicity_summed' column"):
+        bind_column(mapping, "bzk:s1", INTENSITY, header)
+
+
+def test_a_sample_the_mapping_does_not_carry_is_refused() -> None:
+    with pytest.raises(MaxQuantSiteError, match="'bzk:s9' is not in the sample mapping"):
+        bind_column(_one("Intensity WT_1"), "bzk:s9", INTENSITY, ["Intensity WT_1"])
+
+
+def test_a_quantity_outside_the_family_table_is_refused() -> None:
+    with pytest.raises(MaxQuantSiteError, match="quantity 'lfq' has no column family"):
+        bind_column(
+            _one("Intensity WT_1"), "bzk:s1", "lfq", ["Intensity WT_1", "LFQ intensity WT_1"]
+        )
+
+
+def test_a_mapping_key_with_no_recognised_prefix_is_refused() -> None:
+    with pytest.raises(MaxQuantSiteError, match="names no column this adapter recognises"):
+        bind_column(_one("LFQ intensity WT_1"), "bzk:s1", INTENSITY, ["Intensity WT_1"])

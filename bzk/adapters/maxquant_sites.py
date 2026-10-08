@@ -51,7 +51,7 @@ I13 holds: `search_engine` and the rest are recorded on the `Dataset`, never bra
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -137,20 +137,76 @@ def _sample_columns(mapping: SampleMapping, column: Mapping[str, int]) -> list[t
     placed = []
     for sample in mapping.samples:
         key = str(sample.get("mapping_key", ""))
-        prefix = next((p for p in QUANTITY_COLUMNS.values() if key.startswith(p)), None)
-        if prefix is None:
-            raise MaxQuantSiteError(
-                f"sample mapping key {key!r} names no column this adapter recognises; expected one "
-                f"of {sorted(QUANTITY_COLUMNS.values())} followed by the run label"
-            )
-        label = key[len(prefix) :]
-        if not any(f"{p}{label}" in column for p in QUANTITY_COLUMNS.values()):
+        label = _run_label(key)
+        if _compose(label, QUANTITY_COLUMNS.values(), column) is None:
             raise MaxQuantSiteError(
                 f"run label {label!r} (from mapping key {key!r}) matches no quantitative column in "
                 "the deposit, so this sample's values cannot be retained (I11)"
             )
         placed.append((str(sample["id"]), label))
     return placed
+
+
+def bind_column(
+    mapping: SampleMapping, sample_id: str, quantity: str, header: Collection[str]
+) -> str:
+    """The exact header carrying `quantity` for the `Sample` `sample_id`, or a refusal.
+
+    **The only route from a `Sample` to a column for a producer** (ADR-0038 D5): a producer never
+    names a column, it asks here for (`Sample` id, quantity). Unlike `_sample_columns`, which places
+    a sample if *any* family's column is present — ingestion retains every family (I11) — this is
+    asked for one family and checks that family alone. A sample whose `Ratio mod/base` column is
+    present and whose `Intensity` column is not is bindable at ingestion and refused here for
+    `intensity_multiplicity_summed`: the other family's presence says nothing about this one's.
+    """
+    if quantity not in QUANTITY_COLUMNS:
+        raise MaxQuantSiteError(
+            f"quantity {quantity!r} has no column family in this adapter; expected one of "
+            f"{sorted(QUANTITY_COLUMNS)}"
+        )
+    key = next(
+        (str(s.get("mapping_key", "")) for s in mapping.samples if str(s.get("id")) == sample_id),
+        None,
+    )
+    if key is None:
+        raise MaxQuantSiteError(
+            f"Sample {sample_id!r} is not in the sample mapping, so no column can be bound to it"
+        )
+    label = _run_label(key)
+    bound = _compose(label, (QUANTITY_COLUMNS[quantity],), header)
+    if bound is None:
+        raise MaxQuantSiteError(
+            f"Sample {sample_id!r} (run label {label!r}, from mapping key {key!r}) has no "
+            f"{quantity!r} column in the file, whose family prefix is "
+            f"{QUANTITY_COLUMNS[quantity]!r}; another family's column for the same run does not "
+            "stand in for it (ADR-0038 D5)"
+        )
+    return bound
+
+
+def _run_label(key: str) -> str:
+    """The run label a mapping key carries: the key minus whichever family prefix it starts with.
+
+    The one rule for stripping the prefix. A key with no recognised prefix raises: a mapping the
+    adapter cannot place is a curation problem.
+    """
+    prefix = next((p for p in QUANTITY_COLUMNS.values() if key.startswith(p)), None)
+    if prefix is None:
+        raise MaxQuantSiteError(
+            f"sample mapping key {key!r} names no column this adapter recognises; expected one "
+            f"of {sorted(QUANTITY_COLUMNS.values())} followed by the run label"
+        )
+    return key[len(prefix) :]
+
+
+def _compose(label: str, prefixes: Iterable[str], header: Collection[str]) -> str | None:
+    """The first of `prefixes` + `label` that is exactly a header in the file, or `None`.
+
+    **The one place a MaxQuant site column is composed and tested for membership** (ADR-0038 D5).
+    Every caller differs only in the families it passes: `_sample_columns` any of them,
+    `bind_column` the one asked for, and `_site`'s I11 retention each family in turn.
+    """
+    return next((f"{p}{label}" for p in prefixes if f"{p}{label}" in header), None)
 
 
 @dataclass(frozen=True)
@@ -648,11 +704,11 @@ class MaxQuantSiteAdapter:
                 observation_id=observation_id,
                 sample_id=sample_id,
                 quantity=quantity,
-                value=maxquant.cell_value(row, column, f"{prefix}{label}"),
+                value=maxquant.cell_value(row, column, header),
             )
             for sample_id, label in sample_columns
             for quantity, prefix in sorted(QUANTITY_COLUMNS.items())
-            if f"{prefix}{label}" in column
+            if (header := _compose(label, (prefix,), column)) is not None
         ]
         return nodes, edges, cells
 

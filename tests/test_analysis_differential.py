@@ -10,6 +10,7 @@ and nowhere else.
 from __future__ import annotations
 
 import ast
+import json
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ import kuzu
 import pytest
 
 from bzk.analysis import DeclaredRun, SiteResult, site_change_set
+from bzk.curation.loader import load, load_path
 from bzk.ontology import invariants, schema, store
 from bzk.ontology.invariants import NODE_TYPE_KEY
 
@@ -47,6 +49,12 @@ def _anchored_contrast(numerator: str, denominator: str) -> dict[str, object]:
 
 
 CONTRAST = _anchored_contrast("USP18-/- + IFN", "WT + IFN")
+
+REAL_RECORD = (
+    Path(__file__).resolve().parent.parent / "data" / "curation" / "curation_PXD018299.json"
+)
+#: The arms the loader resolves for the real record's primary contrast, kind derived: `condition`.
+CONDITION_ARMS = load_path(REAL_RECORD).contrast_arms["KO_IFN_vs_WT_IFN"]
 
 #: ADR-0036 D8's per-arm counts, required on every `SiteResult` this module receives.
 ARMS = {
@@ -100,7 +108,13 @@ def conn(tmp_path: Path) -> kuzu.Connection:
 def _write(conn: kuzu.Connection, results: list[SiteResult]) -> None:
     dataset, nodes, edges = _attached()
     change_set = site_change_set(
-        RUN, results, dataset=dataset, contrast=CONTRAST, attached_nodes=nodes, attached_edges=edges
+        RUN,
+        results,
+        dataset=dataset,
+        contrast=CONTRAST,
+        arms=CONDITION_ARMS,
+        attached_nodes=nodes,
+        attached_edges=edges,
     )
     store.write_change_set(conn, change_set.nodes, change_set.edges)
 
@@ -179,6 +193,7 @@ def test_two_results_over_one_observation_are_refused_rather_than_merged(
         ],
         dataset=dataset,
         contrast=CONTRAST,
+        arms=CONDITION_ARMS,
         attached_nodes=nodes,
         attached_edges=edges,
     )
@@ -215,6 +230,7 @@ def test_a_result_whose_observation_is_not_in_the_batch_is_refused(conn: kuzu.Co
         [SiteResult("bzk:not-in-the-batch", log2fc=1.0, p_value=0.1, adj_p_value=0.2, **ARMS)],
         dataset=dataset,
         contrast=CONTRAST,
+        arms=CONDITION_ARMS,
         attached_nodes=nodes,
         attached_edges=edges,
     )
@@ -260,6 +276,7 @@ def test_the_contrast_is_staged_as_given_and_none_is_minted() -> None:
         [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01, **ARMS)],
         dataset=dataset,
         contrast=CONTRAST,
+        arms=CONDITION_ARMS,
         attached_nodes=nodes,
         attached_edges=edges,
     )
@@ -277,6 +294,41 @@ def test_a_node_that_is_not_a_contrast_is_refused() -> None:
             [],
             dataset=dataset,
             contrast=dataset,
+            arms=CONDITION_ARMS,
             attached_nodes=nodes,
             attached_edges=edges,
         )
+
+
+def test_the_real_records_primary_contrast_is_a_condition_contrast() -> None:
+    """The premise every call above rests on: the arms they pass are the loader's, kind `condition`."""
+    assert CONDITION_ARMS.kind == "condition"
+
+
+def test_D7_an_ip_kind_is_refused_at_the_producer() -> None:
+    """ADR-0038 D7: a site-grain result has no display label in either IP kind, and the refusal sits
+    here because kind is not visible at write time — the `Contrast` is staged as a bare referent.
+
+    Built from a constructed `ip_ms` curation, as the loader's I22 tests are; no record on disk is
+    `ip_ms`. Every sample is an `ip` against ISG15, so the primary contrast derives
+    `differential_association`. Nothing here claims the dataset was an IP.
+    """
+    record = json.loads(REAL_RECORD.read_text())
+    record["experiment"]["modality"] = "ip_ms"
+    for entry in record["mapping"].values():
+        entry.update(role="ip", bait="uniprot:P05161", antibody="Boston Biochem A-380")
+    loaded = load(record)
+    arms = loaded.contrast_arms["KO_IFN_vs_WT_IFN"]
+    assert arms.kind == "differential_association"
+    dataset, nodes, edges = _attached()
+    with pytest.raises(ValueError, match="got kind 'differential_association'") as refused:
+        site_change_set(
+            RUN,
+            [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01, **ARMS)],
+            dataset=dataset,
+            contrast=loaded.contrast("KO_IFN_vs_WT_IFN"),
+            arms=arms,
+            attached_nodes=nodes,
+            attached_edges=edges,
+        )
+    assert "bare referent" in str(refused.value) and "ADR-0038 D7" in str(refused.value)

@@ -73,6 +73,7 @@ import numpy as np
 import scipy
 
 from bzk.adapters import maxquant
+from bzk.adapters.maxquant_sites import bind_column
 from bzk.analysis import DeclaredRun, SiteResult, site_change_set
 from bzk.curation.loader import load_path
 from bzk.ontology import store
@@ -86,7 +87,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CURATION = REPO_ROOT / "data" / "curation" / "curation_PXD018299.json"
 # Read for one key only — `"contrast"`, the id of the curation record's contrast this run tests.
 # That is a pointer to a node the curation record declares, not one of the parameters this run is
-# checked against, so reading it carries none of the circularity the comment at `CONTRAST` avoids.
+# checked against, so reading it carries none of the circularity that transcribing the parameters
+# below avoids. It names the `Contrast`, and through `LoadedCuration.contrast_arms` the samples
+# whose columns the run reads; it is read once, in `main()`, and held nowhere else.
 ANALYSIS_RECORD = REPO_ROOT / "data" / "curation" / "analysis_PXD018299_KOIFN_vs_WTIFN.json"
 # Named `platform_targets`, never `welch_baseline`: `pxd018299_baseline.py` writes the notebook
 # transcription's per-target rows and this writes the platform path's, and the two are the pair the
@@ -106,9 +109,8 @@ STATUS_VALUES = (STATUS_RECOVERED, STATUS_TESTED_NOT_RECOVERED, STATUS_ABSENT_FR
 # a human statement of what was done — and therefore a legitimate input. Transcribed here rather
 # than read from it for the reason `pxd018299_baseline.py` gives: that record is what this run is
 # checked *against*, so consuming its parameters would make the comparison partly circular.
-# **Column tokens, and only that** (ADR-0029 E, 2026-10-03): they select the intensity columns
-# below. They no longer name the `Contrast` node — the curation record does, via the loader.
-CONTRAST = ("KO_IFN", "WT_IFN")
+# The contrast is not among them since ADR-0038 D5: its id is read off the record (above), and the
+# columns come from the arms the curation record declares, through the adapter's binding.
 PRESENCE_MIN = 2
 PRESENCE_EITHER = True  # ">=2 replicates in either group"
 IMPUTE: dict[str, object] = {
@@ -255,20 +257,6 @@ def platform_target_fixture(
     }
 
 
-def _intensity_columns(header: list[str], arm: str) -> list[int]:
-    """The three replicate columns for one arm, in replicate order.
-
-    Matched against the *exact* prefixed names rather than by substring: `Intensity KO_1` and
-    `Intensity KO_IFN_1` share a prefix, and one replicate carries a run id
-    (`KO_1_181212063719`) that a loose match would also catch (`ROADMAP.md` § Measured findings).
-    """
-    wanted = [f"Intensity {arm}_{i}" for i in (1, 2, 3)]
-    missing = [w for w in wanted if w not in header]
-    if missing:
-        raise SystemExit(f"missing intensity column(s) {missing}; found {sorted(header)}")
-    return [header.index(w) for w in wanted]
-
-
 def _require_counts_reconcile(
     results: list[SiteResult], n_values_imputed: int, n_values_total: int
 ) -> None:
@@ -292,6 +280,8 @@ def main() -> int:
     assert PXD018299_SITES.expected_content_hash is not None
     path = verify(PXD018299_SITES.expected_content_hash, filename=PXD018299_SITES.filename)
     curation = load_path(CURATION)
+    contrast_id = json.loads(ANALYSIS_RECORD.read_text())["contrast"]
+    arms = curation.contrast_arms[contrast_id]
 
     # The ingested population, taken from the adapter rather than re-derived: whichever rows it
     # accepted are the graph's `SiteObservation`s, and re-implementing its refusal logic here would
@@ -301,7 +291,8 @@ def main() -> int:
         raise SystemExit("deposit not in the content store; run `python -m bzk.sources.pride`")
     adapter = _adapter_for(curation, deposit, None)
     assert adapter is not None
-    parsed = adapter.parse(deposit, curation.sample_mapping())
+    mapping = curation.sample_mapping()
+    parsed = adapter.parse(deposit, mapping)
     report = adapter.report
     assert report is not None
     refused_rows = {r.row for r in parsed.refusals}
@@ -316,8 +307,20 @@ def main() -> int:
     ]
     ingested_rows = [r for r in kept if r[column["id"]] not in refused_rows]
 
-    numerator_cols = _intensity_columns(table.header, CONTRAST[0])
-    denominator_cols = _intensity_columns(table.header, CONTRAST[1])
+    # ADR-0038 D5: this module names no sample's column. Each arm's samples come from the curation
+    # record, in the order it declares them — replicate order, which is the matrix's column order —
+    # and each sample's header from the adapter's binding, for the quantity this run declares. The
+    # binding matches exactly, so neither `Intensity KO_1` against `Intensity KO_IFN_1`, which
+    # share a prefix, nor the run id one replicate carries (`KO_1_181212063719`) can be mis-picked
+    # as a substring match would (`ROADMAP.md` § Measured findings).
+    def arm_columns(samples: tuple[str, ...]) -> list[int]:
+        return [
+            column[bind_column(mapping, sample, adapter.declared.quantity, column)]
+            for sample in samples
+        ]
+
+    numerator_cols = arm_columns(arms.numerator)
+    denominator_cols = arm_columns(arms.denominator)
 
     def matrix(indices: list[int]) -> np.ndarray:
         raw = np.array(
@@ -379,7 +382,7 @@ def main() -> int:
         targets_recovered=len(recovered),
     )
 
-    print(f"[4b] contrast {CONTRAST[0]} vs {CONTRAST[1]}, test welch_t, fdr BH")
+    print(f"[4b] contrast {contrast_id}, test welch_t, fdr BH")
     print(f"[4b] rows in file                    {pops.rows_in_file:>6,}")
     print(f"[4b]   after decoys/contaminants     {pops.after_decoys:>6,}")
     print(
@@ -507,13 +510,14 @@ def main() -> int:
             f"presence>={PRESENCE_MIN}_in_{'either' if PRESENCE_EITHER else 'both'}_group",
         ),
         imputation=IMPUTE | {"method": "downshifted_normal"},
-        label=f"welch_t {CONTRAST[0]} vs {CONTRAST[1]} (BH)",
+        label=f"welch_t {contrast_id} (BH)",
     )
     change_set = site_change_set(
         run,
         results,
         dataset=dataset,
-        contrast=curation.contrast(json.loads(ANALYSIS_RECORD.read_text())["contrast"]),
+        contrast=curation.contrast(contrast_id),
+        arms=arms,
         attached_nodes=attached_nodes,
         attached_edges=assignment_edges,
     )

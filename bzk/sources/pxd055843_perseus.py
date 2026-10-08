@@ -95,8 +95,9 @@ def declared() -> tuple[DeclaredAnalysis, DeclaredContrast]:
     """The declaration, read from the two records rather than transcribed.
 
     The analysis record supplies every field that lands on `Analysis`; the curation record supplies
-    the contrast's two arms, which are identifying on `Contrast` and already have a home there. The
-    arms are looked up by the id the analysis record names, so a record naming a contrast the
+    the contrast — its numerator and denominator, which are identifying on `Contrast`, and its arm
+    samples, which are non-identifying edges (ADR-0038 D4) — and already has a home there. The
+    contrast is looked up by the id the analysis record names, so a record naming a contrast the
     curation does not carry is refused rather than silently paired with the first entry.
     """
     record = _analysis_record()
@@ -106,8 +107,10 @@ def declared() -> tuple[DeclaredAnalysis, DeclaredContrast]:
     if entry is None:
         raise SystemExit(
             f"{ANALYSIS.name} names contrast {contrast_id!r}, which {CURATION.name} does not "
-            f"carry — it lists {[c.get('id') for c in entries]}. The arms are identifying on "
-            "Contrast (ONTOLOGY.md §3), so they are read from the curation record and not guessed."
+            f"carry — it lists {[c.get('id') for c in entries]}. The numerator and denominator are "
+            "identifying on Contrast (ONTOLOGY.md §3) and its arm samples are non-identifying edges "
+            "the loader writes (ADR-0038 D4), so both are read from the curation record and not "
+            "guessed."
         )
     declaration = DeclaredAnalysis(
         quantity=record["quantity"],

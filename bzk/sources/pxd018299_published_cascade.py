@@ -86,8 +86,12 @@ S1_AS_DEPOSIT = {
     "Localization prob": "N: Localization prob",
     "Score": "N: Score",
 }
-KO_COLUMNS = tuple(f"Intensity {differential.CONTRAST[0]}_{i}" for i in (1, 2, 3))
-WT_COLUMNS = tuple(f"Intensity {differential.CONTRAST[1]}_{i}" for i in (1, 2, 3))
+#: S1's intensity columns for the two arms of its published fold change, spelled as S1 spells them.
+#: S1 is the published spreadsheet, not a deposit format with a `Sample` binding, so ADR-0038 D5's
+#: route does not reach it; these were composed from `pxd018299_differential.CONTRAST` until that
+#: constant was deleted (D5), which was a string convenience and never a binding.
+KO_COLUMNS = ("Intensity KO_IFN_1", "Intensity KO_IFN_2", "Intensity KO_IFN_3")
+WT_COLUMNS = ("Intensity WT_IFN_1", "Intensity WT_IFN_2", "Intensity WT_IFN_3")
 
 
 @dataclass

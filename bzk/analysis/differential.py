@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from bzk.curation.loader import ContrastArms
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.ontology.keys import evidence_id
 
@@ -72,6 +73,7 @@ def site_change_set(
     *,
     dataset: Node,
     contrast: Node,
+    arms: ContrastArms,
     attached_nodes: list[Node],
     attached_edges: list[Edge],
 ) -> ChangeSet:
@@ -93,6 +95,12 @@ def site_change_set(
     record declares `'USP18-/- + IFN'` / `'WT + IFN'` — two nodes for one comparison once the loader
     materialised its own. One minting site cannot disagree with itself.
 
+    `arms` are that contrast's arms as the loader resolved them (`LoadedCuration.contrast_arms`),
+    with the kind it derived. **A kind other than `condition` is refused here** (ADR-0038 D7): a
+    site-grain result has no display label in either IP kind. The refusal sits at the producer and
+    not in an invariant because kind is not visible at write time — the `Contrast` above is staged
+    as a bare referent, without the arm samples or the anchor's `modality` it is derived from.
+
     `parameters_observed` is `True` and `kind` is `'processing'`: §5's enum offers
     `'processing' | 'curation' | 'external'` and there is no fourth value for *the platform ran it*
     — `'external'` is the one that means it did not.
@@ -100,6 +108,13 @@ def site_change_set(
     Each result carries its `SiteResult`'s per-arm counts (ADR-0036 D8), which `True` makes
     obligatory: I15 refuses a platform-run result without them (§6.5).
     """
+    if arms.kind != "condition":
+        raise ValueError(
+            f"site_change_set writes site-grain results only for a 'condition' contrast; got kind "
+            f"{arms.kind!r}, which no site-grain result may occupy (ADR-0038 D7). Refused here "
+            "rather than by an invariant because kind is not visible at write time: the Contrast "
+            "is staged as a bare referent, without the arms and modality it is derived from"
+        )
     nodes: list[Node] = [dataset, *attached_nodes]
     edges: list[Edge] = list(attached_edges)
 

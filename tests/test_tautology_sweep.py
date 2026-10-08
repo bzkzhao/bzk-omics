@@ -687,6 +687,17 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         # carrying one ever reaches an assert. Removing the adapter's `staged_proteins` filter fails
         # the test inside `parse`, which establishes that guard and not the line.
         ("test_maxquant_sites.py", "set(modifiers) == set(schema.GG_REMNANT_MODIFIERS)", 1),
+        # ── ADR-0038 D5's B1, classified 2026-10-08 (prompt 30) ─────────────────────────────────
+        # **`PINNED`, matched by Pass D.** `bound` is a name bound from `bind_column` calls over the
+        # loader's arms; the right side is ADR-0038 M7's six headers typed by hand, in arm order.
+        # Neither side produced the other, and the literal is the whole claim — which columns, in
+        # which order. Made to fail by the loader resolving the numerator arm in reverse order,
+        # which reads `KO_IFN_3, KO_IFN_2, KO_IFN_1` against the pin.
+        (
+            "test_maxquant_sites.py",
+            "bound == {'numerator': ['Intensity KO_IFN_1', 'Intensity KO_IFN_2', 'Intensity KO_IFN_3'], 'denominator': ['Intensity WT_IFN_1', 'Intensity WT_IFN_2', 'Intensity WT_IFN_3']}",
+            1,
+        ),
         # Classified individually 2026-08-09, with the identity pin. None is an instance; each is
         # recorded with what it would take to make it fail, and two were made to fail by the
         # mutations run on `_pin_put` and on `_Entry`'s default.

@@ -87,7 +87,7 @@ READERS = (
 MENTIONS = {
     # Transcribes the record's parameters into module constants and gives the reason: the record is
     # what its run is checked against, so consuming it would make the comparison circular.
-    "bzk/sources/pxd018299_differential.py": "transcribes, and says why",
+    "bzk/sources/pxd018299_differential.py": "reads contrast off json.loads(); transcribes the rest",
     # Writes a note into the baseline fixture pointing at the record for the three counts.
     "bzk/sources/pxd018299_baseline.py": "cites the record in a fixture note",
     # The format module: its docstring names PXD055843's record as the example of a record for an
@@ -112,7 +112,7 @@ UNREAD: dict[str, dict[str, str]] = {
         # These four are read — by `bzk/sources/pxd055843_perseus.py`, off the *other* record.
         # Nothing that opens this one looks at them, and `pxd018299_differential.py` holds the
         # executable form of all four as module constants rather than reading them here.
-        "contrast": "read off the other record only; transcribed as CONTRAST in pxd018299_differential",
+        "contrast": "read here by pxd018299_differential, unseen: not a READERS entry; not transcribed",
         "test": "read off the other record only; this run's test is chosen by the stats registry",
         "fdr_method": "read off the other record only; the run applies benjamini_hochberg by name",
         "filters_applied": "read off the other record only; the run's filters are its own constants",
