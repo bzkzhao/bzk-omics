@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Version | 1.46 |
-| Last reviewed | 2026-10-08 |
+| Version | 1.47 |
+| Last reviewed | 2026-10-09 |
 | Depends on | `VISION.md` |
 | Depended on by | `ARCHITECTURE.md`, ingestion adapters, statistics module, UI |
 | Authoritative for | Node types, edge types, field semantics, invariants |
@@ -117,7 +117,7 @@ The identity **model** is identical for both: a node's identity is its label, it
 | `SiteObservation` | `candidate_proteins` | `Dataset` (`REPORTS_SITE`), `ModificationSite` (`MEASURED_AT`) | `peptide_sequence`, `localization_prob`, `score`, `is_decoy`, `quant_ref`, `keying_basis`, `displaced_protein` |
 | `ProteinObservation` | `candidate_proteins` | `Dataset` (`REPORTS_PROTEIN`) | `quant_ref`, `n_peptides` |
 | `Contrast` | `numerator`, `denominator` | `Experiment` (`CONTRAST_IN_EXPERIMENT`) — evidence node; §11 Q1 settled 2026-08-18 by ADR-0027, built 2026-10-03 in ADR-0029's order. Minted only by the curation loader from the record's `contrasts_of_interest`; producers receive it pre-keyed and mint none (ADR-0029 E). Its arms are declared in curation by mapping key (ADR-0038 D1) and materialised as D4's two arm edges (§5), which are not anchors: identity is unchanged | `label` |
-| `Analysis` | `kind`, `basis`, `confidence`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `parameters_json` | `Dataset` (`USED`) — one or more; for a curation analysis the asserted content stands in for it | `label`, `rationale`, `started_at`, `ended_at`, `workflow_id`, `workflow_revision` |
+| `Analysis` | `kind`, `basis`, `confidence`, `quantity`, `localization_threshold`, `filters_applied`, `test`, `fdr_method`, `external_tool`, `external_version`, `parameters_observed`, `parameters_json` | `Dataset` (`USED`) — one or more; for a curation analysis the asserted content stands in for it | `label`, `rationale`, `started_at`, `ended_at`, `workflow_id`, `workflow_revision`, `rows_untested_json` (ADR-0038 D6-revised (c): a count of the file's rows, so the same analysis re-read is the same analysis) |
 | `Imputation` | `method`, `downshift_sd`, `width_sd`, `seed`, `scope` | `Analysis` (`IMPUTATION_FOR`) | `n_values_imputed`, `n_values_total`, `asserted_at`, `retracted_at` |
 | `ModifierAssignment` | `basis`, `candidate_modifiers`, `confidence` | `Modifier` (`ASSIGNS`), `SiteObservation` (`ASSIGNMENT_FOR`), `Analysis` (`ASSIGNMENT_SUPPORTED_BY`) / `Publication` (`ASSIGNMENT_CITES`) | `rationale`, `asserted_at`, `retracted_at` |
 | `EnzymeAssociation` | `direction`, `basis`, `confidence` | `SiteObservation` (`ASSOCIATION_FOR`), `Protein` (`ASSOCIATION_ENZYME`), `Analysis` (`ASSOCIATION_SUPPORTED_BY`) / `Publication` (`ASSOCIATION_CITES`) | `effect_size`, `adj_p_value`, `rationale`, `asserted_at`, `retracted_at` |
@@ -506,6 +506,16 @@ CREATE NODE TABLE Analysis(
   external_tool STRING,         -- §5.4; 'perseus' | 'r' | 'graphpad'
   external_version STRING,      -- §5.4
   parameters_observed BOOLEAN,  -- §5.4; REQUIRED. See I19.
+  rows_untested_json STRING,    -- Non-identifying. kind = 'external' only: per Contrast id, how
+                                -- many of the source file's rows its analysis did not test, as a
+                                -- canonical JSON object (sorted keys, as parameters_json is
+                                -- represented — but NOT canonicalized into any id). Such rows mint
+                                -- no DifferentialResult (ADR-0038 D6-revised (c)); a view's count
+                                -- of them must equal this. NULL on a 'processing' or 'curation'
+                                -- Analysis: a platform run decides itself which rows reach its
+                                -- test and states that rule in filters_applied, so there is no
+                                -- source analysis whose placeholders it must recognise; a
+                                -- curation run tests nothing.
   PRIMARY KEY (id));
 
 CREATE NODE TABLE Person(id STRING, name STRING, orcid STRING, PRIMARY KEY (id));

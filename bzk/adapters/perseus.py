@@ -87,16 +87,18 @@ the branch on it is inside `adapters/`, which I13 exempts by name.
 
 from __future__ import annotations
 
+import json
 import math
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from bzk.adapters import spreadsheet
 from bzk.adapters.base import Edge, Node, ParsedObservations, SampleMapping, sample_nodes
+from bzk.curation.loader import ContrastArms
 from bzk.ontology import invariants, schema
 from bzk.ontology.invariants import NODE_TYPE_KEY
-from bzk.ontology.keys import evidence_id, protein_key
+from bzk.ontology.keys import canonical_parameters_json, evidence_id, protein_key
 from bzk.provenance.raw_store import content_hash
 from bzk.quant import store as quant_store
 from bzk.resolve.nodes import ResolvedProteins
@@ -139,6 +141,16 @@ DIFFERENCE = "Student's T-test Difference {suffix}"
 Q_VALUE = "Student's T-test q-value {suffix}"
 P_VALUE = "Student's T-test p-value {suffix}"
 MINUS_LOG_P = "-Log Student's T-test p-value {suffix}"
+#: Read by rule (a) only, and only where the file carries it (ADR-0038 D6-revised). Never a result
+#: field: the graph stores the Difference, p and q, and the statistic is evidence about the row.
+STATISTIC = "Student's T-test Test statistic {suffix}"
+
+#: ADR-0038 D6-revised (b): every tested row's Difference must equal the mean of its numerator
+#: arm's values minus the mean of its denominator arm's, within this. **R2's tolerance, fixed
+#: before PV ran** on single-precision storage measured in the Perseus builds that bracket v1.6.2.3
+#: — a property of how Perseus stores numbers, not of any one file. A constant rather than a
+#: parameter, so no caller can loosen it to make a file load.
+PROOF_TOLERANCE = 1e-3
 
 #: **Where to look for the observed accession set, not what is chosen.** `_identity_column` decides
 #: among the candidates present in a file by reading the rows; this tuple only says which names are
@@ -258,10 +270,36 @@ class DeclaredContrast:
     the columns. `contrast` is the node the curation loader minted (`LoadedCuration.contrast`),
     staged here as a referent: **this adapter mints no `Contrast`** (ADR-0029 item 3, built
     2026-10-03), so the arms and the `Experiment` anchor come from the one record that declares them.
+
+    `arms` are that contrast's arms as the loader resolved them (`LoadedCuration.contrast_arms`):
+    `Sample` ids in declaration order. The adapter derives nothing from them and re-resolves no
+    mapping key — it asks its own binding for each sample's column, and proves the binding with
+    them (ADR-0038 D6-revised (b)). Required, not defaulted: a contrast without arms is a contrast
+    whose results nothing has checked.
     """
 
     column_suffix: str
     contrast: Mapping[str, object]
+    arms: ContrastArms
+
+
+@dataclass(frozen=True)
+class ContrastProof:
+    """What rules (a) and (b) found for one contrast, before anything was emitted.
+
+    `untested_lines` are the file lines rule (a) recognised as untested. It is the one
+    classification: rule (c) skips exactly these when minting, and `rows_untested` counts exactly
+    these — computed once, used twice, so the two cannot disagree.
+    """
+
+    rows_tested: int
+    untested_lines: frozenset[int]
+    #: The largest |Difference − (mean(numerator) − mean(denominator))| over the tested rows.
+    max_deviation: float
+
+    @property
+    def rows_untested(self) -> int:
+        return len(self.untested_lines)
 
 
 @dataclass(frozen=True)
@@ -303,6 +341,10 @@ class PerseusIngestReport:
     cells: int
     cells_withheld: int
     withheld_because: str | None
+    #: Per contrast id, the rows rule (a) recognised as untested and rule (c) minted no result for
+    #: (ADR-0038 D6-revised). The same mapping the external `Analysis` carries as
+    #: `rows_untested_json` — one dict, written to both.
+    rows_untested: dict[str, int] = field(default_factory=dict)
 
 
 def _sample_columns(
@@ -338,6 +380,48 @@ def _sample_columns(
     return placed, unplaced
 
 
+@dataclass(frozen=True)
+class _ContrastColumns:
+    """One contrast's result columns, bound once per parse by `PerseusAdapter._contrast_reader`."""
+
+    declared: DeclaredContrast
+    difference: int
+    q_value: int
+    p_value: int
+    #: True where the file carries `-Log … p-value`, which is the Perseus default.
+    negated: bool
+    #: `None` where the file carries no test-statistic column (D6-revised *Limits*).
+    statistic: int | None
+
+    def difference_of(self, row: list[str]) -> float:
+        return float(row[self.difference])
+
+    def result(self, row: list[str]) -> dict[str, object]:
+        raw_p = float(row[self.p_value])
+        return {
+            "log2fc": self.difference_of(row),
+            # Perseus' default is the negated log; 4.51 here means p = 3.09e-05.
+            "p_value": 10**-raw_p if self.negated else raw_p,
+            "adj_p_value": float(row[self.q_value]),
+        }
+
+    def untested(self, row: list[str]) -> bool:
+        """ADR-0038 D6-revised (a): Difference `0`, −log p `0` (p = 1), and the statistic `0` where
+        the file carries it — the placeholder Perseus writes for a row it had nothing to test.
+
+        **q is not part of the rule.** q is computed across rows, so it is not a property of one
+        row's test; S1's untested rows carry q `1`, and that is recorded beside the rule, not in it.
+        **Reads no arm column**, which is what keeps (b) failing closed.
+        """
+        raw_p = float(row[self.p_value])
+        p_is_one = raw_p == 0.0 if self.negated else raw_p == 1.0
+        return (
+            self.difference_of(row) == 0.0
+            and p_is_one
+            and (self.statistic is None or float(row[self.statistic]) == 0.0)
+        )
+
+
 class PerseusAdapter:
     """`ObservationAdapter` for a Perseus result table (`ARCHITECTURE.md` §3)."""
 
@@ -363,6 +447,10 @@ class PerseusAdapter:
         self.declared = declared
         self.contrasts = list(contrasts)
         self.report: PerseusIngestReport | None = None
+        #: Per contrast id, what rules (a) and (b) found. Set as soon as the proof passes and
+        #: **before** anything is emitted, so a caller can read it even when the change-set is then
+        #: refused by an invariant — PXD055843's is, by I15, and its proof is still a result.
+        self.proof: dict[str, ContrastProof] | None = None
 
     def _withheld_because(self, unplaced: list[str]) -> str | None:
         """Why this file's per-sample values may not be retained, or `None` if they may.
@@ -432,6 +520,8 @@ class PerseusAdapter:
 
     def parse(self, path: Path, mapping: SampleMapping) -> ParsedObservations:
         """One Perseus table into a self-contained change-set (ADR-0019)."""
+        self.report = None
+        self.proof = None
         if not mapping.samples:
             raise PerseusError(
                 "the SampleMapping carries no samples, so nothing links these results to a curation "
@@ -453,6 +543,19 @@ class PerseusAdapter:
         placed, unplaced = _sample_columns(mapping, columns)
         withheld = self._withheld_because(unplaced)
         samples = [] if withheld else placed
+
+        # ADR-0038 D6-revised, before anything is emitted. **The proof binds from `placed`, not
+        # from `samples`**, and the difference is the point: withholding is an I11 question — may
+        # this file's values be *retained* — and the binding is a D5 question — which column
+        # *names* this sample. `samples` is emptied whenever cells are withheld, and PXD055843's
+        # declared imputation always withholds them, so a proof sourced from it would be vacuous
+        # on the only real file it exists for.
+        proof = {
+            str(reader.declared.contrast["id"]): self._prove(reader, rows, columns, dict(placed))
+            for reader in readers
+        }
+        self.proof = proof
+        rows_untested = {contrast_id: found.rows_untested for contrast_id, found in proof.items()}
 
         nodes: list[Node] = sample_nodes(mapping)
         edges: list[Edge] = []
@@ -485,6 +588,10 @@ class PerseusAdapter:
             "confidence": None,
             # Determined by `quantity`: a protein-grain quantity has no residues to localise (§6.4).
             "localization_threshold": None,
+            # ADR-0038 D6-revised (c), P3: the rows the source analysis did not test, per contrast,
+            # so a view's derived count has something to equal. **Not identifying** (§3): it is a
+            # property of the file's rows, and the same analysis re-read is the same analysis.
+            "rows_untested_json": canonical_parameters_json(json.dumps(rows_untested)),
         }
         imputation = dict(self.declared.imputation)
         analysis_id = evidence_id(
@@ -545,7 +652,14 @@ class PerseusAdapter:
                 )
 
             for declared, reader in zip(self.contrasts, readers, strict=True):
-                result = reader(row)
+                contrast_id = contrast_ids[declared.column_suffix]
+                # Rule (c): an untested row mints no result. Its observation, that observation's
+                # edges and its cells are above and unchanged — the row is shown, not hidden; what
+                # is withheld is a log2FC 0 / p 1 / q 1 that no test produced, which stored would be
+                # indistinguishable from a measured null (ADR-0038 D6-revised).
+                if line_no in proof[contrast_id].untested_lines:
+                    continue
+                result = reader.result(row)
                 # I4: protein-grain results are the uncorrected kind by construction — there is no
                 # matched proteome above a protein to correct it against, so `adjustment_method`
                 # stays null (§3 classifies that absence as determined by `protein_adjusted`).
@@ -557,7 +671,6 @@ class PerseusAdapter:
                 result["n_values_denominator"] = None
                 result["n_imputed_numerator"] = None
                 result["n_imputed_denominator"] = None
-                contrast_id = contrast_ids[declared.column_suffix]
                 result_id = evidence_id(
                     "DifferentialResult",
                     result,
@@ -587,6 +700,7 @@ class PerseusAdapter:
             # times every mapped sample is the matrix this file could have yielded.
             cells_withheld=len(rows) * len(mapping.samples) if withheld else 0,
             withheld_because=withheld,
+            rows_untested=rows_untested,
         )
         return ParsedObservations(
             nodes=nodes,
@@ -755,17 +869,24 @@ class PerseusAdapter:
 
     def _contrast_reader(
         self, columns: dict[str, int], declared: DeclaredContrast
-    ) -> Callable[[list[str]], dict[str, object]]:
-        """Bind the three result columns for one contrast, or say which is missing.
+    ) -> _ContrastColumns:
+        """Bind the result columns for one contrast, or say which is missing.
 
         Resolved once per parse rather than per row: a missing column is a property of the file, and
         discovering it on row 4,000 would already have emitted 3,999 wrong nodes.
+
+        **The test statistic is bound where present and its absence is not an error.** Rule (a)
+        reads it when the file carries it; a file without it recognises untested rows on the
+        Difference and p alone, which is weaker — a tested row with a zero Difference and p of
+        exactly 1 is then classified on two conditions rather than three (ADR-0038 D6-revised,
+        *Limits*). S1 and S3 both carry it.
         """
         suffix = declared.column_suffix
         difference = DIFFERENCE.format(suffix=suffix)
         q_value = Q_VALUE.format(suffix=suffix)
         plain_p = P_VALUE.format(suffix=suffix)
         minus_log_p = MINUS_LOG_P.format(suffix=suffix)
+        statistic = STATISTIC.format(suffix=suffix)
 
         missing = [c for c in (difference, q_value) if c not in columns]
         if plain_p not in columns and minus_log_p not in columns:
@@ -781,18 +902,99 @@ class PerseusAdapter:
                 "what it claims and picking one would be a guess about which is authoritative"
             )
         negated = plain_p not in columns
-        p_index = columns[minus_log_p if negated else plain_p]
+        return _ContrastColumns(
+            declared=declared,
+            difference=columns[difference],
+            q_value=columns[q_value],
+            p_value=columns[minus_log_p if negated else plain_p],
+            negated=negated,
+            statistic=columns.get(statistic),
+        )
 
-        def read(row: list[str]) -> dict[str, object]:
-            raw_p = float(row[p_index])
-            return {
-                "log2fc": float(row[columns[difference]]),
-                # Perseus' default is the negated log; 4.51 here means p = 3.09e-05.
-                "p_value": 10**-raw_p if negated else raw_p,
-                "adj_p_value": float(row[columns[q_value]]),
-            }
+    @staticmethod
+    def _prove(
+        reader: _ContrastColumns,
+        rows: list[tuple[int, list[str]]],
+        columns: dict[str, int],
+        column_of: dict[str, str],
+    ) -> ContrastProof:
+        """ADR-0038 D6-revised (a) then (b), for one contrast, or a refusal saying which failed.
 
-        return read
+        **(a) runs first, and the order is load-bearing.** Only rows (a) calls tested are put to
+        (b). Reversed, an untested row's placeholder `0` Difference would be compared against the
+        mean of its arm values, fail, and refuse the whole file — the carried finding back as a
+        crash instead of as a false null.
+
+        **(b) binds each arm sample through `_sample_columns`' placement**, so the columns are the
+        ones the mapping names and nothing here composes or guesses one. Four refusals, each its own
+        message, because each is a different finding: an arm sample the file has no column for; a
+        tested row with no finite value in an arm column; a tested row that disagrees; and a file in
+        which (a) leaves nothing to test.
+
+        **A blank or non-finite arm value on a tested row is refused, not skipped — deliberately
+        unlike PV's instrument** (`notes/scripts/measure_adr0038.py`, `recompute`), which skipped
+        such rows. That was right for an instrument reporting a maximum and is wrong for a rule that
+        claims every tested row: a skip would make *every tested row agrees* quietly mean *every
+        complete one does*. S1 and S3 carry no blanks, so on present data this decides nothing.
+        """
+        suffix = reader.declared.column_suffix
+        arms = reader.declared.arms
+        unplaced = [s for s in (*arms.numerator, *arms.denominator) if s not in column_of]
+        if unplaced:
+            raise PerseusError(
+                f"contrast {suffix!r}: arm sample(s) {unplaced} name no column in this file, so "
+                "its Difference cannot be recomputed and the binding cannot be proved (ADR-0038 "
+                "D6-revised (b)). Not proved over the samples that are placed: a recomputation over "
+                "a subset runs silently on the subset, which is a different Difference from the "
+                "one the file reports"
+            )
+        numerator = [column_of[s] for s in arms.numerator]
+        denominator = [column_of[s] for s in arms.denominator]
+
+        untested: set[int] = set()
+        tested = 0
+        worst = 0.0
+        for line_no, row in rows:
+            # Rule (a), reading no arm column — so the binding under test cannot choose which rows
+            # it is excused from.
+            if reader.untested(row):
+                untested.add(line_no)
+                continue
+            # Rule (b).
+            values: dict[str, float] = {}
+            for name in (*numerator, *denominator):
+                value = _cell_value(row, columns, name)
+                if value is None or not math.isfinite(value):
+                    raise PerseusError(
+                        f"line {line_no}: contrast {suffix!r} tested this row, but arm column "
+                        f"{name!r} holds {row[columns[name]]!r}, not a finite value, so the row's "
+                        "Difference cannot be recomputed (ADR-0038 D6-revised (b)). Refused rather "
+                        "than skipped: the proof claims every tested row"
+                    )
+                values[name] = value
+            recomputed = sum(values[n] for n in numerator) / len(numerator) - sum(
+                values[n] for n in denominator
+            ) / len(denominator)
+            reported = reader.difference_of(row)
+            deviation = abs(reported - recomputed)
+            if deviation > PROOF_TOLERANCE:
+                raise PerseusError(
+                    f"line {line_no}: contrast {suffix!r} reports Difference {reported!r}, but its "
+                    f"arms {numerator} minus {denominator} give {recomputed!r} — a deviation of "
+                    f"{deviation:.3g}, over the {PROOF_TOLERANCE:g} tolerance (ADR-0038 D6-revised "
+                    "(b)). The arms do not bind to the columns this result was computed from"
+                )
+            worst = max(worst, deviation)
+            tested += 1
+        if tested == 0:
+            raise PerseusError(
+                f"contrast {suffix!r}: rule (a) recognises all {len(rows)} row(s) as untested, so no "
+                "row is left to prove the binding against and the file proves nothing (ADR-0038 "
+                "D6-revised (b): at least one row must be tested)"
+            )
+        return ContrastProof(
+            rows_tested=tested, untested_lines=frozenset(untested), max_deviation=worst
+        )
 
     @staticmethod
     def _accessions(cell: str, line_no: int) -> list[str]:

@@ -34,6 +34,7 @@ from bzk.adapters.maxquant_protein_groups import (
 )
 from bzk.adapters.maxquant_sites import DeclaredSiteAnalysis, MaxQuantSiteAdapter
 from bzk.adapters.perseus import DeclaredAnalysis, DeclaredContrast, PerseusAdapter
+from bzk.curation.loader import ContrastArms
 from bzk.ontology import store
 from bzk.ontology.invariants import NODE_TYPE_KEY
 from bzk.rebuild import _adapter_for, create_graph, rebuild, replay_ingestion
@@ -83,6 +84,10 @@ def _perseus_adapter() -> PerseusAdapter:
                     "numerator": "USP18-/- + IFN",
                     "denominator": "WT + IFN",
                 },
+                # Required since ADR-0038 D6-revised (b); only `sniff` runs here, so nothing binds.
+                arms=ContrastArms(
+                    numerator=("bzk:sample-num",), denominator=("bzk:sample-den",), kind="condition"
+                ),
             )
         ],
     )

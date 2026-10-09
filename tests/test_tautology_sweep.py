@@ -795,7 +795,42 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_perseus.py", "dataset['content_hash'] == content_hash(TABLE.read_bytes())", 1),
         (
             "test_perseus.py",
-            "ids == {'uniprot:P20591', 'uniprot:P19525', 'uniprot:O43593', 'uniprot:P05161'}",
+            "ids == {'uniprot:P20591', 'uniprot:P19525', 'uniprot:O43593', 'uniprot:P05161', 'uniprot:P09914'}",
+            1,
+        ),  # 2026-10-09: the fixture gained IFIT1's untested row (ADR-0038 D6-revised); same pin
+        # ── ADR-0038 D6-revised, classified individually 2026-10-09 (prompt 31) ────────────────
+        # **All `PINNED`; none an instance.** Each left side is read off a parse — the adapter's
+        # proof, its report, the `Analysis` it minted, the edges or nodes it emitted — and each
+        # right side is a literal display, or a dict of literals keyed by a contrast id the test
+        # built itself. No right side is produced by the call on the left. Each is made to fail by
+        # the mutation named, in the prompt's report: rule (a) losing a condition, rule (c) minting
+        # anyway, or the count written to one place and not the other.
+        (
+            "test_perseus.py",
+            "adapter.proof[str(CONTRAST_NODE['id'])].max_deviation == pytest.approx(0.0009)",
+            1,
+        ),
+        ("test_perseus.py", "adapter.report.rows_untested == expected", 1),
+        (
+            "test_perseus.py",
+            "adapter.report.rows_untested == {str(CONTRAST_NODE['id']): 1, str(other_node['id']): 0}",
+            1,
+        ),
+        ("test_perseus.py", "adapter.report.rows_untested == {str(CONTRAST_NODE['id']): 1}", 1),
+        (
+            "test_perseus.py",
+            "json.loads(cast('str', analysis['rows_untested_json'])) == expected",
+            1,
+        ),
+        ("test_perseus.py", "touching == ['REPORTS_PROTEIN', 'RESOLVES_TO_PROTEIN']", 1),
+        (
+            "test_pxd055843_perseus.py",
+            "count == {'ProteinObservation': 4, 'DifferentialResult': 3}",
+            1,
+        ),
+        (
+            "test_pxd055843_perseus.py",
+            "json.loads(str(analysis_node['rows_untested_json'])) == {str(contrast.contrast['id']): 1}",
             1,
         ),
         ("test_perseus.py", "mx1['adj_p_value'] == pytest.approx(0.0012)", 1),

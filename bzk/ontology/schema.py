@@ -516,6 +516,9 @@ NODE_TABLES: list[NodeTable] = [
             ("external_tool", "STRING"),
             ("external_version", "STRING"),
             ("parameters_observed", "BOOLEAN"),
+            # ADR-0038 D6-revised (c), P3. Non-identifying, so absent from `IDENTITY` (an
+            # allow-list); external runs only.
+            ("rows_untested_json", "STRING"),
         ],
         note="external_* / parameters_observed columns (§5.4)",
     ),

@@ -44,6 +44,7 @@ from bzk.adapters.perseus import (
     PerseusAdapter,
     PerseusError,
 )
+from bzk.curation.loader import ContrastArms
 from bzk.ontology import invariants
 from bzk.ontology.invariants import NODE_TYPE_KEY
 
@@ -64,7 +65,23 @@ def _anchored_contrast(numerator: str, denominator: str) -> dict[str, object]:
 
 
 CONTRAST_NODE = _anchored_contrast("USP18-/- + IFN", "WT + IFN")
-CONTRAST = DeclaredContrast(column_suffix="KO_IFN_WT_IFN", contrast=CONTRAST_NODE)
+
+#: The two `Sample` ids every mapping here uses, so a placed mapping and an unplaced one differ in
+#: the one thing under test — whether a descriptor names a column — and in nothing else.
+SAMPLE_IDS = (
+    "bzk:9924d6d24941af0f1b64171e0b550e76",
+    "bzk:7b2ed3b2751c3364da982151935c9845",
+)
+
+#: The arms as the curation loader would resolve them (ADR-0038 D1): one sample each, the second
+#: id in the numerator. Since D6-revised (b) the adapter proves its binding with them, so every
+#: statistics-bearing fixture carries one column per arm sample, and its Difference is the
+#: numerator's value minus the denominator's.
+ARMS = ContrastArms(numerator=(SAMPLE_IDS[1],), denominator=(SAMPLE_IDS[0],), kind="condition")
+CONTRAST = DeclaredContrast(column_suffix="KO_IFN_WT_IFN", contrast=CONTRAST_NODE, arms=ARMS)
+
+#: The arm columns the three tab-separated fixtures carry, numerator first.
+TSV_ARM_COLUMNS = ("LFQ intensity KO_IFN_1", "LFQ intensity WT_IFN_1")
 
 # What the user states about a run the platform did not witness (§5.4). `lfq` because a protein-
 # grain Perseus table is conventionally built on LFQ intensities; it is declared, not detected.
@@ -79,21 +96,31 @@ DECLARED = DeclaredAnalysis(
 
 @pytest.fixture
 def mapping() -> SampleMapping:
-    """Two Samples as **change-set nodes, already narrowed**. Ids are the shape `keys.py` mints.
+    """Two Samples, **loader-shaped**: each descriptor carries the `mapping_key` naming its column.
 
-    **Corrected 2026-09-05: this read *"as the curation loader hands them over"*, and that was
-    false.** `bzk/curation/loader.py`'s `sample_mapping` builds each descriptor as
-    `{**by_id[sample_id], "mapping_key": key}`, so one the loader hands over carries `mapping_key`
-    — not a DDL column — and these carry none. **What the fixture returns is unchanged; only the
-    claim about it is.** The loader's shape is exercised by
-    `test_a_loader_shaped_descriptor_does_not_put_mapping_key_in_the_change_set`, which no fixture
-    of this shape could reach.
+    **Changed 2026-10-09 (ADR-0038 D6-revised (b)).** Until then these carried no `mapping_key`
+    — change-set nodes already narrowed — and every parse withheld its cells for want of a column.
+    The adapter now proves its binding by recomputing each tested row's Difference from the arm
+    samples' columns, so an arm sample the file cannot place refuses the parse; the descriptors
+    therefore name `TSV_ARM_COLUMNS`, in the shape `bzk/curation/loader.py`'s `sample_mapping`
+    builds (`{**by_id[sample_id], "mapping_key": key}`). Withholding over an unplaced *non-arm*
+    sample is still a report, not a refusal, and is tested below with a descriptor of its own.
     """
     return SampleMapping(
         curation_analysis_id="bzk:bc90e3eb515d6edd1351ce25ecd33209",
         samples=[
-            {NODE_TYPE_KEY: "Sample", "id": "bzk:9924d6d24941af0f1b64171e0b550e76", "replicate": 1},
-            {NODE_TYPE_KEY: "Sample", "id": "bzk:7b2ed3b2751c3364da982151935c9845", "replicate": 2},
+            {
+                NODE_TYPE_KEY: "Sample",
+                "id": SAMPLE_IDS[0],
+                "replicate": 1,
+                "mapping_key": TSV_ARM_COLUMNS[1],
+            },
+            {
+                NODE_TYPE_KEY: "Sample",
+                "id": SAMPLE_IDS[1],
+                "replicate": 2,
+                "mapping_key": TSV_ARM_COLUMNS[0],
+            },
         ],
     )
 
@@ -151,9 +178,11 @@ def _deposit_shaped(path: Path) -> Path:
             [None, None, None, None, None, None, "1", "2"],
             [None, None, None, None, None, None, "siC (-IFN-B)", "siUSP24 (+ IFN-B)"],
             [*_STAMPED, "/raw/2024_A.d", "/raw/2024_B.d"],
-            ["P20591", "P20591;Q9NRZ9", 7, 3.42, 4.51, 0.0012, 100.0, 200.0],
-            ["P19525", "P20591;Q9NRZ9", 12, 4.95, 5.02, 0.0009, 110.0, 210.0],
-            ["O43593", "O43593", 4, -1.87, 2.30, 0.0210, 120.0, 220.0],
+            # Column B minus column A is each row's Difference: `ARMS` puts the sample placed on B
+            # in the numerator, and D6-revised (b) recomputes every tested row (2026-10-09).
+            ["P20591", "P20591;Q9NRZ9", 7, 3.42, 4.51, 0.0012, 20.0, 23.42],
+            ["P19525", "P20591;Q9NRZ9", 12, 4.95, 5.02, 0.0009, 21.0, 25.95],
+            ["O43593", "O43593", 4, -1.87, 2.30, 0.0210, 22.0, 20.13],
         ],
     )
 
@@ -193,10 +222,14 @@ def test_change_set_satisfies_the_invariant_layer(
 def test_emits_one_observation_and_one_result_per_protein(
     adapter: PerseusAdapter, mapping: SampleMapping
 ) -> None:
-    """Four data rows, one declared contrast: four proteins, four observations, four results."""
+    """Five data rows, one declared contrast: five proteins and five observations, four results.
+
+    The fifth row (IFIT1) carries Perseus' untested placeholder — Difference 0, −log p 0,
+    statistic 0 — so it is observed and mints no result (ADR-0038 D6-revised (c), 2026-10-09).
+    """
     parsed = adapter.parse(TABLE, mapping)
-    assert len(_nodes(parsed, "Protein")) == 4
-    assert len(_nodes(parsed, "ProteinObservation")) == 4
+    assert len(_nodes(parsed, "Protein")) == 5
+    assert len(_nodes(parsed, "ProteinObservation")) == 5
     assert len(_nodes(parsed, "DifferentialResult")) == 4
     assert len(_nodes(parsed, "Contrast")) == 1
     assert len(_nodes(parsed, "Analysis")) == 1
@@ -207,7 +240,13 @@ def test_emits_one_observation_and_one_result_per_protein(
 def test_protein_ids_are_uniprot_curies(adapter: PerseusAdapter, mapping: SampleMapping) -> None:
     """§4's reference key template, built by `keys.protein_key` rather than string-formatted here."""
     ids = {n["id"] for n in _nodes(adapter.parse(TABLE, mapping), "Protein")}
-    assert ids == {"uniprot:P20591", "uniprot:P19525", "uniprot:O43593", "uniprot:P05161"}
+    assert ids == {
+        "uniprot:P20591",
+        "uniprot:P19525",
+        "uniprot:O43593",
+        "uniprot:P05161",
+        "uniprot:P09914",
+    }
 
 
 def test_the_analysis_is_external_and_its_parameters_are_reported_not_observed(
@@ -289,11 +328,10 @@ def test_a_loader_shaped_descriptor_does_not_put_mapping_key_in_the_change_set(
 ) -> None:
     """`base.py`'s narrowing is owed by every adapter emitting `Sample` nodes from a mapping.
 
-    **The `mapping` fixture above cannot reach this and no test using it could.** It hands over
-    change-set nodes that are already narrowed, so the divergence between this adapter and the two
-    MaxQuant ones is invisible to it. The descriptor here is built the way
-    `bzk/curation/loader.py`'s `sample_mapping` builds one — the `Sample` node's own keys plus
-    `mapping_key`, the column header the curation was written against.
+    The descriptor here is built the way `bzk/curation/loader.py`'s `sample_mapping` builds one —
+    the `Sample` node's own keys plus `mapping_key`, the column header the curation was written
+    against. Since 2026-10-09 the `mapping` fixture has that shape too (D6-revised (b) needs the
+    arms placed); this test keeps its own descriptor so its premise is stated where it is used.
 
     **Synthetic rather than loaded from `data/curation/`**: a path tested against real data being
     in a particular state stops guarding the day that data changes, and does it by going green
@@ -307,15 +345,15 @@ def test_a_loader_shaped_descriptor_does_not_put_mapping_key_in_the_change_set(
         samples=[
             {
                 NODE_TYPE_KEY: "Sample",
-                "id": "bzk:9924d6d24941af0f1b64171e0b550e76",
+                "id": SAMPLE_IDS[0],
                 "replicate": 1,
-                "mapping_key": "Ratio mod/base KO_IFN_1",
+                "mapping_key": TSV_ARM_COLUMNS[1],
             },
             {
                 NODE_TYPE_KEY: "Sample",
-                "id": "bzk:7b2ed3b2751c3364da982151935c9845",
+                "id": SAMPLE_IDS[1],
                 "replicate": 2,
-                "mapping_key": "Ratio mod/base KO_IFN_2",
+                "mapping_key": TSV_ARM_COLUMNS[0],
             },
         ],
     )
@@ -359,8 +397,10 @@ def test_a_protein_group_is_ingested_as_a_group(mapping: SampleMapping) -> None:
     adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
     parsed = adapter.parse(GROUPS, mapping)
     invariants.validate(parsed.nodes, parsed.edges)
-    assert len(_nodes(parsed, "Protein")) == 3  # P20591 alone, plus P19525 and O43593 as a group
-    assert len(_nodes(parsed, "ProteinObservation")) == 2
+    # P20591 alone, P19525 and O43593 as a group, and P05161 — whose row is Perseus' untested
+    # placeholder, so it is observed and mints no result (ADR-0038 D6-revised (c)).
+    assert len(_nodes(parsed, "Protein")) == 4
+    assert len(_nodes(parsed, "ProteinObservation")) == 3
     assert len(_nodes(parsed, "DifferentialResult")) == 2
     grouped = next(
         n
@@ -424,7 +464,9 @@ def test_refuses_when_a_declared_contrast_has_no_columns(mapping: SampleMapping)
     adapter = PerseusAdapter(
         declared=DECLARED,
         contrasts=[
-            DeclaredContrast(column_suffix="KO_WT", contrast=_anchored_contrast("KO", "WT"))
+            DeclaredContrast(
+                column_suffix="KO_WT", contrast=_anchored_contrast("KO", "WT"), arms=ARMS
+            )
         ],
     )
     with pytest.raises(PerseusError) as exc:
@@ -479,11 +521,15 @@ def test_the_change_set_stores(
     # names the missing label. What survived deletion is the one conjunct the dicts do not entail:
     # the *staged* count against a literal. Its reach is this adapter's change-set size and nothing
     # more; the divergence the rename is about needs two change-sets and lives in test_store.py.
-    assert report.nodes_staged == 18
-    assert report.edges_staged == 24
+    #
+    # 18 -> 20 nodes and 24 -> 26 edges on 2026-10-09: the fixture gained an untested row, which is
+    # one more `Protein` and `ProteinObservation` (and their two edges) and **no** result — the
+    # three result edges below stay at 4, which is rule (c) read back from the store.
+    assert report.nodes_staged == 20
+    assert report.edges_staged == 26
     assert store.count_nodes(conn) == {
-        "Protein": 4,
-        "ProteinObservation": 4,
+        "Protein": 5,
+        "ProteinObservation": 5,
         "DifferentialResult": 4,
         "Contrast": 1,
         "Analysis": 1,
@@ -495,8 +541,8 @@ def test_the_change_set_stores(
         "PRODUCED": 2,
         "USED": 1,
         "IMPUTATION_FOR": 1,
-        "REPORTS_PROTEIN": 4,
-        "RESOLVES_TO_PROTEIN": 4,
+        "REPORTS_PROTEIN": 5,
+        "RESOLVES_TO_PROTEIN": 5,
         "WAS_GENERATED_BY": 4,
         "RESULT_FOR_PROTEIN": 4,
         "RESULT_IN_CONTRAST": 4,
@@ -583,9 +629,7 @@ def test_the_composed_header_names_every_column(tmp_path: Path) -> None:
     assert "" not in header
 
 
-def test_the_identity_column_is_the_one_distinct_on_every_row(
-    mapping: SampleMapping, tmp_path: Path
-) -> None:
+def test_the_identity_column_is_the_one_distinct_on_every_row(tmp_path: Path) -> None:
     """`candidate_proteins` is identifying (ADR-0022) and `REPORTS_PROTEIN` is `ONE_MANY`, so a set
     repeating across rows collides into one observation taking two edges.
 
@@ -594,7 +638,7 @@ def test_the_identity_column_is_the_one_distinct_on_every_row(
     them.
     """
     adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
-    parsed = adapter.parse(_deposit_shaped(tmp_path / "d.xlsx"), mapping)
+    parsed = adapter.parse(_deposit_shaped(tmp_path / "d.xlsx"), _placed())
     observed = [n["candidate_proteins"] for n in _nodes(parsed, "ProteinObservation")]
     assert ["uniprot:P20591"] in observed
     assert ["uniprot:P19525"] in observed
@@ -785,13 +829,6 @@ def test_the_unmerged_fixture_composes_exactly_as_before(tmp_path: Path) -> None
 
 # ── Per-sample values: I11's columnar half ──────────────────────────────────────────────────────
 
-#: The `Sample` ids the `mapping` fixture uses. Reused so a placed mapping and an unplaced one
-#: differ in the one thing under test — whether a descriptor names a column — and in nothing else.
-SAMPLE_IDS = (
-    "bzk:9924d6d24941af0f1b64171e0b550e76",
-    "bzk:7b2ed3b2751c3364da982151935c9845",
-)
-
 #: What `_deposit_shaped`'s two quantitative columns compose to. Written out rather than derived
 #: from the sheet, so a change to either the sheet or the composition rule fails here by name.
 DEPOSIT_COLUMNS = ("1 | siC (-IFN-B) | /raw/2024_A.d", "2 | siUSP24 (+ IFN-B) | /raw/2024_B.d")
@@ -807,14 +844,27 @@ SEEDED = {
 }
 
 
-def _placed(keys: tuple[str, ...] = DEPOSIT_COLUMNS) -> SampleMapping:
-    """A loader-shaped mapping whose descriptors carry `mapping_key`, as the curation loader's do."""
+#: A third `Sample`, in no arm. Withholding is decided over every mapped sample (I11) while the
+#: proof binds the arms alone (D5), so an unplaced sample outside the arms is how a test reaches
+#: withholding without also reaching D6-revised (b)'s refusal.
+NON_ARM_SAMPLE = "bzk:5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
+
+
+def _placed(keys: tuple[str, ...] = DEPOSIT_COLUMNS, extra: tuple[str, ...] = ()) -> SampleMapping:
+    """A loader-shaped mapping whose descriptors carry `mapping_key`, as the curation loader's do.
+
+    `keys` place the two arm samples; each of `extra` is one more descriptor, for `NON_ARM_SAMPLE`.
+    """
+    arm = [
+        {NODE_TYPE_KEY: "Sample", "id": sid, "replicate": i + 1, "mapping_key": key}
+        for i, (sid, key) in enumerate(zip(SAMPLE_IDS, keys, strict=True))
+    ]
+    non_arm = [
+        {NODE_TYPE_KEY: "Sample", "id": NON_ARM_SAMPLE, "replicate": 3, "mapping_key": key}
+        for key in extra
+    ]
     return SampleMapping(
-        curation_analysis_id="bzk:bc90e3eb515d6edd1351ce25ecd33209",
-        samples=[
-            {NODE_TYPE_KEY: "Sample", "id": sid, "replicate": i + 1, "mapping_key": key}
-            for i, (sid, key) in enumerate(zip(SAMPLE_IDS, keys, strict=True))
-        ],
+        curation_analysis_id="bzk:bc90e3eb515d6edd1351ce25ecd33209", samples=[*arm, *non_arm]
     )
 
 
@@ -848,12 +898,12 @@ def test_a_placed_mapping_retains_one_cell_per_observation_per_sample(tmp_path: 
         for node in _nodes(parsed, "ProteinObservation")
     }
     assert {(proteins[c.observation_id], c.sample_id): c.value for c in batch} == {
-        ("uniprot:P20591", SAMPLE_IDS[0]): 100.0,
-        ("uniprot:P20591", SAMPLE_IDS[1]): 200.0,
-        ("uniprot:P19525", SAMPLE_IDS[0]): 110.0,
-        ("uniprot:P19525", SAMPLE_IDS[1]): 210.0,
-        ("uniprot:O43593", SAMPLE_IDS[0]): 120.0,
-        ("uniprot:O43593", SAMPLE_IDS[1]): 220.0,
+        ("uniprot:P20591", SAMPLE_IDS[0]): 20.0,
+        ("uniprot:P20591", SAMPLE_IDS[1]): 23.42,
+        ("uniprot:P19525", SAMPLE_IDS[0]): 21.0,
+        ("uniprot:P19525", SAMPLE_IDS[1]): 25.95,
+        ("uniprot:O43593", SAMPLE_IDS[0]): 22.0,
+        ("uniprot:O43593", SAMPLE_IDS[1]): 20.13,
     }
     assert {c.quantity for c in batch} == {"lfq"}
 
@@ -870,9 +920,7 @@ def test_quant_ref_is_written_only_where_the_cells_follow(tmp_path: Path) -> Non
     assert retained, "no ProteinObservation reached the change-set"
     for node in retained:
         assert node["quant_ref"] == "protein_values"
-    withheld = _nodes(
-        adapter.parse(book, _placed(("no such column", "nor this one"))), "ProteinObservation"
-    )
+    withheld = _nodes(adapter.parse(book, _placed(extra=("no such column",))), "ProteinObservation")
     assert withheld, "no ProteinObservation reached the change-set"
     for node in withheld:
         assert "quant_ref" not in node
@@ -900,11 +948,14 @@ def test_a_seeded_imputation_still_withholds_every_cell(tmp_path: Path) -> None:
 
 def test_one_unplaced_sample_withholds_the_whole_matrix(tmp_path: Path) -> None:
     """Not the placed half. A matrix missing a sample is not the matrix the analysis ran on, and a
-    recomputation over it would run on the subset without saying so."""
+    recomputation over it would run on the subset without saying so.
+
+    The unplaced sample is outside the arms (2026-10-09): an unplaced *arm* sample is refused
+    outright by D6-revised (b), which is tested with the proof's other refusals.
+    """
     adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
     parsed = adapter.parse(
-        _deposit_shaped(tmp_path / "d.xlsx"),
-        _placed((DEPOSIT_COLUMNS[0], "Intensity KO_IFN_2")),
+        _deposit_shaped(tmp_path / "d.xlsx"), _placed(extra=("Intensity KO_IFN_2",))
     )
     assert not parsed.cells
     because = _why(adapter)
@@ -913,17 +964,22 @@ def test_one_unplaced_sample_withholds_the_whole_matrix(tmp_path: Path) -> None:
 
 
 def test_an_unplaceable_mapping_is_reported_and_not_raised(
-    adapter: PerseusAdapter, mapping: SampleMapping, tmp_path: Path
+    adapter: PerseusAdapter, tmp_path: Path
 ) -> None:
     """The divergence from `maxquant_protein_groups`, which raises on the same input.
 
     `base.py` gives the two adapter classes different contracts — *"retaining the matrix (I11)"* for
-    a search-output adapter, *"ingest results computed elsewhere"* for this one — so a mapping this
+    a search-output adapter, *"ingest results computed elsewhere"* for this one — so a sample this
     adapter cannot place is a fact to report rather than a reason to reject results that are
-    otherwise complete. The `mapping` fixture carries no `mapping_key` at all, which is the shape a
-    curation record written without column headers produces.
+    otherwise complete.
+
+    **Narrowed 2026-10-09 by ADR-0038 D6-revised (b), and the narrowing is the point.** That holds
+    for a sample outside the arms. An *arm* sample the file cannot place leaves the results unproved,
+    and that is refused (`test_D6b_an_arm_sample_with_no_column_is_refused`). The extra descriptor
+    here carries an empty `mapping_key`, the shape a curation record written without column headers
+    produces.
     """
-    parsed = adapter.parse(_deposit_shaped(tmp_path / "d.xlsx"), mapping)
+    parsed = adapter.parse(_deposit_shaped(tmp_path / "d.xlsx"), _placed(extra=("",)))
     assert not parsed.cells
     assert parsed.nodes, "results were rejected along with the matrix"
     assert "name no column" in _why(adapter)
@@ -982,8 +1038,10 @@ def test_a_descriptor_with_no_mapping_key_does_not_place_onto_an_unnamed_column(
 
     `_read_workbook` refuses a column no header row names; the tab-separated `_read` does not — it
     splits the first line and keeps whatever it finds — so `columns` can carry `""`. A descriptor
-    with no `mapping_key` has `key == ""`, and without the conjunct both samples would place onto
-    that one column and the store would take one column's values under two sample ids.
+    with no `mapping_key` has `key == ""`, and without the conjunct it would place onto that unnamed
+    column and the store would take that column's values as a sample's. (Until 2026-10-09 both
+    samples here had no key and would both have placed there; D6-revised (b) now needs the arm
+    samples placed on real columns, so the keyless descriptor is a third one.)
 
     The asymmetry between the two readers is not repaired here; this asserts that it cannot reach
     the matrix.
@@ -991,19 +1049,297 @@ def test_a_descriptor_with_no_mapping_key_does_not_place_onto_an_unnamed_column(
     header = [
         "Protein IDs",
         "",
+        *TSV_ARM_COLUMNS,
         "Student's T-test Difference KO_IFN_WT_IFN",
         "-Log Student's T-test p-value KO_IFN_WT_IFN",
         "Student's T-test q-value KO_IFN_WT_IFN",
     ]
     rows = [
-        ["P20591", "100.0", "3.42", "4.51", "0.0012"],
-        ["P19525", "110.0", "4.95", "5.02", "0.0009"],
+        ["P20591", "100.0", "23.42", "20.00", "3.42", "4.51", "0.0012"],
+        ["P19525", "110.0", "25.95", "21.00", "4.95", "5.02", "0.0009"],
     ]
     path = tmp_path / "unnamed.txt"
-    lines = ["\t".join(header), "#!{Type}\tT\tN\tN\tN\tN", *("\t".join(r) for r in rows)]
+    lines = ["\t".join(header), "#!{Type}\tT\tN\tN\tN\tN\tN\tN", *("\t".join(r) for r in rows)]
     path.write_text("\n".join(lines) + "\n")
 
+    # The arm samples are placed, so D6-revised (b) proves the binding; the third descriptor has no
+    # `mapping_key`, and it is the one the `key and` conjunct must keep off the unnamed column.
+    no_key = {NODE_TYPE_KEY: "Sample", "id": NON_ARM_SAMPLE, "replicate": 3}
+    with_no_key = SampleMapping(
+        curation_analysis_id=mapping.curation_analysis_id, samples=[*mapping.samples, no_key]
+    )
     adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
-    parsed = adapter.parse(path, mapping)
+    parsed = adapter.parse(path, with_no_key)
     assert not parsed.cells
     assert "name no column" in _why(adapter)
+
+
+# ── ADR-0038 D6-revised: untested rows and the binding's proof ──────────────────────────────────
+#
+# Every file below is built here in `tmp_path`. The untested signature is S1's (ADR-0038 E2–E4):
+# Difference 0, −log p 0, statistic 0, q 1. **These tests show the code implements the rule; they
+# cannot show the rule is right** — S1 shaped it, and PV-S3 is the out-of-sample test on record.
+
+_STATS = (
+    "Student's T-test Difference {s}",
+    "-Log Student's T-test p-value {s}",
+    "Student's T-test q-value {s}",
+    "Student's T-test Test statistic {s}",
+)
+
+
+def _tsv(
+    path: Path,
+    rows: list[list[str]],
+    *,
+    arm_columns: tuple[str, ...] = TSV_ARM_COLUMNS,
+    suffixes: tuple[str, ...] = ("KO_IFN_WT_IFN",),
+    statistic: bool = True,
+) -> Path:
+    """A tab-separated Perseus export: accession, the arm columns, then per suffix Difference,
+    −log p, q and (where `statistic`) the test statistic. Each row lists its cells in that order."""
+    stats = [t.format(s=s) for s in suffixes for t in (_STATS if statistic else _STATS[:3])]
+    header = ["Protein IDs", *arm_columns, *stats]
+    lines = ["\t".join(header), "#!{Type}" + "\tN" * len(header), *("\t".join(r) for r in rows)]
+    path.write_text("\n".join(lines) + "\n")
+    return path
+
+
+def _results_by_accession(parsed: object) -> dict[str, list[str]]:
+    """Accession -> the ids of the `DifferentialResult`s minted for its observation."""
+    nodes = parsed.nodes  # type: ignore[attr-defined]
+    edges = parsed.edges  # type: ignore[attr-defined]
+    observation_of = {
+        n["id"]: cast("list[str]", n["candidate_proteins"])[0]
+        for n in nodes
+        if n[NODE_TYPE_KEY] == "ProteinObservation"
+    }
+    found: dict[str, list[str]] = {accession: [] for accession in observation_of.values()}
+    for edge in edges:
+        if edge["type"] == "RESULT_FOR_PROTEIN":
+            found[observation_of[edge["to"]]].append(edge["from"])
+    return found
+
+
+def test_C1_an_untested_row_needs_all_three_zeros(mapping: SampleMapping, tmp_path: Path) -> None:
+    """Rule (a): Difference 0, −log p 0 **and** statistic 0. Each other row breaks one condition
+    and is tested — so each condition is load-bearing, and dropping any one of them reclassifies
+    its row. Every tested row's arms agree with its Difference, so (b) passes on each."""
+    book = _tsv(
+        tmp_path / "c1.txt",
+        [
+            ["P20591", "20.00", "20.00", "0", "0", "1", "0"],  # all three zero: untested
+            ["P19525", "20.50", "20.00", "0.5", "0", "1", "0"],  # Difference non-zero
+            ["O43593", "20.00", "20.00", "0", "0.3", "1", "0"],  # −log p non-zero
+            ["P05161", "20.00", "20.00", "0", "0", "1", "0.2"],  # statistic non-zero
+        ],
+    )
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    found = _results_by_accession(adapter.parse(book, mapping))
+    assert {accession: len(ids) for accession, ids in found.items()} == {
+        "uniprot:P20591": 0,
+        "uniprot:P19525": 1,
+        "uniprot:O43593": 1,
+        "uniprot:P05161": 1,
+    }
+
+
+def test_q_is_not_part_of_the_rule(mapping: SampleMapping, tmp_path: Path) -> None:
+    """q is computed across rows, not by one row's test, so it is recorded beside the rule and
+    never read by it: the placeholder with a q other than 1 is still untested."""
+    book = _tsv(
+        tmp_path / "q.txt",
+        [
+            ["P20591", "23.42", "20.00", "3.42", "4.51", "0.0012", "5.1"],
+            ["P19525", "20.00", "20.00", "0", "0", "0.4", "0"],
+        ],
+    )
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    assert len(_results_by_accession(adapter.parse(book, mapping))["uniprot:P19525"]) == 0
+
+
+def test_a_file_without_a_statistic_column_recognises_on_two_conditions(
+    mapping: SampleMapping,
+) -> None:
+    """D6-revised *Limits*: weaker, and not an error. `GROUPS` carries no statistic column and its
+    ISG15 row is the placeholder on Difference and −log p alone."""
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    found = _results_by_accession(adapter.parse(GROUPS, mapping))
+    assert found["uniprot:P05161"] == []
+    assert adapter.report is not None
+    assert adapter.report.rows_untested == {str(CONTRAST_NODE["id"]): 1}
+
+
+def test_a_plain_p_of_one_is_the_placeholder(mapping: SampleMapping) -> None:
+    """The other p spelling: −log p 0 is p = 1, so `PLAIN_P`'s second row is untested."""
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    found = _results_by_accession(adapter.parse(PLAIN_P, mapping))
+    assert (len(found["uniprot:P20591"]), len(found["uniprot:P05161"])) == (1, 0)
+
+
+def test_C2_rule_a_runs_before_rule_b(mapping: SampleMapping, tmp_path: Path) -> None:
+    """The ordering test, and the one most easily lost. The untested row's arms give 6.0 against
+    its placeholder 0, so rule (b) would refuse the whole file if it ever saw that row; it parses
+    cleanly only because (a) excuses the row first."""
+    book = _tsv(
+        tmp_path / "c2.txt",
+        [
+            ["P20591", "23.42", "20.00", "3.42", "4.51", "0.0012", "5.1"],
+            ["P19525", "26.00", "20.00", "0", "0", "1", "0"],
+        ],
+    )
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    adapter.parse(book, mapping)
+    assert adapter.proof is not None
+    proved = adapter.proof[str(CONTRAST_NODE["id"])]
+    assert (proved.rows_tested, proved.rows_untested) == (1, 1)
+    assert proved.max_deviation < 1e-9
+
+
+def test_rule_c_keeps_the_untested_rows_observation_edges_and_cells(
+    mapping: SampleMapping,
+) -> None:
+    """Shown, not hidden: only the result and its three edges are withheld for an untested row."""
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    parsed = adapter.parse(TABLE, mapping)
+    ifit1 = next(
+        n
+        for n in _nodes(parsed, "ProteinObservation")
+        if n["candidate_proteins"] == ["uniprot:P09914"]
+    )
+    touching = sorted(e["type"] for e in parsed.edges if ifit1["id"] in (e["from"], e["to"]))
+    assert touching == ["REPORTS_PROTEIN", "RESOLVES_TO_PROTEIN"]
+    (batch,) = [b for label, b in parsed.cells if label == "ProteinObservation"]
+    assert {c.sample_id: c.value for c in batch if c.observation_id == ifit1["id"]} == {
+        SAMPLE_IDS[1]: 26.0,
+        SAMPLE_IDS[0]: 20.0,
+    }
+
+
+def test_C3_a_file_with_no_tested_row_is_refused(mapping: SampleMapping, tmp_path: Path) -> None:
+    book = _tsv(tmp_path / "none.txt", [["P20591", "23.00", "20.00", "0", "0", "1", "0"]])
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    with pytest.raises(PerseusError, match="no row is left to prove the binding against"):
+        adapter.parse(book, mapping)
+    assert adapter.proof is None
+
+
+def test_C3_a_tested_row_off_by_more_than_the_tolerance_is_refused(
+    mapping: SampleMapping, tmp_path: Path
+) -> None:
+    """Named by line and deviation. 0.6 reported against 0.5 recomputed is 0.1 over."""
+    book = _tsv(tmp_path / "off.txt", [["P20591", "20.50", "20.00", "0.6", "4.51", "0.01", "5"]])
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    with pytest.raises(PerseusError, match=r"line 3: .* a deviation of 0\.1, over the 0\.001"):
+        adapter.parse(book, mapping)
+
+
+def test_a_deviation_inside_the_tolerance_is_accepted(
+    mapping: SampleMapping, tmp_path: Path
+) -> None:
+    """R2's 1e-3 is a bound on single-precision storage, not on agreement to the last digit."""
+    book = _tsv(tmp_path / "in.txt", [["P20591", "20.50", "20.00", "0.5009", "4.51", "0.01", "5"]])
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    adapter.parse(book, mapping)
+    assert adapter.proof is not None
+    assert adapter.proof[str(CONTRAST_NODE["id"])].max_deviation == pytest.approx(9e-4)
+
+
+def test_C3_statistics_with_no_sample_columns_are_refused(
+    mapping: SampleMapping, tmp_path: Path
+) -> None:
+    """A file that cannot be proved at all, named by the arm samples it cannot place."""
+    book = _tsv(
+        tmp_path / "bare.txt", [["P20591", "3.42", "4.51", "0.0012", "5.1"]], arm_columns=()
+    )
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    with pytest.raises(PerseusError, match="name no column in this file") as exc:
+        adapter.parse(book, mapping)
+    assert SAMPLE_IDS[0] in str(exc.value) and SAMPLE_IDS[1] in str(exc.value)
+
+
+def test_D6b_an_arm_sample_with_no_column_is_refused(tmp_path: Path) -> None:
+    """A partially placed arm, refused by the same rule and naming only the unplaced sample.
+
+    Proving over the placed half would recompute a different Difference from the one the file
+    reports — the subset hazard `_withheld_because` already names for the matrix.
+    """
+    arms = ContrastArms(
+        numerator=(SAMPLE_IDS[1], NON_ARM_SAMPLE), denominator=(SAMPLE_IDS[0],), kind="condition"
+    )
+    contrast = DeclaredContrast(column_suffix="KO_IFN_WT_IFN", contrast=CONTRAST_NODE, arms=arms)
+    book = _tsv(tmp_path / "half.txt", [["P20591", "23.42", "20.00", "3.42", "4.51", "0.01", "5"]])
+    mapping = _placed(TSV_ARM_COLUMNS[::-1], extra=("LFQ intensity KO_IFN_2",))
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[contrast])
+    with pytest.raises(PerseusError, match="name no column in this file") as exc:
+        adapter.parse(book, mapping)
+    assert f"[{NON_ARM_SAMPLE!r}]" in str(exc.value)
+
+
+def test_D6b_a_tested_row_with_a_blank_arm_value_is_refused(
+    mapping: SampleMapping, tmp_path: Path
+) -> None:
+    """Refused, not skipped — deliberately unlike PV's instrument, which skipped such rows. A skip
+    would make *every tested row agrees* quietly mean *every complete one does*."""
+    book = _tsv(tmp_path / "blank.txt", [["P20591", "", "20.00", "3.42", "4.51", "0.01", "5"]])
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    with pytest.raises(PerseusError, match="line 3: .* arm column 'LFQ intensity KO_IFN_1'"):
+        adapter.parse(book, mapping)
+
+
+def test_D6b_a_tested_row_with_an_infinite_arm_value_is_refused(
+    mapping: SampleMapping, tmp_path: Path
+) -> None:
+    book = _tsv(tmp_path / "inf.txt", [["P20591", "inf", "20.00", "3.42", "4.51", "0.01", "5"]])
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    with pytest.raises(PerseusError, match="not a finite value"):
+        adapter.parse(book, mapping)
+
+
+def test_C4_the_count_on_the_analysis_and_in_the_report_agree(mapping: SampleMapping) -> None:
+    """One mapping, written twice: `PerseusIngestReport.rows_untested` and the external `Analysis`'s
+    `rows_untested_json` carry the same per-contrast number on the same parse."""
+    import json
+
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    analysis = _nodes(adapter.parse(TABLE, mapping), "Analysis")[0]
+    assert adapter.report is not None
+    expected = {str(CONTRAST_NODE["id"]): 1}
+    assert adapter.report.rows_untested == expected
+    assert json.loads(cast("str", analysis["rows_untested_json"])) == expected
+
+
+def test_the_count_is_per_contrast(mapping: SampleMapping, tmp_path: Path) -> None:
+    """One row, untested under one contrast and tested under the other: a count for the file would
+    be wrong the moment a second contrast is declared, which is the hazard P3 chose (i) to avoid."""
+    other_node = _anchored_contrast("USP18-/-", "WT")
+    other = DeclaredContrast(column_suffix="KO_WT", contrast=other_node, arms=ARMS)
+    # P20591 is the placeholder under the first contrast and tested under the second; P19525 is
+    # tested under both, so the first contrast still has a row to prove its binding against.
+    book = _tsv(
+        tmp_path / "two.txt",
+        [
+            ["P20591", "23.42", "20.00", "0", "0", "1", "0", "3.42", "4.51", "0.01", "5"],
+            ["P19525", "21.00", "20.00", "1.0", "2", "0.1", "3", "1.0", "2", "0.1", "3"],
+        ],
+        suffixes=("KO_IFN_WT_IFN", "KO_WT"),
+    )
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST, other])
+    adapter.parse(book, mapping)
+    assert adapter.report is not None
+    assert adapter.report.rows_untested == {
+        str(CONTRAST_NODE["id"]): 1,
+        str(other_node["id"]): 0,
+    }
+
+
+def test_C5_the_count_is_not_identifying() -> None:
+    """P3's field is outside `IDENTITY`, which is an allow-list: `keys.identity_tuple` hashes
+    `spec.fields` and nothing else, so a field absent from it cannot fork an `Analysis` id. The
+    committed records' ids are measured unchanged in prompt 31's report (C5)."""
+    from bzk.ontology import schema
+
+    assert "rows_untested_json" not in schema.IDENTITY["Analysis"].fields
+    assert "rows_untested_json" in dict(
+        next(t.columns for t in schema.NODE_TABLES if t.name == "Analysis")
+    )

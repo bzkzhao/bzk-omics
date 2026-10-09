@@ -32,40 +32,50 @@ ANALYSIS = REPO_ROOT / "data" / "curation" / "analysis_PXD055843_siUSP24_IFN_vs_
 def _synthetic_export(path: Path, suffix: str) -> Path:
     """A workbook of the deposit's shape. Reviewer-supplied shape; the values are this file's own.
 
-    Row 1 carries one merged qualifier over the four quantitative columns, row 2 their condition
-    strings, row 3 an acquisition path for each and the Perseus type-stamped names for the rest.
+    Row 1 carries a merged `Set` qualifier over each set's columns, row 2 their condition strings,
+    row 3 an acquisition path for each and the Perseus type-stamped names for the rest.
+
+    **The quantitative columns are the record's own arm columns since 2026-10-09** (ADR-0038
+    D6-revised (b)): the adapter now proves its binding by recomputing each tested row's Difference
+    from the arm samples' columns, so the workbook carries exactly the six headers the curation
+    record's `numerator_samples` / `denominator_samples` name — split on the composition's own
+    separator and rebuilt across the three header rows, never retyped. Each row's numerator values
+    are its denominator values plus its Difference. The last row is Perseus' untested placeholder
+    (ADR-0038 E2–E4) and carries arm values that rule (b) would refuse, so it parses only because
+    rule (a) excuses it first.
     """
     import openpyxl
 
-    workbook = openpyxl.Workbook()
-    sheet = workbook.active
+    entry = json.loads(CURATION.read_text())["contrasts_of_interest"][0]
+    numerator = [key.split(" | ") for key in entry["numerator_samples"]]
+    denominator = [key.split(" | ") for key in entry["denominator_samples"]]
+    columns = [col for pair in zip(numerator, denominator, strict=True) for col in pair]
     stamped = [
         "T: Protein.Group",
         "T: Protein.Ids",
         f"N: Student's T-test Difference {suffix}",
         f"N: -Log Student's T-test p-value {suffix}",
         f"N: Student's T-test q-value {suffix}",
+        f"N: Student's T-test Test statistic {suffix}",
     ]
-    for row in (
-        ["Set 1", None, None, None, None, None, None, None, None],
-        [
-            "siC (+IFN-B)",
-            "siUSP24 (+ IFN-B)",
-            "siC (-IFN-B)",
-            "siUSP24 (-IFN-B)",
-            None,
-            None,
-            None,
-            None,
-            None,
-        ],
-        ["/raw/A.d", "/raw/B.d", "/raw/C.d", "/raw/D.d", *stamped],
-        [100.0, 200.0, 110.0, 210.0, "P20591", "P20591", 3.42, 4.51, 0.0012],
-        [120.0, 220.0, 130.0, 230.0, "P19525", "P19525;Q9NRZ9", 4.95, 5.02, 0.0009],
-        [140.0, 240.0, 150.0, 250.0, "O43593", "O43593", -1.87, 2.30, 0.0210],
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.append([c[0] for c in columns] + [None] * len(stamped))
+    sheet.append([c[1] for c in columns] + [None] * len(stamped))
+    sheet.append([c[2] for c in columns] + stamped)
+
+    def arms(denominator_values: list[float], difference: float) -> list[float]:
+        return [v for d in denominator_values for v in (d + difference, d)]
+
+    for values, identity, statistics in (
+        (arms([20.0, 21.0, 22.0], 3.42), ["P20591", "P20591"], [3.42, 4.51, 0.0012, 6.1]),
+        (arms([23.0, 24.0, 25.0], 4.95), ["P19525", "P19525;Q9NRZ9"], [4.95, 5.02, 0.0009, 7.0]),
+        (arms([26.0, 27.0, 28.0], -1.87), ["O43593", "O43593"], [-1.87, 2.30, 0.0210, -3.1]),
+        ([30.0, 20.0, 30.0, 20.0, 30.0, 20.0], ["P05161", "P05161"], [0, 0, 1, 0]),
     ):
-        sheet.append(row)
-    sheet.merge_cells("A1:D1")
+        sheet.append([*values, *identity, *statistics])
+    for first in range(0, len(columns), 2):
+        sheet.merge_cells(start_row=1, start_column=first + 1, end_row=1, end_column=first + 2)
     workbook.save(path)
     return path
 
@@ -124,6 +134,55 @@ def test_the_record_as_it_stands_is_refused_by_I15(tmp_path: Path) -> None:
         pxd055843_perseus.build(book, load_path(CURATION), declaration, contrast)
     assert "I15" in str(exc.value)
     assert "seed" in str(exc.value)
+
+
+def test_the_proof_is_readable_when_I15_refuses(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """ADR-0038 D6-revised on the record as it stands, which I15 refuses by design.
+
+    The proof is set before anything is emitted, so it survives the refusal that follows — which is
+    what lets `main` print the binding's outcome for the one file it exists for, and what §5 of
+    prompt 31 reads off S1 without a graph write. Asserted on the synthetic workbook: three tested
+    rows, one untested.
+    """
+    from bzk.sources import pxd055843_perseus
+
+    declaration, contrast = pxd055843_perseus.declared()
+    book = _synthetic_export(tmp_path / "export.xlsx", contrast.column_suffix)
+    adapter = PerseusAdapter(declaration, [contrast])
+    with pytest.raises(InvariantError, match="I15"):
+        pxd055843_perseus.build(book, load_path(CURATION), declaration, contrast, adapter=adapter)
+    assert adapter.report is None, "a refused parse must not leave a report of what it emitted"
+    assert adapter.proof is not None
+    found = adapter.proof[str(contrast.contrast["id"])]
+    assert (found.rows_tested, found.rows_untested) == (3, 1)
+    pxd055843_perseus._print_proof(adapter)
+    printed = capsys.readouterr().out
+    assert "binding accepted — 3 tested row(s)" in printed
+    assert "1 untested row(s), no result minted for them" in printed
+
+
+def test_the_untested_row_mints_no_result_on_the_change_set_path(tmp_path: Path) -> None:
+    """Rule (c) through the source module, with the seed this test supplies: four observations,
+    three results, and the count the `Analysis` carries."""
+    from bzk.sources import pxd055843_perseus
+
+    declaration, contrast = pxd055843_perseus.declared()
+    seeded = replace(
+        declaration,
+        imputation=dict(declaration.imputation)
+        | {"seed": 0, "downshift_sd": 1.8, "width_sd": 0.3, "scope": "whole_matrix"},
+    )
+    book = _synthetic_export(tmp_path / "export.xlsx", contrast.column_suffix)
+    parsed = pxd055843_perseus.build(book, load_path(CURATION), seeded, contrast)
+    count = {
+        label: sum(1 for n in parsed.nodes if n[NODE_TYPE_KEY] == label)
+        for label in ("ProteinObservation", "DifferentialResult")
+    }
+    assert count == {"ProteinObservation": 4, "DifferentialResult": 3}
+    analysis_node = next(n for n in parsed.nodes if n[NODE_TYPE_KEY] == "Analysis")
+    assert json.loads(str(analysis_node["rows_untested_json"])) == {str(contrast.contrast["id"]): 1}
 
 
 def test_the_change_set_carries_what_the_adapter_mints(tmp_path: Path) -> None:

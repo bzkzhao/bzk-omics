@@ -60,7 +60,12 @@ from pathlib import Path
 from typing import Any
 
 from bzk.adapters.base import ParsedObservations
-from bzk.adapters.perseus import DeclaredAnalysis, DeclaredContrast, PerseusAdapter
+from bzk.adapters.perseus import (
+    PROOF_TOLERANCE,
+    DeclaredAnalysis,
+    DeclaredContrast,
+    PerseusAdapter,
+)
 from bzk.curation import analysis_record
 from bzk.curation.loader import LoadedCuration, load_path
 from bzk.ontology import store
@@ -120,11 +125,15 @@ def declared() -> tuple[DeclaredAnalysis, DeclaredContrast]:
         external_version=record["external_version"],
         imputation=dict(record["imputation"]),
     )
+    curation = load_path(CURATION)
     contrast = DeclaredContrast(
         column_suffix=COLUMN_SUFFIX,
         # The loader's node for that entry: anchored on the record's Experiment, minted nowhere
         # else (ADR-0029 item 3). `entry` above is still read, so the refusal names the record.
-        contrast=load_path(CURATION).contrast(contrast_id),
+        contrast=curation.contrast(contrast_id),
+        # The arms as the loader resolved them, with which the adapter proves its binding
+        # (ADR-0038 D6-revised (b)). Taken whole; nothing here re-resolves a mapping key.
+        arms=curation.contrast_arms[contrast_id],
     )
     return declaration, contrast
 
@@ -176,13 +185,33 @@ def build(
     return adapter.parse(deposit, curation.sample_mapping())
 
 
+def _print_proof(adapter: PerseusAdapter) -> None:
+    """ADR-0038 D6-revised's outcome per contrast: rows proved, rows untested, worst deviation."""
+    if adapter.proof is None:
+        print("[PXD055843]   binding not proved: the parse was refused before or during the proof")
+        return
+    for contrast_id, found in adapter.proof.items():
+        print(
+            f"[PXD055843]   contrast {contrast_id}: binding accepted — {found.rows_tested:,} tested "
+            f"row(s) within {PROOF_TOLERANCE:g} (max deviation {found.max_deviation:.3g}); "
+            f"{found.rows_untested:,} untested row(s), no result minted for them"
+        )
+
+
 def main() -> int:  # pragma: no cover - convenience entry point
     home = Path.home() / ".bzk-omics"
     curation = load_path(CURATION)
     declaration, contrast = declared()
     deposit = locate(home=home)
     adapter = PerseusAdapter(declaration, [contrast])
-    parsed = build(deposit, curation, declaration, contrast, adapter=adapter)
+    try:
+        parsed = build(deposit, curation, declaration, contrast, adapter=adapter)
+    finally:
+        # Printed whether or not the parse then succeeds. The proof is set before anything is
+        # emitted, and this deposit's change-set is refused by I15 afterwards by design (the
+        # analysis record's `unresolved`), so a print placed after `build` would never run on the
+        # one file this module exists for.
+        _print_proof(adapter)
 
     nodes = Counter(str(node[NODE_TYPE_KEY]) for node in parsed.nodes)
     conn = open_graph(home)
