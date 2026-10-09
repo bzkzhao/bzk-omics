@@ -384,8 +384,17 @@ def _check_I3(nodes: list[Node], edges: list[Edge]) -> None:
 
 
 def _check_I4(nodes: list[Node], edges: list[Edge]) -> None:
-    """I4 — protein_adjusted is tri-state, and 'applied' requires an ADJUSTED_BY edge."""
+    """I4 — protein_adjusted is tri-state, 'applied' requires an ADJUSTED_BY edge, and a
+    protein-grain result is 'not_applied'.
+
+    **The third clause reads grain and never kind** (ADR-0038 D7). Grain is the result's
+    `RESULT_FOR_*` edge, which every change-set carries (I20); kind is not visible here, because
+    producers stage the `Contrast` as a bare referent without its arms or anchor. So the
+    kind-dependent refusal — a site-grain result in an IP kind — sits at the producer
+    (`site_change_set`) and again at the display, and is not repeated here.
+    """
     adjusted_from = {e["from"] for e in _edges(edges, "ADJUSTED_BY")}
+    at_protein_grain = {e["from"] for e in _edges(edges, "RESULT_FOR_PROTEIN")}
     for dr in _nodes(nodes, "DifferentialResult"):
         state = dr.get("protein_adjusted")
         if state not in PROTEIN_ADJUSTED:
@@ -399,6 +408,14 @@ def _check_I4(nodes: list[Node], edges: list[Edge]) -> None:
                 "I4",
                 f"DifferentialResult {dr.get('id')} is protein_adjusted='applied' but has "
                 "no ADJUSTED_BY edge to the protein-level result used to correct it.",
+            )
+        if dr.get("id") in at_protein_grain and state != "not_applied":
+            raise InvariantError(
+                "I4",
+                f"DifferentialResult {dr.get('id')} is a protein-grain result (RESULT_FOR_PROTEIN) "
+                f"with protein_adjusted={state!r}; at protein grain it must be 'not_applied' — "
+                "there is no protein above a protein to correct against, and the (protein, *, "
+                f"{state!r}) cells are refused (ADR-0038 D7, ONTOLOGY.md §8 I4).",
             )
 
 

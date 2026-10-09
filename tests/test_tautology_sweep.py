@@ -792,6 +792,25 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         # not the first.
         ("test_ui.py", "set(ui_absence.RENDERING) == set(Absence)", 1),
         ("test_ui.py", "len(set(headlines)) == len(Absence) == 4", 1),
+        # ── ADR-0038 D7, classified individually 2026-10-09 (prompt 32) ───────────────────────
+        # **All `PINNED`; none an instance.** Three compare `ONTOLOGY.md` §8 I4's table, parsed
+        # from the document, against `graph.I4_LABELS` or a test constant — the mirror guard, whose
+        # two sides are two homes and not one call; the fourth compares `valid_changeset.json`'s
+        # results against a literal (D1, ADR-0038 M10 re-measured). Each made to fail in prompt
+        # 32's report: a label edited in the code map, a refused cell given a label, an IP kind
+        # dropped from the table, a fixture result's state changed.
+        (
+            "test_invariants.py",
+            "states == {'bzk:dr1': ('RESULT_FOR_SITE', 'applied'), 'bzk:dr2': ('RESULT_FOR_PROTEIN', 'not_applied'), 'bzk:dr3': ('RESULT_FOR_SITE', 'not_applied'), 'bzk:dr4': ('RESULT_FOR_SITE', 'not_applied')}",
+            1,
+        ),
+        ("test_query.py", "gq.adjustment_label('bzk:r', grain, kind, state) == label", 1),
+        ("test_query.py", "labelled == gq.I4_LABELS", 1),
+        (
+            "test_query.py",
+            "{k for g, k, _ in cells if g == 'protein'} - {'condition'} == set(IP_KINDS)",
+            1,
+        ),
         ("test_perseus.py", "dataset['content_hash'] == content_hash(TABLE.read_bytes())", 1),
         (
             "test_perseus.py",

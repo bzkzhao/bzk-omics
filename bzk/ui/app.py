@@ -226,6 +226,8 @@ def absences_panel(conn: Any, analysis_ids: Sequence[str]) -> None:
                 [
                     {
                         "result": r.result_id,
+                        "grain": r.grain,
+                        "kind": r.kind,
                         "site": r.site_id or "—",
                         "genes": ", ".join(r.gene_symbols) or "—",
                         "quantity": r.quantity or "—",
@@ -237,7 +239,10 @@ def absences_panel(conn: Any, analysis_ids: Sequence[str]) -> None:
                         "fdr": r.fdr_method or "—",
                         "log2FC": r.log2fc,
                         "adj p": r.adj_p_value,
-                        "protein_adjusted": r.protein_adjusted or "—",
+                        # I4's label for (grain, kind, state), from the read layer's
+                        # `I4_LABELS`. No fallback: a result in a refused cell raises there, and a
+                        # NULL state cannot be stored (I4), so nothing here could stand in for one.
+                        "adjustment (I4)": r.adjustment_label,
                         # Never False and never blank — see `_unknown`.
                         "substantially imputed": (
                             _unknown(_COUNTS_NOT_RECORDED)
@@ -256,6 +261,8 @@ def absences_panel(conn: Any, analysis_ids: Sequence[str]) -> None:
                 ],
                 hide_index=True,
             )
+
+        _untested_rows(query.untested_rows(conn, str(analysis_id)))
 
     st.subheader("Refusals")
     answer = query.refusals(conn)
@@ -284,6 +291,34 @@ def absences_panel(conn: Any, analysis_ids: Sequence[str]) -> None:
         "An imputation state is a **set**: `IMPUTATION_FOR` is `MANY_ONE`, so several may attach "
         "to one `Analysis`."
     )
+
+
+def _untested_rows(answer: Any) -> None:
+    """ADR-0038 D6-revised (c): rows the source analysis did not test, shown only where counted.
+
+    The label is printed only for `UntestedStatus.UNTESTED`, where the graph's derived count equals
+    the analysis's recorded one. A mismatch prints both numbers as an error and labels nothing:
+    *no result here* alone cannot separate *untested* from *absent from the file* or *dropped*.
+    """
+    st.markdown("**Rows the source analysis did not test**")
+    _absence_notice(answer.absence)
+    if answer.detail:
+        st.caption(answer.detail)
+    for contrast in answer.contrasts:
+        if contrast.status is query.UntestedStatus.UNTESTED:
+            st.markdown(f"Contrast `{contrast.contrast_id}` — {contrast.detail}")
+            if contrast.observation_ids:
+                st.dataframe(
+                    [
+                        {"observation": o, "result": query.NOT_TESTED_LABEL}
+                        for o in contrast.observation_ids
+                    ],
+                    hide_index=True,
+                )
+        else:
+            st.error(
+                f"**Untested-row count mismatch** in `{contrast.contrast_id}`: {contrast.detail}"
+            )
 
 
 def graph_path() -> Path:

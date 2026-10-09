@@ -450,3 +450,103 @@ def test_an_unknown_truth_value_is_never_rendered_as_false_or_blank() -> None:
     rendered = ui_app._unknown("denominator is in quant.duckdb")
     assert rendered.startswith("unknown — ")
     assert rendered.strip() not in {"", "False", "false", "—"}
+
+
+# ── ADR-0038 D6-revised (c): untested rows, shown only where counted ────────────────────────────
+
+PERSEUS_TABLE = Path(__file__).parent / "fixtures" / "perseus_synthetic_proteins.txt"
+
+
+def _perseus_graph(path: Path, recorded: str | None = "derive") -> Path:
+    """The loader's anchored, armed contrast, then the Perseus adapter's change-set over the
+    proteins fixture, whose IFIT1 row is the untested placeholder. `recorded`, where given,
+    overwrites the analysis's recorded count in the store — the disagreement the display must
+    refuse to label."""
+    from bzk.adapters.base import SampleMapping
+    from bzk.adapters.perseus import DeclaredAnalysis, DeclaredContrast, PerseusAdapter
+    from bzk.curation.loader import ContrastArms
+    from bzk.ontology.keys import evidence_id
+
+    samples = ("bzk:9924d6d24941af0f1b64171e0b550e76", "bzk:7b2ed3b2751c3364da982151935c9845")
+    experiment = "bzk:experiment-perseus"
+    props = {"numerator": "USP18-/- + IFN", "denominator": "WT + IFN"}
+    contrast_id = evidence_id("Contrast", props, {"Experiment": experiment})
+    contrast: dict[str, object] = {NODE_TYPE_KEY: "Contrast", "id": contrast_id, **props}
+    conn = kuzu.Connection(kuzu.Database(str(path)))
+    for ddl in schema.ddl_statements():
+        conn.execute(ddl)
+    store.write_change_set(
+        conn,
+        [
+            _n("Experiment", experiment, title="synthetic", modality="proteomics"),
+            *(_n("Sample", s, replicate=i + 1) for i, s in enumerate(samples)),
+            contrast,
+        ],
+        [
+            _e("CONTRAST_IN_EXPERIMENT", contrast_id, experiment),
+            _e("NUMERATOR_SAMPLE", contrast_id, samples[1]),
+            _e("DENOMINATOR_SAMPLE", contrast_id, samples[0]),
+        ],
+    )
+    adapter = PerseusAdapter(
+        DeclaredAnalysis(
+            quantity="lfq",
+            filters_applied=[],
+            test="welch_t",
+            fdr_method="BH",
+            external_version="1.6.15.0",
+        ),
+        [
+            DeclaredContrast(
+                "KO_IFN_WT_IFN", contrast, ContrastArms((samples[1],), (samples[0],), "condition")
+            )
+        ],
+    )
+    mapping = SampleMapping(
+        curation_analysis_id="bzk:curation",
+        samples=[
+            {NODE_TYPE_KEY: "Sample", "id": samples[0], "mapping_key": "LFQ intensity WT_IFN_1"},
+            {NODE_TYPE_KEY: "Sample", "id": samples[1], "mapping_key": "LFQ intensity KO_IFN_1"},
+        ],
+    )
+    parsed = adapter.parse(PERSEUS_TABLE, mapping)
+    store.write_change_set(conn, parsed.nodes, parsed.edges)
+    if recorded != "derive":
+        conn.execute(
+            "MATCH (a:Analysis) WHERE a.kind = 'external' SET a.rows_untested_json = $v",
+            {"v": recorded.replace("{cid}", contrast_id) if recorded else None},
+        )
+    return path
+
+
+def _dataframes(at: AppTest) -> str:
+    return "\n".join(df.value.to_string() for df in at.dataframe)
+
+
+def test_agreeing_counts_show_the_untested_label_and_the_i4_label(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The label beside the row it describes, and I4's protein-grain label in place of the bare
+    state — no dash anywhere a label belongs."""
+    from bzk.query import NOT_TESTED_LABEL
+
+    at = _run(_perseus_graph(tmp_path / "agree.kuzu"), monkeypatch).run()
+    assert not at.exception
+    tables = _dataframes(at)
+    assert NOT_TESTED_LABEL in tables
+    assert "abundance — no adjustment defined" in tables
+    assert "Untested-row count mismatch" not in _text(at)
+
+
+def test_a_mismatch_is_an_error_naming_both_numbers_and_labels_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from bzk.query import NOT_TESTED_LABEL
+
+    graph = _perseus_graph(tmp_path / "mismatch.kuzu", '{"{cid}": 2}')
+    at = _run(graph, monkeypatch).run()
+    assert not at.exception
+    errors = "\n".join(str(e.value) for e in at.error)
+    assert "Untested-row count mismatch" in errors
+    assert "has 1 observation(s) with no result" in errors and "records 2 untested" in errors
+    assert NOT_TESTED_LABEL not in _text(at) + _dataframes(at)

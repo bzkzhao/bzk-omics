@@ -221,6 +221,57 @@ def test_I4_protein_adjusted_must_be_in_the_enum() -> None:
     assert "must be one of" in str(ei.value)
 
 
+@pytest.mark.parametrize("state", ["native", "applied"])
+def test_I4_a_protein_grain_result_must_be_not_applied(state: str) -> None:
+    """ADR-0038 D7's write-time clause: there is no protein above a protein to correct against.
+
+    `applied` is given its `ADJUSTED_BY` edge so the second clause is satisfied and the refusal is
+    the protein-grain clause's own; the message names the grain and the state.
+    """
+    nodes = [
+        n("ProteinObservation", id="bzk:po1", candidate_proteins=[MX1]),
+        n("DifferentialResult", id="bzk:dr1", log2fc=1.0, protein_adjusted=state),
+        n("DifferentialResult", id="bzk:dr0", log2fc=0.5, protein_adjusted="not_applied"),
+    ]
+    edges = [e("RESULT_FOR_PROTEIN", "bzk:dr1", "bzk:po1"), e("ADJUSTED_BY", "bzk:dr1", "bzk:dr0")]
+    with pytest.raises(InvariantError) as ei:
+        validate(nodes, edges, only="I4")
+    assert ei.value.invariant == "I4"
+    assert f"protein-grain result (RESULT_FOR_PROTEIN) with protein_adjusted={state!r}" in str(
+        ei.value
+    )
+
+
+def test_I4_accepts_a_protein_grain_result_that_is_not_applied_and_reads_no_kind() -> None:
+    """The permitted cell, with no `Contrast` in the change-set at all: the clause reads grain and
+    never kind, which is not visible at write time (ADR-0038 D7)."""
+    nodes = [
+        n("ProteinObservation", id="bzk:po1", candidate_proteins=[MX1]),
+        n("DifferentialResult", id="bzk:dr1", log2fc=1.0, protein_adjusted="not_applied"),
+    ]
+    validate(nodes, [e("RESULT_FOR_PROTEIN", "bzk:dr1", "bzk:po1")], only="I4")
+
+
+def test_I4_refuses_nothing_that_exists_D1() -> None:
+    """ADR-0038 M10, re-measured on the fixture rather than assumed: every `applied` or `native`
+    result in `valid_changeset.json` is site grain, so the protein-grain clause has no fixture
+    result to refuse — and `bzk:dr2`, its one protein-grain result, is `not_applied`."""
+    cs = json.loads(VALID_CHANGESET.read_text())
+    grain = {x["from"]: x["type"] for x in cs["edges"] if str(x["type"]).startswith("RESULT_FOR_")}
+    states = {
+        str(x["id"]): (grain[x["id"]], x["protein_adjusted"])
+        for x in cs["nodes"]
+        if x[NODE_TYPE_KEY] == "DifferentialResult"
+    }
+    assert states == {
+        "bzk:dr1": ("RESULT_FOR_SITE", "applied"),
+        "bzk:dr2": ("RESULT_FOR_PROTEIN", "not_applied"),
+        "bzk:dr3": ("RESULT_FOR_SITE", "not_applied"),
+        "bzk:dr4": ("RESULT_FOR_SITE", "not_applied"),
+    }
+    validate(cs["nodes"], cs["edges"], only="I4")
+
+
 # ── I20: a result measures exactly one thing (§11 Q7, minted 2026-08-10) ──────────────────────
 
 

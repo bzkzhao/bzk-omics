@@ -1,4 +1,5 @@
-"""The five queries. See the package docstring for the three rules they are built to.
+"""The five queries, and since 2026-10-09 the untested-row display beside the first. See the
+package docstring for the three rules they are built to.
 
 Every function takes an open `kuzu.Connection` rather than opening one, for `resolve/nodes.py`'s
 reason: injected, so a test drives a graph it built itself and nothing here reaches for a path.
@@ -7,6 +8,7 @@ reason: injected, so a test drives a graph it built itself and nothing here reac
 from __future__ import annotations
 
 import enum
+import json
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,7 +16,7 @@ from typing import Any
 
 import kuzu
 
-from bzk.ontology import schema
+from bzk.ontology import invariants, schema
 
 DEFAULT_GRAPH = Path.home() / ".bzk-omics" / "graph.kuzu"
 
@@ -45,6 +47,44 @@ class Absence(enum.Enum):
 #: Returned in place of a value that does not exist, so a caller destructuring a record gets this
 #: rather than `None` — which a column that is legitimately null also yields.
 ABSENT = Absence.NONE_FOUND
+
+
+#: I4's display labels, per (grain, kind, `protein_adjusted`) — the copy of `ONTOLOGY.md` §8 I4's
+#: table, which is the rule's home (ADR-0038 D7), guarded against it by `tests/test_query.py`.
+#: **A cell absent from this map is a cell no result may occupy**, not a cell awaiting a label:
+#: `adjustment_label` raises on it and substitutes nothing.
+I4_LABELS: dict[tuple[str, str, str], str] = {
+    ("site", "condition", "not_applied"): "stoichiometry-uncorrected",
+    ("site", "condition", "native"): "stoichiometry-native (ratiometric source)",
+    ("site", "condition", "applied"): "stoichiometry-corrected",
+    ("protein", "condition", "not_applied"): "abundance — no adjustment defined",
+    ("protein", "differential_association", "not_applied"): "abundance-uncorrected",
+    ("protein", "background_enrichment", "not_applied"): "abundance-uncorrected",
+}
+
+#: What an observation with no result in a contrast is shown as, once the count agrees (ADR-0038
+#: D6-revised (c)). Never shown on absence alone — see `UntestedContrast`.
+NOT_TESTED_LABEL = "not tested by the source analysis"
+
+
+class UnlabelledCell(ValueError):
+    """A result whose (grain, kind, state) is a cell with no label — one no result may occupy.
+
+    Raised, never rendered: a blank or a dash in its place is the *runs cleanly and is wrong* shape
+    this layer exists to refuse (ADR-0038 D7, `ONTOLOGY.md` §8 I4).
+    """
+
+
+def adjustment_label(result_id: str, grain: str, kind: str, state: object) -> str:
+    """I4's label for one result, or `UnlabelledCell` naming the triple. **No fallback.**"""
+    label = I4_LABELS.get((grain, kind, str(state)))
+    if label is None:
+        raise UnlabelledCell(
+            f"DifferentialResult {result_id}: (grain {grain!r}, kind {kind!r}, protein_adjusted "
+            f"{state!r}) is a cell no result may occupy (ONTOLOGY.md §8 I4, ADR-0038 D7). It has "
+            "no label and none is substituted"
+        )
+    return label
 
 
 @dataclass(frozen=True)
@@ -121,6 +161,14 @@ class DifferentialRow:
     adj_p_value: float | None
     protein_adjusted: str | None
     adjustment_method: str | None
+    #: `'site'` or `'protein'`, from the result's `RESULT_FOR_*` edge — as `_check_I4` reads it.
+    grain: str
+    #: The `Contrast` the result is in, and that contrast's kind as `invariants.contrast_kind`
+    #: derives it. Derived on every read, never stored (ADR-0038 D2).
+    contrast_id: str
+    kind: str
+    #: I4's display label for (grain, kind, `protein_adjusted`) — `I4_LABELS`, never a fallback.
+    adjustment_label: str
     n_values_numerator: int | None
     n_values_denominator: int | None
     n_imputed_numerator: int | None
@@ -197,7 +245,9 @@ class RefusalAnswer:
     `substantially_imputed = None` already documents. `adapters/base.py` carries the three-kinds
     enumeration that goes with the decision. **`NOT_RETAINED` therefore keeps a live case**, and it
     is the only one of the four `Absence` values that does: it is the answer to a question no query
-    can answer, as distinct from one this graph happens not to hold.
+    can answer, as distinct from one this graph happens not to hold. (Since 2026-10-09
+    `untested_rows` returns it too, for an external analysis carrying no recorded untested count —
+    a reachable case with no instance on the real graph, which holds no external analysis.)
     """
 
     dataset_id: str | None
@@ -228,6 +278,66 @@ class GeneSymbolAnswer:
     present: bool
     gene_id: str | None
     protein_ids: tuple[str, ...]
+    absence: Absence | None
+    detail: str
+
+
+class UntestedStatus(enum.Enum):
+    """Whether an external analysis's untested rows may be shown as untested."""
+
+    #: The derived count equals the recorded one: the observations are shown with
+    #: `NOT_TESTED_LABEL`.
+    UNTESTED = "untested"
+    #: The two counts disagree, or no count is recorded for the contrast. The observations are
+    #: **not** labelled: no result here could equally mean *absent from the file* or *dropped by a
+    #: fault*, and only the agreement of two independent numbers separates those from *untested*.
+    MISMATCH = "mismatch"
+
+
+@dataclass(frozen=True)
+class UntestedContrast:
+    """For one contrast of one external `Analysis`: its observations with no result, checked.
+
+    `derived` is counted from the graph — observations the analysis's `Dataset` reports with no
+    `DifferentialResult` of this analysis in this contrast. `recorded` is the analysis's own
+    `rows_untested_json` entry, written by the adapter that recognised the rows (ADR-0038
+    D6-revised (c)). They are obtained independently, so their agreement is the check.
+
+    **Not an `Absence`, and the distinction is why this type exists.** `Absence` says why a
+    question came back empty. Here the question has an answer: the observations are present, their
+    results are absent, and the absence is *accounted for* by a recorded count — a positive finding
+    about those observations rather than a reason for having nothing to say. Folding it into
+    `Absence` would let *untested* and *not stored* share a channel, which is the conflation that
+    enum exists to stop.
+    """
+
+    contrast_id: str
+    recorded: int | None
+    derived: int
+    status: UntestedStatus
+    #: The observations with no result here. Carried in both states so a mismatch can be
+    #: investigated; only `UNTESTED` licenses showing them with `NOT_TESTED_LABEL`.
+    observation_ids: tuple[str, ...]
+    detail: str
+
+
+@dataclass(frozen=True)
+class UntestedAnswer:
+    """The untested-row display for one `Analysis` (ADR-0038 D6-revised (c)).
+
+    `applies` is `False` for a `processing` or `curation` analysis, whose `rows_untested_json` is
+    NULL by definition: a platform run decides itself which rows reach its test and states that rule
+    in `filters_applied`, so there is no source analysis whose placeholders it must recognise, and
+    a curation run tests nothing. Nothing is derived for one — deriving a count with nothing to
+    check it against is exactly the inference from absence D6-revised (c) forbids.
+    """
+
+    analysis_id: str
+    applies: bool
+    contrasts: tuple[UntestedContrast, ...]
+    #: `NOT_STORED` where no such `Analysis` exists. `NOT_RETAINED` where an external analysis
+    #: carries no recorded count — written before the field existed, or by an adapter that does not
+    #: recognise untested rows — so the observations with no result cannot be told apart.
     absence: Absence | None
     detail: str
 
@@ -349,6 +459,52 @@ def analysis_ids(conn: kuzu.Connection) -> list[str]:
     return [str(r[0]) for r in _rows(conn, "MATCH (a:Analysis) RETURN a.id ORDER BY a.id")]
 
 
+# ── Kind, derived and never stored (ADR-0038 D2) ────────────────────────────────────────────────
+
+
+def _contrast_kind(conn: kuzu.Connection, contrast_id: str) -> str:
+    """A contrast's kind, by `invariants.contrast_kind` — **the one derivation**; this function
+    only reads what it needs from the graph and never re-implements D2's table.
+
+    What it reads, each property by name: the `CONTRAST_IN_EXPERIMENT` anchor's `modality`, and
+    the arms' `Sample`s through `NUMERATOR_SAMPLE` / `DENOMINATOR_SAMPLE` with their `role` and
+    `bait`, which are what `contrast_kind` consults.
+
+    **Its I22 refusal propagates from here as the view's refusal, and that is deliberate.** A
+    contrast whose arms do not derive a kind — an empty arm, mixed roles, a control numerator — gives
+    its results no (grain, kind, state) cell, which is the no-fallback case: catching it would mean
+    substituting something for a label that does not exist. A contrast with no anchor is refused
+    the same way rather than read as `modality` NULL, which `contrast_kind` would accept as a
+    non-IP experiment — a default where the graph says nothing.
+    """
+    anchor = _rows(
+        conn,
+        "MATCH (c:Contrast)-[:CONTRAST_IN_EXPERIMENT]->(e:Experiment) WHERE c.id = $id "
+        "RETURN e.modality",
+        id=contrast_id,
+    )
+    if not anchor:
+        raise UnlabelledCell(
+            f"Contrast {contrast_id} has no CONTRAST_IN_EXPERIMENT anchor, so its modality and "
+            "therefore its kind cannot be derived; its results have no I4 cell"
+        )
+    arms: dict[str, list[dict[str, object]]] = {}
+    for rel in ("NUMERATOR_SAMPLE", "DENOMINATOR_SAMPLE"):
+        arms[rel] = [
+            {"id": r[0], "role": r[1], "bait": r[2]}
+            for r in _rows(
+                conn,
+                f"MATCH (c:Contrast)-[:{rel}]->(s:Sample) WHERE c.id = $id "
+                "RETURN s.id, s.role, s.bait ORDER BY s.id",
+                id=contrast_id,
+            )
+        ]
+    # Raises `invariants.InvariantError` (I22) where no kind derives — the view's refusal, above.
+    return invariants.contrast_kind(
+        contrast_id, anchor[0][0], arms["NUMERATOR_SAMPLE"], arms["DENOMINATOR_SAMPLE"]
+    )
+
+
 # ── Q1: the differential table for an Analysis ──────────────────────────────────────────────────
 
 
@@ -375,6 +531,8 @@ def differential_table(
     )
     quantity, test, fdr = analysis[0] if analysis else (None, None, None)
 
+    # One derivation per contrast, not per row: 1,362 results share one contrast on the real graph.
+    kinds: dict[str, str] = {}
     rows: list[DifferentialRow] = []
     for record in _rows(
         conn,
@@ -386,16 +544,17 @@ def differential_table(
         "OPTIONAL MATCH (r)-[:RESULT_FOR_SITE]->(o:SiteObservation) "
         "OPTIONAL MATCH (o)-[:MEASURED_AT]->(s:ModificationSite) "
         "OPTIONAL MATCH (pa:ProteinAssignment)-[:PROTEIN_ASSIGNMENT_FOR]->(o) "
+        "OPTIONAL MATCH (r)-[:RESULT_IN_CONTRAST]->(c:Contrast) "
         "RETURN r.id, r.log2fc, r.p_value, r.adj_p_value, r.protein_adjusted, "
         "r.adjustment_method, r.n_values_numerator, r.n_values_denominator, "
         "r.n_imputed_numerator, r.n_imputed_denominator, o.id, o.candidate_proteins, s.id, "
-        "pa.confidence "
+        "pa.confidence, c.id "
         "ORDER BY r.id",
         id=analysis_id,
     ):
         (rid, log2fc, p_value, adj_p, adjusted, method) = record[:6]
         (nv_num, nv_den, ni_num, ni_den) = record[6:10]
-        (oid, candidates, sid, conf) = record[10:]
+        (oid, candidates, sid, conf, cid) = record[10:]
         candidates = tuple(str(c) for c in (candidates or []))
         # `RESULT_FOR_PROTEIN` runs to a `ProteinObservation`, not to a `Protein`, so the protein
         # ids come through it rather than from it.
@@ -406,6 +565,24 @@ def differential_table(
             id=str(rid),
         )
         proteins = _tidy(c for row in at_protein_grain for c in (row[0] or []))
+        # Grain from the `RESULT_FOR_*` edge, as `_check_I4` reads it. I20 makes it exactly one;
+        # a result with neither or both has no grain, so no cell, and is refused like one.
+        if (oid is None) == (not at_protein_grain):
+            raise UnlabelledCell(
+                f"DifferentialResult {rid}: it attaches by "
+                f"{'both' if oid is not None else 'neither'} of RESULT_FOR_SITE and "
+                "RESULT_FOR_PROTEIN, so it has no grain and no I4 cell (I20)"
+            )
+        grain = "site" if oid is not None else "protein"
+        if cid is None:
+            raise UnlabelledCell(
+                f"DifferentialResult {rid} is in no Contrast (RESULT_IN_CONTRAST), so it has no "
+                "kind and no I4 cell (ONTOLOGY.md §8 I4, ADR-0038 D7)"
+            )
+        if str(cid) not in kinds:
+            kinds[str(cid)] = _contrast_kind(conn, str(cid))
+        kind = kinds[str(cid)]
+        label = adjustment_label(str(rid), grain, kind, adjusted)
         wanted = [str(x) for x in proteins] or list(candidates)
         symbols = (
             _tidy(
@@ -434,6 +611,10 @@ def differential_table(
                 adj_p_value=adj_p,
                 protein_adjusted=adjusted,
                 adjustment_method=method,
+                grain=grain,
+                contrast_id=str(cid),
+                kind=kind,
+                adjustment_label=label,
                 n_values_numerator=nv_num,
                 n_values_denominator=nv_den,
                 n_imputed_numerator=ni_num,
@@ -445,6 +626,102 @@ def differential_table(
             )
         )
     return rows, (None if rows else Absence.NONE_FOUND)
+
+
+def untested_rows(conn: kuzu.Connection, analysis_id: str) -> UntestedAnswer:
+    """ADR-0038 D6-revised (c)'s display half: for each contrast an external `Analysis` carries,
+    the observations with no result there — **shown as untested only where the derived count
+    equals the recorded one**, and as a mismatch naming both numbers otherwise. Never the label on
+    absence alone.
+
+    The contrasts are those the recorded count names, together with any its results reach, so a
+    contrast with results and no recorded count is a mismatch rather than skipped.
+    """
+    found = _rows(
+        conn,
+        "MATCH (a:Analysis) WHERE a.id = $id RETURN a.kind, a.rows_untested_json",
+        id=analysis_id,
+    )
+    if not found:
+        return UntestedAnswer(
+            analysis_id, False, (), Absence.NOT_STORED, f"no Analysis {analysis_id} is stored"
+        )
+    kind, recorded_json = found[0]
+    if kind != "external":
+        return UntestedAnswer(
+            analysis_id,
+            False,
+            (),
+            None,
+            f"a {kind!r} analysis has no source analysis whose untested rows it must recognise: "
+            "the rows that reach its test are the ones its filters_applied admit",
+        )
+    if recorded_json is None:
+        return UntestedAnswer(
+            analysis_id,
+            True,
+            (),
+            Absence.NOT_RETAINED,
+            "this external analysis carries no rows_untested_json, so an observation with no "
+            "result cannot be told apart from one absent from the file or dropped by a fault; "
+            "none is labelled untested",
+        )
+    recorded: dict[str, int] = json.loads(str(recorded_json))
+
+    observed = {
+        str(r[0])
+        for rel, label in (
+            ("REPORTS_PROTEIN", "ProteinObservation"),
+            ("REPORTS_SITE", "SiteObservation"),
+        )
+        for r in _rows(
+            conn,
+            f"MATCH (a:Analysis)-[:USED]->(:Dataset)-[:{rel}]->(o:{label}) WHERE a.id = $id "
+            "RETURN o.id",
+            id=analysis_id,
+        )
+    }
+    with_result: dict[str, set[str]] = {}
+    for rel, label in (
+        ("RESULT_FOR_PROTEIN", "ProteinObservation"),
+        ("RESULT_FOR_SITE", "SiteObservation"),
+    ):
+        for contrast_id, observation_id in _rows(
+            conn,
+            "MATCH (r:DifferentialResult)-[:WAS_GENERATED_BY]->(a:Analysis) WHERE a.id = $id "
+            f"MATCH (r)-[:RESULT_IN_CONTRAST]->(c:Contrast) MATCH (r)-[:{rel}]->(o:{label}) "
+            "RETURN c.id, o.id",
+            id=analysis_id,
+        ):
+            with_result.setdefault(str(contrast_id), set()).add(str(observation_id))
+
+    contrasts = []
+    for contrast_id in sorted(set(recorded) | set(with_result)):
+        missing = tuple(sorted(observed - with_result.get(contrast_id, set())))
+        count = recorded.get(contrast_id)
+        if count == len(missing):
+            status, detail = (
+                UntestedStatus.UNTESTED,
+                (
+                    f"{count} observation(s) {NOT_TESTED_LABEL}; the derived count equals "
+                    "the analysis's recorded count"
+                ),
+            )
+        else:
+            status, detail = (
+                UntestedStatus.MISMATCH,
+                (
+                    f"the graph has {len(missing)} observation(s) with no result in contrast "
+                    f"{contrast_id}, but the analysis records "
+                    f"{'no count' if count is None else count} untested — so none is labelled "
+                    "untested: the difference could be rows absent from the file or dropped by a "
+                    "fault, and the graph cannot say which"
+                ),
+            )
+        contrasts.append(
+            UntestedContrast(contrast_id, count, len(missing), status, missing, detail)
+        )
+    return UntestedAnswer(analysis_id, True, tuple(contrasts), None, "")
 
 
 # ── Q2: what one ModificationSite was keyed against ─────────────────────────────────────────────

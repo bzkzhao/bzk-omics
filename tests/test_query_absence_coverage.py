@@ -91,6 +91,16 @@ def _refusal(answer: Any) -> Any:
     return (answer.dataset_id, answer.reasons, answer.absence, bool(answer.detail))
 
 
+def _untested(answer: Any) -> Any:
+    return (
+        answer.analysis_id,
+        answer.applies,
+        answer.contrasts,
+        answer.absence,
+        bool(answer.detail),
+    )
+
+
 #: One row per exported query. Every value was measured against a DDL-only graph before being
 #: written here; none was predicted from the source.
 EXPECTED: dict[str, Expectation] = {
@@ -108,6 +118,15 @@ EXPECTED: dict[str, Expectation] = {
         why="I15 is unsatisfied rather than satisfied-vacuously: no Imputation was found, so the "
         "analysis cannot be said to have declared one",
         project=_imputation,
+    ),
+    "untested_rows": Expectation(
+        group="absence",
+        args=("bzk:nosuch",),
+        expected=("bzk:nosuch", False, (), Absence.NOT_STORED, True),
+        why="no Analysis to ask about, which is a claim about the store — distinct from an "
+        "internal analysis, for which the question does not apply, and from an external one "
+        "carrying no recorded count, which is NOT_RETAINED (ADR-0038 D6-revised (c))",
+        project=_untested,
     ),
     "refusals": Expectation(
         group="absence",

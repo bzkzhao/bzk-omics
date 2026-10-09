@@ -35,14 +35,15 @@ with it from here, because a renderer is not the only consumer.
    to a claim about the analysis, which is exactly what an absence value buys and a bare `[]` would
    have hidden. `refusals` still cannot be answered at all — **and after the question was taken up
    and answered on 2026-08-09, it is the one that stays that way**: a refusal is not an entity, so
-   there is nothing for this module to read. It is the only live case `NOT_RETAINED` has, which is
+   there is nothing for this module to read. It is the only live case `NOT_RETAINED` has (since
+   2026-10-09 `untested_rows` can return it as well, with no instance on the real graph), which is
    what keeps the fourth value from being a member with no instance.
 
-   **This rule is machine-checked since 2026-08-10, across all nine exports rather than the four it
-   was written about.** `tests/test_query_absence_coverage.py` runs every query in `__all__`
+   **This rule is machine-checked since 2026-08-10, across every query export — nine then, ten
+   since `untested_rows` (2026-10-09) — rather than the four it was written about.** `tests/test_query_absence_coverage.py` runs every query in `__all__`
    against a DDL-only graph and requires its classified answer, keyed off `__all__` so an added
    export is unclassified rather than silently exempt. The five it reaches beyond the
-   `Absence`-carrying four satisfy the rule a different way and the classification records which:
+   `Absence`-carrying ones (four then; `untested_rows` is a fifth) satisfy the rule a different way and the classification records which:
    `site_keying` returns `None`, which is its whole return type's absence; `site_ids` and
    `analysis_ids` are enumerations, where `[]` has one reading; and `unprovenanced` and
    `gene_absence_census` key **every** category at zero rather than omitting it, so an empty
@@ -57,6 +58,7 @@ plotting library; `api/` is its consumer.
 from bzk.query.graph import (
     ABSENT,
     DEFAULT_GRAPH,
+    NOT_TESTED_LABEL,
     Absence,
     DifferentialRow,
     GeneSymbolAnswer,
@@ -64,6 +66,9 @@ from bzk.query.graph import (
     Provenance,
     RefusalAnswer,
     SiteKeying,
+    UntestedAnswer,
+    UntestedContrast,
+    UntestedStatus,
     analysis_ids,
     connect,
     differential_table,
@@ -74,11 +79,13 @@ from bzk.query.graph import (
     site_ids,
     site_keying,
     unprovenanced,
+    untested_rows,
 )
 
 __all__ = [
     "ABSENT",
     "DEFAULT_GRAPH",
+    "NOT_TESTED_LABEL",
     "Absence",
     "DifferentialRow",
     "GeneSymbolAnswer",
@@ -86,6 +93,9 @@ __all__ = [
     "Provenance",
     "RefusalAnswer",
     "SiteKeying",
+    "UntestedAnswer",
+    "UntestedContrast",
+    "UntestedStatus",
     "analysis_ids",
     "connect",
     "differential_table",
@@ -96,4 +106,5 @@ __all__ = [
     "site_ids",
     "site_keying",
     "unprovenanced",
+    "untested_rows",
 ]

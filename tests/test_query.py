@@ -14,6 +14,7 @@ skips without `raw/`.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import kuzu
@@ -32,6 +33,11 @@ ANALYSIS = "bzk:analysis1"
 DATASET = "bzk:dataset1"
 OBS = "bzk:obs1"
 RESULT = "bzk:result1"
+#: The result's contrast, anchored and armed (ADR-0038 D1, D4) so its kind derives — `condition`,
+#: in a non-IP experiment with role-less samples. Added 2026-10-09: since D7's display the table
+#: refuses a result whose kind cannot be derived, and until then this one sat in no contrast.
+EXPERIMENT = "bzk:experiment1"
+CONTRAST = "bzk:contrast1"
 
 
 def _n(label: str, node_id: str, **props: object) -> dict[str, object]:
@@ -42,12 +48,9 @@ def _e(rel: str, frm: str, to: str, **props: object) -> dict[str, object]:
     return {"type": rel, "from": frm, "to": to, **props}
 
 
-@pytest.fixture
-def conn(tmp_path: Path) -> kuzu.Connection:
-    """A graph written through the real write path, holding one of everything the queries read."""
-    c = kuzu.Connection(kuzu.Database(str(tmp_path / "g.kuzu")))
-    for ddl in schema.ddl_statements():
-        c.execute(ddl)
+def _core() -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """The change-set `conn` writes: one of everything the queries read. Returned rather than
+    written so a test can vary one part — the result's state, its contrast — and keep the rest."""
     nodes: list[dict[str, object]] = [
         _n("Gene", GENE, symbol="MX1"),
         _n("Protein", MX1, accession="P20591", gene_absence=None),
@@ -73,6 +76,10 @@ def conn(tmp_path: Path) -> kuzu.Connection:
             retracted_at=None,
         ),
         _n("Dataset", DATASET, source="local", search_engine="maxquant"),
+        _n("Experiment", EXPERIMENT, title="synthetic", modality="digly_proteomics"),
+        _n("Sample", "bzk:sample-num", replicate=1),
+        _n("Sample", "bzk:sample-den", replicate=1),
+        _n("Contrast", CONTRAST, numerator="KO", denominator="WT"),
         _n(
             "Analysis",
             ANALYSIS,
@@ -122,12 +129,32 @@ def conn(tmp_path: Path) -> kuzu.Connection:
         _e("IMPUTATION_FOR", "bzk:imp2", ANALYSIS),
         _e("WAS_GENERATED_BY", RESULT, ANALYSIS),
         _e("RESULT_FOR_SITE", RESULT, OBS),
+        _e("RESULT_IN_CONTRAST", RESULT, CONTRAST),
+        _e("CONTRAST_IN_EXPERIMENT", CONTRAST, EXPERIMENT),
+        _e("NUMERATOR_SAMPLE", CONTRAST, "bzk:sample-num"),
+        _e("DENOMINATOR_SAMPLE", CONTRAST, "bzk:sample-den"),
         _e("PROTEIN_ASSIGNMENT_FOR", "bzk:pa1", OBS),
         _e("WAS_DERIVED_FROM", RESULT, OBS),
     ]
-    invariants.validate(nodes, edges, only="I2")
+    return nodes, edges
+
+
+def _write(
+    tmp_path: Path, nodes: list[dict[str, object]], edges: list[dict[str, object]], name: str = "g"
+) -> kuzu.Connection:
+    c = kuzu.Connection(kuzu.Database(str(tmp_path / f"{name}.kuzu")))
+    for ddl in schema.ddl_statements():
+        c.execute(ddl)
     store.write_change_set(c, nodes, edges)
     return c
+
+
+@pytest.fixture
+def conn(tmp_path: Path) -> kuzu.Connection:
+    """A graph written through the real write path, holding one of everything the queries read."""
+    nodes, edges = _core()
+    invariants.validate(nodes, edges, only="I2")
+    return _write(tmp_path, nodes, edges)
 
 
 # ── Rule 3: an absent answer is a value, never an empty container ───────────────────────────────
@@ -442,3 +469,269 @@ def test_the_read_path_writes_nothing_and_renders_nothing() -> None:
     for forbidden in ("write_text(", "open(", "MERGE ", "CREATE ", "DELETE ", "SET "):
         assert forbidden not in source, f"the read path contains {forbidden!r}"
     assert "read_only" in source, "connect() must default to a read-only connection"
+
+
+# ── ADR-0038 D7: I4's label per (grain, kind, state), no fallback ───────────────────────────────
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+#: The two IP kinds, which `ONTOLOGY.md`'s table writes as one row, *either IP kind*. Checked below
+#: against the kinds the protein rows name, so the expansion cannot drift from the table it reads.
+IP_KINDS = ("differential_association", "background_enrichment")
+
+
+def _i4_table() -> dict[tuple[str, str, str], str | None]:
+    """`ONTOLOGY.md` §8 I4's table, parsed: every cell, with its label or `None` where refused."""
+    lines = (REPO_ROOT / "ONTOLOGY.md").read_text().splitlines()
+    start = next(i for i, x in enumerate(lines) if x.startswith("- **I4 — Declared adjustment.**"))
+    rows: list[list[str]] = []
+    for line in lines[start + 1 :]:
+        if not line.strip():
+            if rows:
+                break
+            continue
+        if not line.lstrip().startswith("|"):
+            break
+        rows.append([c.strip() for c in line.strip().strip("|").split("|")])
+    header, body = rows[0], rows[2:]
+    assert header[:2] == ["Grain", "Kind"], header
+    states = [h.strip("`") for h in header[2:]]
+    cells: dict[tuple[str, str, str], str | None] = {}
+    for grain, kind_cell, *values in body:
+        kinds = IP_KINDS if kind_cell == "either IP kind" else (kind_cell.strip("`"),)
+        for kind in kinds:
+            for state, value in zip(states, values, strict=True):
+                if value == "refused":
+                    cells[(grain, kind, state)] = None
+                else:
+                    assert value.startswith("*") and value.endswith("*"), value
+                    cells[(grain, kind, state)] = value.strip("*")
+    return cells
+
+
+def test_the_label_table_mirrors_ontology_section_8() -> None:
+    """The house pattern for a mirror: the copy is checked against its home, parsed from the
+    document. Eighteen cells — *either IP kind* is two — six labelled, twelve refused, and the map
+    carries exactly the labelled six."""
+    cells = _i4_table()
+    assert len(cells) == 18
+    labelled = {k: v for k, v in cells.items() if v is not None}
+    assert labelled == gq.I4_LABELS
+    assert sum(1 for v in cells.values() if v is None) == 12
+    assert {k for g, k, _ in cells if g == "protein"} - {"condition"} == set(IP_KINDS)
+
+
+def test_every_labelled_cell_maps_and_every_refused_cell_raises_naming_the_triple() -> None:
+    """D2 and D3 over the whole table: no cell is quietly blank."""
+    for (grain, kind, state), label in _i4_table().items():
+        if label is not None:
+            assert gq.adjustment_label("bzk:r", grain, kind, state) == label
+            continue
+        with pytest.raises(gq.UnlabelledCell) as exc:
+            gq.adjustment_label("bzk:r", grain, kind, state)
+        assert f"(grain {grain!r}, kind {kind!r}, protein_adjusted {state!r})" in str(exc.value)
+
+
+def test_a_row_carries_its_grain_kind_and_label(conn: kuzu.Connection) -> None:
+    (row,), _ = gq.differential_table(conn, ANALYSIS)
+    assert (row.grain, row.contrast_id, row.kind) == ("site", CONTRAST, "condition")
+    assert row.adjustment_label == "stoichiometry-native (ratiometric source)"
+
+
+def _ip_contrast() -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """`_core` with its contrast moved into an IP experiment: both arms `ip` against ISG15, so the
+    kind derives `differential_association` — a kind no site-grain result may occupy."""
+    nodes, edges = _core()
+    for node in nodes:
+        if node["id"] == EXPERIMENT:
+            node["modality"] = "ip_ms"
+        if node[NODE_TYPE_KEY] == "Sample":
+            node.update(role="ip", bait="uniprot:P05161", antibody="synthetic")
+    return nodes, edges
+
+
+def test_D3_a_site_result_in_an_ip_kind_is_refused_by_the_display(tmp_path: Path) -> None:
+    """Written by hand, past `site_change_set`'s producer refusal, which is the only route a result
+    reaches this cell — and the display refuses it again, naming the triple."""
+    nodes, edges = _ip_contrast()
+    c = _write(tmp_path, nodes, edges, "ip")
+    with pytest.raises(gq.UnlabelledCell, match="kind 'differential_association'"):
+        gq.differential_table(c, ANALYSIS)
+
+
+def test_a_result_in_no_contrast_is_refused(tmp_path: Path) -> None:
+    nodes, edges = _core()
+    edges = [x for x in edges if x["type"] != "RESULT_IN_CONTRAST"]
+    c = _write(tmp_path, nodes, edges, "nocontrast")
+    with pytest.raises(gq.UnlabelledCell, match="is in no Contrast"):
+        gq.differential_table(c, ANALYSIS)
+
+
+def _drop(c: kuzu.Connection, rel: str) -> None:
+    """Delete every edge of `rel` in the graph — a state the write path refuses to produce."""
+    c.execute(f"MATCH ()-[e:{rel}]->() DELETE e")
+
+
+def test_a_contrast_with_no_anchor_is_refused_rather_than_read_as_non_ip(tmp_path: Path) -> None:
+    """`contrast_kind` would accept `modality` NULL as a non-IP experiment; the read layer does not
+    hand it one, because that is a default where the graph says nothing.
+
+    **The write path cannot produce this graph** — write-time I22 refuses arm edges with no anchor
+    — so it is made by deleting the anchor in the store. The read refuses it anyway, because a
+    store is not only ever written through `write_change_set`.
+    """
+    c = _write(tmp_path, *_core(), "noanchor")
+    _drop(c, "CONTRAST_IN_EXPERIMENT")
+    with pytest.raises(gq.UnlabelledCell, match="no CONTRAST_IN_EXPERIMENT anchor"):
+        gq.differential_table(c, ANALYSIS)
+
+
+def test_contrast_kinds_i22_refusal_propagates_as_the_views(tmp_path: Path) -> None:
+    """A contrast whose arms derive no kind gives its results no cell, and `contrast_kind`'s I22
+    refusal reaches the caller uncaught — the no-fallback case.
+
+    Write-time I22 refuses an anchored contrast with an empty arm, so this state too is made in the
+    store, by deleting the numerator arm.
+    """
+    c = _write(tmp_path, *_core(), "noarms")
+    _drop(c, "NUMERATOR_SAMPLE")
+    with pytest.raises(invariants.InvariantError) as exc:
+        gq.differential_table(c, ANALYSIS)
+    assert exc.value.invariant == "I22"
+    assert "empty numerator arm" in str(exc.value)
+
+
+# ── ADR-0038 D6-revised (c): the untested-row display ───────────────────────────────────────────
+
+PERSEUS_TABLE = REPO_ROOT / "tests" / "fixtures" / "perseus_synthetic_proteins.txt"
+PERSEUS_SAMPLES = ("bzk:9924d6d24941af0f1b64171e0b550e76", "bzk:7b2ed3b2751c3364da982151935c9845")
+
+
+def _perseus_graph(tmp_path: Path) -> tuple[kuzu.Connection, str, str]:
+    """A Perseus export as it reaches the graph: the loader's half first — an anchored `Contrast`
+    with its arm edges — then the adapter's change-set over `perseus_synthetic_proteins.txt`,
+    whose IFIT1 row is the untested placeholder. Returns the connection, the external analysis's
+    id and the contrast's."""
+    from bzk.adapters.base import SampleMapping
+    from bzk.adapters.perseus import DeclaredAnalysis, DeclaredContrast, PerseusAdapter
+    from bzk.curation.loader import ContrastArms
+    from bzk.ontology.keys import evidence_id
+
+    experiment = "bzk:experiment-perseus"
+    props = {"numerator": "USP18-/- + IFN", "denominator": "WT + IFN"}
+    contrast_id = evidence_id("Contrast", props, {"Experiment": experiment})
+    contrast: dict[str, object] = {NODE_TYPE_KEY: "Contrast", "id": contrast_id, **props}
+    loader_nodes: list[dict[str, object]] = [
+        _n("Experiment", experiment, title="synthetic", modality="proteomics"),
+        *(_n("Sample", sid, replicate=i + 1) for i, sid in enumerate(PERSEUS_SAMPLES)),
+        contrast,
+    ]
+    loader_edges = [
+        _e("CONTRAST_IN_EXPERIMENT", contrast_id, experiment),
+        _e("NUMERATOR_SAMPLE", contrast_id, PERSEUS_SAMPLES[1]),
+        _e("DENOMINATOR_SAMPLE", contrast_id, PERSEUS_SAMPLES[0]),
+    ]
+    c = _write(tmp_path, loader_nodes, loader_edges, "perseus")
+    mapping = SampleMapping(
+        curation_analysis_id="bzk:curation",
+        samples=[
+            {
+                NODE_TYPE_KEY: "Sample",
+                "id": PERSEUS_SAMPLES[0],
+                "mapping_key": "LFQ intensity WT_IFN_1",
+            },
+            {
+                NODE_TYPE_KEY: "Sample",
+                "id": PERSEUS_SAMPLES[1],
+                "mapping_key": "LFQ intensity KO_IFN_1",
+            },
+        ],
+    )
+    arms = ContrastArms((PERSEUS_SAMPLES[1],), (PERSEUS_SAMPLES[0],), "condition")
+    adapter = PerseusAdapter(
+        DeclaredAnalysis(
+            quantity="lfq",
+            filters_applied=[],
+            test="welch_t",
+            fdr_method="BH",
+            external_version="1.6.15.0",
+        ),
+        [DeclaredContrast("KO_IFN_WT_IFN", contrast, arms)],
+    )
+    parsed = adapter.parse(PERSEUS_TABLE, mapping)
+    store.write_change_set(c, parsed.nodes, parsed.edges)
+    (analysis_id,) = [str(n["id"]) for n in parsed.nodes if n[NODE_TYPE_KEY] == "Analysis"]
+    return c, analysis_id, contrast_id
+
+
+def _set_recorded(c: kuzu.Connection, analysis_id: str, value: str | None) -> None:
+    """Rewrite one analysis's recorded count in place — the disagreement a test needs, made in the
+    graph rather than by a producer that would not write it."""
+    c.execute(
+        "MATCH (a:Analysis) WHERE a.id = $id SET a.rows_untested_json = $v",
+        {"id": analysis_id, "v": value},
+    )
+
+
+def test_a_protein_grain_row_is_labelled_for_what_it_is(tmp_path: Path) -> None:
+    """D2's protein cell, reached through a real producer: four results, each `(protein,
+    condition, not_applied)` — *abundance — no adjustment defined*, never *uncorrected*."""
+    c, analysis_id, contrast_id = _perseus_graph(tmp_path)
+    rows, _ = gq.differential_table(c, analysis_id)
+    assert {(r.grain, r.contrast_id, r.kind, r.adjustment_label) for r in rows} == {
+        ("protein", contrast_id, "condition", "abundance — no adjustment defined")
+    }
+    assert len(rows) == 4
+
+
+def test_equal_counts_show_the_untested_observations(tmp_path: Path) -> None:
+    c, analysis_id, contrast_id = _perseus_graph(tmp_path)
+    answer = gq.untested_rows(c, analysis_id)
+    assert (answer.applies, answer.absence) == (True, None)
+    (found,) = answer.contrasts
+    assert (found.contrast_id, found.recorded, found.derived) == (contrast_id, 1, 1)
+    assert found.status is gq.UntestedStatus.UNTESTED
+    (observation,) = found.observation_ids
+    candidates = c.execute(
+        "MATCH (o:ProteinObservation) WHERE o.id = $id RETURN o.candidate_proteins",
+        {"id": observation},
+    )
+    assert not isinstance(candidates, list)
+    assert candidates.get_next() == [["uniprot:P09914"]]
+
+
+def test_D4_unequal_counts_show_a_mismatch_and_never_the_label(tmp_path: Path) -> None:
+    """The view must not infer *untested* from absence alone: one observation has no result, the
+    analysis records two, and the answer names both numbers and labels nothing."""
+    c, analysis_id, contrast_id = _perseus_graph(tmp_path)
+    _set_recorded(c, analysis_id, json.dumps({contrast_id: 2}))
+    (found,) = gq.untested_rows(c, analysis_id).contrasts
+    assert found.status is gq.UntestedStatus.MISMATCH
+    assert (found.recorded, found.derived) == (2, 1)
+    assert "has 1 observation(s) with no result" in found.detail
+    assert "records 2 untested" in found.detail
+    assert gq.NOT_TESTED_LABEL not in found.detail
+
+
+def test_a_contrast_with_results_and_no_recorded_count_is_a_mismatch(tmp_path: Path) -> None:
+    c, analysis_id, _ = _perseus_graph(tmp_path)
+    _set_recorded(c, analysis_id, "{}")
+    (found,) = gq.untested_rows(c, analysis_id).contrasts
+    assert (found.status, found.recorded) == (gq.UntestedStatus.MISMATCH, None)
+    assert "records no count untested" in found.detail
+
+
+def test_an_external_analysis_with_no_recorded_count_is_not_retained(tmp_path: Path) -> None:
+    """Written before the field existed, or by an adapter that does not recognise untested rows:
+    the observations with no result cannot be told apart, so none is labelled."""
+    c, analysis_id, _ = _perseus_graph(tmp_path)
+    _set_recorded(c, analysis_id, None)
+    answer = gq.untested_rows(c, analysis_id)
+    assert (answer.applies, answer.contrasts, answer.absence) == (True, (), gq.Absence.NOT_RETAINED)
+
+
+def test_an_internal_analysis_has_no_untested_display(conn: kuzu.Connection) -> None:
+    """`processing`: the platform decides which rows reach its test, so nothing is derived."""
+    answer = gq.untested_rows(conn, ANALYSIS)
+    assert (answer.applies, answer.contrasts, answer.absence) == (False, (), None)
+    assert "filters_applied" in answer.detail
