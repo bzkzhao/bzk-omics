@@ -1,0 +1,710 @@
+"""`python -m bzk.audit` — the PXD018299 research audit, nine stages, one command.
+
+**An operational instrument, not part of the platform.** It sits beside `drift.py`,
+`fetch_progress.py` and `published_cascade.py` for the reason those do: nothing in `bzk/` imports it,
+so no lint or type target widens. It writes nothing into the graph or the content store.
+
+**It computes; it does not restate.** Every number in the report is derived at run time from a
+committed fixture or from the pinned deposit bytes. The prose figures in `walk/FINDINGS.md` are not
+inputs, and where a stage's headline figure cannot be derived from what is committed the stage says
+`NOT_AUTOMATED` and names the script that produced it — it does not quote the figure (single-source
+rule, `CLAUDE.md`).
+
+**Two modes per stage, always labelled.** `FIXTURE`: derived from `tests/fixtures/*.json`, which
+needs no network and no raw store. `LIVE`: re-derived from the pinned bytes under `~/.bzk-omics/raw`
+(`--live`). A stage is never reported as LIVE unless its inputs were found and their hashes verified.
+
+    .venv/bin/python -m bzk.audit                     # fixtures only; writes ./audit-out/
+    .venv/bin/python -m bzk.audit --live              # also verify the store and re-run stages 1-2, 5
+    .venv/bin/python -m bzk.audit --out DIR --json    # JSON to stdout as well
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import json
+import platform
+import subprocess
+import sys
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+from bzk import drift, published_cascade
+from bzk.provenance.raw_store import DEFAULT_HOME, verify
+from bzk.sources.pride import PXD018299_PROTEIN_GROUPS, PXD018299_SITES
+from bzk.sources.protein_groups import SUPP_DATA_1, SUPP_DATA_2, SUPP_DATA_3
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+FIXTURES = REPO_ROOT / "tests" / "fixtures"
+
+H10_FIXTURE = "pxd018299_h10_attempt3.json"
+PLATFORM_TARGETS = "pxd018299_platform_targets.json"
+WELCH_BASELINE = "pxd018299_welch_baseline.json"
+REFUSALS = "pxd018299_refusals.json"
+PROTEIN_GROUPS = "pxd018299_protein_groups.json"
+CASCADE = "pxd018299_published_cascade.json"
+
+# The registered default cell of the imputation family (bzk/sources/pxd026748_reconstruction.py
+# :121-123). Duplicated as three literals only because importing that module pulls the whole
+# reconstruction stack; `tests/test_audit.py` asserts the three still agree with the source.
+DEFAULT_CELL = (0.3, 1.8, "per_sample")
+
+
+@dataclass
+class Stage:
+    number: int
+    title: str
+    mode: str  # FIXTURE | LIVE | FIXTURE+LIVE | NOT_AUTOMATED
+    findings: dict[str, Any] = field(default_factory=dict)
+    sources: list[str] = field(default_factory=list)
+    limitations: list[str] = field(default_factory=list)
+    not_automated: list[str] = field(default_factory=list)
+
+
+def _sha256_path(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _load(name: str) -> dict[str, Any]:
+    data: dict[str, Any] = json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+    return data
+
+
+def _git(*args: str) -> str:
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), *args], capture_output=True, text=True, check=True
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+    return out.stdout.strip()
+
+
+def _per_claim_matrix(
+    fixture: dict[str, Any],
+) -> tuple[list[dict[str, Any]], np.ndarray, np.ndarray]:
+    block = fixture["readouts"]["primary"]["per_claim_support"]
+    rows: list[dict[str, Any]] = block["rows"]
+    support = np.array([r["support"] for r in rows], dtype=int)
+    imputed = np.array([bool(r["row_carries_an_imputed_cell"]) for r in rows])
+    return rows, support, imputed
+
+
+def _members(fixture: dict[str, Any]) -> list[dict[str, Any]]:
+    members: list[dict[str, Any]] = fixture["readouts"]["primary"]["per_claim_support"]["members"]
+    return members
+
+
+def _default_columns(members: list[dict[str, Any]]) -> list[int]:
+    return [
+        i
+        for i, m in enumerate(members)
+        if (m["width_sd"], m["downshift_sd"], m["scope"]) == DEFAULT_CELL
+    ]
+
+
+# --------------------------------------------------------------------------------------------
+# Stages
+# --------------------------------------------------------------------------------------------
+
+
+def stage1_sources(home: Path, live: bool) -> Stage:
+    pinned = {
+        "GlyGly site table": (PXD018299_SITES.filename, PXD018299_SITES.expected_content_hash),
+        "proteinGroups table": (
+            PXD018299_PROTEIN_GROUPS.filename,
+            PXD018299_PROTEIN_GROUPS.expected_content_hash,
+        ),
+        "BJC Supplementary Data 1": (SUPP_DATA_1.filename, SUPP_DATA_1.expected_content_hash),
+        "BJC Supplementary Data 2": (SUPP_DATA_2.filename, SUPP_DATA_2.expected_content_hash),
+        "BJC Supplementary Data 3": (SUPP_DATA_3.filename, SUPP_DATA_3.expected_content_hash),
+    }
+    files: dict[str, Any] = {}
+    for label, (filename, digest) in pinned.items():
+        entry: dict[str, Any] = {
+            "filename": filename,
+            "pinned_sha256": digest,
+            "accession": "PXD018299",
+        }
+        if live:
+            try:
+                path = verify(digest or "", filename=filename, home=home)
+                entry["store_status"] = "present, hash verified"
+                entry["bytes"] = path.stat().st_size
+            except FileNotFoundError:
+                entry["store_status"] = "ABSENT from store"
+            except ValueError as exc:
+                entry["store_status"] = f"CORRUPT: {exc}"
+        else:
+            entry["store_status"] = "not checked (no --live)"
+        files[label] = entry
+    present = sum(1 for e in files.values() if e["store_status"].startswith("present"))
+    stage = Stage(1, "Source verification and ingestion", "LIVE" if live else "FIXTURE")
+    stage.findings = {
+        "pinned_files": files,
+        "verified_in_store": present if live else None,
+        "of": len(files),
+        "sequence_archive": drift.staleness_line(home) if live else "not checked (no --live)",
+    }
+    stage.sources = ["bzk/sources/pride.py", "bzk/sources/protein_groups.py", "bzk/drift.py"]
+    if not live:
+        stage.limitations.append(
+            "Pinned hashes are reported but the bytes were not re-hashed. Run with --live on a "
+            "machine that holds ~/.bzk-omics/raw."
+        )
+    return stage
+
+
+def stage2_graph(live: bool, home: Path) -> Stage:
+    refusals = _load(REFUSALS)
+    targets = _load(PLATFORM_TARGETS)
+    groups = _load(PROTEIN_GROUPS)
+    stage = Stage(2, "Evidence graph reconstruction", "FIXTURE")
+    pop = targets["population"]
+    stage.findings = {
+        "site_table_rows": pop["rows_in_file"],
+        "after_decoys": pop["after_decoys"],
+        "after_localisation": pop["after_localization"],
+        "ingested": pop["ingested"],
+        "refused": pop["refused"],
+        "refusals_by_reason": refusals["counts"],
+        "refusal_records": len(refusals["refusals"]),
+        "protein_group_ambiguity": [
+            {
+                "artefact": m["artefact"],
+                "column": m["column"],
+                "rows": m["rows"],
+                "multi_accession_fraction": m["multi_fraction"],
+                "max_group_size": m["max_size"],
+                "distinct_gene_multi": m["distinct_gene_multi"],
+            }
+            for m in groups["measurements"]
+            if "multi_fraction" in m
+        ],
+    }
+    stage.sources = [f"tests/fixtures/{n}" for n in (REFUSALS, PLATFORM_TARGETS, PROTEIN_GROUPS)]
+    stage.limitations.append(
+        "Refusals and ambiguity are the committed fixtures' record of the last generating run, "
+        "not a rebuild performed now."
+    )
+    if live:
+        started = datetime.now(UTC)
+        proc = subprocess.run(
+            [sys.executable, "-m", "bzk.rebuild"],
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            check=False,
+        )
+        stage.mode = "FIXTURE+LIVE"
+        stage.findings["live_rebuild"] = {
+            "exit_code": proc.returncode,
+            "seconds": round((datetime.now(UTC) - started).total_seconds(), 1),
+            "stdout_tail": proc.stdout.strip().splitlines()[-12:],
+            "stderr_tail": proc.stderr.strip().splitlines()[-6:],
+            "home": str(home),
+        }
+    return stage
+
+
+def stage3_census(fixture: dict[str, Any]) -> Stage:
+    rows, _, imputed = _per_claim_matrix(fixture)
+    cascade = _load(CASCADE)["rows"]
+    lost: dict[str, int] = {}
+    for r in cascade:
+        lost[str(r["lost_at"])] = lost.get(str(r["lost_at"]), 0) + 1
+    stage = Stage(3, "Published-claim alignment and measurement census", "FIXTURE")
+    stage.findings = {
+        "published_claims": len(cascade),
+        "claims_in_tested_population": len(rows),
+        "tested_claims_with_an_imputed_cell": int(imputed.sum()),
+        "tested_claims_fully_measured": int((~imputed).sum()),
+        "claims_lost_before_test_by_stage": {k: v for k, v in lost.items() if k != "None"},
+        "reading": (
+            "Counts cover the claims that reach the test. Claims lost earlier never enter the "
+            "matrix, and the fixture does not record how many of them are wholly drawn."
+        ),
+    }
+    stage.not_automated = [
+        (
+            "The whole-table census over all published claims (drawn-cell classes, the measured-only "
+            "fold-change comparison) and the count of contrasts with no observed values: produced by "
+            "notes/scripts/diagnose_round14.py, needs the raw store, records in "
+            "walk/CHECKS-census.md."
+        )
+    ]
+    stage.sources = [f"tests/fixtures/{H10_FIXTURE}", f"tests/fixtures/{CASCADE}"]
+    return stage
+
+
+def stage4_imputation(fixture: dict[str, Any]) -> Stage:
+    block = fixture["readouts"]["primary"]["readout_c"]
+    per = block["per_sample"]
+    shifts = {k: v["downshift"] for k, v in per.items()}
+    stage = Stage(4, "Perseus imputation reconstruction", "FIXTURE")
+    stage.findings = {
+        "matrix": fixture["readouts"]["primary"]["matrix"],
+        "rule": block["rule"],
+        "per_sample": {
+            k: {
+                "n_imputed": v["n"],
+                "downshift_sd": round(v["downshift"], 3),
+                "width_sd": round(v["width"], 3),
+            }
+            for k, v in per.items()
+        },
+        "per_sample_downshift_range": [
+            round(min(shifts.values()), 3),
+            round(max(shifts.values()), 3),
+        ],
+        "whole_matrix": {
+            "n_imputed": block["whole_matrix"]["n"],
+            "downshift_sd": round(block["whole_matrix"]["downshift"], 3),
+            "width_sd": round(block["whole_matrix"]["width"], 3),
+        },
+    }
+    stage.not_automated = [
+        (
+            "The two-route downshift recovery quoted in walk/FINDINGS.md section 2 (drawn cells "
+            "against column statistics; fold-change gap against measured-only part) is produced by "
+            "notes/scripts/diagnose_imputation_effects.py and recorded in "
+            "walk/CHECKS-two-route-recovery.md. It is not in any committed fixture, and the "
+            "per-sample range above (this fixture's readout C) is a different statistic that should "
+            "not be read as that figure."
+        )
+    ]
+    stage.limitations.append(
+        "Per-sample downshift differs sharply between arms (the WT columns carry most of the "
+        "drawn cells), so a single downshift number hides that structure."
+    )
+    stage.sources = [f"tests/fixtures/{H10_FIXTURE}"]
+    return stage
+
+
+def stage5_differential() -> Stage:
+    targets = _load(PLATFORM_TARGETS)
+    welch = _load(WELCH_BASELINE)
+    pop = targets["population"]
+    statuses: dict[str, int] = {}
+    for t in targets["targets"]:
+        statuses[t["status"]] = statuses.get(t["status"], 0) + 1
+    stage = Stage(5, "Differential analysis and target recovery", "FIXTURE")
+    stage.findings = {
+        "tested_sites": pop["tested"],
+        "significant_up": pop["significant_up"],
+        "values_imputed": pop["n_values_imputed"],
+        "values_total": pop["n_values_total"],
+        "imputed_fraction": round(pop["n_values_imputed"] / pop["n_values_total"], 4),
+        "targets_present": pop["targets_present"],
+        "targets_recovered": pop["targets_recovered"],
+        "targets_total": len(targets["targets"]),
+        "target_status_counts": statuses,
+        "welch_baseline_targets": len(welch["targets"]),
+        "recovery_rule_note": (
+            "platform rule: recovered if any tested site for the target is significant; the "
+            "notebook baseline selects best site by log2FC. Different rules - see "
+            "python -m bzk.target_recovery_rules."
+        ),
+    }
+    stage.sources = [f"tests/fixtures/{PLATFORM_TARGETS}", f"tests/fixtures/{WELCH_BASELINE}"]
+    return stage
+
+
+def stage6_sensitivity(fixture: dict[str, Any], out: Path) -> Stage:
+    rows, support, imputed = _per_claim_matrix(fixture)
+    members = _members(fixture)
+    default = _default_columns(members)
+    sub = support[:, default]
+    freq = sub.mean(axis=1)
+    changed = sub.min(axis=1) != sub.max(axis=1)
+    every = support.min(axis=1) != support.max(axis=1)
+    path = out / "per_claim_selection_frequency.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(
+            [
+                "published_row",
+                "deposit_id",
+                "gene_names",
+                "carries_imputed_cell",
+                "default_cell_frequency",
+                "changes_in_default_cell",
+                "frequency_all_members",
+                "changes_in_family",
+            ]
+        )
+        for i, r in enumerate(rows):
+            writer.writerow(
+                [
+                    r["published_row"],
+                    r["deposit_id"],
+                    r["gene_names"] or "",
+                    int(imputed[i]),
+                    round(float(freq[i]), 4),
+                    int(changed[i]),
+                    round(float(support[i].mean()), 4),
+                    int(every[i]),
+                ]
+            )
+    stage = Stage(6, "Stochastic imputation sensitivity", "FIXTURE")
+    stage.findings = {
+        "claims": len(rows),
+        "default_cell": {
+            "width_sd": DEFAULT_CELL[0],
+            "downshift_sd": DEFAULT_CELL[1],
+            "scope": DEFAULT_CELL[2],
+            "draws": len(default),
+        },
+        "changing_in_default_cell": int(changed.sum()),
+        "changing_in_default_cell_share": round(float(changed.mean()), 4),
+        "family_members": len(members),
+        "changing_somewhere_in_family": int(every.sum()),
+        "supported_in_every_default_draw": int((sub.min(axis=1) == 1).sum()),
+        "supported_in_no_default_draw": int((sub.max(axis=1) == 0).sum()),
+        "per_claim_csv": str(path),
+    }
+    stage.not_automated = [
+        (
+            "walk/FINDINGS.md section 5 quotes a changing-support count under 'Perseus's documented "
+            "FDR rule at the recovered imputation parameters, 20 paired draws'. That is the output of "
+            "notes/scripts/diagnose_round11.py / diagnose_round12.py (walk/CHECKS-draws-and-threshold.md), "
+            "a different instrument from the registered attempt-3 family computed here, and it is "
+            "not reproduced by this fixture. Do not quote the two interchangeably."
+        )
+    ]
+    stage.sources = [f"tests/fixtures/{H10_FIXTURE}"]
+    return stage
+
+
+def stage7_propagation(fixture: dict[str, Any]) -> Stage:
+    rows, support, imputed = _per_claim_matrix(fixture)
+    members = _members(fixture)
+    default = _default_columns(members)
+    measured = np.where(~imputed)[0]
+    moved = []
+    for i in measured:
+        s = support[i]
+        if s.min() != s.max():
+            sd = support[i, default]
+            moved.append(
+                {
+                    "published_row": rows[i]["published_row"],
+                    "deposit_id": rows[i]["deposit_id"],
+                    "gene_names": rows[i]["gene_names"],
+                    "supported_in_family": f"{int(s.sum())}/{len(s)}",
+                    "supported_in_default_cell": f"{int(sd.sum())}/{len(sd)}",
+                }
+            )
+    stage = Stage(7, "Multiple-testing propagation", "FIXTURE")
+    stage.findings = {
+        "fully_measured_claims": len(measured),
+        "moved_across_cut_in_family": len(moved),
+        "moved_across_cut_in_default_cell": sum(
+            1
+            for m in moved
+            if m["supported_in_default_cell"].split("/")[0]
+            not in ("0", m["supported_in_default_cell"].split("/")[1])
+        ),
+        "claims": moved,
+        "mechanism": (
+            "A fully measured claim has a frozen statistic; any change in its support comes from "
+            "draws made for other rows moving the shared FDR threshold."
+        ),
+    }
+    stage.not_automated = [
+        (
+            "q-value ranges per claim (e.g. the ATP1A1 K605 range in walk/FINDINGS.md section 6) are "
+            "not stored in the fixture, which keeps support as 0/1. Source: "
+            "notes/scripts/diagnose_round12.py, walk/CHECKS-draws-and-threshold.md."
+        )
+    ]
+    stage.sources = [f"tests/fixtures/{H10_FIXTURE}"]
+    return stage
+
+
+def stage8_discrepancy(fixture: dict[str, Any]) -> Stage:
+    targets = _load(PLATFORM_TARGETS)["targets"]
+    groups = _load(PROTEIN_GROUPS)["measurements"]
+    detail = []
+    for t in targets:
+        sites = t.get("sites", [])
+        best = min(sites, key=lambda s: s["adj_p"]) if sites else None
+        detail.append(
+            {
+                "gene": t["gene"],
+                "status": t["status"],
+                "tested_sites": len(sites),
+                "best_adj_p": None if best is None else round(best["adj_p"], 4),
+                "best_log2fc": None if best is None else round(best["log2fc"], 3),
+            }
+        )
+    support = fixture["readouts"]["primary"]["readout_d"]
+    stage = Stage(8, "Biological discrepancy inspection", "FIXTURE")
+    stage.findings = {
+        "targets": detail,
+        "not_recovered": [d["gene"] for d in detail if d["status"] != "recovered"],
+        "family_support_by_target_gene": {
+            g: f"{v['supported']}/{v['claims']}" for g, v in support.items()
+        },
+        "protein_group_ambiguity_artefacts": [
+            m["artefact"] for m in groups if "multi_fraction" in m
+        ],
+    }
+    stage.sources = [f"tests/fixtures/{PLATFORM_TARGETS}", f"tests/fixtures/{H10_FIXTURE}"]
+    return stage
+
+
+def _write_csv(path: Path, header: list[str], records: list[list[Any]]) -> None:
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(header)
+        writer.writerows(records)
+
+
+def stage10_reasons(out: Path, home: Path, drift_live: bool) -> Stage:
+    """Why each published claim, ingested site and target was lost, and what drifted.
+
+    Reasons are the committed fixtures' own codes and sentences, joined; none is composed here.
+    """
+    cascade = _load(CASCADE)["rows"]
+    refusals = _load(REFUSALS)["refusals"]
+    targets = _load(PLATFORM_TARGETS)["targets"]
+    detail_by_row = {str(r["row"]): r for r in refusals}
+
+    lost = [r for r in cascade if r["lost_at"]]
+    matched = 0
+    claim_records: list[list[Any]] = []
+    for r in lost:
+        refusal = detail_by_row.get(str(r["deposit_id"])) if r["lost_at"] == "ingestion" else None
+        matched += refusal is not None
+        claim_records.append(
+            [
+                r["row"], r["gene_names"] or "", r["protein"], r["position"], r["deposit_id"],
+                r["lost_at"], r["loss_reason"], r["localization_prob"], r["wt_cells_below_21"],
+                r["published_log2fc"], r["platform_log2fc"], r["platform_p"],
+                r["platform_adj_p"], refusal["detail"] if refusal else "",
+            ]
+        )  # fmt: skip
+    claims_path = out / "rejected_published_claims.csv"
+    _write_csv(
+        claims_path,
+        ["published_row", "gene_names", "protein", "position", "deposit_id", "lost_at",
+         "reason_code", "localisation_prob", "wt_cells_below_21", "published_log2fc",
+         "platform_log2fc", "platform_p", "platform_adj_p", "refusal_detail"],
+        claim_records,
+    )  # fmt: skip
+
+    refusal_path = out / "ingestion_refusals.csv"
+    _write_csv(
+        refusal_path,
+        ["site_table_row", "reason", "detail"],
+        [[r["row"], r["reason"], r["detail"]] for r in refusals],
+    )
+
+    target_records: list[dict[str, Any]] = []
+    for t in targets:
+        if t["status"] == "recovered":
+            continue
+        sites = t.get("sites", [])
+        target_records.append(
+            {
+                "gene": t["gene"],
+                "status": t["status"],
+                "explanation": (
+                    "no site of this gene reached the tested population"
+                    if not sites
+                    else "tested, no site passed the significance rule"
+                ),
+                "tested_sites": [
+                    {"site": x["site"], "log2fc": x["log2fc"], "p": x["p"], "adj_p": x["adj_p"]}
+                    for x in sites
+                ],
+            }
+        )
+
+    by_reason: dict[str, int] = {}
+    for r in lost:
+        key = f"{r['lost_at']}/{r['loss_reason']}"
+        by_reason[key] = by_reason.get(key, 0) + 1
+
+    stage = Stage(10, "Reasons for every rejection and non-recovery, and drift", "FIXTURE")
+    stage.findings = {
+        "published_claims_lost": len(lost),
+        "by_stage_and_reason": by_reason,
+        "ingestion_losses_joined_to_refusal_detail": matched,
+        "ingestion_losses_total": sum(1 for r in lost if r["lost_at"] == "ingestion"),
+        "platform_refusals_total": len(refusals),
+        "unrecovered_targets": target_records,
+        "written": [str(claims_path), str(refusal_path)],
+    }
+    stage.limitations.append(
+        "Reason codes on lost published claims are labels, not sentences; only ingestion "
+        "refusals carry prose, and the join is on site-table row."
+    )
+    stage.sources = [f"tests/fixtures/{n}" for n in (CASCADE, REFUSALS, PLATFORM_TARGETS)]
+
+    if drift_live:
+        try:
+            drifts = drift.drift_check(home)
+        except Exception as exc:  # noqa: BLE001 - network or archive failure must not sink the report
+            stage.mode = "FIXTURE"
+            stage.findings["drift"] = f"NOT RUN: {type(exc).__name__}: {exc}"
+        else:
+            drift_path = out / "sequence_drift.csv"
+            _write_csv(
+                drift_path,
+                ["accession", "archived_sv", "current_sv", "content_changed", "archived_len",
+                 "current_len"],
+                [[d.accession, d.cached_sv, d.current_sv, int(d.content_changed), d.stored_len,
+                  d.current_len] for d in drifts],
+            )  # fmt: skip
+            stage.mode = "FIXTURE+LIVE"
+            stage.findings["drift"] = {
+                "sequences_checked": len(drift.archived_sequences(home)),
+                "drifted": len(drifts),
+                "written": str(drift_path),
+                "receipt": "not updated; run python -m bzk.drift to refresh it",
+            }
+    else:
+        stage.findings["drift"] = "not run (needs --drift: refetches every archived sequence)"
+    return stage
+
+
+def stage9_report(stages: list[Stage], out: Path, fixtures_read: list[str]) -> dict[str, Any]:
+    status = _git("status", "--porcelain")
+    report: dict[str, Any] = {
+        "report_version": 1,
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "code_version": {
+            "commit": _git("rev-parse", "HEAD"),
+            "working_tree_clean": status == "",
+            "python": platform.python_version(),
+            "numpy": np.__version__,
+        },
+        "accession": "PXD018299",
+        "fixture_hashes": {n: _sha256_path(FIXTURES / n) for n in sorted(set(fixtures_read))},
+        "stages": [
+            {
+                "stage": s.number,
+                "title": s.title,
+                "mode": s.mode,
+                "findings": s.findings,
+                "sources": s.sources,
+                "limitations": s.limitations,
+                "not_automated": s.not_automated,
+            }
+            for s in stages
+        ],
+    }
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "audit_PXD018299.json").write_text(
+        json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+    (out / "audit_PXD018299.md").write_text(render(report), encoding="utf-8")
+    return report
+
+
+def render(report: dict[str, Any]) -> str:
+    cv = report["code_version"]
+    lines = [
+        f"# PXD018299 research audit (report v{report['report_version']})",
+        "",
+        (
+            f"Generated {report['generated_at']} at commit `{cv['commit'][:12]}` "
+            f"({'clean' if cv['working_tree_clean'] else 'DIRTY working tree'}), "
+            f"Python {cv['python']}, numpy {cv['numpy']}."
+        ),
+        "",
+    ]
+    for s in report["stages"]:
+        lines += [f"## {s['stage']}. {s['title']}  [{s['mode']}]", ""]
+        for k, v in s["findings"].items():
+            if isinstance(v, (dict, list)):
+                lines.append(f"- **{k}**:")
+                lines += [
+                    "  ```json",
+                    *("  " + ln for ln in json.dumps(v, indent=2).splitlines()),
+                    "  ```",
+                ]
+            else:
+                lines.append(f"- **{k}**: {v}")
+        for note in s["limitations"]:
+            lines.append(f"- _Limitation_: {note}")
+        for note in s["not_automated"]:
+            lines.append(f"- _NOT_AUTOMATED_: {note}")
+        lines += ["", f"Sources: {', '.join(s['sources'])}", ""]
+    lines += ["## Fixture hashes (sha256)", ""]
+    lines += [f"- `{n}`: `{h}`" for n, h in report["fixture_hashes"].items()]
+    return "\n".join(lines) + "\n"
+
+
+def run(
+    out: Path, *, live: bool, home: Path, reasons: bool = False, drift_live: bool = False
+) -> dict[str, Any]:
+    fixture = _load(H10_FIXTURE)
+    out.mkdir(parents=True, exist_ok=True)
+    builders: list[Callable[[], Stage]] = [
+        lambda: stage1_sources(home, live),
+        lambda: stage2_graph(live, home),
+        lambda: stage3_census(fixture),
+        lambda: stage4_imputation(fixture),
+        stage5_differential,
+        lambda: stage6_sensitivity(fixture, out),
+        lambda: stage7_propagation(fixture),
+        lambda: stage8_discrepancy(fixture),
+    ]
+    if reasons or drift_live:
+        builders.append(lambda: stage10_reasons(out, home, drift_live))
+    stages = [b() for b in builders]
+    read = [
+        n for s in stages for src in s.sources for n in [Path(src).name] if (FIXTURES / n).exists()
+    ]
+    stages.append(
+        Stage(
+            9,
+            "Evidence report and export",
+            "FIXTURE",
+            findings={
+                "written": [str(out / "audit_PXD018299.json"), str(out / "audit_PXD018299.md")],
+                "published_claim_cascade_report": "python -m bzk.published_cascade",
+            },
+            sources=["this module"],
+        )
+    )
+    return stage9_report(stages, out, read)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(prog="bzk.audit", description=__doc__.split("\n")[0])
+    parser.add_argument("--out", type=Path, default=Path("audit-out"))
+    parser.add_argument("--home", type=Path, default=DEFAULT_HOME)
+    parser.add_argument(
+        "--live", action="store_true", help="verify the raw store and re-run rebuild"
+    )
+    parser.add_argument(
+        "--reasons", action="store_true", help="add stage 10: per-item rejection reasons (CSV)"
+    )
+    parser.add_argument(
+        "--drift",
+        action="store_true",
+        help="add per-accession sequence drift to stage 10 (network; refetches the archive)",
+    )
+    parser.add_argument("--json", action="store_true", help="print the JSON report to stdout")
+    args = parser.parse_args()
+    report = run(
+        args.out, live=args.live, home=args.home, reasons=args.reasons, drift_live=args.drift
+    )
+    # `published_cascade` is imported for its report; stage 9 points at it rather than copying it.
+    _ = published_cascade
+    print(json.dumps(report, indent=2, default=str) if args.json else render(report))
+
+
+if __name__ == "__main__":
+    main()
