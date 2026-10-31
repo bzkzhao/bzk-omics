@@ -430,33 +430,64 @@ def stage7_propagation(fixture: dict[str, Any]) -> Stage:
 
 
 def stage8_discrepancy(fixture: dict[str, Any]) -> Stage:
+    """Per target, both instruments' verdicts side by side, each named.
+
+    The platform path (Welch on the ingested, presence-filtered population) and the attempt-3
+    reconstruction (Perseus-shaped test, population chosen to retain the published claim set) are
+    different instruments over different populations. A disagreement between them is reported as
+    a finding about the instruments, never resolved into one verdict.
+    """
     targets = _load(PLATFORM_TARGETS)["targets"]
     groups = _load(PROTEIN_GROUPS)["measurements"]
+    recon = fixture["readouts"]["primary"]["readout_d"]
     detail = []
     for t in targets:
         sites = t.get("sites", [])
         best = min(sites, key=lambda s: s["adj_p"]) if sites else None
+        r = recon.get(t["gene"])
+        recon_text = None if r is None else f"{r['supported']}/{r['claims']} S1 peptides supported"
+        platform_ok = t["status"] == "recovered"
+        recon_ok = None if r is None else (r["claims"] > 0 and r["supported"] > 0)
         detail.append(
             {
                 "gene": t["gene"],
-                "status": t["status"],
-                "tested_sites": len(sites),
-                "best_adj_p": None if best is None else round(best["adj_p"], 4),
-                "best_log2fc": None if best is None else round(best["log2fc"], 3),
+                "platform_path": {
+                    "status": t["status"],
+                    "tested_sites": len(sites),
+                    "best_adj_p": None if best is None else round(best["adj_p"], 4),
+                    "best_log2fc": None if best is None else round(best["log2fc"], 3),
+                },
+                "reconstruction_default_cell": recon_text,
+                "instruments_disagree": None if recon_ok is None else platform_ok != recon_ok,
             }
         )
-    support = fixture["readouts"]["primary"]["readout_d"]
+    seen: set[tuple[str, str]] = set()
+    ambiguity: list[str] = []
+    for m in groups:
+        key = (m["artefact"], m.get("column", ""))
+        if "multi_fraction" in m and key not in seen:
+            seen.add(key)
+            ambiguity.append(f"{m['artefact']} [{key[1]}]")
     stage = Stage(8, "Biological discrepancy inspection", "FIXTURE")
     stage.findings = {
-        "targets": detail,
-        "not_recovered": [d["gene"] for d in detail if d["status"] != "recovered"],
-        "family_support_by_target_gene": {
-            g: f"{v['supported']}/{v['claims']}" for g, v in support.items()
+        "instruments": {
+            "platform_path": "Welch, BH-FDR, ingested + presence-filtered population (stage 5)",
+            "reconstruction_default_cell": (
+                "attempt-3 Perseus-shaped test, median support over the default cell's draws, "
+                "population retains the published claim set (stages 6-7)"
+            ),
         },
-        "protein_group_ambiguity_artefacts": [
-            m["artefact"] for m in groups if "multi_fraction" in m
+        "targets": detail,
+        "not_recovered_on_platform_path": [
+            d["gene"] for d in detail if d["platform_path"]["status"] != "recovered"
         ],
+        "instruments_disagree_on": [d["gene"] for d in detail if d["instruments_disagree"]],
+        "protein_group_ambiguity_artefacts": ambiguity,
     }
+    stage.limitations.append(
+        "The two instruments use different populations, so a target can be absent or "
+        "non-significant on one and supported on the other. This stage does not adjudicate."
+    )
     stage.sources = [f"tests/fixtures/{PLATFORM_TARGETS}", f"tests/fixtures/{H10_FIXTURE}"]
     return stage
 
@@ -578,6 +609,7 @@ def stage10_reasons(out: Path, home: Path, drift_live: bool) -> Stage:
 
 
 def stage9_report(stages: list[Stage], out: Path, fixtures_read: list[str]) -> dict[str, Any]:
+    stages = sorted(stages, key=lambda st: st.number)
     status = _git("status", "--porcelain")
     report: dict[str, Any] = {
         "report_version": 1,
