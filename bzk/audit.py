@@ -191,8 +191,16 @@ def _regenerate_attempt3(home: Path, work: Path) -> tuple[dict[str, Any], dict[s
     return regenerated, report
 
 
-def _read_graph(graph: Path, genes: list[str]) -> dict[str, Any]:
-    """Count and classify the stored `DifferentialResult`s, read-only, by the module's own rule."""
+def _read_graph(graph: Path, targets: list[dict[str, Any]]) -> dict[str, Any]:
+    """Count and classify the stored `DifferentialResult`s, read-only, by the module's own rule.
+
+    A target is matched to graph proteins two ways, and the union is used: by the symbol on the
+    graph's `Gene` nodes, and by the accessions of the sites the committed fixture lists for it.
+    The second exists because a symbol is a label that moves: the fixture's `DDX58` is `RIGI` on
+    the graph's `Gene` (the HGNC symbol changed after the 2019 search), so a symbol-only match
+    called a target with four tested sites absent. The graph keys `Gene` by HGNC id, so identity is
+    stable; only the name moved. `symbol_differs` lists every target where the two disagree.
+    """
     from bzk.query.graph import connect
     from bzk.sources import pxd018299_differential as differential
 
@@ -205,16 +213,25 @@ def _read_graph(graph: Path, genes: list[str]) -> dict[str, Any]:
             out.append(list(result.get_next()))
         return out
 
+    def fixture_proteins(target: dict[str, Any]) -> set[str]:
+        ids: set[str] = set()
+        for site in target.get("sites", []):
+            accession = str(site["site"]).split("#", 1)[0].removeprefix("uniprot:")
+            ids |= {f"uniprot:{accession}", f"uniprot:{accession.split('-', 1)[0]}"}
+        return ids
+
     results = rows(
         "MATCH (r:DifferentialResult)-[:RESULT_FOR_SITE]->(o:SiteObservation) "
         "RETURN r.id, r.log2fc, r.adj_p_value, o.candidate_proteins"
     )
-    protein_ids = sorted({str(p) for r in results for p in (r[3] or [])})
+    wanted = {str(p) for r in results for p in (r[3] or [])}
+    for target in targets:
+        wanted |= fixture_proteins(target)
     symbols: dict[str, set[str]] = {}
-    if protein_ids:
+    if wanted:
         for pid, symbol in rows(
             "MATCH (g:Gene)-[:ENCODES]->(p:Protein) WHERE p.id IN $ids RETURN p.id, g.symbol",
-            ids=protein_ids,
+            ids=sorted(wanted),
         ):
             symbols.setdefault(str(pid), set()).add(str(symbol))
 
@@ -227,19 +244,28 @@ def _read_graph(graph: Path, genes: list[str]) -> dict[str, Any]:
         )
 
     status: dict[str, str] = {}
-    for gene in genes:
-        mine = [r for r in results if any(gene in symbols.get(str(p), ()) for p in (r[3] or []))]
+    symbol_differs: dict[str, list[str]] = {}
+    for target in targets:
+        gene = str(target["gene"])
+        by_symbol = {pid for pid, names in symbols.items() if gene in names}
+        by_accession = fixture_proteins(target)
+        matched = by_symbol | by_accession
+        graph_names = sorted({n for pid in by_accession for n in symbols.get(pid, set())})
+        if graph_names and gene not in graph_names:
+            symbol_differs[gene] = graph_names
+        mine = [r for r in results if any(str(p) in matched for p in (r[3] or []))]
         if not mine:
             status[gene] = "absent_from_tested"
         else:
             status[gene] = (
-                "recovered" if any(significant(r) for r in mine) else ("tested_not_recovered")
+                "recovered" if any(significant(r) for r in mine) else "tested_not_recovered"
             )
     return {
         "results_at_site_grain": len(results),
         "significant_up": sum(1 for r in results if significant(r)),
         "rule": f"adj_p < {differential.SIG_ADJ_P} and log2FC > {differential.SIG_LOG2FC}",
         "target_status": status,
+        "symbol_differs": symbol_differs,
     }
 
 
@@ -444,7 +470,7 @@ def stage5_differential(graph: Path | None = None) -> Stage:
     stage.sources = [f"tests/fixtures/{PLATFORM_TARGETS}", f"tests/fixtures/{WELCH_BASELINE}"]
     if graph is not None:
         try:
-            read = _read_graph(graph, [t["gene"] for t in targets["targets"]])
+            read = _read_graph(graph, targets["targets"])
         except Exception as exc:  # noqa: BLE001 - a locked or absent graph must not sink the report
             stage.findings["live_graph"] = f"NOT READ: {type(exc).__name__}: {exc}"
         else:
@@ -459,10 +485,11 @@ def stage5_differential(graph: Path | None = None) -> Stage:
             stage.findings["live_graph"] = read
             stage.mode = "FIXTURE+LIVE"
             stage.limitations.append(
-                "The graph read maps results to genes through SiteObservation.candidate_proteins "
-                "and ENCODES, which is not how the differential module keys its targets, so a "
-                "disagreement on one target is a finding about the mapping before it is one "
-                "about the graph. Counts are not subject to that caveat."
+                "The graph read matches a target to proteins by gene symbol and by the accessions "
+                "of the fixture's own sites for it, so a target's status here is not independent "
+                "of the fixture on which proteins it covers; significance and counts are "
+                "recomputed from the graph. symbol_differs lists targets whose name on the graph "
+                "is not the fixture's (a renamed gene)."
             )
     return stage
 

@@ -186,7 +186,7 @@ def test_the_graph_read_classifies_a_target_by_the_modules_own_rule(
 ) -> None:
     conn = _graph(tmp_path, adj_p=0.001)
     monkeypatch.setattr("bzk.query.graph.connect", lambda *_a, **_k: conn)
-    read = audit._read_graph(tmp_path / "g.kuzu", ["MX1", "NOT_A_GENE"])
+    read = audit._read_graph(tmp_path / "g.kuzu", [{"gene": "MX1"}, {"gene": "NOT_A_GENE"}])
     assert read["results_at_site_grain"] == 1
     assert read["significant_up"] == 1
     assert read["target_status"] == {"MX1": "recovered", "NOT_A_GENE": "absent_from_tested"}
@@ -197,7 +197,7 @@ def test_a_tested_target_that_is_not_significant_is_not_called_absent(
 ) -> None:
     conn = _graph(tmp_path, adj_p=0.5)
     monkeypatch.setattr("bzk.query.graph.connect", lambda *_a, **_k: conn)
-    read = audit._read_graph(tmp_path / "g.kuzu", ["MX1"])
+    read = audit._read_graph(tmp_path / "g.kuzu", [{"gene": "MX1"}])
     assert read["significant_up"] == 0
     assert read["target_status"] == {"MX1": "tested_not_recovered"}
 
@@ -215,3 +215,21 @@ def test_the_fixture_run_counts_what_the_fixture_holds(tmp_path: Path) -> None:
     census = audit.stage3_census(_committed()).findings
     assert census["claims_in_tested_population"] == len(rows)
     assert census["tested_claims_with_an_imputed_cell"] == imputed
+
+
+def test_a_renamed_gene_is_found_by_its_sites_and_reported_as_renamed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The DDX58 case: the fixture names a target by the 2019 symbol, the graph's `Gene` carries the
+    current one. A symbol-only match called a target with tested sites absent."""
+    import test_query
+
+    conn = _graph(tmp_path, adj_p=0.001)
+    monkeypatch.setattr("bzk.query.graph.connect", lambda *_a, **_k: conn)
+    renamed = {"gene": "OLD_NAME", "sites": [{"site": test_query.SITE}]}
+    read = audit._read_graph(tmp_path / "g.kuzu", [renamed])
+    assert read["target_status"] == {"OLD_NAME": "recovered"}
+    assert read["symbol_differs"] == {"OLD_NAME": ["MX1"]}
+    # Without its sites the same name is, correctly, not found.
+    bare = audit._read_graph(tmp_path / "g.kuzu", [{"gene": "OLD_NAME"}])
+    assert bare["target_status"] == {"OLD_NAME": "absent_from_tested"}
