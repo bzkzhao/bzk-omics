@@ -180,3 +180,115 @@ def test_the_staleness_threshold_mirrors_operations() -> None:
         f"drift.STALE_AFTER_DAYS is {drift.STALE_AFTER_DAYS} but OPERATIONS.md §5 says "
         f"{stated.group(1)}; §5 owns the number"
     )
+
+
+# ── A lookup that gave no usable answer is neither drift nor clean ───────────────────────────────
+
+
+class _FlakySession(_FixtureSession):
+    """Answers 503 for a named accession's entry lookup a set number of times, then as recorded."""
+
+    def __init__(
+        self, entries: dict[str, Any], isoform_fasta: dict[str, str], *, failures: dict[str, int]
+    ) -> None:
+        super().__init__(entries, isoform_fasta)
+        self.failures = dict(failures)
+        self.calls: dict[str, int] = {}
+
+    def get(self, url: str, **kw: Any) -> _Resp:
+        if url.endswith(".json"):
+            accession = url.rsplit("/", 1)[-1][: -len(".json")]
+            self.calls[accession] = self.calls.get(accession, 0) + 1
+            if self.failures.get(accession, 0) > 0:
+                self.failures[accession] -= 1
+                return _Resp(503)
+        return super().get(url, **kw)
+
+
+def _flaky(fx: dict[str, Any], **failures: int) -> _FlakySession:
+    return _FlakySession(fx["entries"], fx.get("isoform_fasta", {}), failures=failures)
+
+
+def test_a_transient_failure_is_retried_and_is_not_reported(tmp_path: Any) -> None:
+    """The 2026-10-31 case in miniature: one throttled answer, then the recorded one."""
+    fx = _fx()
+    home = tmp_path / "home"
+    _seed_archive(home, fx)
+    sleeps: list[float] = []
+    report = drift.check(home, session=_flaky(fx, P49720=1), sleep=sleeps.append)
+    assert report.drifts == []
+    assert report.unchecked == []
+    assert len(sleeps) == 1
+
+
+def test_a_persistent_failure_is_unchecked_not_drift(tmp_path: Any) -> None:
+    fx = _fx()
+    home = tmp_path / "home"
+    _seed_archive(home, fx)
+    session = _flaky(fx, P49720=99)
+    sleeps: list[float] = []
+    report = drift.check(home, session=session, sleep=sleeps.append)
+    assert report.drifts == []
+    assert [(u.accession, u.status) for u in report.unchecked] == [("P49720", "http_503")]
+    assert session.calls["P49720"] == drift.RETRIES
+    assert len(sleeps) == drift.RETRIES - 1
+
+
+def test_an_isoform_whose_fasta_failed_is_unchecked_not_clean(tmp_path: Any) -> None:
+    """The direction the 2026-10-05 diagnosis missed: the parent answers, the isoform's FASTA does
+    not, so there is no sequence to compare and the parent's version is unchanged. This used to
+    fall through as a clean result."""
+    fx = _fx()
+    home = tmp_path / "home"
+    _seed_archive(home, fx)
+    isoform = min(fx["isoform_fasta"])
+    session = _FixtureSession(fx["entries"], {})  # every FASTA lookup now 404s
+    report = drift.check(home, session=session, sleep=lambda _: None)
+    unchecked = {u.accession: u.status for u in report.unchecked}
+    assert unchecked[isoform] == "sequence_unavailable:isoform_unavailable"
+    assert report.drifts == []
+
+
+def test_a_retired_entry_is_drift_and_says_so(tmp_path: Any) -> None:
+    """UniProt answers `Inactive`: the entry is gone, which is a finding rather than a failed fetch
+    (`HANDOFF.md` §8, the resolver row)."""
+    fx = _fx()
+    home = tmp_path / "home"
+    _seed_archive(home, fx)
+    fx["entries"]["P49720"] = {"entryType": "Inactive", "primaryAccession": "P49720"}
+    report = drift.check(home, session=_session(fx), sleep=lambda _: None)
+    retired = {d.accession: d for d in report.drifts}["P49720"]
+    assert retired.entry_type == "Inactive"
+    assert retired.current_sv is None
+    assert report.unchecked == []
+
+
+def test_the_receipt_counts_what_it_could_not_check(tmp_path: Any) -> None:
+    fx = _fx()
+    home = tmp_path / "home"
+    _seed_archive(home, fx)
+    receipt = drift.run(home, session=_flaky(fx, P49720=99), sleep=lambda _: None)
+    assert receipt.unchecked == 1
+    assert receipt.drifts == 0
+    # Expected from what the archive was seeded with, not from `archived_sequences`, which is what
+    # `run` itself counts with: the same call on both sides is the tautology this module records.
+    seeded = len(fx["entries"]) + len(fx["isoform_fasta"])
+    assert receipt.sequences_checked == seeded - 1
+    line = drift.staleness_line(home)
+    assert "1 UNCHECKED" in line
+
+
+def test_a_receipt_written_before_the_unchecked_field_still_loads(tmp_path: Any) -> None:
+    home = tmp_path / "home"
+    receipt_dir = home / "cache" / "uniprot"
+    receipt_dir.mkdir(parents=True)
+    old = {
+        "checked_at": "2026-10-05T12:00:00+00:00",
+        "sequences_checked": 3579,
+        "archive_digest": "sha256:x",
+        "drifts": 0,
+    }
+    (receipt_dir / drift.RECEIPT_NAME).write_text(json.dumps(old))
+    loaded = drift.read_receipt(home)
+    assert loaded is not None
+    assert loaded.unchecked == 0

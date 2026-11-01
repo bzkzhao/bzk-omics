@@ -548,6 +548,7 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             1,
         ),
         ("test_drift.py", "receipt.sequences_checked == len(drift.archived_sequences(home))", 1),
+        ("test_drift.py", "len(sleeps) == drift.RETRIES - 1", 1),
         (
             "test_keys.py",
             "canonical_parameters_json('{\"n\": 1e16}') == canonical_parameters_json('{\"n\": 10000000000000000}')",
@@ -1838,13 +1839,13 @@ _LOADER_TEST = (
 #: the *`archive_digest`* row — correct verdict, wrong row, and an instruction that was wrong for
 #: the row it named. Separability was established by running, not argued: `archive_digest` is
 #: called by the second assertion and not the first, and mutating it leaves the whole suite green.
-_SEQUENCES_CHECKED_EVIDENCE = Evidence(
-    target="bzk/drift.py",
-    old="    return found\n",
-    new="    return found[:-1]\n",
-    green_scope=("-q",),
-    red_scope=None,
-)
+# **The `sequences_checked` row was retired on 2026-11-01, and the suite caught its own mutation.**
+# `found[:-1]` in `archived_sequences` stayed green because every count in `test_drift.py` was
+# taken with the function under mutation. `test_the_receipt_counts_what_it_could_not_check` takes
+# its expected count from what the archive was *seeded* with, so the same mutation now turns the
+# whole suite red (measured: `test_every_classified_instance_re_runs_its_recorded_evidence` failed
+# on the old row, exit 1, naming exactly this). The assertion itself is unchanged and stays in
+# `PINNED`; what is gone is the claim that nothing catches the defect.
 
 _ARCHIVE_DIGEST_EVIDENCE = Evidence(
     target="bzk/drift.py",
@@ -1856,11 +1857,6 @@ _ARCHIVE_DIGEST_EVIDENCE = Evidence(
 
 INSTANCES: frozenset[tuple[str, str, Evidence]] = frozenset(
     {
-        (
-            "test_drift.py",
-            "receipt.sequences_checked == len(drift.archived_sequences(home))",
-            _SEQUENCES_CHECKED_EVIDENCE,
-        ),
         (
             "test_drift.py",
             "receipt.archive_digest == drift.archive_digest(drift.archived_sequences(home))",
