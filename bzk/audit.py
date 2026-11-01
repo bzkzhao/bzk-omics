@@ -15,7 +15,8 @@ needs no network and no raw store. `LIVE`: re-derived from the pinned bytes unde
 (`--live`). A stage is never reported as LIVE unless its inputs were found and their hashes verified.
 
     .venv/bin/python -m bzk.audit                     # fixtures only; writes ./audit-out/
-    .venv/bin/python -m bzk.audit --live              # also verify the store and re-run stages 1-2, 5
+    .venv/bin/python -m bzk.audit --live              # verify the store, regenerate attempt 3, read the graph
+    .venv/bin/python -m bzk.audit --live --rebuild    # also drop and rebuild the derived stores
     .venv/bin/python -m bzk.audit --out DIR --json    # JSON to stdout as well
 """
 
@@ -25,9 +26,13 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import platform
+import shutil
 import subprocess
 import sys
+import tempfile
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -115,6 +120,129 @@ def _default_columns(members: list[dict[str, Any]]) -> list[int]:
 # --------------------------------------------------------------------------------------------
 
 
+#: What `--live` regenerates for stages 3, 4, 6, 7 and 8 (`bzk/sources/pxd018299_h10.py`), and the
+#: top-level keys that are expected to differ between two runs of it. Registered before the first
+#: run: the regenerated fixture is identical to the committed one in every other key, floats to a
+#: relative 1e-9, and any other difference is reported as a difference, never adjusted.
+H10_ATTEMPT = 3
+IGNORED_TOP_LEVEL = frozenset({"generated_under", "runtime_seconds"})
+FLOAT_RTOL = 1e-9
+
+
+def _diff(a: Any, b: Any, path: str = "") -> list[str]:
+    """Where two parsed JSON documents differ, as `path: committed -> regenerated` lines."""
+    if isinstance(a, dict) and isinstance(b, dict):
+        out: list[str] = []
+        for key in sorted(set(a) | set(b)):
+            sub = f"{path}.{key}" if path else str(key)
+            if key not in a:
+                out.append(f"{sub}: absent -> present")
+            elif key not in b:
+                out.append(f"{sub}: present -> absent")
+            else:
+                out += _diff(a[key], b[key], sub)
+        return out
+    if isinstance(a, list) and isinstance(b, list):
+        if len(a) != len(b):
+            return [f"{path}: length {len(a)} -> {len(b)}"]
+        out = []
+        for i, (x, y) in enumerate(zip(a, b, strict=True)):
+            out += _diff(x, y, f"{path}[{i}]")
+        return out
+    if isinstance(a, float) and isinstance(b, float):
+        close = math.isclose(a, b, rel_tol=FLOAT_RTOL, abs_tol=0.0) or (a == b)
+        return [] if close else [f"{path}: {a!r} -> {b!r}"]
+    return [] if a == b and type(a) is type(b) else [f"{path}: {a!r} -> {b!r}"]
+
+
+def _regenerate_attempt3(home: Path, work: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Run the registered attempt 3 into `work` and compare it with the committed fixture.
+
+    Writes nothing under the repository: `main` is given a scratch `fixtures_dir`, into which the
+    committed attempt-2 fixture is copied first because attempt 3's rerun-consistency check reads
+    it from there. Imported here so the fixture-only path never pays for scipy.
+    """
+    from bzk.sources import pxd018299_h10 as h10
+
+    scratch = work / "h10"
+    scratch.mkdir(parents=True, exist_ok=True)
+    attempt_2 = h10.fixture_name_for(2)
+    shutil.copy(FIXTURES / attempt_2, scratch / attempt_2)
+    started = time.monotonic()
+    code = h10.main(home=home, fixtures_dir=scratch, attempt=H10_ATTEMPT, progress=False)
+    seconds = round(time.monotonic() - started, 1)
+    produced = scratch / h10.fixture_name_for(H10_ATTEMPT)
+    regenerated: dict[str, Any] = json.loads(produced.read_text(encoding="utf-8"))
+    committed = _load(H10_FIXTURE)
+    differences = _diff(
+        {k: v for k, v in committed.items() if k not in IGNORED_TOP_LEVEL},
+        {k: v for k, v in regenerated.items() if k not in IGNORED_TOP_LEVEL},
+    )
+    report = {
+        "ran": True,
+        "return_code": code,
+        "seconds": seconds,
+        "ignored_keys": sorted(IGNORED_TOP_LEVEL),
+        "float_rtol": FLOAT_RTOL,
+        "reproduced": code == 0 and not differences,
+        "differences": len(differences),
+        "first_differences": differences[:20],
+    }
+    return regenerated, report
+
+
+def _read_graph(graph: Path, genes: list[str]) -> dict[str, Any]:
+    """Count and classify the stored `DifferentialResult`s, read-only, by the module's own rule."""
+    from bzk.query.graph import connect
+    from bzk.sources import pxd018299_differential as differential
+
+    conn = connect(graph)
+
+    def rows(cypher: str, **params: Any) -> list[list[Any]]:
+        result: Any = conn.execute(cypher, params) if params else conn.execute(cypher)
+        out: list[list[Any]] = []
+        while result.has_next():
+            out.append(list(result.get_next()))
+        return out
+
+    results = rows(
+        "MATCH (r:DifferentialResult)-[:RESULT_FOR_SITE]->(o:SiteObservation) "
+        "RETURN r.id, r.log2fc, r.adj_p_value, o.candidate_proteins"
+    )
+    protein_ids = sorted({str(p) for r in results for p in (r[3] or [])})
+    symbols: dict[str, set[str]] = {}
+    if protein_ids:
+        for pid, symbol in rows(
+            "MATCH (g:Gene)-[:ENCODES]->(p:Protein) WHERE p.id IN $ids RETURN p.id, g.symbol",
+            ids=protein_ids,
+        ):
+            symbols.setdefault(str(pid), set()).add(str(symbol))
+
+    def significant(row: list[Any]) -> bool:
+        return bool(
+            row[2] is not None
+            and row[2] < differential.SIG_ADJ_P
+            and row[1] is not None
+            and row[1] > differential.SIG_LOG2FC
+        )
+
+    status: dict[str, str] = {}
+    for gene in genes:
+        mine = [r for r in results if any(gene in symbols.get(str(p), ()) for p in (r[3] or []))]
+        if not mine:
+            status[gene] = "absent_from_tested"
+        else:
+            status[gene] = (
+                "recovered" if any(significant(r) for r in mine) else ("tested_not_recovered")
+            )
+    return {
+        "results_at_site_grain": len(results),
+        "significant_up": sum(1 for r in results if significant(r)),
+        "rule": f"adj_p < {differential.SIG_ADJ_P} and log2FC > {differential.SIG_LOG2FC}",
+        "target_status": status,
+    }
+
+
 def stage1_sources(home: Path, live: bool) -> Stage:
     pinned = {
         "GlyGly site table": (PXD018299_SITES.filename, PXD018299_SITES.expected_content_hash),
@@ -162,7 +290,7 @@ def stage1_sources(home: Path, live: bool) -> Stage:
     return stage
 
 
-def stage2_graph(live: bool, home: Path) -> Stage:
+def stage2_graph(rebuild: bool, home: Path) -> Stage:
     refusals = _load(REFUSALS)
     targets = _load(PLATFORM_TARGETS)
     groups = _load(PROTEIN_GROUPS)
@@ -194,7 +322,7 @@ def stage2_graph(live: bool, home: Path) -> Stage:
         "Refusals and ambiguity are the committed fixtures' record of the last generating run, "
         "not a rebuild performed now."
     )
-    if live:
+    if rebuild:
         started = datetime.now(UTC)
         proc = subprocess.run(
             [sys.executable, "-m", "bzk.rebuild"],
@@ -288,7 +416,7 @@ def stage4_imputation(fixture: dict[str, Any]) -> Stage:
     return stage
 
 
-def stage5_differential() -> Stage:
+def stage5_differential(graph: Path | None = None) -> Stage:
     targets = _load(PLATFORM_TARGETS)
     welch = _load(WELCH_BASELINE)
     pop = targets["population"]
@@ -314,6 +442,28 @@ def stage5_differential() -> Stage:
         ),
     }
     stage.sources = [f"tests/fixtures/{PLATFORM_TARGETS}", f"tests/fixtures/{WELCH_BASELINE}"]
+    if graph is not None:
+        try:
+            read = _read_graph(graph, [t["gene"] for t in targets["targets"]])
+        except Exception as exc:  # noqa: BLE001 - a locked or absent graph must not sink the report
+            stage.findings["live_graph"] = f"NOT READ: {type(exc).__name__}: {exc}"
+        else:
+            fixture_status = {t["gene"]: t["status"] for t in targets["targets"]}
+            read["results_match_fixture_tested"] = read["results_at_site_grain"] == pop["tested"]
+            read["significant_up_matches_fixture"] = read["significant_up"] == pop["significant_up"]
+            read["targets_differing_from_fixture"] = {
+                g: {"graph": st, "fixture": fixture_status[g]}
+                for g, st in read["target_status"].items()
+                if st != fixture_status[g]
+            }
+            stage.findings["live_graph"] = read
+            stage.mode = "FIXTURE+LIVE"
+            stage.limitations.append(
+                "The graph read maps results to genes through SiteObservation.candidate_proteins "
+                "and ENCODES, which is not how the differential module keys its targets, so a "
+                "disagreement on one target is a finding about the mapping before it is one "
+                "about the graph. Counts are not subject to that caveat."
+            )
     return stage
 
 
@@ -702,17 +852,38 @@ def render(report: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _mark_regenerated(stage: Stage, *, mixed: bool) -> None:
+    stage.mode = "FIXTURE+LIVE" if mixed else "LIVE"
+    stage.sources.append(f"regenerated: bzk.sources.pxd018299_h10 attempt {H10_ATTEMPT}")
+
+
 def run(
-    out: Path, *, live: bool, home: Path, reasons: bool = False, drift_live: bool = False
+    out: Path,
+    *,
+    live: bool,
+    home: Path,
+    reasons: bool = False,
+    drift_live: bool = False,
+    rebuild: bool = False,
 ) -> dict[str, Any]:
     fixture = _load(H10_FIXTURE)
+    reproduction: dict[str, Any] = {"ran": False, "reason": "not --live"}
+    regenerated = False
+    if live:
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                fresh, reproduction = _regenerate_attempt3(home, Path(tmp))
+            if reproduction["return_code"] == 0:
+                fixture, regenerated = fresh, True
+        except Exception as exc:  # noqa: BLE001 - a missing store must not sink the report
+            reproduction = {"ran": False, "error": f"{type(exc).__name__}: {exc}"}
     out.mkdir(parents=True, exist_ok=True)
     builders: list[Callable[[], Stage]] = [
         lambda: stage1_sources(home, live),
-        lambda: stage2_graph(live, home),
+        lambda: stage2_graph(rebuild, home),
         lambda: stage3_census(fixture),
         lambda: stage4_imputation(fixture),
-        stage5_differential,
+        lambda: stage5_differential(home / "graph.kuzu" if live else None),
         lambda: stage6_sensitivity(fixture, out),
         lambda: stage7_propagation(fixture),
         lambda: stage8_discrepancy(fixture),
@@ -720,6 +891,12 @@ def run(
     if reasons or drift_live:
         builders.append(lambda: stage10_reasons(out, home, drift_live))
     stages = [b() for b in builders]
+    if regenerated:
+        for stage in stages:
+            if stage.number in (4, 6, 7):
+                _mark_regenerated(stage, mixed=False)
+            elif stage.number in (3, 8):
+                _mark_regenerated(stage, mixed=True)
     read = [
         n for s in stages for src in s.sources for n in [Path(src).name] if (FIXTURES / n).exists()
     ]
@@ -727,10 +904,11 @@ def run(
         Stage(
             9,
             "Evidence report and export",
-            "FIXTURE",
+            "LIVE" if reproduction.get("ran") else "FIXTURE",
             findings={
                 "written": [str(out / "audit_PXD018299.json"), str(out / "audit_PXD018299.md")],
                 "published_claim_cascade_report": "python -m bzk.published_cascade",
+                "attempt3_reproduction": reproduction,
             },
             sources=["this module"],
         )
@@ -743,7 +921,15 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=Path("audit-out"))
     parser.add_argument("--home", type=Path, default=DEFAULT_HOME)
     parser.add_argument(
-        "--live", action="store_true", help="verify the raw store and re-run rebuild"
+        "--live",
+        action="store_true",
+        help="verify the raw store, regenerate attempt 3 into a scratch directory, read the graph",
+    )
+    parser.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="with --live, also drop and rebuild the derived stores (this removes the "
+        "differential results until bzk.sources.pxd018299_differential is run again)",
     )
     parser.add_argument(
         "--reasons", action="store_true", help="add stage 10: per-item rejection reasons (CSV)"
@@ -756,7 +942,12 @@ def main() -> None:
     parser.add_argument("--json", action="store_true", help="print the JSON report to stdout")
     args = parser.parse_args()
     report = run(
-        args.out, live=args.live, home=args.home, reasons=args.reasons, drift_live=args.drift
+        args.out,
+        live=args.live,
+        home=args.home,
+        reasons=args.reasons,
+        drift_live=args.drift,
+        rebuild=args.rebuild,
     )
     # `published_cascade` is imported for its report; stage 9 points at it rather than copying it.
     _ = published_cascade

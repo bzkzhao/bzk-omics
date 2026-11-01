@@ -548,6 +548,9 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             1,
         ),
         ("test_drift.py", "receipt.sequences_checked == len(drift.archived_sequences(home))", 1),
+        ("test_audit.py", "census['claims_in_tested_population'] == len(rows)", 1),
+        ("test_audit.py", "census['tested_claims_with_an_imputed_cell'] == imputed", 1),
+        ("test_audit.py", "sorted((p.name for p in FIXTURES.iterdir())) == before", 1),
         ("test_drift.py", "len(sleeps) == drift.RETRIES - 1", 1),
         (
             "test_keys.py",
