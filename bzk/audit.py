@@ -28,8 +28,6 @@ import json
 import platform
 import subprocess
 import sys
-import tempfile
-import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -40,7 +38,6 @@ import numpy as np
 
 from bzk import drift, published_cascade
 from bzk.provenance.raw_store import DEFAULT_HOME, verify
-from bzk.resolve.uniprot import resolve
 from bzk.sources.pride import PXD018299_PROTEIN_GROUPS, PXD018299_SITES
 from bzk.sources.protein_groups import SUPP_DATA_1, SUPP_DATA_2, SUPP_DATA_3
 
@@ -502,39 +499,6 @@ def _write_csv(path: Path, header: list[str], records: list[list[Any]]) -> None:
         writer.writerows(records)
 
 
-def _reverify(d: drift.Drift, home: Path, *, tries: int = 3) -> tuple[str, drift.Drift | None]:
-    """Ask again about one accession `drift_check` flagged for having no current entry.
-
-    `resolve()` returns no sequence and no version for a 404, a 429, a 5xx, a network error and an
-    inactive entry alike, and `drift_check` keeps none of those statuses, so a throttled request
-    is recorded as a drift. Returns `(kind, drift)`: `cleared` (UniProt answered and the sequence
-    and version match the archive, `drift` is None), `content_changed`, `version_only`, or
-    `unresolved:<status>` (still no answer after `tries`, so the accession stays unchecked).
-    """
-    stored = (drift.archive_dir(home) / "seq" / f"{d.accession}#sv{d.cached_sv}.txt").read_text()
-    status = "unknown"
-    for attempt in range(tries):
-        with tempfile.TemporaryDirectory() as tmp:
-            fresh = resolve(d.accession, cache_dir=Path(tmp), refresh=True)
-        status = fresh.status
-        if fresh.status == "ok" and fresh.sequence:
-            changed = fresh.sequence != stored
-            version = fresh.sequence_version != d.cached_sv
-            if not changed and not version:
-                return "cleared", None
-            confirmed = drift.Drift(
-                accession=d.accession,
-                cached_sv=d.cached_sv,
-                current_sv=fresh.sequence_version,
-                content_changed=changed,
-                stored_len=len(stored),
-                current_len=len(fresh.sequence),
-            )
-            return ("content_changed" if changed else "version_only"), confirmed
-        time.sleep(2 * (attempt + 1))
-    return f"unresolved:{status}", None
-
-
 def stage10_reasons(out: Path, home: Path, drift_live: bool) -> Stage:
     """Why each published claim, ingested site and target was lost, and what drifted.
 
@@ -619,37 +583,44 @@ def stage10_reasons(out: Path, home: Path, drift_live: bool) -> Stage:
 
     if drift_live:
         try:
-            flagged = drift.drift_check(home)
-            verdicts = [_reverify(d, home) for d in flagged]
-            drifts = [c for _, c in verdicts if c is not None]
-            kinds = [k for k, c in verdicts if c is not None]
-            cleared = sum(1 for k, _ in verdicts if k == "cleared")
-            unresolved = [(d.accession, k) for d, (k, _) in zip(flagged, verdicts, strict=True)
-                          if k.startswith("unresolved")]  # fmt: skip
+            report = drift.check(home)
+
+            def kind(d: drift.Drift) -> str:
+                if d.entry_type.lower() == "inactive":
+                    return "retired"
+                return "content_changed" if d.content_changed else "version_only"
+
+            drifts = report.drifts
+            kinds = [kind(d) for d in drifts]
             drift_path = out / "sequence_drift.csv"
             _write_csv(
                 drift_path,
                 ["accession", "archived_sv", "current_sv", "content_changed", "archived_len",
-                 "current_len", "kind"],
+                 "current_len", "entry_type", "kind"],
                 [[d.accession, d.cached_sv, d.current_sv if d.current_sv is not None else "",
-                  int(d.content_changed), d.stored_len, d.current_len, k]
+                  int(d.content_changed), d.stored_len, d.current_len, d.entry_type, k]
                  for d, k in zip(drifts, kinds, strict=True)],
             )  # fmt: skip
-            unresolved_path = out / "sequence_drift_unresolved.csv"
-            _write_csv(unresolved_path, ["accession", "last_status"], [list(u) for u in unresolved])
+            unresolved_path = out / "sequence_drift_unchecked.csv"
+            _write_csv(
+                unresolved_path,
+                ["accession", "archived_sv", "status"],
+                [[u.accession, u.cached_sv, u.status] for u in report.unchecked],
+            )
             stage.mode = "FIXTURE+LIVE"
             stage.findings["drift"] = {
-                "sequences_checked": len(drift.archived_sequences(home)),
-                "flagged_by_drift_check": len(flagged),
-                "cleared_on_re_ask": cleared,
-                "confirmed_drifted": len(drifts),
+                "sequences_in_archive": len(drift.archived_sequences(home)),
+                "drifted": len(drifts),
                 "by_kind": {k: kinds.count(k) for k in sorted(set(kinds))},
-                "still_unresolved": len(unresolved),
+                "unchecked": len(report.unchecked),
+                "unchecked_by_status": {
+                    st: sum(1 for u in report.unchecked if u.status == st)
+                    for st in sorted({u.status for u in report.unchecked})
+                },
                 "meaning": (
-                    "drift_check records a drift whenever resolve() returns no sequence, which a "
-                    "429, 5xx, network error or 404 does as well as a real change. Each flagged "
-                    "accession is asked about again (3 tries, back-off) before it is counted. "
-                    "'unresolved' accessions are unchecked, not drifted."
+                    "A lookup that gave no usable answer is unchecked, not drifted and not clean "
+                    f"(bzk.drift retries {drift.RETRIES} times with back-off first). 'retired' is "
+                    "UniProt answering Inactive."
                 ),
                 "written": [str(drift_path), str(unresolved_path)],
                 "receipt": "not updated; run python -m bzk.drift to refresh it",
