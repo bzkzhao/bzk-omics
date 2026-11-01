@@ -398,7 +398,63 @@ def stage3_census(fixture: dict[str, Any]) -> Stage:
     return stage
 
 
-def stage4_imputation(fixture: dict[str, Any]) -> Stage:
+def whole_column_reference(
+    log2: np.ndarray, anchor: dict[str, Any], per_sample: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """Each column's drawn cells read against the deposit's WHOLE retained column.
+
+    `readout_c` references the measured deposit values inside the 798 claim rows only (n 56-63 in
+    the WT columns). The 2026-09-22 review named the whole retained column as the right reference,
+    and it is the one `walk/FINDINGS.md` section 2 quotes (1.76-1.78). `log2` is the deposit's
+    six intensity columns in the fixture's order, already log2; the drawn mean and SD are the
+    fixture's own, so both references describe the same drawn cells.
+    """
+    measured = ~np.isnan(log2)
+    half = log2.shape[1] // 2
+    taken = int(anchor["valid_value_rule"]["taken"])
+    keep = np.maximum(measured[:, :half].sum(axis=1), measured[:, half:].sum(axis=1)) >= taken
+    out: dict[str, Any] = {}
+    for j, (name, drawn) in enumerate(per_sample.items()):
+        column = log2[keep, j]
+        column = column[~np.isnan(column)]
+        if column.size < 2 or not drawn.get("n") or drawn.get("sd") is None:
+            out[name] = {"n_reference": int(column.size), "downshift_sd": None, "width_sd": None}
+            continue
+        sd = float(column.std(ddof=1))
+        out[name] = {
+            "n_reference": int(column.size),
+            "downshift_sd": round((float(column.mean()) - drawn["mean"]) / sd, 3),
+            "width_sd": round(drawn["sd"] / sd, 3),
+        }
+    return out
+
+
+def _live_whole_column_reference(fixture: dict[str, Any], home: Path) -> dict[str, Any]:
+    """Read the hash-verified deposit and apply `whole_column_reference`; never raises."""
+    try:
+        from bzk.adapters import maxquant
+        from bzk.sources import pxd018299_h10 as h10
+        from bzk.sources import pxd026748_reconstruction as reconstruction
+
+        path = verify(
+            PXD018299_SITES.expected_content_hash or "",
+            filename=PXD018299_SITES.filename,
+            home=home,
+        )
+        rows, column = h10.anchor_population(maxquant.read_table(path))
+        anchor = fixture["anchor_matrix"]
+        indices, _ = h10.anchor_columns(column, anchor["column_family"])
+        raw = np.array([[h10._float_cell(r[i]) for i in indices] for r in rows], dtype=float)
+        log2 = reconstruction.log2_zero_as_missing(raw)
+        if anchor.get("normalisation") == "median_subtracted":
+            log2 = log2 - np.nanmedian(log2, axis=0)
+        per = fixture["readouts"]["primary"]["readout_c"]["per_sample"]
+        return whole_column_reference(log2, anchor, per)
+    except Exception as exc:  # noqa: BLE001 - a missing store must not sink the report
+        return {"NOT COMPUTED": f"{type(exc).__name__}: {exc}"}
+
+
+def stage4_imputation(fixture: dict[str, Any], home: Path | None = None) -> Stage:
     block = fixture["readouts"]["primary"]["readout_c"]
     per = block["per_sample"]
     shifts = {k: v["downshift"] for k, v in per.items()}
@@ -423,6 +479,17 @@ def stage4_imputation(fixture: dict[str, Any]) -> Stage:
             "downshift_sd": round(block["whole_matrix"]["downshift"], 3),
             "width_sd": round(block["whole_matrix"]["width"], 3),
         },
+        "reference_distribution": (
+            "per_sample and whole_matrix above are read against the measured deposit values inside "
+            "the claim rows only (readout C). 'against_whole_deposit_column' reads the SAME drawn "
+            "cells against the deposit's whole retained column, the reference walk/FINDINGS.md "
+            "section 2 quotes. The two differ because the reference differs, not the cells."
+        ),
+        "against_whole_deposit_column": (
+            _live_whole_column_reference(fixture, home)
+            if home is not None
+            else "NOT COMPUTED: needs the deposit bytes; run with --live"
+        ),
     }
     stage.not_automated = [
         (
@@ -909,7 +976,7 @@ def run(
         lambda: stage1_sources(home, live),
         lambda: stage2_graph(rebuild, home),
         lambda: stage3_census(fixture),
-        lambda: stage4_imputation(fixture),
+        lambda: stage4_imputation(fixture, home if live else None),
         lambda: stage5_differential(home / "graph.kuzu" if live else None),
         lambda: stage6_sensitivity(fixture, out),
         lambda: stage7_propagation(fixture),

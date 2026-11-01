@@ -233,3 +233,44 @@ def test_a_renamed_gene_is_found_by_its_sites_and_reported_as_renamed(
     # Without its sites the same name is, correctly, not found.
     bare = audit._read_graph(tmp_path / "g.kuzu", [{"gene": "OLD_NAME"}])
     assert bare["target_status"] == {"OLD_NAME": "absent_from_tested"}
+
+
+# ── Stage 4 reads the drawn cells against two references ────────────────────────────────────────
+
+
+def _two_column_log2() -> Any:
+    import numpy as np
+
+    nan = float("nan")
+    return np.array([[10, nan], [12, nan], [14, 8], [nan, 9], [nan, 10]], dtype=float)
+
+
+def test_whole_column_reference_reads_drawn_cells_against_the_whole_retained_column() -> None:
+    drawn = {
+        "a": {"n": 5, "mean": 9.0, "sd": 1.0},
+        "b": {"n": 5, "mean": 7.0, "sd": 0.5},
+    }
+    got = audit.whole_column_reference(
+        _two_column_log2(), {"valid_value_rule": {"taken": 1}}, drawn
+    )
+    assert got["a"] == {"n_reference": 3, "downshift_sd": 1.5, "width_sd": 0.5}
+    assert got["b"] == {"n_reference": 3, "downshift_sd": 2.0, "width_sd": 0.5}
+
+
+def test_whole_column_reference_honours_the_valid_value_rule() -> None:
+    drawn = {"a": {"n": 5, "mean": 9.0, "sd": 1.0}, "b": {"n": 5, "mean": 7.0, "sd": 0.5}}
+    got = audit.whole_column_reference(
+        _two_column_log2(), {"valid_value_rule": {"taken": 2}}, drawn
+    )
+    assert got["a"] == {"n_reference": 0, "downshift_sd": None, "width_sd": None}
+
+
+def test_stage4_without_live_says_the_whole_column_reference_was_not_computed() -> None:
+    stage = audit.stage4_imputation(_committed())
+    assert stage.findings["against_whole_deposit_column"].startswith("NOT COMPUTED")
+    assert "reference_distribution" in stage.findings
+
+
+def test_stage4_live_with_no_store_reports_the_failure_instead_of_raising(tmp_path: Path) -> None:
+    stage = audit.stage4_imputation(_committed(), tmp_path)
+    assert "NOT COMPUTED" in stage.findings["against_whole_deposit_column"]
