@@ -589,17 +589,36 @@ def stage10_reasons(out: Path, home: Path, drift_live: bool) -> Stage:
             stage.findings["drift"] = f"NOT RUN: {type(exc).__name__}: {exc}"
         else:
             drift_path = out / "sequence_drift.csv"
+
+            def kind(d: drift.Drift) -> str:
+                # `Drift.content_changed` is False when UniProt returned no sequence at all, so a
+                # deleted or merged entry looks like a bare version change. Separate that case.
+                if d.current_sv is None or d.current_len == 0:
+                    return "no_current_entry"
+                return "content_changed" if d.content_changed else "version_only"
+
+            kinds = [kind(d) for d in drifts]
             _write_csv(
                 drift_path,
                 ["accession", "archived_sv", "current_sv", "content_changed", "archived_len",
-                 "current_len"],
-                [[d.accession, d.cached_sv, d.current_sv, int(d.content_changed), d.stored_len,
-                  d.current_len] for d in drifts],
+                 "current_len", "kind"],
+                [[d.accession, d.cached_sv, d.current_sv if d.current_sv is not None else "",
+                  int(d.content_changed), d.stored_len, d.current_len, k]
+                 for d, k in zip(drifts, kinds, strict=True)],
             )  # fmt: skip
             stage.mode = "FIXTURE+LIVE"
             stage.findings["drift"] = {
                 "sequences_checked": len(drift.archived_sequences(home)),
                 "drifted": len(drifts),
+                "by_kind": {k: kinds.count(k) for k in sorted(set(kinds))},
+                "kind_meaning": {
+                    "no_current_entry": (
+                        "UniProt returned no sequence or version for the accession (deleted, "
+                        "merged or otherwise inactive). Not the same as an unchanged sequence."
+                    ),
+                    "content_changed": "current sequence differs from the archived one",
+                    "version_only": "sequence identical, version number differs",
+                },
                 "written": str(drift_path),
                 "receipt": "not updated; run python -m bzk.drift to refresh it",
             }
