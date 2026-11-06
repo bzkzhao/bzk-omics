@@ -1,0 +1,118 @@
+{
+  "accession": "PXD032267",
+  "title_as_deposited": "Proteome wide screening for ubiquitination, ISGylation and NEDDylation sites in wildtype and ISG15 knockout mouse hearts after transverse aortic constriction",
+  "publication_doi": "10.1172/JCI161453",
+  "publication": "Yerra et al., J Clin Invest 133(9):e161453 (2023); PMID 37115698",
+  "walk_id": "w-third-1",
+  "walked_at": "2026-11-06",
+  "walker": "reviewer-chat",
+  "purpose": "HYPOTHESIS.md §9, the third-deposit selection rule registered at v8. This record is the selected candidate; the walk that reached it, with attrition, is walk/SELECTION-third-deposit.md.",
+  "standard_version": "HYPOTHESIS.md §9 v8 selection rule (five criteria). WALK-STANDARD v2 grain and source vocabulary used where it applies; R1-R5 are recorded as observations, not as the selection's criteria.",
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "no author is shared with either earlier publication",
+      "verdict": "PASS",
+      "deepest_grain": "G0",
+      "determined_by": ["s1", "s8", "s9"],
+      "evidence": "Seventeen authors (Yerra VG ... Connelly KA, Advani A), read from the JCI article page and the PRIDE reference string, which agree. Compared against the 23 authors of Pinto-Fernandez et al., Br J Cancer 124:817-830 (PMC7884788, read from PMC) and the 17 of Munnur et al., Nat Immunol 22:1416-1427 (doi 10.1038/s41590-021-01035-8). No name in common.",
+      "caveat": "Name comparison only. Affiliations differ (Toronto: St Michael's Hospital / Unity Health; diGly proteomics contracted to Creative Proteomics) from Oxford, Ghent and HKU."
+    },
+    {
+      "id": "C2",
+      "text": "a published, site-level claim set that lists its members",
+      "verdict": "PASS",
+      "deepest_grain": "G4",
+      "determined_by": ["s3"],
+      "artefact": "Supplemental data PDF (JCI161453.sd.pdf), Supplemental Table 8: 'Significantly upregulated diGLY sites in left ventricles of wildtype mice 4 weeks after transverse aortic constriction compared to control wildtype mice.'",
+      "shape": {
+        "row_unit": "one row per site",
+        "columns": ["Protein name", "Position", "GlyGly (K) probabilities", "p_value", "Difference"],
+        "data_rows": 10,
+        "identifier": "protein name only: no accession column, no gene column",
+        "position": "integer residue position",
+        "per_row_statistics": "p_value and Difference (log2 mean difference) on every row"
+      },
+      "scope_limit": "Only one direction of one comparison is listed. Supplemental Table 7 gives counts for six direction-by-comparison cells (WT TAC vs WT control; Isg15-/- TAC vs Isg15-/- control; Isg15-/- TAC vs WT TAC; up and down each); only WT TAC vs WT control, up, has its members listed, and that list's row count equals Table 7's count for the cell. The other five cells are counts without members. The filamin-C K2590 downregulation in Isg15-/- TAC vs WT TAC is stated in the main text and Fig. 7B, not in a table.",
+      "keyability_note": "Under WALK-STANDARD R1 this is weaker than the anchor's S1: the key is a protein name, not an accession or gene. Every row carries its localised peptide, so the accession is recoverable by matching the peptide against the deposit's site table, which is a join the deposit itself can perform. Not a C2 failure; recorded because it is a reconstruction step the anchor did not need."
+    },
+    {
+      "id": "C3",
+      "text": "a stated analysis pipeline, including the test and the selection rule",
+      "verdict": "PASS",
+      "deepest_grain": "G2",
+      "determined_by": ["s1"],
+      "stated": {
+        "search": "MaxQuant 2.0.3.0; Mus musculus database; carbamidomethyl (C), oxidation (M) and GlyGly (K) variable; trypsin; up to 4 missed cleavages; 10 ppm precursor; 0.6 Da MS/MS",
+        "transform": "intensities logarithmised",
+        "imputation": "missing values (intensity 0) replaced by random draws from a normal distribution with a smaller mean",
+        "test": "two-way ANOVA with post hoc Tukey's HSD to identify significant pairs",
+        "selection_rule": "difference > 0.585 (fold change > 1.5) is upregulation; difference < -0.585 is downregulation; significance at P < 0.05 from the article's general Statistics section"
+      },
+      "unstated": [
+        "imputation downshift, width and seed",
+        "valid-value or presence filter before testing",
+        "localisation-probability threshold",
+        "any correction across sites (Tukey's adjusts within a site's pairwise family, not across the site table)",
+        "normalisation"
+      ],
+      "inference_flag": "The P < 0.05 cut is read from the general Statistics section, which applies 'unless otherwise stated'; the diGly paragraph states no P cut of its own. Every row of Table 8 has p_value < 0.05, consistent with the reading but not proving it."
+    },
+    {
+      "id": "C4",
+      "text": "a site table from a search engine in the deposit",
+      "verdict": "PASS",
+      "deepest_grain": "G1",
+      "determined_by": ["s7"],
+      "artefact": "GlyGly__K_Sites.txt (2,135,046 bytes), category SEARCH",
+      "listing": "PRIDE v2 files API, read in the user's Chrome after the API and FTP refused direct fetches: 27 files, reconciling with the frame's n_files = 27. 12 RAW (WT/KO x Control/TAC x 3), 14 MaxQuant outputs (GlyGly__K_Sites, Oxidation__M_Sites, evidence, peptides, modificationSpecificPeptides, proteinGroups, allPeptides, dependentPeptides, msms, msmsScans, msScans, mzRange, summary, parameters), 1 SDRF (PXD032267_community_annotated.sdrf.tsv). No container to expand.",
+      "not_yet": "The file has not been opened; G3 headers and G4 rows are the next step. parameters.txt is deposited, so the search settings can be checked against the paper's."
+    },
+    {
+      "id": "C5",
+      "text": "the ISGylation, ubiquitination or other GG-remnant PTM domain of the frame",
+      "verdict": "PASS",
+      "deepest_grain": "G0",
+      "determined_by": ["s6"],
+      "evidence": "FRAME-v1 Frame B member; the deposit's sample protocol states anti-K-epsilon-GG antibody enrichment."
+    }
+  ],
+  "gate": {
+    "present": true,
+    "what": "Supplemental Table 8 publishes p_value and Difference for each of its 10 sites, and Supplemental Table 7 publishes call counts for six comparison-direction cells. Either can serve as a gate in the sense of H10's: a reconstruction under the stated pipeline is checked against published numbers before it is used.",
+    "limit": "The gate is small (10 per-site pairs; six counts) and the imputation is unparameterised and random, so the gate itself is exposed to D7. Its metric and threshold must be registered before it runs, as H10's was."
+  },
+  "observations": [
+    {
+      "observation": "The imputation is stated in kind and not in parameters: no downshift, width or seed.",
+      "bears_on": "D5 and D7 directly. This is the same omission the anchor and PXD026748 carry, now in a deposit with no shared authors."
+    },
+    {
+      "observation": "The analysis was performed by a contract provider (Creative Proteomics), not by the authors' laboratory.",
+      "bears_on": "Correspondence as a channel for unstated parameters; also whether a convention is a laboratory's or a provider's."
+    },
+    {
+      "observation": "No filter between search output and test is stated: neither localisation probability nor valid values.",
+      "bears_on": "D1 (selection). The claim set's denominator is undetermined until one is chosen, and the choice is a reconstruction decision that must be declared."
+    },
+    {
+      "observation": "Mouse tissue, 2 x 2 design (genotype x TAC), n = 3 per group, in vivo.",
+      "bears_on": "Platform reach, not the criteria. Expressible as genotype, treatment, timepoint and source_type. Whether 'control' means sham-operated or unoperated is not determined here. Every earlier ingestion was human; the resolver and adapters have not been exercised on Mus musculus."
+    }
+  ],
+  "sources": [
+    {"source_id": "s1", "name": "publication main text", "method_of_discovery": "jci.org article page read in the user's Chrome; Methods 'diGLY proteomics' and 'Statistics' paragraphs extracted from the DOM", "exhausted": false, "note": "Results and the two Methods paragraphs read in full. A full-text pointer enumeration over WALK-STANDARD's term set was not run."},
+    {"source_id": "s3", "name": "supplementary tables", "method_of_discovery": "JCI161453.sd.pdf via the jci.org supplemental link", "exhausted": false, "note": "Tables 7 and 8 read; Tables 1-6 and 9-14 not opened."},
+    {"source_id": "s6", "name": "repository project metadata", "method_of_discovery": "data/frame/frame_raw.tsv as committed", "exhausted": true},
+    {"source_id": "s7", "name": "file listing", "method_of_discovery": "PRIDE v2 /projects/PXD032267/files?pageSize=100 in the user's Chrome", "exhausted": true, "retrieved_count": 27},
+    {"source_id": "s8", "name": "PRIDE reference string", "method_of_discovery": "frame_raw.tsv references column", "exhausted": true},
+    {"source_id": "s9", "name": "earlier publications' author lists", "method_of_discovery": "PMC7884788 (anchor); Oxford TDI publication record and citation records for Munnur et al. 2021", "exhausted": true}
+  ],
+  "not_checked": [
+    "JCI does not publish a peer-review file for this article type; not looked for further.",
+    "The community-annotated SDRF (0 downloads) was not opened.",
+    "GlyGly__K_Sites.txt was not opened (G3/G4)."
+  ],
+  "verdict": "qualifies",
+  "verdict_reason": "All five registered criteria PASS, and published per-site statistics usable as a gate exist. Under the v8 rule it is taken."
+}

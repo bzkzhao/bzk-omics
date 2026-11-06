@@ -1135,6 +1135,10 @@ One number, one more dataset.
     qualifier.
   - *Attrition* at every criterion is reported. It is itself a measure of
     curatability.
+  - **Walked 2026-11-06: `PXD032267` selected** (`walk/SELECTION-third-deposit.md`,
+    record `walk/walk_PXD032267.json`). The gate stays open: a selection is not a
+    test. What remains is the deposit read at G3/G4, then a registered gate,
+    then the measurement.
 - **H1 blocked** on the 2019 search FASTA. The refusal fixture carries sequence
   versions only for refused rows; the drift receipt measures cache-against-
   UniProt over one day, a different relation. If the deposit carries no search
