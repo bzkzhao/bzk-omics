@@ -443,3 +443,56 @@ def validate_position(resolution: Resolution, position: int | None, *, expected:
     if position is None or position < 1 or position > len(seq):
         return "out_of_range"
     return "ok" if seq[position - 1] == expected else "wrong_residue"
+
+
+def keying_dates(canonicals: list[str], cache_dir: Path = DEFAULT_CACHE_DIR) -> dict[str, object]:
+    """When the cache that keyed these accessions was written, read from disk and nothing else.
+
+    **Two clocks, reported separately, because they answer different questions.**
+    *Pin written* is the modification time of `{canonical}#sv{n}.meta.json`, which `_pin_put`
+    writes once and never overwrites: it is when the identity-bearing half, the sequence version an
+    id is keyed on, was captured. *Snapshot fetched* is the `fetched_at` field of the entry file,
+    which is overwritten on every refetch (`OPERATIONS.md` §3.1), so it can be later than the pin
+    and says when the snapshot was last refreshed, not when the key was fixed. The pin carries no
+    timestamp field, so its date is a filesystem time and is labelled as one: copying the cache
+    without preserving times would move it, and that is why it is reported beside the field rather
+    than in place of it.
+
+    Read-only. An accession with no pin, or with no entry, or with an entry that has no
+    `fetched_at`, is counted rather than skipped, so the dates never describe fewer accessions
+    than the counts say. Two or more pins for one accession are counted as `multiply_pinned`
+    rather than raised, because this reports and `_pin_get` is where that refusal belongs.
+    """
+    pins: list[str] = []
+    fetched: list[str] = []
+    counts = {"unpinned": 0, "multiply_pinned": 0, "no_entry": 0, "entry_without_fetched_at": 0}
+    unique = sorted(set(canonicals))
+    for canonical in unique:
+        found = sorted((cache_dir / "seq").glob(f"{canonical}#sv*.meta.json"))
+        if not found:
+            counts["unpinned"] += 1
+        elif len(found) > 1:
+            counts["multiply_pinned"] += 1
+        else:
+            pins.append(datetime.fromtimestamp(found[0].stat().st_mtime, UTC).isoformat())
+        entry = _entry_path(cache_dir, canonical)
+        if not entry.exists():
+            counts["no_entry"] += 1
+            continue
+        try:
+            stamp = json.loads(entry.read_text()).get("fetched_at")
+        except (json.JSONDecodeError, AttributeError):
+            stamp = None
+        if stamp:
+            fetched.append(str(stamp))
+        else:
+            counts["entry_without_fetched_at"] += 1
+    return {
+        "accessions": len(unique),
+        "pin_written_earliest": min(pins) if pins else None,
+        "pin_written_latest": max(pins) if pins else None,
+        "pin_clock": "filesystem modification time of the pin file",
+        "snapshot_fetched_earliest": min(fetched) if fetched else None,
+        "snapshot_fetched_latest": max(fetched) if fetched else None,
+        **counts,
+    }

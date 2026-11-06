@@ -1153,20 +1153,30 @@ One number, one more dataset.
   The cascade keys the published side today against a deposit side keyed at an
   unknown time, so it is not yet a like-for-like comparison. This stopped being
   housekeeping the moment both sides entered one measurement.
-- **Threshold parity, open and answerable today.** The publication states
-  permutation FDR 0.01 with s0 0.1 across its proteomic analyses; both paths
-  apply `adj p < 0.05` and `log₂FC > 1.0`. s0 is a curvature parameter, not a
-  fold-change cut-off, so this is a different test and not only a different
-  threshold. Until it is settled, *recovered* is a property of the reproduction's
-  criteria and not a comparison to the publication's. Grade A on the
-  publication's side; needs no correspondence.
-- **Data Table S1 grain, open and answerable today.** If the anchor's
-  supplementary site table is summarised per protein rather than per peptide, a
-  per-target selection exists at the reporting step even though Fig. 2f has
-  none — which would supersede §0.1. Check before D1a's corrected locus is
-  written up. Adjacent possibility to check at the same time: if Fig. 2f's
-  labelled points were labelled by hand, the target list has no rule at all,
-  which strengthens H8 and weakens nothing.
+  **Instrumented 2026-11-06, not yet closed.** The cascade's
+  `generated_under.deposit_side_run.keying_dates` now reports, for every
+  accession the offline deposit side resolved, when its sequence-version pin
+  was written and when its snapshot was last fetched, as two labelled clocks
+  (`bzk.resolve.uniprot.keying_dates`); the refusals fixture now records
+  `generated_at` and its commit. Both fixtures predate this, so the item closes
+  only when `python -m bzk.sources.pxd018299_published_cascade` is re-run on
+  the machine that holds the cache. Until then the only bound is the git
+  history of `tests/fixtures/pxd018299_refusals.json`.
+- ~~**Threshold parity, open and answerable today.**~~ **Closed, recorded here
+  2026-11-06; settled at v10 (§0 items 1 and 2).** Perseus's documented
+  permutation-FDR rule, with the publication's s0 and FDR, reproduces the
+  anchor's own published call count with nothing fitted (the count and its
+  margin are at §0 item 2), and H10 is restated under it. The `adj p < 0.05` and `log₂FC > 1.0` criteria are
+  retired as the comparison to the publication. This bullet had been left in
+  its pre-v10 wording.
+- **Data Table S1 grain — half closed, recorded here 2026-11-06.** *Grain:*
+  closed by `walk/CORRECTION-PXD018299-S1-provenance.md` (2026-09-22): S1 is
+  log2 of the deposit's own site table (the agreement is measured there), so
+  there is no per-protein summarisation at the reporting step and
+  nothing supersedes §0.1. *Hand-labelling of Fig. 2f's points:* **still open**
+  and not addressed by that correction. If the labelled points were chosen by
+  hand, the target list has no rule at all, which strengthens H8 and weakens
+  nothing.
 - **Second deposit blocked** at the imputation record; a stochastic imputation
   without a recorded seed and scope cannot be ingested, and "Perseus defaults"
   names a convention rather than a downshift and a width. **Clarified (v5):**

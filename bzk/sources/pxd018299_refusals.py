@@ -40,8 +40,10 @@ from __future__ import annotations
 import collections
 import json
 import platform
+import subprocess
 import sys
 from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +58,24 @@ HOME = Path.home() / ".bzk-omics"
 FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "pxd018299_refusals.json"
 
 GENERATED_BY = "python -m bzk.sources.pxd018299_refusals"
+
+
+def _commit() -> dict[str, Any]:
+    """The commit the generator ran at, and whether the tree was clean, as the cascade records it."""
+    root = Path(__file__).resolve().parents[2]
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args], cwd=root, capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+    try:
+        return {
+            "commit": git("rev-parse", "HEAD"),
+            "working_tree_clean": not git("status", "--porcelain"),
+        }
+    except (OSError, subprocess.CalledProcessError):
+        return {"commit": None, "working_tree_clean": None}
 
 
 def refusal_fixture(refusals: list[Refusal]) -> dict[str, Any]:
@@ -97,8 +117,15 @@ def refusal_fixture(refusals: list[Refusal]) -> dict[str, Any]:
         # Python only. The siblings record numpy and scipy because their numbers come out of them;
         # nothing here computes a statistic. What these rows actually depend on is what UniProt
         # returned on the day, which has no single version number — the per-sequence version is
-        # named inside each `residue_mismatch` detail, which is where it can be checked.
-        "generated_under": {"python": platform.python_version()},
+        # named inside each `residue_mismatch` detail, which is where it can be checked. **The day
+        # itself is recorded since 2026-11-06** (HYPOTHESIS.md §9, *dating the deposit-side
+        # keying*): before then this file carried no date, so which UniProt it was keyed against
+        # could only be bounded by the commit that added it.
+        "generated_under": {
+            "generated_at": datetime.now(UTC).isoformat(),
+            **_commit(),
+            "python": platform.python_version(),
+        },
         "counts": dict(sorted(counts.items())),
         "refusals": [asdict(r) for r in refusals],
     }

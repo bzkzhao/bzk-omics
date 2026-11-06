@@ -15,11 +15,11 @@ A diGly site stays ambiguous between ubiquitin, NEDD8 and ISG15 until knockout, 
 |---|---|
 | Phase | Implementation under way — ingestion, rebuild, query and a minimal interface run end to end |
 | v0.1 target | One laboratory — the Pinto-Fernández group, CAMS Oxford Institute |
-| Last updated | 2026-09-17 |
+| Last updated | 2026-11-06 |
 | Working software | `python -m bzk.rebuild` builds the graph from PXD018299; `streamlit run bzk/ui/app.py` reads it. Install with `uv sync --frozen` — see [`OPERATIONS.md`](OPERATIONS.md) §4.1 |
 | Validation | Published result reproduced, and recall measured against the publication's own claim set — see [`ROADMAP.md`](ROADMAP.md) § Measured findings, and within it § *The published-claim cascade* |
 | Timeline | 8 weeks part-time from a working environment |
-| Blocking | Nothing for the rebuild path. The statistical layer waits on the collaborator meeting ([`ROADMAP.md`](ROADMAP.md) § Measured findings) |
+| Blocking | Nothing for the rebuild path. `PXD055843`'s ingestion waits on the collaborator's answer on imputation; the research line's top open gate is a third, unaffiliated deposit ([`HYPOTHESIS.md`](HYPOTHESIS.md) §9) |
 
 ---
 

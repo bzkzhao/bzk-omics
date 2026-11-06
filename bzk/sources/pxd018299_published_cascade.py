@@ -66,7 +66,7 @@ from bzk.http import RestResponse
 from bzk.provenance.raw_store import verify
 from bzk.rebuild import _adapter_for, _deposit_for, create_graph
 from bzk.resolve.nodes import Resolver, resolve_to_nodes
-from bzk.resolve.uniprot import DEFAULT_CACHE_DIR, Resolution, resolve
+from bzk.resolve.uniprot import DEFAULT_CACHE_DIR, Resolution, keying_dates, resolve
 from bzk.sources import pxd018299_differential as differential
 from bzk.sources.pride import PXD018299_SITES
 from bzk.sources.protein_groups import SUPP_DATA_1
@@ -104,6 +104,9 @@ class PlatformRun:
     refused_requests: list[str]
     #: The threshold the adapter itself applied, read off the adapter rather than restated.
     localization_threshold: float
+    #: Every canonical the offline resolver answered for, in call order, so the cache that keyed
+    #: the deposit side can be dated (HYPOTHESIS.md §9, *dating the deposit-side keying*).
+    keyed_canonicals: list[str] = field(default_factory=list)
 
     @property
     def refused(self) -> dict[str, str]:
@@ -159,8 +162,15 @@ def run_platform_path() -> PlatformRun:
     real_change_set = site_change_set
     committed = Path(differential.FIXTURE_PATH).read_bytes()
 
+    keyed: list[str] = []
+
     def offline_resolver(cache_dir: Path = DEFAULT_CACHE_DIR) -> Resolver:
-        return lambda accession: resolve(accession, cache_dir=cache_dir, session=refusing)
+        def offline(accession: str) -> Resolution:
+            resolution = resolve(accession, cache_dir=cache_dir, session=refusing)
+            keyed.append(resolution.canonical)
+            return resolution
+
+        return offline
 
     def parse(self: MaxQuantSiteAdapter, *args: Any, **kwargs: Any) -> ParsedObservations:
         parsed = real_parse(self, *args, **kwargs)
@@ -194,6 +204,7 @@ def run_platform_path() -> PlatformRun:
         results=captured["results"],
         refused_requests=refusing.urls,
         localization_threshold=float(adapter.declared.localization_threshold),
+        keyed_canonicals=keyed,
     )
 
 
@@ -446,6 +457,7 @@ def fixture_for(
                 "online": False,
                 "refused_uniprot_requests": platform_run.refused_requests,
                 "reproduced_committed_fixture": "tests/fixtures/pxd018299_platform_targets.json",
+                "keying_dates": keying_dates(platform_run.keyed_canonicals),
             },
         },
         "summary": summary(records),
