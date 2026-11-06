@@ -79,5 +79,5 @@ also passed C1–C3, it would precede `PXD032267` and replace it.
    site table is adapter-compatible, and all ten published claims join. The
    census figures it produced are disclosed there, before the gate is
    registered.
-2. Pre-register the gate's metric and threshold, as `PREREG-PXD018299-H10.md`
-   did, before any reconstruction runs.
+2. ~~Pre-register the gate's metric and threshold.~~ **Registered
+   2026-11-06:** `walk/PREREG-PXD032267-gate.md`.
