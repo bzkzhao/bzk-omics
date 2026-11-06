@@ -8,46 +8,46 @@
   "note": "Every row of Supplementary Data 1 (the publication's significant GlyGly peptides) joined to the deposit's site table and walked through the PLATFORM path, placed at exactly one stage: `lost_at` names the stage that lost it, or is null where it was recovered, and `loss_reason` says why. The stages are those of bzk/published_cascade.py, which re-derives the summary from the rows. Recall only: S1 is the significant set, so a platform-significant site absent from it is not a disagreement this record can score. `published_log2fc` is the mean of S1's three Intensity KO_IFN cells minus the mean of its three Intensity WT_IFN cells as the publication rounded them (four decimals), so differences below about 5e-5 are rounding. `platform_*` are the platform run's own statistics where the row reached the test. `published_keying` is the S1 row keyed ONLINE through the deposit path's adapter; `platform_site` is the deposit row's own key. `gene_names_cell` marks the one S1 cell the spreadsheet holds as a date. A change in these rows means an input moved \u2014 UniProt, the platform path, or a store's bytes \u2014 and needs explaining, not regenerating. Regenerate with `python -m bzk.sources.pxd018299_published_cascade`.",
   "generated_by": "python -m bzk.sources.pxd018299_published_cascade",
   "generated_under": {
-    "generated_at": "2026-09-17T15:54:29.451176+00:00",
-    "commit": "c5247d49f6dcbeef4c0c7024c49450794c0ba069",
-    "working_tree_clean": false,
+    "generated_at": "2026-11-06T22:33:34.530157+00:00",
+    "commit": "ab1652da1ceda33d697d711f930196ebb8973e29",
+    "working_tree_clean": true,
     "python": "3.12.14",
     "numpy": "2.5.1",
     "scipy": "1.18.0",
     "published_side_keying": {
       "online": true,
-      "started": "2026-09-17T15:55:48.971215+00:00",
-      "finished": "2026-09-17T15:55:53.785699+00:00",
+      "started": "2026-11-06T22:34:51.704754+00:00",
+      "finished": "2026-11-06T22:34:56.787730+00:00",
       "live_uniprot_requests": 6,
       "requests": [
         {
           "url": "https://rest.uniprot.org/uniprotkb/Q9Y2S0-2.fasta",
-          "at": "2026-09-17T15:55:49.148568+00:00",
+          "at": "2026-11-06T22:34:51.892457+00:00",
           "status": 404
         },
         {
           "url": "https://rest.uniprot.org/uniprotkb/CON__Q3ZBD7.json",
-          "at": "2026-09-17T15:55:49.679309+00:00",
+          "at": "2026-11-06T22:34:52.499075+00:00",
           "status": 400
         },
         {
           "url": "https://rest.uniprot.org/uniprotkb/CON__P02769.json",
-          "at": "2026-09-17T15:55:50.706912+00:00",
+          "at": "2026-11-06T22:34:53.678813+00:00",
           "status": 400
         },
         {
           "url": "https://rest.uniprot.org/uniprotkb/CON__P05787.json",
-          "at": "2026-09-17T15:55:50.761138+00:00",
+          "at": "2026-11-06T22:34:53.751634+00:00",
           "status": 400
         },
         {
           "url": "https://rest.uniprot.org/uniprotkb/CON__H.json",
-          "at": "2026-09-17T15:55:50.821853+00:00",
+          "at": "2026-11-06T22:34:53.846487+00:00",
           "status": 400
         },
         {
           "url": "https://rest.uniprot.org/uniprotkb/P51513-3.fasta",
-          "at": "2026-09-17T15:55:52.029736+00:00",
+          "at": "2026-11-06T22:34:54.756418+00:00",
           "status": 404
         }
       ],
@@ -61,7 +61,19 @@
         "https://rest.uniprot.org/uniprotkb/P08195-4.fasta",
         "https://rest.uniprot.org/uniprotkb/P51513-3.fasta"
       ],
-      "reproduced_committed_fixture": "tests/fixtures/pxd018299_platform_targets.json"
+      "reproduced_committed_fixture": "tests/fixtures/pxd018299_platform_targets.json",
+      "keying_dates": {
+        "accessions": 2261,
+        "pin_written_earliest": "2026-09-10T07:37:12.001031+00:00",
+        "pin_written_latest": "2026-09-10T08:38:33.648395+00:00",
+        "pin_clock": "filesystem modification time of the pin file",
+        "snapshot_fetched_earliest": "2026-09-10T07:37:11.998654+00:00",
+        "snapshot_fetched_latest": "2026-09-10T08:38:33.646335+00:00",
+        "unpinned": 79,
+        "multiply_pinned": 0,
+        "no_entry": 1,
+        "entry_without_fetched_at": 0
+      }
     }
   },
   "summary": {

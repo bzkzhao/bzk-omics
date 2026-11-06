@@ -1148,7 +1148,19 @@ One number, one more dataset.
   reconstructed honestly. This is now the single most valuable gate in the
   document, and it is a smaller ask than any other: one deposit, one
   reconstruction, one fraction.
-- **Dating the deposit-side keying, open and cheap.**
+- ~~**Dating the deposit-side keying, open and cheap.**~~ **Closed
+  2026-11-06.** The re-run cascade fixture
+  (`tests/fixtures/pxd018299_published_cascade.json`,
+  `generated_under.deposit_side_run.keying_dates`) dates the deposit side to a
+  single fetch session, on both clocks, about a week before the original
+  published-side keying. The published side was then keyed again on
+  2026-11-06, and `summary` and `rows` came out byte-identical to the
+  2026-09-17 fixture. So reference-data drift between the two keyings moved no
+  claim, and the comparison is like-for-like at the cascade's resolution.
+  Undated keys are counted in the same block, not excluded: accessions with
+  no pin (no sequence version to key on), and one accession with nothing on
+  disk. The history follows, unrewritten.
+  *Was:* **Dating the deposit-side keying, open and cheap.**
   `tests/fixtures/pxd018299_refusals.json` records a Python version and no date.
   The cascade keys the published side today against a deposit side keyed at an
   unknown time, so it is not yet a like-for-like comparison. This stopped being
