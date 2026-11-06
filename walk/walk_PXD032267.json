@@ -14,7 +14,11 @@
       "text": "no author is shared with either earlier publication",
       "verdict": "PASS",
       "deepest_grain": "G0",
-      "determined_by": ["s1", "s8", "s9"],
+      "determined_by": [
+        "s1",
+        "s8",
+        "s9"
+      ],
       "evidence": "Seventeen authors (Yerra VG ... Connelly KA, Advani A), read from the JCI article page and the PRIDE reference string, which agree. Compared against the 23 authors of Pinto-Fernandez et al., Br J Cancer 124:817-830 (PMC7884788, read from PMC) and the 17 of Munnur et al., Nat Immunol 22:1416-1427 (doi 10.1038/s41590-021-01035-8). No name in common.",
       "caveat": "Name comparison only. Affiliations differ (Toronto: St Michael's Hospital / Unity Health; diGly proteomics contracted to Creative Proteomics) from Oxford, Ghent and HKU."
     },
@@ -23,11 +27,19 @@
       "text": "a published, site-level claim set that lists its members",
       "verdict": "PASS",
       "deepest_grain": "G4",
-      "determined_by": ["s3"],
+      "determined_by": [
+        "s3"
+      ],
       "artefact": "Supplemental data PDF (JCI161453.sd.pdf), Supplemental Table 8: 'Significantly upregulated diGLY sites in left ventricles of wildtype mice 4 weeks after transverse aortic constriction compared to control wildtype mice.'",
       "shape": {
         "row_unit": "one row per site",
-        "columns": ["Protein name", "Position", "GlyGly (K) probabilities", "p_value", "Difference"],
+        "columns": [
+          "Protein name",
+          "Position",
+          "GlyGly (K) probabilities",
+          "p_value",
+          "Difference"
+        ],
         "data_rows": 10,
         "identifier": "protein name only: no accession column, no gene column",
         "position": "integer residue position",
@@ -41,7 +53,9 @@
       "text": "a stated analysis pipeline, including the test and the selection rule",
       "verdict": "PASS",
       "deepest_grain": "G2",
-      "determined_by": ["s1"],
+      "determined_by": [
+        "s1"
+      ],
       "stated": {
         "search": "MaxQuant 2.0.3.0; Mus musculus database; carbamidomethyl (C), oxidation (M) and GlyGly (K) variable; trypsin; up to 4 missed cleavages; 10 ppm precursor; 0.6 Da MS/MS",
         "transform": "intensities logarithmised",
@@ -62,18 +76,22 @@
       "id": "C4",
       "text": "a site table from a search engine in the deposit",
       "verdict": "PASS",
-      "deepest_grain": "G1",
-      "determined_by": ["s7"],
+      "deepest_grain": "G4",
+      "determined_by": [
+        "s7"
+      ],
       "artefact": "GlyGly__K_Sites.txt (2,135,046 bytes), category SEARCH",
       "listing": "PRIDE v2 files API, read in the user's Chrome after the API and FTP refused direct fetches: 27 files, reconciling with the frame's n_files = 27. 12 RAW (WT/KO x Control/TAC x 3), 14 MaxQuant outputs (GlyGly__K_Sites, Oxidation__M_Sites, evidence, peptides, modificationSpecificPeptides, proteinGroups, allPeptides, dependentPeptides, msms, msmsScans, msScans, mzRange, summary, parameters), 1 SDRF (PXD032267_community_annotated.sdrf.tsv). No container to expand.",
-      "not_yet": "The file has not been opened; G3 headers and G4 rows are the next step. parameters.txt is deposited, so the search settings can be checked against the paper's."
+      "not_yet": "Superseded 2026-11-06 by deposit_read below: GlyGly__K_Sites.txt read at G4 and parameters.txt read in full."
     },
     {
       "id": "C5",
       "text": "the ISGylation, ubiquitination or other GG-remnant PTM domain of the frame",
       "verdict": "PASS",
       "deepest_grain": "G0",
-      "determined_by": ["s6"],
+      "determined_by": [
+        "s6"
+      ],
       "evidence": "FRAME-v1 Frame B member; the deposit's sample protocol states anti-K-epsilon-GG antibody enrichment."
     }
   ],
@@ -101,12 +119,45 @@
     }
   ],
   "sources": [
-    {"source_id": "s1", "name": "publication main text", "method_of_discovery": "jci.org article page read in the user's Chrome; Methods 'diGLY proteomics' and 'Statistics' paragraphs extracted from the DOM", "exhausted": false, "note": "Results and the two Methods paragraphs read in full. A full-text pointer enumeration over WALK-STANDARD's term set was not run."},
-    {"source_id": "s3", "name": "supplementary tables", "method_of_discovery": "JCI161453.sd.pdf via the jci.org supplemental link", "exhausted": false, "note": "Tables 7 and 8 read; Tables 1-6 and 9-14 not opened."},
-    {"source_id": "s6", "name": "repository project metadata", "method_of_discovery": "data/frame/frame_raw.tsv as committed", "exhausted": true},
-    {"source_id": "s7", "name": "file listing", "method_of_discovery": "PRIDE v2 /projects/PXD032267/files?pageSize=100 in the user's Chrome", "exhausted": true, "retrieved_count": 27},
-    {"source_id": "s8", "name": "PRIDE reference string", "method_of_discovery": "frame_raw.tsv references column", "exhausted": true},
-    {"source_id": "s9", "name": "earlier publications' author lists", "method_of_discovery": "PMC7884788 (anchor); Oxford TDI publication record and citation records for Munnur et al. 2021", "exhausted": true}
+    {
+      "source_id": "s1",
+      "name": "publication main text",
+      "method_of_discovery": "jci.org article page read in the user's Chrome; Methods 'diGLY proteomics' and 'Statistics' paragraphs extracted from the DOM",
+      "exhausted": false,
+      "note": "Results and the two Methods paragraphs read in full. A full-text pointer enumeration over WALK-STANDARD's term set was not run."
+    },
+    {
+      "source_id": "s3",
+      "name": "supplementary tables",
+      "method_of_discovery": "JCI161453.sd.pdf via the jci.org supplemental link",
+      "exhausted": false,
+      "note": "Tables 7 and 8 read; Tables 1-6 and 9-14 not opened."
+    },
+    {
+      "source_id": "s6",
+      "name": "repository project metadata",
+      "method_of_discovery": "data/frame/frame_raw.tsv as committed",
+      "exhausted": true
+    },
+    {
+      "source_id": "s7",
+      "name": "file listing",
+      "method_of_discovery": "PRIDE v2 /projects/PXD032267/files?pageSize=100 in the user's Chrome",
+      "exhausted": true,
+      "retrieved_count": 27
+    },
+    {
+      "source_id": "s8",
+      "name": "PRIDE reference string",
+      "method_of_discovery": "frame_raw.tsv references column",
+      "exhausted": true
+    },
+    {
+      "source_id": "s9",
+      "name": "earlier publications' author lists",
+      "method_of_discovery": "PMC7884788 (anchor); Oxford TDI publication record and citation records for Munnur et al. 2021",
+      "exhausted": true
+    }
   ],
   "not_checked": [
     "JCI does not publish a peer-review file for this article type; not looked for further.",
@@ -114,5 +165,182 @@
     "GlyGly__K_Sites.txt was not opened (G3/G4)."
   ],
   "verdict": "qualifies",
-  "verdict_reason": "All five registered criteria PASS, and published per-site statistics usable as a gate exist. Under the v8 rule it is taken."
+  "verdict_reason": "All five registered criteria PASS, and published per-site statistics usable as a gate exist. Under the v8 rule it is taken.",
+  "deposit_read": {
+    "read_at": "2026-11-06",
+    "method": "Both files fetched from ftp.pride.ebi.ac.uk in the user's Chrome (direct fetches refused); parsed in the page; only the summaries below were returned. No bytes held locally, so no content hash is recorded yet: the first fetch into the content store must pin one.",
+    "parameters_txt": {
+      "maxquant_version": "2.0.3.0",
+      "fasta": "uniprot-proteome_UP000000589_mouse.fasta (reference proteome; no release or date recorded)",
+      "fdr": "PSM, protein and site FDR 0.01",
+      "min_score_modified_peptides": 40,
+      "match_between_runs": true,
+      "max_mods_in_site_table": 3,
+      "include_contaminants": true,
+      "modifications_in_protein_quantification": "Oxidation (M);Acetyl (Protein N-term);GlyGly (K)",
+      "date_of_writing": "01/29/2022"
+    },
+    "parameters_against_the_paper": [
+      {
+        "item": "MS/MS tolerance",
+        "paper": "0.6 Da",
+        "deposit": "FTMS 20 ppm (ITMS 0.5 Da)",
+        "reading": "The instrument is a Q Exactive HF, so FTMS applies: the deposited run used 20 ppm. The paper's 0.6 Da matches no deposited value."
+      },
+      {
+        "item": "match between runs",
+        "paper": "not stated",
+        "deposit": "True",
+        "reading": "Unstated in the paper and load-bearing: see identification types below."
+      },
+      {
+        "item": "Acetyl (Protein N-term)",
+        "paper": "not listed among modifications",
+        "deposit": "present in the protein-quantification modification list",
+        "reading": "Probably a variable modification the paper omits; parameters.txt does not carry the per-group modification list, so not determined."
+      },
+      {
+        "item": "missed cleavages, enzyme",
+        "paper": "4, trypsin",
+        "deposit": "not in parameters.txt (group-specific; mqpar.xml not deposited)",
+        "reading": "Uncheckable from the deposit."
+      }
+    ],
+    "site_table": {
+      "artefact": "GlyGly__K_Sites.txt",
+      "bytes": 2135046,
+      "data_rows": 1440,
+      "columns": 171,
+      "adapter_required_columns_present": "all six of bzk/adapters/maxquant_sites.py REQUIRED_COLUMNS (Proteins, Protein, Position, Amino acid, Localization prob, id)",
+      "quantity_columns": "Intensity <sample> and Intensity <sample>___1/2/3 for 12 samples, plus Ratio mod/base; the same layout the anchor's adapter binds",
+      "samples": "KOC1-3, KOTCA1-3, WtC1-3, WtTAC1-3 (TCA in KO labels, TAC in WT labels, as deposited)",
+      "population": {
+        "reverse": 14,
+        "potential_contaminant": 4,
+        "after_decoys_and_contaminants": 1422,
+        "localization_prob_ge_0_75": 1258,
+        "of_those_multi_protein": 804,
+        "of_those_empty_razor_pick": 3,
+        "of_those_isoform_razor_pick": 0,
+        "of_those_rows_with_no_nonzero_intensity": 18
+      },
+      "missingness_at_loc_0_75": {
+        "cells": 15096,
+        "zero_cells": 3387,
+        "nonzero_per_sample": {
+          "KOC1": 1015,
+          "KOC2": 983,
+          "KOC3": 1007,
+          "KOTCA1": 1009,
+          "KOTCA2": 997,
+          "KOTCA3": 1008,
+          "WtC1": 1049,
+          "WtC2": 973,
+          "WtC3": 1022,
+          "WtTAC1": 1009,
+          "WtTAC2": 922,
+          "WtTAC3": 715
+        }
+      },
+      "identification_type_cells_at_loc_0_75": {
+        "By MS/MS": 9111,
+        "By matching": 2993,
+        "blank": 2992
+      },
+      "paper_headline_counts_reproduced": "The paper's 1,426 sites in 562 proteins are exactly the non-reverse rows (1,440 - 14) and their distinct protein groups. Contaminant rows are included and no localisation filter is applied to the reported count. What population entered the test is not determined by this."
+    },
+    "join_to_published_claims": {
+      "rule": "Table 8 protein name contained in 'Protein names', and the published position in 'Positions within proteins'",
+      "joined": "10 of 10, each to exactly one row",
+      "rows": [
+        {
+          "claim": "Adprhl1 K335",
+          "id": 57,
+          "ctrl": "111",
+          "tac": "111",
+          "published_difference": 1.319833,
+          "measured_only_difference": 1.32
+        },
+        {
+          "claim": "Xirp2 K1054",
+          "id": 151,
+          "ctrl": "111",
+          "tac": "110",
+          "published_difference": 1.823933,
+          "measured_only_difference": 2.056
+        },
+        {
+          "claim": "Ttn K12993",
+          "id": 281,
+          "ctrl": "000",
+          "tac": "111",
+          "published_difference": 5.088633,
+          "measured_only_difference": null
+        },
+        {
+          "claim": "Synpo2l K433",
+          "id": 405,
+          "ctrl": "101",
+          "tac": "111",
+          "published_difference": 1.3043,
+          "measured_only_difference": 1.38
+        },
+        {
+          "claim": "Kmt2b K102",
+          "id": 553,
+          "ctrl": "111",
+          "tac": "111",
+          "published_difference": 2.701133,
+          "measured_only_difference": 2.701
+        },
+        {
+          "claim": "Ackr3 K362",
+          "id": 901,
+          "ctrl": "111",
+          "tac": "111",
+          "published_difference": 0.850433,
+          "measured_only_difference": 0.85
+        },
+        {
+          "claim": "Flnc K2590",
+          "id": 1252,
+          "ctrl": "101",
+          "tac": "111",
+          "published_difference": 2.131467,
+          "measured_only_difference": 2.047
+        },
+        {
+          "claim": "Myh7 K1279",
+          "id": 1270,
+          "ctrl": "100",
+          "tac": "111",
+          "published_difference": 3.147833,
+          "measured_only_difference": 3.358
+        },
+        {
+          "claim": "Myh7 K1305",
+          "id": 1276,
+          "ctrl": "101",
+          "tac": "111",
+          "published_difference": 3.780733,
+          "measured_only_difference": 3.39
+        },
+        {
+          "claim": "Myh7 K34",
+          "id": 1282,
+          "ctrl": "100",
+          "tac": "111",
+          "published_difference": 3.913867,
+          "measured_only_difference": 3.384
+        }
+      ],
+      "ctrl_tac_legend": "WtC1-3 and WtTAC1-3, 1 = non-zero Intensity in the deposit",
+      "readings": [
+        "The three claims measured in all six samples reproduce the published Difference to three decimals. So Difference is the mean of log2 raw Intensity per arm, unnormalised: the same construction as the anchor's S1, found here at row grain.",
+        "Seven of ten published differences contain at least one value absent from the deposit, i.e. a drawn value. Ttn K12993 has no measured control value at all: its published 5.09 rests entirely on the imputation.",
+        "The filamin-C claim, the paper's headline target, has both measured control values from match-between-runs, which the paper does not state was used."
+      ],
+      "status": "A census of the published table against the deposit. It needs nothing reconstructed and is not a gate result. It is disclosed here BEFORE the gate is registered, and the registration must list it under 'disclosed before registration'."
+    }
+  }
 }

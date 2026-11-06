@@ -74,7 +74,10 @@ also passed C1–C3, it would precede `PXD032267` and replace it.
 
 ## Next, in order
 
-1. Open `GlyGly__K_Sites.txt` and `parameters.txt` at G3/G4. This is a
-   read-only step and needs no registration.
+1. ~~Open `GlyGly__K_Sites.txt` and `parameters.txt` at G3/G4.~~ **Done
+   2026-11-06**, recorded under `deposit_read` in the candidate record. The
+   site table is adapter-compatible, and all ten published claims join. The
+   census figures it produced are disclosed there, before the gate is
+   registered.
 2. Pre-register the gate's metric and threshold, as `PREREG-PXD018299-H10.md`
    did, before any reconstruction runs.
