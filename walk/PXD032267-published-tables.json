@@ -1,0 +1,39 @@
+{
+  "accession": "PXD032267",
+  "publication": "Yerra et al., J Clin Invest 133(9):e161453 (2023); doi 10.1172/JCI161453",
+  "source": {
+    "artefact": "Supplemental data PDF, JCI161453.sd.pdf",
+    "url": "https://dm5migu4zj3pb.cloudfront.net/manuscripts/161000/161453/JCI161453.sd.pdf",
+    "reached_from": "https://www.jci.org/articles/view/161453/sd/1",
+    "bytes": 11918227,
+    "sha256": "fa5281d97cdde23a27848ef00f9a664edad1111841a727da6ce6e8fd89bc6c5d",
+    "read_at": "2026-11-06",
+    "method": "Fetched in the user's Chrome (the host refuses direct fetches); text extracted with pdf.js 4.4.168. Table 7 is on PDF page 7 and Table 8 on page 8, of 34. The PDF is a Word export, so its text is real text, not OCR."
+  },
+  "transcription_note": "Numbers, positions and peptide strings are copied exactly. pdf.js returns spaces around hyphens and line breaks inside wrapped protein-name cells ('Filamin - C', 'Xin actin - binding / repeat - containing / protein 2'). These are normalised here to the hyphenated single-line name, with no other change. 'Isg15 - / -' is rendered as 'Isg15-/-'.",
+  "table_7": {
+    "title": "Supplemental Table 7. Summary of the number of differentially regulated diGLY sites in left ventricles of wildtype and Isg15-/- mice 4 weeks after transverse aortic constriction (TAC).",
+    "columns": ["Upregulated (fold change >1.5)", "Downregulated (fold change <1/1.5)"],
+    "rows": [
+      {"comparison": "Wildtype TAC vs. wildtype control", "up": 10, "down": 48},
+      {"comparison": "Isg15-/- TAC vs. Isg15-/- control", "up": 74, "down": 18},
+      {"comparison": "Isg15-/- TAC vs. wildtype TAC", "up": 31, "down": 5}
+    ]
+  },
+  "table_8": {
+    "title": "Supplemental Table 8. Significantly upregulated diGLY sites in left ventricles of wildtype mice 4 weeks after transverse aortic constriction compared to control wildtype mice.",
+    "columns": ["Protein name", "Position", "GlyGly (K) probabilities", "p_value", "Difference"],
+    "rows": [
+      {"protein_name": "[Protein ADP-ribosylarginine] hydrolase-like protein 1", "position": 335, "glygly_probabilities": "GLYQELEHK(1)GR", "p_value": 0.038957, "difference": 1.319833},
+      {"protein_name": "Xin actin-binding repeat-containing protein 2", "position": 1054, "glygly_probabilities": "GISAQEIQAGNVK(1)SAR", "p_value": 0.028129, "difference": 1.823933},
+      {"protein_name": "Titin", "position": 12993, "glygly_probabilities": "TSTAK(1)LIVEELPVR", "p_value": 0.007273, "difference": 5.088633},
+      {"protein_name": "Synaptopodin 2-like protein", "position": 433, "glygly_probabilities": "NSPNPELLSLVQNLDEK(1)PR", "p_value": 0.003149, "difference": 1.3043},
+      {"protein_name": "Histone-lysine N-methyltransferase 2B", "position": 102, "glygly_probabilities": "VQLFK(0.994)IDQQQQQK(0.006)", "p_value": 0.020353, "difference": 2.701133},
+      {"protein_name": "Atypical chemokine receptor 3", "position": 362, "glygly_probabilities": "VSETEYSALEQNTK(1)", "p_value": 0.049858, "difference": 0.850433},
+      {"protein_name": "Filamin-C", "position": 2590, "glygly_probabilities": "YGGPQHIVGSPFK(0.997)AK(0.003)", "p_value": 0.002609, "difference": 2.131467},
+      {"protein_name": "Myosin-7", "position": 1279, "glygly_probabilities": "AK(1)LQTENGELSR", "p_value": 0.025301, "difference": 3.147833},
+      {"protein_name": "Myosin-7", "position": 1305, "glygly_probabilities": "GK(1)LTYTQQLEDLKR", "p_value": 0.017522, "difference": 3.780733},
+      {"protein_name": "Myosin-7", "position": 34, "glygly_probabilities": "LEAQTRPFDLK(1)K", "p_value": 0.009401, "difference": 3.913867}
+    ]
+  }
+}
