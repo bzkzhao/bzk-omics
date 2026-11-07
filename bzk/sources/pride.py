@@ -83,17 +83,20 @@ PXD018299_PROTEIN_GROUPS = DepositFile(
 # Year and month are the archive path segments, from the publication date 2023-05-10 in
 # data/frame/frame_raw.tsv (guarded in tests/test_pxd032267_gate.py).
 #
-# **`expected_content_hash=None` is deliberate, not an omission.** `walk_PXD032267.json`'s
-# `deposit_read` was taken in a browser and held no bytes, so no digest has ever been computed for
-# either file, and one written here would be invented. The first fetch on bzk's Mac records the
-# digest (`pxd032267_gate.pinning_check` reports it, and says that it compared against nothing);
-# it is pinned here from that report, in a later commit, after which a differing download raises.
+# **Digests pinned 2026-11-07 from the first fetch on bzk's Mac** (step A of the PXD032267 run,
+# before the registered run). `walk_PXD032267.json`'s `deposit_read` was taken in a browser and
+# held no bytes, so these are the first digests ever computed for either file. Step A's
+# `pxd032267_gate.pinning_check` measured 1,440 rows, 171 columns and 14 reverse rows, with
+# no spill lines, matching `deposit_read`, and the byte sizes (2,135,046 and 3,672) match PRIDE's
+# file listing. From here on a differing download raises, in `fetch` and in `pinning_check`.
 PXD032267_SITES = DepositFile(
     accession="PXD032267",
     year=2023,
     month=5,
     filename="GlyGly__K_Sites.txt",
-    expected_content_hash=None,
+    expected_content_hash=(
+        "sha256:61c8fef072d7255aee03367d017154aa80b0a760006c0bd3363dd013cd11e913"
+    ),
 )
 
 PXD032267_PARAMETERS = DepositFile(
@@ -101,7 +104,9 @@ PXD032267_PARAMETERS = DepositFile(
     year=2023,
     month=5,
     filename="parameters.txt",
-    expected_content_hash=None,
+    expected_content_hash=(
+        "sha256:6fd055dc570dc993ad7e7462bdd2b1b594e96dbccba73e6ecff16fd8a7d23603"
+    ),
 )
 
 

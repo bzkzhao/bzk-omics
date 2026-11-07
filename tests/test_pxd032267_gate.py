@@ -221,8 +221,8 @@ def test_the_samples_are_the_deposits_own_labels() -> None:
     assert tuple(expanded) == gate.SAMPLES
 
 
-def test_the_deposit_declarations_carry_no_digest_and_the_publication_month() -> None:
-    """`None` until the Mac fetch records one; the archive month from `frame_raw.tsv`."""
+def test_the_deposit_declarations_carry_a_pinned_digest_and_the_publication_month() -> None:
+    """Digests pinned from the Mac fetch (step A, 2026-11-07); the archive month from `frame_raw.tsv`."""
     frame = REPO_ROOT / "data" / "frame" / "frame_raw.tsv"
     with frame.open(encoding="utf-8", newline="") as handle:
         (row,) = [
@@ -230,7 +230,7 @@ def test_the_deposit_declarations_carry_no_digest_and_the_publication_month() ->
         ]
     year, month, _ = row["publicationDate"].split("-")
     for deposit in (PXD032267_SITES, PXD032267_PARAMETERS):
-        assert deposit.expected_content_hash is None
+        assert re.fullmatch(r"sha256:[0-9a-f]{64}", deposit.expected_content_hash or ""), deposit
         assert (deposit.year, deposit.month) == (int(year), int(month))
     assert PXD032267_SITES.filename == WALK["deposit_read"]["site_table"]["artefact"]
 
@@ -369,6 +369,14 @@ def _twin(
 FEW_MEMBERS = (*gate.default_cell_members(), Member(0.2, 1.6, "whole_matrix", 0))
 
 
+#: The synthetic twins are not the deposit, so they are checked against unpinned copies of the
+#: real declarations. The real declarations carry the digests pinned from the Mac fetch, and a
+#: synthetic file against them must raise: `test_the_pinned_declaration_refuses_a_twin` says so.
+UNPINNED_SITES = DepositFile("PXD032267", 2023, 5, "GlyGly__K_Sites.txt", None)
+UNPINNED_PARAMETERS = DepositFile("PXD032267", 2023, 5, "parameters.txt", None)
+UNPINNED = {"sites_deposit": UNPINNED_SITES, "parameters_deposit": UNPINNED_PARAMETERS}
+
+
 def _run(tmp_path: Path, **kwargs: Any) -> dict[str, Any]:
     author_path = kwargs.pop("author_path", tmp_path / "no-author.json")
     repo_root = kwargs.pop("repo_root", tmp_path)
@@ -381,6 +389,7 @@ def _run(tmp_path: Path, **kwargs: Any) -> dict[str, Any]:
         author_path=author_path,
         repo_root=repo_root,
         members=FEW_MEMBERS,
+        **UNPINNED,
     )
 
 
@@ -389,7 +398,7 @@ def _run(tmp_path: Path, **kwargs: Any) -> dict[str, Any]:
 
 def test_pinning_records_both_digests_and_says_it_compared_nothing(tmp_path: Path) -> None:
     sites, parameters, _, facts = _twin(tmp_path)
-    _, record = gate.pinning_check(sites, parameters, facts=facts)
+    _, record = gate.pinning_check(sites, parameters, facts=facts, **UNPINNED)
     assert record["sites"]["compared"] is False
     assert record["parameters"]["compared"] is False
     assert record["sites"]["content_hash"].startswith("sha256:")
@@ -402,21 +411,34 @@ def test_pinning_fails_on_a_wrong_row_count(tmp_path: Path) -> None:
     sites, parameters, _, facts = _twin(tmp_path)
     wrong = gate.DepositFacts(facts.data_rows + 1, facts.columns, facts.reverse, facts.joined_ids)
     with pytest.raises(gate.GateError, match="not the file deposit_read counted"):
-        gate.pinning_check(sites, parameters, facts=wrong)
+        gate.pinning_check(sites, parameters, facts=wrong, **UNPINNED)
 
 
 def test_pinning_fails_on_a_wrong_reverse_count(tmp_path: Path) -> None:
     sites, parameters, _, facts = _twin(tmp_path)
     wrong = gate.DepositFacts(facts.data_rows, facts.columns, facts.reverse + 1, facts.joined_ids)
     with pytest.raises(gate.GateError, match="'reverse': 3"):
-        gate.pinning_check(sites, parameters, facts=wrong)
+        gate.pinning_check(sites, parameters, facts=wrong, **UNPINNED)
 
 
 def test_pinning_fails_on_a_declared_digest_that_differs(tmp_path: Path) -> None:
     sites, parameters, _, facts = _twin(tmp_path)
     declared = DepositFile("PXD032267", 2023, 5, "GlyGly__K_Sites.txt", "sha256:" + "0" * 64)
     with pytest.raises(gate.GateError, match="not the declared"):
-        gate.pinning_check(sites, parameters, facts=facts, sites_deposit=declared)
+        gate.pinning_check(
+            sites,
+            parameters,
+            facts=facts,
+            sites_deposit=declared,
+            parameters_deposit=UNPINNED_PARAMETERS,
+        )
+
+
+def test_the_pinned_declaration_refuses_a_twin(tmp_path: Path) -> None:
+    """With the real, pinned declarations as defaults, a file that is not the deposit raises."""
+    sites, parameters, _, facts = _twin(tmp_path)
+    with pytest.raises(gate.GateError, match="not the declared sha256:61c8fef0"):
+        gate.pinning_check(sites, parameters, facts=facts)
 
 
 # ── 4. the join ─────────────────────────────────────────────────────────────────────────────────
