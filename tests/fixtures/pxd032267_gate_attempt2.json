@@ -1,0 +1,1137 @@
+{
+ "dataset": "PXD032267",
+ "registration": "walk/PREREG-PXD032267-gate-attempt2.md",
+ "governing_registration": "walk/PREREG-PXD032267-gate.md",
+ "attempt": 2,
+ "rounding_decimals": 4,
+ "input_tolerance": 5.009999999999999e-07,
+ "label": "second attempt, after a registration defect; test identified exploratorily",
+ "reference_fixture": "tests/fixtures/pxd032267_gate.json",
+ "reference_fixture_sha256": "sha256:2327dfa910d6d98fda93c3da13494f3e4efd26b7b6d02f6f6ed00127509e2ad5",
+ "published_tables": "walk/PXD032267-published-tables.json",
+ "published_tables_source_sha256": "fa5281d97cdde23a27848ef00f9a664edad1111841a727da6ce6e8fd89bc6c5d",
+ "sites_content_hash": "sha256:61c8fef072d7255aee03367d017154aa80b0a760006c0bd3363dd013cd11e913",
+ "parameters_content_hash": "sha256:6fd055dc570dc993ad7e7462bdd2b1b594e96dbccba73e6ecff16fd8a7d23603",
+ "author_parameters_present": false,
+ "pinning": {
+  "sites": {
+   "file": "GlyGly__K_Sites.txt",
+   "content_hash": "sha256:61c8fef072d7255aee03367d017154aa80b0a760006c0bd3363dd013cd11e913",
+   "declared_content_hash": "sha256:61c8fef072d7255aee03367d017154aa80b0a760006c0bd3363dd013cd11e913",
+   "compared": true,
+   "comparison": "matches the declared digest"
+  },
+  "parameters": {
+   "file": "parameters.txt",
+   "content_hash": "sha256:6fd055dc570dc993ad7e7462bdd2b1b594e96dbccba73e6ecff16fd8a7d23603",
+   "declared_content_hash": "sha256:6fd055dc570dc993ad7e7462bdd2b1b594e96dbccba73e6ecff16fd8a7d23603",
+   "compared": true,
+   "comparison": "matches the declared digest"
+  },
+  "measured": {
+   "data_rows": 1440,
+   "columns": 171,
+   "reverse": 14
+  },
+  "expected_from_deposit_read": {
+   "data_rows": 1440,
+   "columns": 171,
+   "reverse": 14
+  },
+  "raw_newlines": 1441,
+  "spill_lines": 0
+ },
+ "population": {
+  "rule": "every row of GlyGly__K_Sites.txt except reverse decoys (§2)",
+  "rows": 1426
+ },
+ "join": [
+  {
+   "claim": "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335",
+   "key_p_ids": [
+    57
+   ],
+   "key_n_ids": [
+    57
+   ],
+   "joined_id": 57,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Xin actin-binding repeat-containing protein 2 K1054",
+   "key_p_ids": [
+    151
+   ],
+   "key_n_ids": [
+    151
+   ],
+   "joined_id": 151,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Titin K12993",
+   "key_p_ids": [
+    281
+   ],
+   "key_n_ids": [
+    281
+   ],
+   "joined_id": 281,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Synaptopodin 2-like protein K433",
+   "key_p_ids": [
+    405
+   ],
+   "key_n_ids": [
+    405
+   ],
+   "joined_id": 405,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Histone-lysine N-methyltransferase 2B K102",
+   "key_p_ids": [
+    553
+   ],
+   "key_n_ids": [
+    553
+   ],
+   "joined_id": 553,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Atypical chemokine receptor 3 K362",
+   "key_p_ids": [
+    901
+   ],
+   "key_n_ids": [
+    901
+   ],
+   "joined_id": 901,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Filamin-C K2590",
+   "key_p_ids": [
+    1252
+   ],
+   "key_n_ids": [
+    1252
+   ],
+   "joined_id": 1252,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Myosin-7 K1279",
+   "key_p_ids": [
+    1270
+   ],
+   "key_n_ids": [
+    1270
+   ],
+   "joined_id": 1270,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Myosin-7 K1305",
+   "key_p_ids": [
+    1276
+   ],
+   "key_n_ids": [
+    1276
+   ],
+   "joined_id": 1276,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Myosin-7 K34",
+   "key_p_ids": [
+    1282
+   ],
+   "key_n_ids": [
+    1282
+   ],
+   "joined_id": 1282,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  }
+ ],
+ "valid_value_rule": {
+  "candidates": {
+   "3": {
+    "rows_retained": 1131,
+    "claims_retained": 10,
+    "retains_every_claim": true
+   },
+   "2": {
+    "rows_retained": 1304,
+    "claims_retained": 10,
+    "retains_every_claim": true
+   },
+   "1": {
+    "rows_retained": 1400,
+    "claims_retained": 10,
+    "retains_every_claim": true
+   }
+  },
+  "taken": 3,
+  "retains_every_claim": true,
+  "claims_lost": [],
+  "rows_reaching_imputation": 1131
+ },
+ "gate_g": {
+  "gate_rows": [
+   "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335",
+   "Histone-lysine N-methyltransferase 2B K102",
+   "Atypical chemokine receptor 3 K362"
+  ],
+  "gate_row_count": 3,
+  "minimum_gate_rows": 2,
+  "input_check": {
+   "rows_checked": 3,
+   "tolerance": 5.009999999999999e-07,
+   "rows": [
+    {
+     "claim": "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335",
+     "published_difference": 1.319833,
+     "computed_difference": 1.3198333333333316,
+     "abs_delta": 3.3333333160356915e-07,
+     "passes": true
+    },
+    {
+     "claim": "Histone-lysine N-methyltransferase 2B K102",
+     "published_difference": 2.701133,
+     "computed_difference": 2.7011333333333383,
+     "abs_delta": 3.333333382649073e-07,
+     "passes": true
+    },
+    {
+     "claim": "Atypical chemokine receptor 3 K362",
+     "published_difference": 0.850433,
+     "computed_difference": 0.8504333333333349,
+     "abs_delta": 3.333333349342382e-07,
+     "passes": true
+    }
+   ],
+   "passed": true
+  },
+  "variants": {
+   "T1": {
+    "p": [
+     0.03895700758154208,
+     0.02035296135507003,
+     0.04985815614413014
+    ],
+    "abs_delta_p": [
+     7.581542081636083e-09,
+     3.864492996788482e-08,
+     1.56144130139535e-07
+    ],
+    "max_abs_delta_p": 1.56144130139535e-07,
+    "passes": true
+   },
+   "T2": {
+    "p": [
+     0.024973571628308266,
+     0.012208670508852881,
+     0.038536264363596806
+    ],
+    "abs_delta_p": [
+     0.013983428371691732,
+     0.008144329491147118,
+     0.011321735636403193
+    ],
+    "max_abs_delta_p": 0.013983428371691732,
+    "passes": false
+   },
+   "T3": {
+    "p": [
+     0.00963736494926444,
+     0.004868672911955736,
+     0.012529783724350579
+    ],
+    "abs_delta_p": [
+     0.029319635050735558,
+     0.015484327088044264,
+     0.03732821627564942
+    ],
+    "max_abs_delta_p": 0.03732821627564942,
+    "passes": false
+   },
+   "T4": {
+    "p": [
+     0.02228413485422708,
+     0.018224522330500273,
+     0.001692757618094241
+    ],
+    "abs_delta_p": [
+     0.01667286514577292,
+     0.0021284776694997266,
+     0.04816524238190576
+    ],
+    "max_abs_delta_p": 0.04816524238190576,
+    "passes": false
+   },
+   "T5": {
+    "p": [
+     0.0635255576841721,
+     0.019004798075807076,
+     0.0018721742811689595
+    ],
+    "abs_delta_p": [
+     0.024568557684172106,
+     0.0013482019241929238,
+     0.04798582571883104
+    ],
+    "max_abs_delta_p": 0.04798582571883104,
+    "passes": false
+   }
+  },
+  "passing": [
+   "T1"
+  ],
+  "primary": "T1",
+  "pairwise_max_gap": {},
+  "close_pairs": [],
+  "readout_variants": [
+   "T1"
+  ],
+  "status": "passed",
+  "result": "G passes"
+ },
+ "author_parameters": null,
+ "consistency": {
+  "label": "second attempt, after a registration defect; test identified exploratorily",
+  "registration": "attempt 2 §3 (l.80–101)",
+  "reference_fixture": "tests/fixtures/pxd032267_gate.json",
+  "reference_fixture_sha256": "sha256:2327dfa910d6d98fda93c3da13494f3e4efd26b7b6d02f6f6ed00127509e2ad5",
+  "checks": {
+   "1": {
+    "check": "attempt 1's pinning, join and valid-value results are reproduced exactly",
+    "registration": "attempt 2 §3 check 1 (l.83–85)",
+    "inputs": {
+     "sites_content_hash": {
+      "reference": "sha256:61c8fef072d7255aee03367d017154aa80b0a760006c0bd3363dd013cd11e913",
+      "this_run": "sha256:61c8fef072d7255aee03367d017154aa80b0a760006c0bd3363dd013cd11e913",
+      "equal": true
+     },
+     "parameters_content_hash": {
+      "reference": "sha256:6fd055dc570dc993ad7e7462bdd2b1b594e96dbccba73e6ecff16fd8a7d23603",
+      "this_run": "sha256:6fd055dc570dc993ad7e7462bdd2b1b594e96dbccba73e6ecff16fd8a7d23603",
+      "equal": true
+     },
+     "joined_ids": {
+      "reference": [
+       57,
+       151,
+       281,
+       405,
+       553,
+       901,
+       1252,
+       1270,
+       1276,
+       1282
+      ],
+      "this_run": [
+       57,
+       151,
+       281,
+       405,
+       553,
+       901,
+       1252,
+       1270,
+       1276,
+       1282
+      ],
+      "equal": true
+     },
+     "valid_value_rule_taken": {
+      "reference": 3,
+      "this_run": 3,
+      "equal": true
+     },
+     "rows_reaching_imputation": {
+      "reference": 1131,
+      "this_run": 1131,
+      "equal": true
+     }
+    },
+    "passed": true,
+    "reason": "all five equal the reference"
+   },
+   "2": {
+    "check": "the input check passes on all three gate rows at the change-2 tolerance",
+    "registration": "attempt 2 §3 check 2 (l.86)",
+    "inputs": {
+     "reference_gate_rows": [
+      "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335",
+      "Histone-lysine N-methyltransferase 2B K102",
+      "Atypical chemokine receptor 3 K362"
+     ],
+     "gate_rows": [
+      "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335",
+      "Histone-lysine N-methyltransferase 2B K102",
+      "Atypical chemokine receptor 3 K362"
+     ],
+     "tolerance": 5.009999999999999e-07,
+     "rows": [
+      {
+       "claim": "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335",
+       "abs_delta": 3.3333333160356915e-07,
+       "passes": true
+      },
+      {
+       "claim": "Histone-lysine N-methyltransferase 2B K102",
+       "abs_delta": 3.333333382649073e-07,
+       "passes": true
+      },
+      {
+       "claim": "Atypical chemokine receptor 3 K362",
+       "abs_delta": 3.333333349342382e-07,
+       "passes": true
+      }
+     ]
+    },
+    "conditions": {
+     "gate_rows_equal_the_reference": true,
+     "three_gate_rows": true,
+     "tolerance_is_change_2s": true,
+     "every_gate_row_passes": true
+    },
+    "passed": true,
+    "reason": "every condition holds"
+   },
+   "3": {
+    "check": "Gate G passes, with T1 the only passing variant",
+    "registration": "attempt 2 §3 check 3 (l.87–92)",
+    "inputs": {
+     "gate_g_status": "passed",
+     "status": "passed",
+     "gate_g_scored": true,
+     "scored_here": true,
+     "passing": [
+      "T1"
+     ],
+     "variants": {
+      "T1": {
+       "max_abs_delta_p": 1.56144130139535e-07,
+       "passes": true,
+       "exploratory_max_abs_delta_p": 6.48e-06
+      },
+      "T2": {
+       "max_abs_delta_p": 0.013983428371691732,
+       "passes": false,
+       "exploratory_max_abs_delta_p": 0.014
+      },
+      "T3": {
+       "max_abs_delta_p": 0.03732821627564942,
+       "passes": false,
+       "exploratory_max_abs_delta_p": 0.0373
+      },
+      "T4": {
+       "max_abs_delta_p": 0.04816524238190576,
+       "passes": false,
+       "exploratory_max_abs_delta_p": 0.0482
+      },
+      "T5": {
+       "max_abs_delta_p": 0.04798582571883104,
+       "passes": false,
+       "exploratory_max_abs_delta_p": 0.048
+      }
+     },
+     "exploratory_values": "walk/RESULT-PXD032267-gate-attempt1.md, the verbatim exploratory block: reported beside, never tested against (attempt 2 §3 check 3)"
+    },
+    "conditions": {
+     "g_passes_on_these_scores": true,
+     "t1_the_only_passing_variant": true,
+     "scores_equal_gate_gs": true
+    },
+    "passed": true,
+    "reason": "every condition holds"
+   }
+  },
+  "failed": [],
+  "passed": true
+ },
+ "readouts": {
+  "T1": {
+   "variant": "T1",
+   "label": "second attempt, after a registration defect; test identified exploratorily",
+   "readout_a": {
+    "default_cell": {
+     "cells": {
+      "wt_tac_vs_wt_control": {
+       "up": {
+        "counts_by_draw": [
+         12,
+         12,
+         14,
+         13,
+         10,
+         10,
+         12,
+         10,
+         11,
+         11,
+         11,
+         13,
+         11,
+         13,
+         12,
+         11,
+         10,
+         12,
+         11,
+         13
+        ],
+        "median": 11.5,
+        "minimum": 10,
+        "maximum": 14,
+        "published": 10,
+        "verdict": "reproduced"
+       },
+       "down": {
+        "counts_by_draw": [
+         45,
+         48,
+         47,
+         47,
+         48,
+         48,
+         46,
+         47,
+         47,
+         49,
+         45,
+         49,
+         44,
+         47,
+         47,
+         44,
+         47,
+         54,
+         47,
+         49
+        ],
+        "median": 47.0,
+        "minimum": 44,
+        "maximum": 54,
+        "published": 48,
+        "verdict": "reproduced"
+       }
+      },
+      "ko_tac_vs_ko_control": {
+       "up": {
+        "counts_by_draw": [
+         74,
+         73,
+         70,
+         68,
+         70,
+         77,
+         78,
+         67,
+         72,
+         72,
+         79,
+         74,
+         76,
+         75,
+         74,
+         76,
+         72,
+         74,
+         71,
+         73
+        ],
+        "median": 73.5,
+        "minimum": 67,
+        "maximum": 79,
+        "published": 74,
+        "verdict": "reproduced"
+       },
+       "down": {
+        "counts_by_draw": [
+         19,
+         18,
+         18,
+         18,
+         19,
+         20,
+         14,
+         18,
+         16,
+         17,
+         17,
+         17,
+         15,
+         18,
+         14,
+         18,
+         17,
+         19,
+         18,
+         18
+        ],
+        "median": 18.0,
+        "minimum": 14,
+        "maximum": 20,
+        "published": 18,
+        "verdict": "reproduced"
+       }
+      },
+      "ko_tac_vs_wt_tac": {
+       "up": {
+        "counts_by_draw": [
+         26,
+         24,
+         27,
+         27,
+         31,
+         30,
+         31,
+         24,
+         31,
+         29,
+         27,
+         36,
+         26,
+         30,
+         32,
+         26,
+         31,
+         27,
+         35,
+         36
+        ],
+        "median": 29.5,
+        "minimum": 24,
+        "maximum": 36,
+        "published": 31,
+        "verdict": "reproduced"
+       },
+       "down": {
+        "counts_by_draw": [
+         4,
+         5,
+         4,
+         3,
+         3,
+         6,
+         5,
+         3,
+         6,
+         5,
+         7,
+         6,
+         4,
+         6,
+         4,
+         5,
+         5,
+         6,
+         5,
+         6
+        ],
+        "median": 5.0,
+        "minimum": 3,
+        "maximum": 7,
+        "published": 5,
+        "verdict": "reproduced"
+       }
+      }
+     },
+     "headline": {
+      "cell": "wt_tac_vs_wt_control, up",
+      "verdict": "reproduced"
+     },
+     "label": "second attempt, after a registration defect; test identified exploratorily"
+    },
+    "primary": "default_cell",
+    "label": "second attempt, after a registration defect; test identified exploratorily"
+   },
+   "readout_b": {
+    "exposure": [
+     "Xin actin-binding repeat-containing protein 2 K1054",
+     "Titin K12993",
+     "Synaptopodin 2-like protein K433",
+     "Filamin-C K2590",
+     "Myosin-7 K1279",
+     "Myosin-7 K1305",
+     "Myosin-7 K34"
+    ],
+    "exposure_size": 7,
+    "claims_whose_support_differs": [
+     "Titin K12993",
+     "Synaptopodin 2-like protein K433",
+     "Filamin-C K2590",
+     "Myosin-7 K1279"
+    ],
+    "share": {
+     "numerator": 4,
+     "denominator": 7,
+     "share": 0.5714285714285714
+    },
+    "verdict": {
+     "outcome": "recurs",
+     "share": 0.5714285714285714,
+     "reason": null
+    },
+    "power_flag": "n ≤ 10",
+    "secondary": {
+     "whole_population_per_cell": {
+      "wt_tac_vs_wt_control, up": {
+       "numerator": 18,
+       "denominator": 668,
+       "share": 0.02694610778443114
+      },
+      "wt_tac_vs_wt_control, down": {
+       "numerator": 38,
+       "denominator": 668,
+       "share": 0.05688622754491018
+      },
+      "ko_tac_vs_ko_control, up": {
+       "numerator": 55,
+       "denominator": 668,
+       "share": 0.08233532934131736
+      },
+      "ko_tac_vs_ko_control, down": {
+       "numerator": 21,
+       "denominator": 668,
+       "share": 0.03143712574850299
+      },
+      "ko_tac_vs_wt_tac, up": {
+       "numerator": 40,
+       "denominator": 668,
+       "share": 0.059880239520958084
+      },
+      "ko_tac_vs_wt_tac, down": {
+       "numerator": 13,
+       "denominator": 668,
+       "share": 0.019461077844311378
+      }
+     },
+     "whole_population_any_cell": {
+      "numerator": 136,
+      "denominator": 668,
+      "share": 0.20359281437125748
+     },
+     "family_categories": {
+      "members": 360,
+      "counts": {
+       "durable": 5,
+       "underdetermined": 5,
+       "unsupported": 0
+      },
+      "by_claim": {
+       "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335": "durable",
+       "Xin actin-binding repeat-containing protein 2 K1054": "underdetermined",
+       "Titin K12993": "underdetermined",
+       "Synaptopodin 2-like protein K433": "underdetermined",
+       "Histone-lysine N-methyltransferase 2B K102": "durable",
+       "Atypical chemokine receptor 3 K362": "durable",
+       "Filamin-C K2590": "underdetermined",
+       "Myosin-7 K1279": "underdetermined",
+       "Myosin-7 K1305": "durable",
+       "Myosin-7 K34": "durable"
+      }
+     },
+     "support_out_of_20_at_default_cell": {
+      "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335": 20,
+      "Xin actin-binding repeat-containing protein 2 K1054": 0,
+      "Titin K12993": 17,
+      "Synaptopodin 2-like protein K433": 17,
+      "Histone-lysine N-methyltransferase 2B K102": 20,
+      "Atypical chemokine receptor 3 K362": 20,
+      "Filamin-C K2590": 19,
+      "Myosin-7 K1279": 17,
+      "Myosin-7 K1305": 20,
+      "Myosin-7 K34": 20
+     },
+     "label": "second attempt, after a registration defect; test identified exploratorily"
+    },
+    "label": "second attempt, after a registration defect; test identified exploratorily"
+   },
+   "readout_c": {
+    "target": "Filamin-C K2590",
+    "comparison": "ko_tac_vs_wt_tac",
+    "direction": "down",
+    "supported_draws": 2,
+    "of": 20,
+    "label": "second attempt, after a registration defect; test identified exploratorily"
+   }
+  }
+ },
+ "readout_d": {
+  "variant": "T1",
+  "label": "second attempt, after a registration defect; test identified exploratorily",
+  "cells_masked": 3201,
+  "valid_value_rule": {
+   "candidates": {
+    "3": {
+     "rows_retained": 836,
+     "claims_retained": 5,
+     "retains_every_claim": false
+    },
+    "2": {
+     "rows_retained": 1119,
+     "claims_retained": 9,
+     "retains_every_claim": false
+    },
+    "1": {
+     "rows_retained": 1384,
+     "claims_retained": 10,
+     "retains_every_claim": true
+    }
+   },
+   "taken": 1,
+   "retains_every_claim": true,
+   "claims_lost": [],
+   "rows_reaching_imputation": 1384
+  },
+  "valid_value_rule_changed": true,
+  "readout_a": {
+   "default_cell": {
+    "cells": {
+     "wt_tac_vs_wt_control": {
+      "up": {
+       "counts_by_draw": [
+        9,
+        14,
+        14,
+        15,
+        14,
+        12,
+        13,
+        14,
+        15,
+        18,
+        13,
+        9,
+        13,
+        15,
+        10,
+        18,
+        14,
+        12,
+        9,
+        15
+       ],
+       "median": 14.0,
+       "minimum": 9,
+       "maximum": 18,
+       "published": 10,
+       "verdict": "reproduced"
+      },
+      "down": {
+       "counts_by_draw": [
+        35,
+        34,
+        31,
+        36,
+        31,
+        36,
+        33,
+        34,
+        33,
+        34,
+        30,
+        32,
+        36,
+        36,
+        42,
+        31,
+        35,
+        36,
+        31,
+        32
+       ],
+       "median": 34.0,
+       "minimum": 30,
+       "maximum": 42,
+       "published": 48,
+       "verdict": "not reproduced"
+      }
+     },
+     "ko_tac_vs_ko_control": {
+      "up": {
+       "counts_by_draw": [
+        61,
+        54,
+        64,
+        58,
+        56,
+        62,
+        61,
+        62,
+        59,
+        61,
+        56,
+        66,
+        59,
+        61,
+        62,
+        72,
+        63,
+        60,
+        63,
+        61
+       ],
+       "median": 61.0,
+       "minimum": 54,
+       "maximum": 72,
+       "published": 74,
+       "verdict": "near"
+      },
+      "down": {
+       "counts_by_draw": [
+        24,
+        26,
+        29,
+        21,
+        33,
+        28,
+        30,
+        25,
+        29,
+        26,
+        29,
+        26,
+        27,
+        25,
+        23,
+        25,
+        25,
+        27,
+        28,
+        25
+       ],
+       "median": 26.0,
+       "minimum": 21,
+       "maximum": 33,
+       "published": 18,
+       "verdict": "not reproduced"
+      }
+     },
+     "ko_tac_vs_wt_tac": {
+      "up": {
+       "counts_by_draw": [
+        16,
+        16,
+        12,
+        15,
+        16,
+        16,
+        14,
+        14,
+        16,
+        17,
+        14,
+        17,
+        12,
+        16,
+        18,
+        16,
+        18,
+        12,
+        16,
+        15
+       ],
+       "median": 16.0,
+       "minimum": 12,
+       "maximum": 18,
+       "published": 31,
+       "verdict": "not reproduced"
+      },
+      "down": {
+       "counts_by_draw": [
+        6,
+        7,
+        6,
+        6,
+        8,
+        12,
+        7,
+        7,
+        12,
+        10,
+        7,
+        5,
+        7,
+        9,
+        6,
+        10,
+        8,
+        6,
+        8,
+        8
+       ],
+       "median": 7.0,
+       "minimum": 5,
+       "maximum": 12,
+       "published": 5,
+       "verdict": "reproduced"
+      }
+     }
+    },
+    "headline": {
+     "cell": "wt_tac_vs_wt_control, up",
+     "verdict": "reproduced"
+    },
+    "label": "second attempt, after a registration defect; test identified exploratorily"
+   },
+   "primary": "default_cell",
+   "label": "second attempt, after a registration defect; test identified exploratorily"
+  },
+  "readout_b": {
+   "exposure": [
+    "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335",
+    "Xin actin-binding repeat-containing protein 2 K1054",
+    "Titin K12993",
+    "Synaptopodin 2-like protein K433",
+    "Histone-lysine N-methyltransferase 2B K102",
+    "Atypical chemokine receptor 3 K362",
+    "Filamin-C K2590",
+    "Myosin-7 K1279",
+    "Myosin-7 K1305",
+    "Myosin-7 K34"
+   ],
+   "exposure_size": 10,
+   "claims_whose_support_differs": [
+    "Xin actin-binding repeat-containing protein 2 K1054",
+    "Titin K12993",
+    "Synaptopodin 2-like protein K433",
+    "Filamin-C K2590",
+    "Myosin-7 K1279",
+    "Myosin-7 K1305",
+    "Myosin-7 K34"
+   ],
+   "share": {
+    "numerator": 7,
+    "denominator": 10,
+    "share": 0.7
+   },
+   "verdict": {
+    "outcome": "recurs",
+    "share": 0.7,
+    "reason": null
+   },
+   "power_flag": "n ≤ 10",
+   "secondary": {
+    "whole_population_per_cell": {
+     "wt_tac_vs_wt_control, up": {
+      "numerator": 90,
+      "denominator": 1180,
+      "share": 0.07627118644067797
+     },
+     "wt_tac_vs_wt_control, down": {
+      "numerator": 57,
+      "denominator": 1180,
+      "share": 0.048305084745762714
+     },
+     "ko_tac_vs_ko_control, up": {
+      "numerator": 134,
+      "denominator": 1180,
+      "share": 0.1135593220338983
+     },
+     "ko_tac_vs_ko_control, down": {
+      "numerator": 62,
+      "denominator": 1180,
+      "share": 0.05254237288135593
+     },
+     "ko_tac_vs_wt_tac, up": {
+      "numerator": 23,
+      "denominator": 1180,
+      "share": 0.019491525423728815
+     },
+     "ko_tac_vs_wt_tac, down": {
+      "numerator": 61,
+      "denominator": 1180,
+      "share": 0.051694915254237285
+     }
+    },
+    "whole_population_any_cell": {
+     "numerator": 316,
+     "denominator": 1180,
+     "share": 0.2677966101694915
+    },
+    "family_categories": {
+     "members": 360,
+     "counts": {
+      "durable": 0,
+      "underdetermined": 9,
+      "unsupported": 1
+     },
+     "by_claim": {
+      "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335": "underdetermined",
+      "Xin actin-binding repeat-containing protein 2 K1054": "underdetermined",
+      "Titin K12993": "underdetermined",
+      "Synaptopodin 2-like protein K433": "underdetermined",
+      "Histone-lysine N-methyltransferase 2B K102": "underdetermined",
+      "Atypical chemokine receptor 3 K362": "unsupported",
+      "Filamin-C K2590": "underdetermined",
+      "Myosin-7 K1279": "underdetermined",
+      "Myosin-7 K1305": "underdetermined",
+      "Myosin-7 K34": "underdetermined"
+     }
+    },
+    "support_out_of_20_at_default_cell": {
+     "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335": 0,
+     "Xin actin-binding repeat-containing protein 2 K1054": 11,
+     "Titin K12993": 19,
+     "Synaptopodin 2-like protein K433": 6,
+     "Histone-lysine N-methyltransferase 2B K102": 0,
+     "Atypical chemokine receptor 3 K362": 0,
+     "Filamin-C K2590": 3,
+     "Myosin-7 K1279": 4,
+     "Myosin-7 K1305": 1,
+     "Myosin-7 K34": 1
+    },
+    "label": "second attempt, after a registration defect; test identified exploratorily"
+   },
+   "label": "second attempt, after a registration defect; test identified exploratorily"
+  }
+ },
+ "generated_by": "python -m bzk.sources.pxd032267_gate --attempt 2",
+ "generated_under": {
+  "generated_at": "2026-11-07T02:06:51+00:00",
+  "commit": "f22e8c9272237e0796f5a22a829a06de45bf56b7",
+  "working_tree_clean": false,
+  "python": "3.12.14",
+  "numpy": "2.5.1",
+  "scipy": "1.18.0"
+ }
+}

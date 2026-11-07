@@ -1,0 +1,21 @@
+{
+ "state": "completed",
+ "label": "second attempt, after a registration defect; test identified exploratorily",
+ "attempt": 2,
+ "started_at": "2026-11-07T01:58:27+00:00",
+ "generated_under": {
+  "generated_at": "2026-11-07T01:58:27+00:00",
+  "commit": "f22e8c9272237e0796f5a22a829a06de45bf56b7",
+  "working_tree_clean": true,
+  "python": "3.12.14",
+  "numpy": "2.5.1",
+  "scipy": "1.18.0"
+ },
+ "sites_content_hash": "sha256:61c8fef072d7255aee03367d017154aa80b0a760006c0bd3363dd013cd11e913",
+ "parameters_content_hash": "sha256:6fd055dc570dc993ad7e7462bdd2b1b594e96dbccba73e6ecff16fd8a7d23603",
+ "licence": "ConsistencyPassed(attempt=2, decimals=4, issued_by='run')",
+ "note": "attempt 2 §5: from here a defect is reported, never corrected; this file blocks every repeat",
+ "ended_at": "2026-11-07T02:06:51+00:00",
+ "fixture": "pxd032267_gate_attempt2.json",
+ "fixture_sha256": "sha256:159415be990548042fbc52f2c69a374cb28f37d2893ef8efa2790405fb993483"
+}
