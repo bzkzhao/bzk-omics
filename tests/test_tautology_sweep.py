@@ -1965,6 +1965,48 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "{name: block.get('label') for name, block in blocks.items()} == dict.fromkeys(blocks, LABEL)",
             1,
         ),
+        # ── tests/test_audit_pxd032267.py, classified individually 2026-11-07 (prompt 36) ────────
+        # **Seven entries, seven occurrences, none an instance.** Each was reddened by a mutation
+        # applied in a copy of the repository (bytecode writing off, `__pycache__` not copied),
+        # confirmed applied by reading the file back, run, and reverted, with the copy's suite green
+        # again after the last revert. Two candidates were rewritten rather than pinned: the
+        # files-read assertion compared the recorded digest against `hashlib.sha256(...)` of the
+        # same bytes, the module's own expression — the instance shape — and now compares against
+        # the digests the record commits (the marker's `fixture_sha256`, attempt 2's
+        # `reference_fixture_sha256`); the file-name set compared against the module's constants
+        # and now compares against a literal display, which Pass C excludes.
+        #  - `[int(r['deposit_id']) ...] == [j['joined_id'] ...]`: the CSV against the fixture,
+        #    read by the test. Reddened by writing `deposit_id + 1` (`[58, 152, ...] == [57, ...]`).
+        #  - `changed == [...]`: which recorded digests moved after a byte was appended to each
+        #    walk file. Reddened by hashing the file name instead of its bytes (`[] == [...]`). **A
+        #    first mutation, hashing `raw[:-1]`, stayed green and established nothing**: appending
+        #    a byte also changes the truncated bytes, so it could not defeat the guard. Recorded
+        #    rather than dropped, since a green run there looks like a guard that does not fire.
+        #  - `len(FORBIDDEN) == len(set(FORBIDDEN)) == 23`: the list's distinctness and size,
+        #    against bzk's 23. Reddened by duplicating a token (`23 == 22`).
+        #  - `rep['label'] == gate.attempt2_label()` and `row['label'] == gate.attempt2_label()`:
+        #    the label the audit read from the fixture, against the one `pxd032267_gate` parses from
+        #    the registration's text — two sources. Each reddened by `.upper()` at its write site.
+        #  - `sorted(found) == sorted(audit.LABEL_PATHS)`: a walk of the fixture against the
+        #    module's 13 paths. Reddened by dropping `("consistency",)` from the paths.
+        #  - `violations(planted) == expected`: the whitelist guard over planted sources, against
+        #    the violations written out by hand (the `_licence_site_violations` shape above).
+        #    Reddened by the guard ignoring `asname` (`[] == ['import json']`).
+        (
+            "test_audit_pxd032267.py",
+            "[int(r['deposit_id']) for r in rows] == [j['joined_id'] for j in fixture['join']]",
+            1,
+        ),
+        (
+            "test_audit_pxd032267.py",
+            "changed == ['PXD032267-published-tables.json', 'walk_PXD032267.json']",
+            1,
+        ),
+        ("test_audit_pxd032267.py", "len(FORBIDDEN) == len(set(FORBIDDEN)) == 23", 1),
+        ("test_audit_pxd032267.py", "rep['label'] == gate.attempt2_label()", 1),
+        ("test_audit_pxd032267.py", "row['label'] == gate.attempt2_label()", 1),
+        ("test_audit_pxd032267.py", "sorted(found) == sorted(audit.LABEL_PATHS)", 1),
+        ("test_audit_pxd032267.py", "violations(planted) == expected", 1),
     }
 )
 
@@ -2231,7 +2273,10 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # all in `tests/test_pxd032267_gate.py`, the fifty-eighth module already counted. `sweep()` read
     # 58 / 2413 at `39cc2d9`, before this turn added anything — no lag this time — and 58 / 2547
     # after. Read off `sweep()` rather than incremented.
-    assert modules >= 58 and asserts >= 2547, (
+    # 2547 -> 2599 and 58 -> 59 on 2026-11-07 (prompt 36) for `tests/test_audit_pxd032267.py`
+    # (the fifty-ninth). `sweep()` read 58 / 2547 with that module set aside — no lag — and
+    # 59 / 2599 with it. Read off `sweep()` rather than incremented.
+    assert modules >= 59 and asserts >= 2599, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
