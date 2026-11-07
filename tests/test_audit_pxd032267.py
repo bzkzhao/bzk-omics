@@ -258,6 +258,42 @@ def test_stage1_raises_when_the_published_source_digest_differs(tmp_path: Path) 
         audit.stage1_sources(audit.load_record(fixtures, walk), live=False, home=None)
 
 
+def test_stage1_raises_when_attempt_2s_reference_digest_differs(tmp_path: Path) -> None:
+    fixtures, walk = _twin(tmp_path)
+    (fixtures / audit.ATTEMPT1).write_bytes((fixtures / audit.ATTEMPT1).read_bytes() + b"\n")
+    with pytest.raises(audit.AuditError, match="reference_fixture_sha256"):
+        audit.stage1_sources(audit.load_record(fixtures, walk), live=False, home=None)
+
+
+def test_stage10_raises_when_the_join_is_not_table_8(tmp_path: Path) -> None:
+    fixtures, walk = _twin(tmp_path)
+
+    def drop_row(p: dict[str, Any]) -> None:
+        p["table_8"]["rows"].pop()
+
+    _edit(walk / audit.PUBLISHED_TABLES, drop_row)
+    with pytest.raises(audit.AuditError, match="Table 8"):
+        audit.stage10_reasons(audit.load_record(fixtures, walk), tmp_path / "out")
+
+
+def test_stage10_raises_when_a_deposit_id_is_not_in_the_walk(tmp_path: Path) -> None:
+    fixtures, walk = _twin(tmp_path)
+
+    def drop_row(w: dict[str, Any]) -> None:
+        w["deposit_read"]["join_to_published_claims"]["rows"].pop()
+
+    _edit(walk / audit.WALK_RECORD, drop_row)
+    with pytest.raises(audit.AuditError, match="is not in walk_PXD032267.json"):
+        audit.stage10_reasons(audit.load_record(fixtures, walk), tmp_path / "out")
+
+
+def test_a_stage_needs_a_known_mode_and_a_reason() -> None:
+    with pytest.raises(audit.AuditError, match="unknown mode"):
+        audit.Stage(1, "x", "LIVE-ish", "a reason")
+    with pytest.raises(audit.AuditError, match="one-line reason"):
+        audit.Stage(1, "x", "NOT_AVAILABLE", " ")
+
+
 def test_live_records_absent_with_no_store_and_is_not_live(tmp_path: Path) -> None:
     stage = audit.stage1_sources(audit.load_record(), live=True, home=tmp_path)
     assert [f["store"] for f in stage.figures["pinned_files"].values()] == ["ABSENT", "ABSENT"]
