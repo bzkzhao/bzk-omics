@@ -1896,6 +1896,75 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "{float(up_1), float(down_1), float(up_b), float(down_c)} == {gate.SUPPORT_DIFFERENCE}",
             1,
         ),
+        # ── tests/test_pxd032267_gate.py, attempt 2, classified individually 2026-11-07 (prompt 35)
+        # **Fourteen new entries, sixteen occurrences, none an instance.** Each was reddened by a
+        # mutation applied in a copy of the repository (bytecode writing off, `__pycache__` not
+        # copied), confirmed applied by reading the file back, with the failure message naming the
+        # mutated value; every copy was discarded, so nothing under `walk/` was edited.
+        #  - Six are the mirror shape above, attempt 2's registration parsed against a module
+        #    constant or against itself: `WORDS_2[change_1] == int(attempt_2)` (§2's *four* against
+        #    §6's `4`; §6 `4` -> `5` in the copy, `4 == 5`); `attempt_1 == 'None'` (§6 `None` ->
+        #    `Nil`; the right side is a literal, the left a parse, matched by Pass D);
+        #    `dict(gate.ATTEMPT_ROUNDING_DECIMALS) == {...}` (`{2: 3}`); `gate.ATTEMPT_INPUT_
+        #    TOLERANCE[2] == float(first) + float(second)` (written `5.01e-7`: `5.01e-07 ==
+        #    (5e-07 + 1e-09)` — the reason the guard sums rather than parses one number);
+        #    `variant == gate.ATTEMPT2_SOLE_VARIANT` (`"T2"`); `gate.attempt2_label() == LABEL`
+        #    (whitespace left un-normalised; `LABEL` is the prompt's verbatim string, not a parse).
+        #  - `tuple(values) == gate.GATE_VARIANTS` (the exploratory parser dropping its last line)
+        #    and `tuple(variants) == gate.GATE_VARIANTS` (check 3 recording one variant fewer): a
+        #    parse of attempt 1's result, and a run's record, against the table the guard above
+        #    already ties to the registration.
+        #  - The two label assertions, `{name: block.get('label') ...} == dict.fromkeys(...)` and
+        #    `_readout_blocks(fixture)[...]['label'] == LABEL`: readout B's secondaries labelled
+        #    with attempt 1's licence reddens both (`KeyError: 'label'`, and the dict diff).
+        #  - `_licence_site_violations(planted_module, planted_other) == [...]`: the guard over a
+        #    planted source, against the violations written out by hand; reddened by the guard
+        #    ignoring the enclosing function.
+        #  - `licences == []` and `minted == 0`, two occurrences each (one parametrised test, one
+        #    all-three test): what `on_licence` received and how many licences were minted while
+        #    §3 failed. Reddened respectively by `run()` handing `on_licence` a factory licence
+        #    before §3, and by `run()` minting one and discarding it — each red in all four cases.
+        #  - `len(check_2['inputs']['reference_gate_rows']) == gate.ATTEMPT2_GATE_ROWS`: check 2's
+        #    reader over the committed attempt-1 fixture, against the constant guarded to §3's
+        #    *"all three"*; reddened by the reader keeping two of the rows (`2 == 3`).
+        ("test_pxd032267_gate.py", "WORDS_2[change_1] == int(attempt_2)", 1),
+        (
+            "test_pxd032267_gate.py",
+            "_licence_site_violations(planted_module, planted_other) == [f'{GATE_MODULE}: {MINT}attempt1 referenced in readout_d', f'{GATE_MODULE}: unknown mint {MINT}forged in readout_a', 'notes/scripts/planted.py: names a private mint']",
+            1,
+        ),
+        (
+            "test_pxd032267_gate.py",
+            "_readout_blocks(fixture)['D B secondaries']['label'] == LABEL",
+            1,
+        ),
+        ("test_pxd032267_gate.py", "attempt_1 == 'None'", 1),
+        (
+            "test_pxd032267_gate.py",
+            "dict(gate.ATTEMPT_ROUNDING_DECIMALS) == {1: None, 2: int(attempt_2)}",
+            1,
+        ),
+        (
+            "test_pxd032267_gate.py",
+            "gate.ATTEMPT_INPUT_TOLERANCE[2] == float(first) + float(second)",
+            1,
+        ),
+        ("test_pxd032267_gate.py", "gate.attempt2_label() == LABEL", 1),
+        (
+            "test_pxd032267_gate.py",
+            "len(check_2['inputs']['reference_gate_rows']) == gate.ATTEMPT2_GATE_ROWS",
+            1,
+        ),
+        ("test_pxd032267_gate.py", "licences == []", 2),
+        ("test_pxd032267_gate.py", "minted == 0", 2),
+        ("test_pxd032267_gate.py", "tuple(values) == gate.GATE_VARIANTS", 1),
+        ("test_pxd032267_gate.py", "tuple(variants) == gate.GATE_VARIANTS", 1),
+        ("test_pxd032267_gate.py", "variant == gate.ATTEMPT2_SOLE_VARIANT", 1),
+        (
+            "test_pxd032267_gate.py",
+            "{name: block.get('label') for name, block in blocks.items()} == dict.fromkeys(blocks, LABEL)",
+            1,
+        ),
     }
 )
 
@@ -2158,7 +2227,11 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # named, accrued a second time by the route it names. This turn's own share is the last two
     # modules, `tests/test_tukey.py` and `tests/test_pxd032267_gate.py` (the fifty-seventh and
     # fifty-eighth), and 112 asserts. Read off `sweep()` rather than incremented.
-    assert modules >= 58 and asserts >= 2413, (
+    # 2413 -> 2547 on 2026-11-07 (prompt 35), module count unchanged at 58: attempt 2's tests,
+    # all in `tests/test_pxd032267_gate.py`, the fifty-eighth module already counted. `sweep()` read
+    # 58 / 2413 at `39cc2d9`, before this turn added anything — no lag this time — and 58 / 2547
+    # after. Read off `sweep()` rather than incremented.
+    assert modules >= 58 and asserts >= 2547, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
