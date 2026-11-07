@@ -215,11 +215,52 @@ Two registered tests on it:
 **The census cannot be run here**, for the reason in §7: no per-replicate values
 are published.
 
+## 10a. A third deposit, with no shared authors
+
+*Second attempt, after a registration defect; test identified exploratorily.*
+`walk/RESULT-PXD032267-gate-attempt2.md`; attempt 1 is
+`walk/RESULT-PXD032267-gate-attempt1.md`.
+
+**The deposit.** `PXD032267`: Yerra et al., *J Clin Invest* 2023. Mouse hearts,
+genotype × pressure overload, n = 3 per cell. It was selected by a rule
+registered before any candidate was examined (`walk/SELECTION-third-deposit.md`).
+Its named test is a two-way ANOVA with Tukey's HSD.
+
+**What reproduces.** With four-decimal input and the paper's test, the stated
+pipeline reproduces all six of the paper's published call counts. Each
+published count lies within the range of 20 imputation draws.
+
+**What recurs.** Of the seven published site claims whose row carries a drawn
+value, four change support across 20 draws at a fixed imputation setting. That
+is the same draw instability as on the first two deposits, now on a deposit
+with no shared authors. At n = 7 the verdict is near-binary and carries far
+less weight than the first deposit's.
+
+**The paper's headline target.** The site the paper builds its mechanism on is
+claimed to fall in knockout hearts after pressure overload. That claim holds in
+2 of 20 draws. Its other published claim, a rise in wild-type hearts, holds in
+19 of 20. One further published claim holds in none of the 20 draws at the
+same setting.
+
+**A setting the paper does not state.** Match-between-runs supplies 3,201 cells.
+Without them, three of the six published counts are no longer reproduced. The
+three claims measured in every sample lose all support: their measured values
+were partly transferred from other runs.
+
+**What this does not show.** The authors' imputation settings are unstated. Our
+registered default stands in for them, and half the claims' support depends on
+that choice. These claims are fragile to unstated choices, not shown to be
+false.
+
 ## 11. Limitations
 
-- **The two deposits share authors.** Everything here is recurrence within one
-  group's practice. A third deposit with no shared authors is the outstanding
-  requirement.
+- **The first two deposits share authors.** A third, with none shared, now
+  exists (§10a). On it, draw instability recurs, but over seven exposed claims,
+  as a second attempt after a registration defect, and with the test identified
+  after the first attempt's gate had stopped. That is enough to say the effect
+  is not confined to one group's practice. It is not enough to size it there.
+  The third deposit's proteomics was run by a contract provider, so a convention
+  shared through tooling is not excluded.
 - **The FDR convention that reproduces the second deposit's published output
   remains unexplained.** Preserved grouping, all 18 imputation settings, the
   median estimator, a null-proportion scaling and a grid over that deposit's own

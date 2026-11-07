@@ -1146,6 +1146,18 @@ One number, one more dataset.
     (`walk/PREREG-PXD032267-gate-attempt2.md`). Its readouts carry the label
     *second attempt, after a registration defect*. D7 is untested here until it
     runs.
+  - **Attempt 2 (2026-11-07, final): the top gate is met, as a second attempt**
+    (`walk/RESULT-PXD032267-gate-attempt2.md`; fixture at `63ca92b`).
+    *Second attempt, after a registration defect; test identified
+    exploratorily.*
+    - **H10's definition on a deposit with no shared authors: recurs**, 4 of 7
+      exposed claims, with `n ≤ 10`. **D7 has recurred outside one group.**
+    - The stated pipeline reproduces all six published counts.
+    - The published claim set also depends on match-between-runs, which the
+      paper does not state.
+    - What the gate leaves open: the D7 verdict is near-binary at this n, and is
+      conditional on the registered default imputation cell. Half the claims'
+      support turns on that choice.
 - **H1 blocked** on the 2019 search FASTA. The refusal fixture carries sequence
   versions only for refused rows; the drift receipt measures cache-against-
   UniProt over one day, a different relation. If the deposit carries no search
