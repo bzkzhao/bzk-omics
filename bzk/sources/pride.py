@@ -79,6 +79,32 @@ PXD018299_PROTEIN_GROUPS = DepositFile(
 )
 
 
+# The third deposit's site table and its MaxQuant parameters (walk/PREREG-PXD032267-gate.md §2).
+# Year and month are the archive path segments, from the publication date 2023-05-10 in
+# data/frame/frame_raw.tsv (guarded in tests/test_pxd032267_gate.py).
+#
+# **`expected_content_hash=None` is deliberate, not an omission.** `walk_PXD032267.json`'s
+# `deposit_read` was taken in a browser and held no bytes, so no digest has ever been computed for
+# either file, and one written here would be invented. The first fetch on bzk's Mac records the
+# digest (`pxd032267_gate.pinning_check` reports it, and says that it compared against nothing);
+# it is pinned here from that report, in a later commit, after which a differing download raises.
+PXD032267_SITES = DepositFile(
+    accession="PXD032267",
+    year=2023,
+    month=5,
+    filename="GlyGly__K_Sites.txt",
+    expected_content_hash=None,
+)
+
+PXD032267_PARAMETERS = DepositFile(
+    accession="PXD032267",
+    year=2023,
+    month=5,
+    filename="parameters.txt",
+    expected_content_hash=None,
+)
+
+
 def fetch_bytes(url: str, *, session: BytesSession | None = None, timeout: int = 600) -> bytes:
     sess = session or requests.Session()
     response = sess.get(to_https(url), timeout=timeout)

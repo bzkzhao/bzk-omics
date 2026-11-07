@@ -1787,6 +1787,115 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "set(written['check_a']) == {v.name for v in h10.ATTEMPT_3_VARIANTS}",
             1,
         ),
+        # ── tests/test_tukey.py, classified individually 2026-11-07 (prompt 34) ───────────────
+        # **Four matches, all `PINNED`; none is a call compared against its own expression.** The
+        # module's 114 oracle comparisons are written `abs(got - expected) <= TOLERANCE` — the
+        # registration's |Δ| ≤ 1e-6 stated as itself — so they are not equalities and the net does
+        # not see them; their evidence is the build report's T1-df mutation (`N - 4` -> `N - 3`,
+        # twelve T1 values red). Each line below was reddened by a mutation confirmed applied by
+        # reading the file back, run with bytecode writing off, and reverted:
+        #  - `float(backward.diff[0]) == -float(forward.diff[0])`: `PairResult.reversed` keeping
+        #    the sign (`diff=-self.diff` -> `diff=self.diff`), 10.43 against -10.43. Both sides come
+        #    from one `TukeyResult`, but the left is the reversal and the right the stored pair, and
+        #    the scope reddens — `INSTANCES`' own test for *not* an instance.
+        #  - `float(backward.p[variant][0]) == float(forward.p[variant][0])`: the reversal taking
+        #    `1 - p`, 0.0062 against 0.9938.
+        #  - `float(found[0]) == TOLERANCE`: the registration's 1e-6 parsed against the module
+        #    constant, a mirror between two homes; reddened by `TOLERANCE = 1e-7`.
+        #  - `len(rows) == ORACLE_VALUES + 1`: the reader dropping the fixture's first row, 114
+        #    against 115. The right side is a literal written from the receipt check's count.
+        ("test_tukey.py", "float(backward.diff[0]) == -float(forward.diff[0])", 1),
+        ("test_tukey.py", "float(backward.p[variant][0]) == float(forward.p[variant][0])", 1),
+        ("test_tukey.py", "float(found[0]) == TOLERANCE", 1),
+        ("test_tukey.py", "len(rows) == ORACLE_VALUES + 1", 1),
+        # ── tests/test_pxd032267_gate.py, classified individually 2026-11-07 (prompt 34) ──────
+        # **Twenty-two matches, all `PINNED`, and twenty-one are one shape: the registration's
+        # text, parsed, against a module constant** — the `graph.I4_LABELS` mirror guard, whose two
+        # sides are two homes and not one call. The net matches them because parsing is a call;
+        # what is parsed is `walk/PREREG-PXD032267-gate.md`, which `pxd032267_gate` never reads
+        # for these values. The twenty-second, `(deposit.year, deposit.month) == ...`, is the same
+        # shape against `data/frame/frame_raw.tsv`'s publication date. Each was reddened by a
+        # mutation of the constant (or of the loader feeding the right side), confirmed applied by
+        # reading the file back, run with bytecode writing off, and reverted. **Bytecode writing
+        # is off because the first pass was misled by it**: `month=5` -> `month=6` keeps the file's
+        # size, the restore landed within the same second, and the next full run imported the
+        # mutated `.pyc` and failed a test whose source was correct — a stale-cache false *red*.
+        # The symmetric false green (a mutation never compiled) did not occur: every failure
+        # message named the mutated value.
+        #  - deposit month 5 -> 6 (`(2023, 6) == (2023, 5)`); readout C 2590 -> 2591; Table 7's
+        #    loader swapping up and down; the default cell's scope; `P_TOLERANCE` 2e-4 (one line
+        #    asserts §4's two statements of 1e-4 against each other *and* the constant);
+        #    `INPUT_TOLERANCE` 1e-6; `DRAW_SEEDS` as `range(1, 21)` (reddens the range line, the
+        #    length line above it stays green) and as `SEEDS[:19]` (reddens the length line);
+        #    `ABSENT` 0.02; `RECURS` 0.06; `NEAR_FRACTION` 0.2; one Table 7 label's full stop
+        #    dropped; `df_student` as `2n - 1` (`measured == stated`, T4 reads 5 against 4); the
+        #    loader adding 1e-3 to every p (Y6's `0.0509 == 0.0499`); the downshift, width and
+        #    scope grids each altered; the candidates truncated to `(3, 2)`; T4 and T5 swapped;
+        #    `WtTAC3` "corrected" to `WtTCA3`; `SUPPORT_ALPHA` 0.01; `SUPPORT_DIFFERENCE` 0.58.
+        #  - The two `{...} == {constant}` set comparisons assert every statement of the rule
+        #    agrees: §1, §5 B and §5 C each state half of it, so a set of size one is the claim.
+        ("test_pxd032267_gate.py", "(deposit.year, deposit.month) == (int(year), int(month))", 1),
+        ("test_pxd032267_gate.py", "(name, int(position)) == gate.READOUT_C_TARGET", 1),
+        (
+            "test_pxd032267_gate.py",
+            "[(int(u), int(d)) for _, u, d in rows] == [(v['up'], v['down']) for v in published.values()]",
+            1,
+        ),
+        (
+            "test_pxd032267_gate.py",
+            "bold == (float(width), float(downshift), scope) == gate.DEFAULT_CELL",
+            1,
+        ),
+        ("test_pxd032267_gate.py", "float(passes) == float(separated) == gate.P_TOLERANCE", 1),
+        ("test_pxd032267_gate.py", "float(value) == gate.INPUT_TOLERANCE", 1),
+        ("test_pxd032267_gate.py", "gate.DRAW_SEEDS == tuple(range(int(draws)))", 1),
+        ("test_pxd032267_gate.py", "int(absent) / 100 == gate.ABSENT_AT_OR_BELOW_SHARE", 1),
+        ("test_pxd032267_gate.py", "int(percent) / 100 == gate.NEAR_FRACTION", 1),
+        ("test_pxd032267_gate.py", "int(recurs) / 100 == gate.RECURS_AT_OR_ABOVE_SHARE", 1),
+        ("test_pxd032267_gate.py", "len(gate.DRAW_SEEDS) == int(draws)", 1),
+        (
+            "test_pxd032267_gate.py",
+            "list(published) == [c.published_label for c in gate.COMPARISONS]",
+            1,
+        ),
+        ("test_pxd032267_gate.py", "measured == stated", 1),
+        ("test_pxd032267_gate.py", "round(by_label[label].p_value, decimals) == float(text)", 1),
+        (
+            "test_pxd032267_gate.py",
+            "tuple((float(x) for x in re.findall('[0-9.]+', downshifts))) == gate.GRID_DOWNSHIFT_SDS",
+            1,
+        ),
+        (
+            "test_pxd032267_gate.py",
+            "tuple((float(x) for x in re.findall('[0-9.]+', widths))) == gate.GRID_WIDTH_SDS",
+            1,
+        ),
+        (
+            "test_pxd032267_gate.py",
+            "tuple((int(x) for x in found)) == gate.VALID_VALUE_CANDIDATES",
+            1,
+        ),
+        (
+            "test_pxd032267_gate.py",
+            "tuple((v for v, _ in _variant_table())) == gate.GATE_VARIANTS",
+            1,
+        ),
+        ("test_pxd032267_gate.py", "tuple(expanded) == gate.SAMPLES", 1),
+        (
+            "test_pxd032267_gate.py",
+            "tuple(re.findall('`(\\\\w+)`', scopes)) == gate.GRID_SCOPES",
+            1,
+        ),
+        (
+            "test_pxd032267_gate.py",
+            "{float(alpha_1), float(alpha_b), float(alpha_c)} == {gate.SUPPORT_ALPHA}",
+            1,
+        ),
+        (
+            "test_pxd032267_gate.py",
+            "{float(up_1), float(down_1), float(up_b), float(down_c)} == {gate.SUPPORT_DIFFERENCE}",
+            1,
+        ),
     }
 )
 
@@ -2043,7 +2152,13 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # forty-eighth), read off `sweep()` in the same way.
     # 1653 -> 1693 and 48 -> 49 the same day for `tests/test_pxd026748_reconstruction.py`
     # (the forty-ninth), read off `sweep()` in the same way.
-    assert modules >= 49 and asserts >= 1693, (
+    # 1693 -> 2413 and 49 -> 58 on 2026-11-07 (prompt 34). **The floor had lagged again, by seven
+    # modules and 608 assertions**: `sweep()` read 56 modules / 2301 asserts at `2b1866e`, before
+    # this turn added anything, against a floor of 49 / 1693 — the slack the 2026-09-20 note
+    # named, accrued a second time by the route it names. This turn's own share is the last two
+    # modules, `tests/test_tukey.py` and `tests/test_pxd032267_gate.py` (the fifty-seventh and
+    # fifty-eighth), and 112 asserts. Read off `sweep()` rather than incremented.
+    assert modules >= 58 and asserts >= 2413, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
