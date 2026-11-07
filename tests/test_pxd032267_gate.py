@@ -911,6 +911,10 @@ ALLOWED_MINT_SITES = {
 }
 GUARDED_ROOTS = ("bzk", "tests", "notes/scripts")
 GATE_MODULE = "bzk/sources/pxd032267_gate.py"
+#: The test factory mints real licences, so it is allowed in this file alone — where
+#: `test_the_test_factory_is_used_only_by_direct_readout_tests` limits it further.
+FACTORY = "licence_for" + "_tests"
+FACTORY_ALLOWED = {GATE_MODULE, "tests/test_pxd032267_gate.py"}
 
 
 def _licence_site_violations(module_source: str, others: dict[str, str]) -> list[str]:
@@ -944,6 +948,8 @@ def _licence_site_violations(module_source: str, others: dict[str, str]) -> list
             found.append(f"{path}: names a private mint")
         if CONSISTENCY_CALL in text:
             found.append(f"{path}: calls §3's checks")
+        if FACTORY in text and path not in FACTORY_ALLOWED:
+            found.append(f"{path}: uses the test factory")
     return found
 
 
@@ -974,11 +980,15 @@ def test_the_licence_site_guard_fails_on_planted_uses() -> None:
         f"def readout_d(): {MINT}attempt1()\n"
         f"def readout_a(): object.__new__({MINT}forged)\n"
     )
-    planted_other = {"notes/scripts/planted.py": f"licence = gate.{MINT}consistency()\n"}
+    planted_other = {
+        "notes/scripts/planted.py": f"licence = gate.{MINT}consistency()\n",
+        "notes/scripts/readouts_on_real_data.py": f"licence = gate.{FACTORY}(2)\n",
+    }
     assert _licence_site_violations(planted_module, planted_other) == [
         f"{GATE_MODULE}: {MINT}attempt1 referenced in readout_d",
         f"{GATE_MODULE}: unknown mint {MINT}forged in readout_a",
         "notes/scripts/planted.py: names a private mint",
+        "notes/scripts/readouts_on_real_data.py: uses the test factory",
     ]
 
 

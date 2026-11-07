@@ -1930,7 +1930,7 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_pxd032267_gate.py", "WORDS_2[change_1] == int(attempt_2)", 1),
         (
             "test_pxd032267_gate.py",
-            "_licence_site_violations(planted_module, planted_other) == [f'{GATE_MODULE}: {MINT}attempt1 referenced in readout_d', f'{GATE_MODULE}: unknown mint {MINT}forged in readout_a', 'notes/scripts/planted.py: names a private mint']",
+            "_licence_site_violations(planted_module, planted_other) == [f'{GATE_MODULE}: {MINT}attempt1 referenced in readout_d', f'{GATE_MODULE}: unknown mint {MINT}forged in readout_a', 'notes/scripts/planted.py: names a private mint', 'notes/scripts/readouts_on_real_data.py: uses the test factory']",
             1,
         ),
         (
