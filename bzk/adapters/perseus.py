@@ -261,6 +261,35 @@ class PerseusError(ValueError):
     """A Perseus table cannot be ingested. Never downgraded to a warning (`CLAUDE.md`)."""
 
 
+def _statistic(row: list[str], index: int, name: str, line_no: int) -> float:
+    """One value from a Perseus **statistics** column — Difference, p, −log p, q or the test
+    statistic — as a finite float, or a refusal naming the file line, the column and the raw cell.
+
+    **A statistics column's blank is a malformed row; a quantitative column's blank is an
+    absence** (I19, `_cell_value` above). Both rules are correct and they are not interchangeable.
+    `_cell_value` returns `None` for blank, unparseable and `NaN`, which is right for an intensity
+    nobody measured. Routed through it, a statistics cell would become an absence, and rule (a)
+    cannot judge an absent Difference zero nor rule (b) recompute against one: the row would turn
+    quietly untested. So this refuses instead.
+
+    **Non-finite is refused as well as unparseable.** `float()` accepts `NaN`, `inf` and
+    `-Infinity` without raising, so a `try`/`except ValueError` alone would pass them through as
+    numbers. Every statistics read in this module goes through here, so the sentence is one.
+    """
+    text = row[index]
+    try:
+        value: float | None = float(text)
+    except ValueError:
+        value = None
+    if value is None or not math.isfinite(value):
+        raise PerseusError(
+            f"line {line_no}: statistics column {name!r} holds {text!r}, not a finite number, so "
+            "this row's result cannot be read. Refused rather than read as absent: a statistic "
+            "that is not a number is a malformed row, not an untested one (ADR-0038 D6-revised)"
+        )
+    return value
+
+
 @dataclass(frozen=True)
 class DeclaredContrast:
     """One contrast the caller states, tying a Perseus column suffix to a `Contrast` node.
@@ -392,20 +421,25 @@ class _ContrastColumns:
     negated: bool
     #: `None` where the file carries no test-statistic column (D6-revised *Limits*).
     statistic: int | None
+    #: The header each bound index came from, so a refusal names the column (`_statistic`).
+    names: Mapping[int, str]
 
-    def difference_of(self, row: list[str]) -> float:
-        return float(row[self.difference])
+    def _read(self, row: list[str], index: int, line_no: int) -> float:
+        return _statistic(row, index, self.names[index], line_no)
 
-    def result(self, row: list[str]) -> dict[str, object]:
-        raw_p = float(row[self.p_value])
+    def difference_of(self, row: list[str], line_no: int) -> float:
+        return self._read(row, self.difference, line_no)
+
+    def result(self, row: list[str], line_no: int) -> dict[str, object]:
+        raw_p = self._read(row, self.p_value, line_no)
         return {
-            "log2fc": self.difference_of(row),
+            "log2fc": self.difference_of(row, line_no),
             # Perseus' default is the negated log; 4.51 here means p = 3.09e-05.
             "p_value": 10**-raw_p if self.negated else raw_p,
-            "adj_p_value": float(row[self.q_value]),
+            "adj_p_value": self._read(row, self.q_value, line_no),
         }
 
-    def untested(self, row: list[str]) -> bool:
+    def untested(self, row: list[str], line_no: int) -> bool:
         """ADR-0038 D6-revised (a): Difference `0`, −log p `0` (p = 1), and the statistic `0` where
         the file carries it — the placeholder Perseus writes for a row it had nothing to test.
 
@@ -413,12 +447,12 @@ class _ContrastColumns:
         row's test; S1's untested rows carry q `1`, and that is recorded beside the rule, not in it.
         **Reads no arm column**, which is what keeps (b) failing closed.
         """
-        raw_p = float(row[self.p_value])
+        raw_p = self._read(row, self.p_value, line_no)
         p_is_one = raw_p == 0.0 if self.negated else raw_p == 1.0
         return (
-            self.difference_of(row) == 0.0
+            self.difference_of(row, line_no) == 0.0
             and p_is_one
-            and (self.statistic is None or float(row[self.statistic]) == 0.0)
+            and (self.statistic is None or self._read(row, self.statistic, line_no) == 0.0)
         )
 
 
@@ -659,7 +693,7 @@ class PerseusAdapter:
                 # indistinguishable from a measured null (ADR-0038 D6-revised).
                 if line_no in proof[contrast_id].untested_lines:
                     continue
-                result = reader.result(row)
+                result = reader.result(row, line_no)
                 # I4: protein-grain results are the uncorrected kind by construction — there is no
                 # matched proteome above a protein to correct it against, so `adjustment_method`
                 # stays null (§3 classifies that absence as determined by `protein_adjusted`).
@@ -902,6 +936,9 @@ class PerseusAdapter:
                 "what it claims and picking one would be a guess about which is authoritative"
             )
         negated = plain_p not in columns
+        bound = [difference, q_value, minus_log_p if negated else plain_p]
+        if statistic in columns:
+            bound.append(statistic)
         return _ContrastColumns(
             declared=declared,
             difference=columns[difference],
@@ -909,6 +946,7 @@ class PerseusAdapter:
             p_value=columns[minus_log_p if negated else plain_p],
             negated=negated,
             statistic=columns.get(statistic),
+            names={columns[name]: name for name in bound},
         )
 
     @staticmethod
@@ -957,7 +995,7 @@ class PerseusAdapter:
         for line_no, row in rows:
             # Rule (a), reading no arm column — so the binding under test cannot choose which rows
             # it is excused from.
-            if reader.untested(row):
+            if reader.untested(row, line_no):
                 untested.add(line_no)
                 continue
             # Rule (b).
@@ -975,7 +1013,7 @@ class PerseusAdapter:
             recomputed = sum(values[n] for n in numerator) / len(numerator) - sum(
                 values[n] for n in denominator
             ) / len(denominator)
-            reported = reader.difference_of(row)
+            reported = reader.difference_of(row, line_no)
             deviation = abs(reported - recomputed)
             if deviation > PROOF_TOLERANCE:
                 raise PerseusError(

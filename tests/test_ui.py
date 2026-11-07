@@ -498,7 +498,9 @@ def _perseus_graph(path: Path, recorded: str | None = "derive") -> Path:
         ),
         [
             DeclaredContrast(
-                "KO_IFN_WT_IFN", contrast, ContrastArms((samples[1],), (samples[0],), "condition")
+                "KO_IFN_WT_IFN",
+                contrast,
+                ContrastArms((samples[1],), (samples[0],), "condition", contrast_id),
             )
         ],
     )

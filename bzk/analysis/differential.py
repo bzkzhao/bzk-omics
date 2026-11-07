@@ -100,6 +100,8 @@ def site_change_set(
     site-grain result has no display label in either IP kind. The refusal sits at the producer and
     not in an invariant because kind is not visible at write time — the `Contrast` above is staged
     as a bare referent, without the arm samples or the anchor's `modality` it is derived from.
+    **Arms resolved for a different contrast are refused too**: `ContrastArms.contrast_id` must be
+    `contrast["id"]`. The two arrive as separate arguments, and this is the one place they meet.
 
     `parameters_observed` is `True` and `kind` is `'processing'`: §5's enum offers
     `'processing' | 'curation' | 'external'` and there is no fourth value for *the platform ran it*
@@ -155,6 +157,17 @@ def site_change_set(
             f"got {contrast.get(NODE_TYPE_KEY)!r} with id {contrast.get('id')!r}"
         )
     contrast_id = str(contrast["id"])
+    # The arms must be this contrast's. `contrast` and `arms` arrive as two arguments, and nothing
+    # else relates them: arms resolved for one contrast, passed with another, would attribute every
+    # result to a comparison its arm samples were not drawn for. Checked after the shape refusal
+    # above, so `contrast["id"]` is known good, and before the `Contrast` is staged.
+    if arms.contrast_id != contrast_id:
+        raise ValueError(
+            f"site_change_set's arms were resolved for Contrast {arms.contrast_id!r}, not for the "
+            f"Contrast passed, {contrast_id!r}: every result would be attributed to one comparison "
+            "while its arm samples belong to another. Pass the arms the loader resolved for this "
+            "contrast (LoadedCuration.contrast_arms under the same handle as LoadedCuration.contrast)"
+        )
     nodes.append(dict(contrast))
 
     for result in results:

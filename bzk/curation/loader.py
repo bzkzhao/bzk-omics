@@ -190,11 +190,18 @@ class ContrastArms:
     **`kind` is derived, never stored**: it is computed here from the anchor's `modality` and the
     arms' roles by `invariants.contrast_kind` — D2's table, I22 — and no node property or DDL
     column holds it (ADR-0036 D4's rule, kept by ADR-0038 D2).
+
+    **`contrast_id` is the minted `Contrast` node's id these arms were resolved for**, so a consumer
+    handed arms and a `Contrast` separately can refuse a pair that does not belong together
+    (`site_change_set`). It is a reference, not a property: the arms stay non-identifying (D4), and
+    nothing writes this field to any node or edge — `contrast_id` is read by that check and by
+    nothing else. Not the record's handle: the minted node carries no handle to compare against.
     """
 
     numerator: tuple[str, ...]
     denominator: tuple[str, ...]
     kind: str
+    contrast_id: str
 
 
 @dataclass(frozen=True)
@@ -685,6 +692,7 @@ def load(record: Mapping[str, Any]) -> LoadedCuration:
                 [by_id[sid] for sid in numerator],
                 [by_id[sid] for sid in denominator],
             ),
+            contrast_id=str(contrast_nodes[handle]["id"]),
         )
         for handle, (numerator, denominator) in arms.items()
     }

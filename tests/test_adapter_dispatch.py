@@ -86,7 +86,10 @@ def _perseus_adapter() -> PerseusAdapter:
                 },
                 # Required since ADR-0038 D6-revised (b); only `sniff` runs here, so nothing binds.
                 arms=ContrastArms(
-                    numerator=("bzk:sample-num",), denominator=("bzk:sample-den",), kind="condition"
+                    numerator=("bzk:sample-num",),
+                    denominator=("bzk:sample-den",),
+                    kind="condition",
+                    contrast_id="bzk:contrast-dispatch",
                 ),
             )
         ],

@@ -77,7 +77,12 @@ SAMPLE_IDS = (
 #: id in the numerator. Since D6-revised (b) the adapter proves its binding with them, so every
 #: statistics-bearing fixture carries one column per arm sample, and its Difference is the
 #: numerator's value minus the denominator's.
-ARMS = ContrastArms(numerator=(SAMPLE_IDS[1],), denominator=(SAMPLE_IDS[0],), kind="condition")
+ARMS = ContrastArms(
+    numerator=(SAMPLE_IDS[1],),
+    denominator=(SAMPLE_IDS[0],),
+    kind="condition",
+    contrast_id=str(CONTRAST_NODE["id"]),
+)
 CONTRAST = DeclaredContrast(column_suffix="KO_IFN_WT_IFN", contrast=CONTRAST_NODE, arms=ARMS)
 
 #: The arm columns the three tab-separated fixtures carry, numerator first.
@@ -1265,7 +1270,10 @@ def test_D6b_an_arm_sample_with_no_column_is_refused(tmp_path: Path) -> None:
     reports — the subset hazard `_withheld_because` already names for the matrix.
     """
     arms = ContrastArms(
-        numerator=(SAMPLE_IDS[1], NON_ARM_SAMPLE), denominator=(SAMPLE_IDS[0],), kind="condition"
+        numerator=(SAMPLE_IDS[1], NON_ARM_SAMPLE),
+        denominator=(SAMPLE_IDS[0],),
+        kind="condition",
+        contrast_id=str(CONTRAST_NODE["id"]),
     )
     contrast = DeclaredContrast(column_suffix="KO_IFN_WT_IFN", contrast=CONTRAST_NODE, arms=arms)
     book = _tsv(tmp_path / "half.txt", [["P20591", "23.42", "20.00", "3.42", "4.51", "0.01", "5"]])
@@ -1293,6 +1301,69 @@ def test_D6b_a_tested_row_with_an_infinite_arm_value_is_refused(
     book = _tsv(tmp_path / "inf.txt", [["P20591", "inf", "20.00", "3.42", "4.51", "0.01", "5"]])
     adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
     with pytest.raises(PerseusError, match="not a finite value"):
+        adapter.parse(book, mapping)
+
+
+#: Prompt 33 §2.3: one malformed statistics cell per row, each in a row whose evaluation reaches it.
+#: The statistic is read only when Difference and p are the placeholder (rule (a) short-circuits),
+#: and q only on a tested row, so each row is shaped to reach its own column.
+_MALFORMED_STATISTICS = [
+    pytest.param(
+        ["P20591", "23.42", "20.00", "", "4.51", "0.01", "5"],
+        "Student's T-test Difference KO_IFN_WT_IFN",
+        "''",
+        id="blank-difference",
+    ),
+    pytest.param(
+        ["P20591", "23.42", "20.00", "3.42", "4.51", "", "5"],
+        "Student's T-test q-value KO_IFN_WT_IFN",
+        "''",
+        id="blank-q",
+    ),
+    pytest.param(
+        ["P20591", "20.00", "20.00", "0", "0", "1", "n.a."],
+        "Student's T-test Test statistic KO_IFN_WT_IFN",
+        "'n.a.'",
+        id="non-numeric-statistic",
+    ),
+    pytest.param(
+        ["P20591", "23.42", "20.00", "NaN", "4.51", "0.01", "5"],
+        "Student's T-test Difference KO_IFN_WT_IFN",
+        "'NaN'",
+        id="nan-difference",
+    ),
+    pytest.param(
+        ["P20591", "23.42", "20.00", "3.42", "inf", "0.01", "5"],
+        "-Log Student's T-test p-value KO_IFN_WT_IFN",
+        "'inf'",
+        id="infinite-minus-log-p",
+    ),
+]
+
+
+@pytest.mark.parametrize(("row", "column", "raw"), _MALFORMED_STATISTICS)
+def test_a_statistics_cell_that_is_not_a_finite_number_is_refused_naming_line_and_column(
+    mapping: SampleMapping, tmp_path: Path, row: list[str], column: str, raw: str
+) -> None:
+    """A malformed statistics cell is a refusal, not an absence (prompt 33 §2.3): the message
+    carries the file line, the column and the raw cell. `float()` accepts `NaN` and `inf`, so the
+    last two rows are the ones a bare `try`/`except ValueError` would have passed through."""
+    book = _tsv(tmp_path / "malformed.txt", [row])
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    with pytest.raises(PerseusError) as refused:
+        adapter.parse(book, mapping)
+    message = str(refused.value)
+    assert f"line 3: statistics column {column!r} holds {raw}," in message
+    assert "not a finite number" in message
+
+
+def test_a_nan_difference_no_longer_reads_as_tested(mapping: SampleMapping, tmp_path: Path) -> None:
+    """Before prompt 33, `NaN == 0.0` is `False`, so rule (a) called a `NaN`-Difference row tested
+    and it would have minted a `DifferentialResult` with log2FC `NaN`. The statistics helper refuses
+    it at the first read, so it is neither tested nor untested — it is malformed."""
+    book = _tsv(tmp_path / "nan.txt", [["P20591", "23.42", "20.00", "NaN", "4.51", "0.01", "5"]])
+    adapter = PerseusAdapter(declared=DECLARED, contrasts=[CONTRAST])
+    with pytest.raises(PerseusError, match="Difference KO_IFN_WT_IFN\" holds 'NaN'"):
         adapter.parse(book, mapping)
 
 

@@ -39,20 +39,15 @@ RUN = DeclaredRun(
 )
 
 
-def _anchored_contrast(numerator: str, denominator: str) -> dict[str, object]:
-    """A `Contrast` as the curation loader mints it: anchored on an `Experiment` (ADR-0027)."""
-    from bzk.ontology.keys import evidence_id
-
-    props = {"numerator": numerator, "denominator": denominator}
-    cid = evidence_id("Contrast", props, {"Experiment": "bzk:experiment-test"})
-    return {NODE_TYPE_KEY: "Contrast", "id": cid, **props, "label": f"{numerator} vs {denominator}"}
-
-
-CONTRAST = _anchored_contrast("USP18-/- + IFN", "WT + IFN")
-
 REAL_RECORD = (
     Path(__file__).resolve().parent.parent / "data" / "curation" / "curation_PXD018299.json"
 )
+#: The real record's primary `Contrast`, as the loader mints it. **The node `CONDITION_ARMS` were
+#: resolved for, so the two are a pair**: until prompt 33 this was a synthetic `Contrast` anchored on
+#: `bzk:experiment-test`, paired with the real record's arms — exactly the mismatch
+#: `site_change_set` now refuses. A minted node rather than a hand-built one also keeps ADR-0029 E's
+#: test honest: the staged `Contrast` must be this node, and only the loader mints it.
+CONTRAST = load_path(REAL_RECORD).contrast("KO_IFN_vs_WT_IFN")
 #: The arms the loader resolves for the real record's primary contrast, kind derived: `condition`.
 CONDITION_ARMS = load_path(REAL_RECORD).contrast_arms["KO_IFN_vs_WT_IFN"]
 
@@ -284,6 +279,56 @@ def test_the_contrast_is_staged_as_given_and_none_is_minted() -> None:
     assert staged == [CONTRAST]
     in_contrast = [e for e in change_set.edges if e["type"] == "RESULT_IN_CONTRAST"]
     assert [e["to"] for e in in_contrast] == [CONTRAST["id"]]
+
+
+def test_the_matched_pair_yields_one_analysis_and_one_result_per_site_result() -> None:
+    """The unmutated call's shape on fixtures (prompt 33 §2.2): the loader's own pair is accepted,
+    and the change-set carries one `Analysis` and one `DifferentialResult` per `SiteResult`. The
+    1,362-result change-set on the real deposit is not re-measured here; nothing in a container can.
+    """
+    dataset, nodes, edges = _attached()
+    results = [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01, **ARMS)]
+    change_set = site_change_set(
+        RUN,
+        results,
+        dataset=dataset,
+        contrast=CONTRAST,
+        arms=CONDITION_ARMS,
+        attached_nodes=nodes,
+        attached_edges=edges,
+    )
+    labels = [n[NODE_TYPE_KEY] for n in change_set.nodes]
+    assert labels.count("Analysis") == 1
+    assert len(results) == 1
+    assert labels.count("DifferentialResult") == 1
+
+
+@pytest.mark.parametrize(
+    ("contrast_handle", "arms_handle"),
+    [("KO_IFN_vs_WT_IFN", "KO_vs_WT_unstimulated"), ("KO_vs_WT_unstimulated", "KO_IFN_vs_WT_IFN")],
+)
+def test_arms_resolved_for_another_contrast_are_refused(
+    contrast_handle: str, arms_handle: str
+) -> None:
+    """Prompt 33 §2.2: the real record declares two `condition` contrasts, so l.111's kind refusal
+    pre-empts nothing; the pair is mismatched from the loader itself and refused before staging."""
+    loaded = load_path(REAL_RECORD)
+    contrast = loaded.contrast(contrast_handle)
+    arms = loaded.contrast_arms[arms_handle]
+    assert arms.kind == "condition"
+    dataset, nodes, edges = _attached()
+    with pytest.raises(ValueError, match="arms were resolved for Contrast") as refused:
+        site_change_set(
+            RUN,
+            [SiteResult(OBS, log2fc=1.5, p_value=0.001, adj_p_value=0.01, **ARMS)],
+            dataset=dataset,
+            contrast=contrast,
+            arms=arms,
+            attached_nodes=nodes,
+            attached_edges=edges,
+        )
+    message = str(refused.value)
+    assert arms.contrast_id in message and str(contrast["id"]) in message
 
 
 def test_a_node_that_is_not_a_contrast_is_refused() -> None:

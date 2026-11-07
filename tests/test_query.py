@@ -647,7 +647,7 @@ def _perseus_graph(tmp_path: Path) -> tuple[kuzu.Connection, str, str]:
             },
         ],
     )
-    arms = ContrastArms((PERSEUS_SAMPLES[1],), (PERSEUS_SAMPLES[0],), "condition")
+    arms = ContrastArms((PERSEUS_SAMPLES[1],), (PERSEUS_SAMPLES[0],), "condition", contrast_id)
     adapter = PerseusAdapter(
         DeclaredAnalysis(
             quantity="lfq",

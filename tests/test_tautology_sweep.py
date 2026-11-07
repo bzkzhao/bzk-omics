@@ -199,7 +199,10 @@ def analyse(name: str, source: str) -> tuple[Counter[tuple[str, str]], int]:
 #: cannot see a pinned expression duplicated and a count cannot see one swapped for another.
 #: Normalized source rather than a line number, so unrelated edits above it do not churn the pin.
 #: Regenerate with `python -c "from tests.test_tautology_sweep import sweep;
-#: print(sorted(sweep()[0]))"` **after** classifying whatever is new.
+#: print(sorted((m, s, n) for (m, s), n in sweep()[0].items()))"` **after** classifying whatever is
+#: new. **Corrected 2026-11-07 (prompt 33):** the command read `print(sorted(sweep()[0]))`, and
+#: `sweep()[0]` is a `Counter` keyed by `(module, source)`, so it printed 2-tuples while `PINNED`
+#: holds `(module, source, count)` 3-tuples — a regeneration that silently dropped every count.
 PINNED: frozenset[tuple[str, str, int]] = frozenset(
     {
         # ── tests/test_agent_config_references.py, classified individually 2026-08-18 ──────────
@@ -2007,6 +2010,21 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_audit_pxd032267.py", "row['label'] == gate.attempt2_label()", 1),
         ("test_audit_pxd032267.py", "sorted(found) == sorted(audit.LABEL_PATHS)", 1),
         ("test_audit_pxd032267.py", "violations(planted) == expected", 1),
+        # ── tests/test_maxquant_sites_composition.py, classified 2026-11-07 (prompt 33) ──────────
+        # **One entry, one occurrence, not an instance.** `candidates(...) == [...]` pins the
+        # composition guard's printed match set over `bzk/adapters/maxquant_sites.py` against the
+        # five entries written out by hand (two bindings in `_compose`, three refusal messages); the
+        # right side is not a literal display only because the three message strings are hoisted
+        # into named constants. Reddened in a copy of the repository, bytecode writing off, by
+        # dropping the guard's "touches a prefix" filter in `candidates`, so every f-string in the
+        # module is reported and the list grows. A second candidate, `labels.count(
+        # 'DifferentialResult') == len(results) == 1` in `tests/test_analysis_differential.py`, was
+        # rewritten against the literal `1` rather than pinned: its input is a one-element literal.
+        (
+            "test_maxquant_sites_composition.py",
+            "candidates(MODULE.read_text(encoding='utf-8')) == [('_compose', 'binding', \"f'{p}{label}'\"), ('_compose', 'binding', \"f'{p}{label}'\"), ('_run_label', 'message', RUN_LABEL_MESSAGE), ('bind_column', 'message', NO_COLUMN_MESSAGE), ('bind_column', 'message', UNKNOWN_QUANTITY_MESSAGE)]",
+            1,
+        ),
     }
 )
 
@@ -2276,7 +2294,11 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # 2547 -> 2599 and 58 -> 59 on 2026-11-07 (prompt 36) for `tests/test_audit_pxd032267.py`
     # (the fifty-ninth). `sweep()` read 58 / 2547 with that module set aside — no lag — and
     # 59 / 2599 with it. Read off `sweep()` rather than incremented.
-    assert modules >= 59 and asserts >= 2599, (
+    # 2599 -> 2612 and 59 -> 60 on 2026-11-07 (prompt 33) for
+    # `tests/test_maxquant_sites_composition.py` (the sixtieth) and the new cases in
+    # `tests/test_analysis_differential.py` and `tests/test_perseus.py`. `sweep()` read 59 / 2599 at
+    # `7f5bc70`, before this turn added anything — no lag — and 60 / 2612 after. Read off `sweep()`.
+    assert modules >= 60 and asserts >= 2612, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
