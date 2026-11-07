@@ -1,10 +1,19 @@
 # Prompt 33 — Three rules the code follows and nothing enforces
 
-**Repository:** `main` at the commit adding this revision. **Rev 9.**
+**Repository:** `main` at the commit adding this revision. **Rev 10.**
 
-`8d71ec4` wrote rev 1 on 2026-10-10 and its §0 was never run. Rev 2 was written 2026-11-07, **27
-commits later** (`git rev-list --count 8d71ec4..8297e58`), after an independent audit of rev 1
-against `8297e58`.
+***Rev 10 is a figure refresh and nothing else.*** Rev 9 was committed at `d4084a3`, whose
+parent `d35ea87` landed five commits after `8297e58` — prompt 36's build, a new `bzk/audit_pxd032267.py`
+and a new `tests/test_audit_pxd032267.py`. **Every line reference in §2.1, §2.2, §2.3 and §3 was
+re-verified at `d4084a3` and all of them still hold**, as do the six `ContrastArms` construction
+sites, every `site_change_set` call site, and `tests/test_tautology_sweep.py`'s anchors. The new
+module touches none of this prompt's subjects. What moved: the four check figures, the `ast.parse`
+count and the commit distance, all corrected below and each now stated **with the commit it was
+measured at**, so a mismatch tells you the tree moved rather than that this prompt is wrong.
+
+`8d71ec4` wrote rev 1 on 2026-10-10 and its §0 was never run. Revs 2–9 were written 2026-11-07
+against `8297e58`, **27 commits later** (`git rev-list --count 8d71ec4..8297e58`), under nine
+independent audits. Rev 10 refreshes their figures at `d4084a3`, **33 commits** from `8d71ec4`.
 
 **The three rules are unchanged across every revision; the shape of §2.2 is not** — rev 7
 withdrew an option, and that section says why. Each revised passage carries a *rev N* mark in
@@ -63,12 +72,12 @@ not.)* No step of this build reads a census, and §0 already makes the builder m
 the repository and compare it against stated expectations, which is what a receipt check is for.
 So the census is gone and §0 carries the load alone.
 
-**One consequence worth stating, because §0.6 depends on it:** `tests/test_pxd032267_gate.py` did
-not exist at `8d71ec4`. The `ast.parse` module count was **seven** there and is **eight** at
-`8297e58`. §0.6's expectation is the figure at `8297e58`; if you measure seven, you are not at
-this prompt's commit.
+**One consequence worth stating, because §0.6 depends on it:** that count tracks file creation, so
+it has moved twice. **Seven** at `8d71ec4` (before `tests/test_pxd032267_gate.py`), **eight** at
+`8297e58`, **nine** at `d4084a3` (prompt 36's `tests/test_audit_pxd032267.py`). §0.6's expectation
+is the figure at `d4084a3`; if you measure eight or seven, you are behind this prompt's commit.
 
-**Re-verified at `8297e58`:** every line reference, and every count stated as *Expected* in §0,
+**Re-verified at `d4084a3`:** every line reference, and every count stated as *Expected* in §0,
 plus `tables_created` 60. The 1,362 figure was verified **as source text only** — see §2.2, which
 records that nothing in this container can re-measure it. **Not re-measured here:** the `claude/*`
 branch count, which rev 1 stated as seventeen. It has a home — handoff 10-10 §*Housekeeping*
@@ -136,11 +145,17 @@ The prompt ends at the report.
    - `git log --oneline -3`, `git status --short`. HEAD is this revision's commit, tree clean.
    - Open-of-turn: `uv run pytest`, `uv run pytest tests/test_schema.py`, `uv run mypy bzk tests`,
      both `ruff` targets.
-   - Expected **in a container**: `1104 passed, 14 skipped`; 20 passed; `Success` over 124 files;
-     clean / 124. *Rev 2* — measured at `8297e58`, 2026-11-07. Rev 1 carried 982 / 117 / 117.
-   - bzk's Mac: handoff 11-07 §1 expects `1110 passed, 8 skipped` — the usual six raw-store tests
-     run there — and **records that figure as inferred, not measured at this commit.** If your run
-     disagrees, report it rather than reconciling it.
+   - Expected **in a container, measured at `d4084a3`**: `1181 passed, 14 skipped`; 20 passed;
+     `Success` over 126 files; clean / 126. *(Rev 10. At `8297e58` these were 1104 / 14, 124, 124;
+     prompt 36 added `bzk/audit_pxd032267.py` and `tests/test_audit_pxd032267.py` between the two.
+     Rev 1 carried 982 / 117 / 117.)*
+   - bzk's Mac runs **six more passing and six fewer skipped** — the raw-store tests — so expect
+     `1187 passed, 8 skipped`. **That is the relation applied to a measured container figure, not
+     a measured Mac figure**; handoff 11-07 §1 records the same relation and marks its own Mac
+     number inferred. If your run disagrees, report it rather than reconciling it.
+   - **If any of these four disagrees, stop and report before §0.2.** The figures are anchored to
+     `d4084a3`; a mismatch most likely means the tree has moved again, which is a finding about
+     state, not a licence to adjust anything.
 2. **Rule one, and its three obedient callers.**
    - Quote `bzk/adapters/maxquant_sites.py`'s `_compose` with its docstring.
    - List every call site by line, and say how each differs.
@@ -180,11 +195,12 @@ The prompt ends at the report.
      correctly.
 6. **What an AST guard in this repository looks like.**
    - Count the test modules that call `ast.parse`, then quote what the two named below check.
-   - Expected: **eight** call `ast.parse` — `test_analysis_differential.py`,
-     `test_analysis_record.py`, `test_curation_loader.py`, `test_published_cascade.py`,
-     `test_pxd018299_refusals.py`, `test_pxd032267_gate.py`, `test_tautology_sweep.py`,
-     `test_ui.py`. (A ninth, `test_curation_content_hash.py`, uses `ast.literal_eval` only.)
-     *Rev 2* — rev 1 said "among them", which hedged a countable.
+   - Expected at `d4084a3`: **nine** call `ast.parse` — `test_analysis_differential.py`,
+     `test_analysis_record.py`, `test_audit_pxd032267.py`, `test_curation_loader.py`,
+     `test_published_cascade.py`, `test_pxd018299_refusals.py`, `test_pxd032267_gate.py`,
+     `test_tautology_sweep.py`, `test_ui.py`. (A tenth, `test_curation_content_hash.py`, uses
+     `ast.literal_eval` only.) *(Rev 10: eight at `8297e58`; prompt 36's
+     `test_audit_pxd032267.py` is the ninth. Rev 1 said "among them", hedging the countable.)*
    - The two to quote: `tests/test_tautology_sweep.py` (every equality in every assert) and
      `tests/test_analysis_record.py` (`_literal_reads`, string keys read off a receiver).
    - Say what `_literal_reads`' known blind spot is. Handoff 10-09 §7 l.259 records **that** it
@@ -486,10 +502,10 @@ module under `tests/`. Say which.
 
 | Check (target) | Before | After, predicted |
 |---|---|---|
-| `uv run pytest` (full) | 1104 passed, 14 skipped | all pass; state the counts |
+| `uv run pytest` (full) | 1181 passed, 14 skipped (`d4084a3`) | all pass; state the counts |
 | `uv run pytest tests/test_schema.py` | 20 passed | 20 passed, file unedited |
-| `uv run mypy bzk tests` | Success, 124 files | Success; state the count |
-| `ruff check bzk tests` / `ruff format --check bzk tests` | clean / 124 | clean; state the count |
+| `uv run mypy bzk tests` | Success, 126 files (`d4084a3`) | Success; state the count |
+| `ruff check bzk tests` / `ruff format --check bzk tests` | clean / 126 (`d4084a3`) | clean; state the count |
 
 **If any prediction fails, stop and report. Do not adjust code, fixtures or pins to match.**
 
