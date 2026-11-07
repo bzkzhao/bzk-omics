@@ -1,6 +1,12 @@
 # Prompt 33 — Three rules the code follows and nothing enforces
 
-**Repository:** `main` at the commit adding this revision. **Rev 10.**
+**Repository:** `main` at the commit adding this revision. **Rev 11.**
+
+***Rev 11 folds in the seven findings the build session's §0 receipt check returned at `d369216`,
+all verified against an independent clone.*** Two change a build step (§2.1's mutation, §3's
+`PINNED` regeneration, whose command is broken in the repository); one changes what §2.3's helper
+must refuse; the rest are line references and an enumeration §3 was short by. **The receipt check
+worked**: it found in one pass what nine prompt audits had not.
 
 ***Rev 10 is a figure refresh and nothing else.*** Rev 9 was committed at `d4084a3`, whose
 parent `d35ea87` landed five commits after `8297e58` — prompt 36's build, a new `bzk/audit_pxd032267.py`
@@ -270,7 +276,15 @@ mutation that is itself read back — and for §2.1, the mutation is the histori
   catches the shape the defect actually took (`f"{prefix}{label}"`) and the obvious neighbours, and
   it is a tripwire rather than a proof.
 - **Mutation:** restore the pre-prompt-30 composition inside `_site` — the real historical defect —
-  and show the guard fires.
+  and show the guard fires. ***Rev 11: there were two, not one.*** At `402fce8^`, `_site` built
+  `f"{prefix}{label}"` at **l.651** (inside `maxquant.cell_value(row, column, …)`) and again at
+  **l.655** (the membership test `if f"{prefix}{label}" in column`). **Restore both lines**, and say
+  whether your guard catches each.
+- ***Rev 11 — key the guard on shape, never on parameter names.*** Inside `_site` the names are
+  reversed against the other callers: `column` is the header-to-index mapping (l.568) and `header`
+  is the **composed column name** bound by the walrus at l.711, whereas in `bind_column` `header` is
+  the header collection. A guard keyed on identifier names would miss `_site` and is the shape
+  §2.1's rule already avoids — confirm that from the match set rather than assuming it.
 
 ### 2.2 `differential.py` — arms must belong to the contrast
 
@@ -344,7 +358,8 @@ un-mintable here, which is what made the synthetic one load-bearing. Say in poin
 test is weaker for it, and do not strengthen it by inventing a second contrast the record does not
 declare.
 - **The same pair exists in `perseus.py` and is NOT guarded here. Report the class as open**
-  (*rev 9*). `DeclaredContrast` (l.264–283) carries `contrast: Mapping` (l.282) and
+  (*rev 9*). `DeclaredContrast` (**l.265**–283; l.264 is its `@dataclass` decorator) carries
+  `contrast: Mapping` (l.282) and
   `arms: ContrastArms` (l.283) just as independently: l.609 anchors every result on
   `str(declared.contrast["id"])` while `_prove` binds and recomputes over `declared.arms` (l.941).
   A mismatched `DeclaredContrast` attributes results to contrast A while proving the binding over
@@ -357,9 +372,10 @@ declare.
     contrast (`other_node`, l.1315) with the module's existing `ARMS` (l.1316), because its subject
     is one row untested under one contrast and tested under the other. It relies on **extension** —
     these samples are this contrast's arms — and an identity check breaks it.
-  - `tests/test_perseus.py` l.461 pairs `_anchored_contrast("KO", "WT")` with `ARMS` **outside** its
-    `pytest.raises` block, so a construction-time refusal makes that test **error** rather than
-    fail, while it is testing an unrelated refusal.
+  - `tests/test_perseus.py` **l.468** pairs `_anchored_contrast("KO", "WT")` with `ARMS` **outside** its
+    `pytest.raises` block at l.472, so a construction-time refusal makes that test **error** rather
+    than fail, while it is testing an unrelated refusal. *(Rev 11: revs 9–10 cited l.461, which is
+    the `def`. The substance holds — the pairing precedes the `raises`.)*
   - `DeclaredContrast` is a frozen dataclass with **no `__post_init__`** today, so this is a new
     method, not the one-line comparison rev 8 called it.
 
@@ -411,6 +427,14 @@ ADR or in bzk's hands, not improvised inside a build prompt — this prompt amen
 ### 2.3 `perseus.py` — a statistics cell that is not a number
 
 - Every statistics read names the row and the column when the cell is not a finite number.
+- ***Rev 11 — "not finite" is wider than "unparseable", and the gap is live.*** `float()` accepts
+  `NaN`, `inf` and `-Infinity` without raising (measured at `d369216`). So the helper must refuse
+  **non-finite values as well as unparseable text** — the wording above already covers this and
+  the implementation must not narrow it to a `try/except ValueError`.
+  - **Report the consequence the build's §0 surfaced**, which is a pre-existing defect and not
+    this prompt's to fix: a `NaN` Difference fails `untested`'s `== 0.0` test (because
+    `NaN == 0.0` is `False`), so such a row reads as **tested** and mints a `DifferentialResult`
+    with `log2fc` `NaN`. Name it in point 3; do not build it.
   **Do not route through `_cell_value`** (§0.5): a malformed statistics cell is a refusal, not an
   absence.
 - One helper, used by all five sites §0.4 found, so the message is one sentence in one place.
@@ -464,8 +488,14 @@ site. Six, no others.
 
 **(b) The new refusal breaks tests that pair a synthetic contrast with real arms** — see §2.2's
 measured ids. In `tests/test_analysis_differential.py` only: `CONTRAST` l.51, `_anchored_contrast`
-l.42–48 if nothing else uses it, and the four calls at **l.110, 188, 228, 274**. Not l.292 — §2.2
-says why. **Nothing in `tests/test_perseus.py` moves for a check**, since rev 9 guards only
+l.42–48 if nothing else uses it, and the four calls at **l.110, 188, 228, 274**.
+
+**The module holds six `site_change_set` calls; two are correctly untouched, and both are named
+here so the unlisted-site rule below is not misread** (*rev 11 — revs 9–10 named only the first*):
+- **l.292** passes `contrast=dataset`, so l.152's shape refusal fires before the new check.
+- **l.325** (`test_D7_an_ip_kind_is_refused_at_the_producer`) passes the loader's **matched**
+  contrast and arms for one handle, so the new check passes and l.111's kind refusal fires as that
+  test intends. **Nothing in `tests/test_perseus.py` moves for a check**, since rev 9 guards only
 `site_change_set`; those arms move for the new field alone, under (a).
 
 *(Rev 8: rev 7 listed only (a) and called it exhaustive, while the next clause makes an unlisted
@@ -475,12 +505,26 @@ shape with the roles reversed. Rev 9 drops l.292 and the `perseus.py` entry rev 
 Report the sites you actually touched against this list; a site here you did not touch, or one you
 touched that is not here, is a finding either way.
 
-***Rev 2 — one further edit the suite will force, pre-authorised.*** `tests/test_tautology_sweep.py`
-requires **every equality in every assert in every `.py` under `tests/`** to appear in `PINNED`
-(docstring l.8–13; `PINNED` l.203), so any new guard or mutation test of that shape fails that
-module until classified. Regenerating `PINNED` and writing the classification comment **is part of
-this build**, not an exception to E1. Regenerate with the command in its own comment at l.201–202,
-**after** classifying what is new — never before.
+***One further edit the suite will force, pre-authorised — and its tooling is broken.***
+`tests/test_tautology_sweep.py` requires every equality in every assert in every `.py` under
+`tests/` **that Pass C or Pass D matches** to appear in `PINNED` (`PINNED` l.203), so any new guard
+or mutation test of that shape fails that module until classified. Regenerating `PINNED` and
+writing the classification comment **is part of this build**, not an exception to E1 — after
+classifying what is new, never before.
+
+***Rev 11 — two corrections here, both from the build's §0.*** Revs 2–10 said the module requires
+**every** equality to be pinned, repeating the claim its own docstring (l.10–11) makes. `sweep()`
+walks every equality but increments `found` **only when `hit` is true** (`if hit:` l.193, `found[…] += 1` l.194), so a
+comparison against a literal display is never pinned — the floor comments say as much. The code
+wins; the docstring's over-claim is a finding to report, not something to fix here.
+
+**And the regenerate command at l.201–202 does not reproduce `PINNED`'s shape.** It prints
+`sorted(sweep()[0])`, and `sweep()[0]` is a `Counter` keyed by `(module, source)`, so `sorted` of it
+yields **2-tuples**; `PINNED` holds `(module, source, count)` **3-tuples**. Measured at `d369216`:
+sorted width 2, `PINNED` element width 3. **Fixing that comment is in scope** — the file is already
+authorised and the build cannot regenerate `PINNED` without a working command. Use
+`sorted(sweep()[0].items())` or equivalent, state what you changed it to, and report the old
+command as a defect that would have silently produced the wrong shape.
 
 **E2 — each guard fails under its own mutation, and the mutation is read back.** **Five, and five
 is the count:** §2.1's historical restoration; §2.2's wrong-contrast arms; §2.3's three malformed
