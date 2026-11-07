@@ -1139,6 +1139,13 @@ One number, one more dataset.
     record `walk/walk_PXD032267.json`). The gate stays open: a selection is not a
     test. What remains is the deposit read at G3/G4, then a registered gate,
     then the measurement.
+  - **Attempt 1 (2026-11-07): input not reproduced** (`walk/RESULT-PXD032267-gate-attempt1.md`).
+    The 1e-5 tolerance's basis was too weak. An exploratory diagnosis
+    identified the test (T1) and the authors' four-decimal export. **Attempt
+    2**, correcting exactly that defect, is registered as final
+    (`walk/PREREG-PXD032267-gate-attempt2.md`). Its readouts carry the label
+    *second attempt, after a registration defect*. D7 is untested here until it
+    runs.
 - **H1 blocked** on the 2019 search FASTA. The refusal fixture carries sequence
   versions only for refused rows; the drift receipt measures cache-against-
   UniProt over one day, a different relation. If the deposit carries no search

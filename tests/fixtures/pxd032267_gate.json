@@ -1,0 +1,259 @@
+{
+ "dataset": "PXD032267",
+ "registration": "walk/PREREG-PXD032267-gate.md",
+ "published_tables": "walk/PXD032267-published-tables.json",
+ "published_tables_source_sha256": "fa5281d97cdde23a27848ef00f9a664edad1111841a727da6ce6e8fd89bc6c5d",
+ "sites_content_hash": "sha256:61c8fef072d7255aee03367d017154aa80b0a760006c0bd3363dd013cd11e913",
+ "parameters_content_hash": "sha256:6fd055dc570dc993ad7e7462bdd2b1b594e96dbccba73e6ecff16fd8a7d23603",
+ "author_parameters_present": false,
+ "pinning": {
+  "sites": {
+   "file": "GlyGly__K_Sites.txt",
+   "content_hash": "sha256:61c8fef072d7255aee03367d017154aa80b0a760006c0bd3363dd013cd11e913",
+   "declared_content_hash": "sha256:61c8fef072d7255aee03367d017154aa80b0a760006c0bd3363dd013cd11e913",
+   "compared": true,
+   "comparison": "matches the declared digest"
+  },
+  "parameters": {
+   "file": "parameters.txt",
+   "content_hash": "sha256:6fd055dc570dc993ad7e7462bdd2b1b594e96dbccba73e6ecff16fd8a7d23603",
+   "declared_content_hash": "sha256:6fd055dc570dc993ad7e7462bdd2b1b594e96dbccba73e6ecff16fd8a7d23603",
+   "compared": true,
+   "comparison": "matches the declared digest"
+  },
+  "measured": {
+   "data_rows": 1440,
+   "columns": 171,
+   "reverse": 14
+  },
+  "expected_from_deposit_read": {
+   "data_rows": 1440,
+   "columns": 171,
+   "reverse": 14
+  },
+  "raw_newlines": 1441,
+  "spill_lines": 0
+ },
+ "population": {
+  "rule": "every row of GlyGly__K_Sites.txt except reverse decoys (§2)",
+  "rows": 1426
+ },
+ "join": [
+  {
+   "claim": "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335",
+   "key_p_ids": [
+    57
+   ],
+   "key_n_ids": [
+    57
+   ],
+   "joined_id": 57,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Xin actin-binding repeat-containing protein 2 K1054",
+   "key_p_ids": [
+    151
+   ],
+   "key_n_ids": [
+    151
+   ],
+   "joined_id": 151,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Titin K12993",
+   "key_p_ids": [
+    281
+   ],
+   "key_n_ids": [
+    281
+   ],
+   "joined_id": 281,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Synaptopodin 2-like protein K433",
+   "key_p_ids": [
+    405
+   ],
+   "key_n_ids": [
+    405
+   ],
+   "joined_id": 405,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Histone-lysine N-methyltransferase 2B K102",
+   "key_p_ids": [
+    553
+   ],
+   "key_n_ids": [
+    553
+   ],
+   "joined_id": 553,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Atypical chemokine receptor 3 K362",
+   "key_p_ids": [
+    901
+   ],
+   "key_n_ids": [
+    901
+   ],
+   "joined_id": 901,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Filamin-C K2590",
+   "key_p_ids": [
+    1252
+   ],
+   "key_n_ids": [
+    1252
+   ],
+   "joined_id": 1252,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Myosin-7 K1279",
+   "key_p_ids": [
+    1270
+   ],
+   "key_n_ids": [
+    1270
+   ],
+   "joined_id": 1270,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Myosin-7 K1305",
+   "key_p_ids": [
+    1276
+   ],
+   "key_n_ids": [
+    1276
+   ],
+   "joined_id": 1276,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  },
+  {
+   "claim": "Myosin-7 K34",
+   "key_p_ids": [
+    1282
+   ],
+   "key_n_ids": [
+    1282
+   ],
+   "joined_id": 1282,
+   "decided_by": [
+    "P",
+    "N"
+   ]
+  }
+ ],
+ "valid_value_rule": {
+  "candidates": {
+   "3": {
+    "rows_retained": 1131,
+    "claims_retained": 10,
+    "retains_every_claim": true
+   },
+   "2": {
+    "rows_retained": 1304,
+    "claims_retained": 10,
+    "retains_every_claim": true
+   },
+   "1": {
+    "rows_retained": 1400,
+    "claims_retained": 10,
+    "retains_every_claim": true
+   }
+  },
+  "taken": 3,
+  "retains_every_claim": true,
+  "claims_lost": [],
+  "rows_reaching_imputation": 1131
+ },
+ "gate_g": {
+  "gate_rows": [
+   "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335",
+   "Histone-lysine N-methyltransferase 2B K102",
+   "Atypical chemokine receptor 3 K362"
+  ],
+  "gate_row_count": 3,
+  "minimum_gate_rows": 2,
+  "input_check": {
+   "rows_checked": 3,
+   "tolerance": 1e-05,
+   "rows": [
+    {
+     "claim": "[Protein ADP-ribosylarginine] hydrolase-like protein 1 K335",
+     "published_difference": 1.319833,
+     "computed_difference": 1.3198347579095042,
+     "abs_delta": 1.7579095041853066e-06,
+     "passes": true
+    },
+    {
+     "claim": "Histone-lysine N-methyltransferase 2B K102",
+     "published_difference": 2.701133,
+     "computed_difference": 2.7011219926671295,
+     "abs_delta": 1.1007332870516251e-05,
+     "passes": false
+    },
+    {
+     "claim": "Atypical chemokine receptor 3 K362",
+     "published_difference": 0.850433,
+     "computed_difference": 0.8504033557303501,
+     "abs_delta": 2.964426964990885e-05,
+     "passes": false
+    }
+   ],
+   "passed": false
+  },
+  "status": "input_not_reproduced",
+  "result": "input not reproduced",
+  "primary": null,
+  "readout_variants": []
+ },
+ "author_parameters": null,
+ "readouts": null,
+ "readout_d": null,
+ "generated_by": "python -m bzk.sources.pxd032267_gate",
+ "generated_under": {
+  "generated_at": "2026-11-07T00:38:08+00:00",
+  "commit": "c1f23e1a64fa31e5f5c1734e355b8da362ddca2a",
+  "working_tree_clean": true,
+  "python": "3.12.14",
+  "numpy": "2.5.1",
+  "scipy": "1.18.0"
+ }
+}
