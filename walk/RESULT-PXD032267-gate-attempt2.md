@@ -151,7 +151,7 @@ Support at the default cell, of 20:
 | Y6 | readout B: recurs | **hit**: recurs, 4/7, n ≤ 10 |
 | Y6b | Titin K12993: 20 of 20, durable | **miss**: 17 of 20, underdetermined |
 | Y7 | readout C: reported | 2 of 20 |
-| Y8 | readout D: reported | three of six cells not reproduced; seven of ten claims at or below 6 of 20 |
+| Y8 | readout D: reported | three of six cells not reproduced; ~~seven~~ **eight** of ten claims at or below 6 of 20. *Corrected 2026-11-07: the reviewer miscounted. The fixture's readout-D supports, and this file's own table above, give eight. Found by prompt 36's build report.* |
 
 **Y6b's mechanism was wrong.** It held that a wholly drawn control arm gives a
 large difference that is stable under re-drawing. Titin's support moves in 3 of
