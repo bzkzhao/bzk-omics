@@ -404,25 +404,155 @@ def _caught(handler: Any) -> set[str]:
     return {ast.unparse(t).rsplit(".", 1)[-1] for t in types}
 
 
+def exception_handlers(source: str) -> list[int]:
+    """The line of every `except` clause in `source` that catches `Exception`, in source order.
+
+    Sorted because `ast.walk` is breadth-first: a nested handler comes back after a later one at
+    module depth.
+    """
+    import ast
+
+    return sorted(
+        node.lineno
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.ExceptHandler) and "Exception" in _caught(node)
+    )
+
+
+def handlers_missing_system_exit(source: str) -> list[int]:
+    """Of `exception_handlers(source)`, the lines that catch neither `SystemExit` nor
+    `BaseException`, in source order."""
+    import ast
+
+    return sorted(
+        node.lineno
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.ExceptHandler)
+        and "Exception" in _caught(node)
+        and not _caught(node) & {"SystemExit", "BaseException"}
+    )
+
+
 def test_every_handler_that_catches_exception_also_catches_system_exit() -> None:
     """`except Exception` does not catch `SystemExit`, and several input helpers turn a missing file
     into one. A handler that exists to keep the report alive must catch it too, or a helper that
     exits ends the process instead of being reported. Read by shape, not by line or comment."""
-    import ast
-
     source = Path(audit.__file__).read_text(encoding="utf-8")
-    handlers = [
-        node
-        for node in ast.walk(ast.parse(source))
-        if isinstance(node, ast.ExceptHandler) and "Exception" in _caught(node)
-    ]
-    assert handlers, "no handler catches Exception: the guard is reading the wrong source"
-    offending = [h.lineno for h in handlers if not _caught(h) & {"SystemExit", "BaseException"}]
+    assert exception_handlers(source), (
+        "no handler catches Exception: the guard is reading the wrong source"
+    )
+    offending = handlers_missing_system_exit(source)
     assert not offending, (
         f"bzk/audit.py line(s) {offending} catch Exception but not SystemExit. `except Exception` "
         "does not catch SystemExit, so a helper that exits on a missing input would end the "
         "process instead of being reported. Catch (Exception, SystemExit)."
     )
+
+
+def _one(clause: str) -> str:
+    """A module whose only handler, on line 3, is `clause`."""
+    return f"try:\n    pass\n{clause}\n    pass\n"
+
+
+#: Sources `handlers_missing_system_exit` must flag, each with the exact lines it must return. The
+#: guard above passes on a clean module whether or not the rule works; these are what show it fires.
+CAUGHT: dict[str, tuple[str, list[int]]] = {
+    "except Exception": (_one("except Exception:"), [3]),
+    "except Exception as exc": (_one("except Exception as exc:"), [3]),
+    "with ValueError": (_one("except (Exception, ValueError):"), [3]),
+    "with a BaseException sibling that is not SystemExit": (
+        _one("except (Exception, KeyboardInterrupt):"),
+        [3],
+    ),
+    "nested in a method": (
+        (
+            "class C:\n"
+            "    def f(self):\n"
+            "        try:\n"
+            "            pass\n"
+            "        except Exception:\n"
+            "            pass\n"
+        ),
+        [5],
+    ),
+    "only the second of two": (
+        (
+            "try:\n"
+            "    pass\n"
+            "except (Exception, SystemExit):\n"
+            "    pass\n"
+            "try:\n"
+            "    pass\n"
+            "except Exception:\n"
+            "    pass\n"
+        ),
+        [7],
+    ),
+}
+
+#: Sources `handlers_missing_system_exit` must pass: the order inside a tuple carries no meaning,
+#: and a handler that does not catch `Exception` is outside the rule.
+UNCAUGHT: dict[str, str] = {
+    "Exception with SystemExit": _one("except (Exception, SystemExit):"),
+    "SystemExit with Exception": _one("except (SystemExit, Exception):"),
+    "BaseException": _one("except BaseException:"),
+    "ValueError": _one("except ValueError:"),
+    "bare except": _one("except:"),
+}
+
+#: Sources for `exception_handlers`, the guard's non-empty question, with the exact lines it must
+#: return. The two-handler case puts the first handler one level deeper than the second, so a
+#: breadth-first walk returns them out of source order.
+EXCEPTION_HANDLERS: dict[str, tuple[str, list[int]]] = {
+    "no handler": ("x = 1\n", []),
+    "only ValueError": (_one("except ValueError:"), []),
+    "two Exception handlers at different depths": (
+        (
+            "def f():\n"
+            "    try:\n"
+            "        pass\n"
+            "    except Exception:\n"
+            "        pass\n"
+            "try:\n"
+            "    pass\n"
+            "except (Exception, SystemExit):\n"
+            "    pass\n"
+        ),
+        [4, 8],
+    ),
+}
+
+
+@pytest.mark.parametrize("name", list(CAUGHT))
+def test_the_handler_rule_flags_each_caught_shape(name: str) -> None:
+    source, expected = CAUGHT[name]
+    assert handlers_missing_system_exit(source) == expected
+
+
+@pytest.mark.parametrize("name", list(UNCAUGHT))
+def test_the_handler_rule_passes_each_uncaught_shape(name: str) -> None:
+    assert handlers_missing_system_exit(UNCAUGHT[name]) == []
+
+
+@pytest.mark.parametrize("name", list(EXCEPTION_HANDLERS))
+def test_exception_handlers_finds_exactly_the_exception_clauses(name: str) -> None:
+    source, expected = EXCEPTION_HANDLERS[name]
+    assert exception_handlers(source) == expected
+
+
+def test_the_handler_rule_reads_names_not_bindings() -> None:
+    """The guard's limits, asserted as they stand so that widening either is deliberate.
+
+    `_caught` reads the spelled name and keeps its last dotted part, so `except builtins.Exception`
+    reads as `Exception` and is flagged. It does not resolve bindings, so an aliased import read as
+    `except E:` is not seen as catching `Exception` at all, and is missed.
+    """
+    dotted = "import builtins\n" + _one("except builtins.Exception:")
+    aliased = "from builtins import Exception as E\n" + _one("except E:")
+    assert exception_handlers(dotted) == [4]
+    assert handlers_missing_system_exit(dotted) == [4]
+    assert exception_handlers(aliased) == []
+    assert handlers_missing_system_exit(aliased) == []
 
 
 def _exits(code: object) -> Any:

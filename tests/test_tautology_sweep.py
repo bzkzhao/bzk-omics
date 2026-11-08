@@ -564,6 +564,12 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "census == {'NOT COMPUTED': f'FileNotFoundError: {SUPP_DATA_1.filename} is not in {tmp_path}'}",
             1,
         ),
+        # Classified 2026-11-08 (prompt 39): the handler guard's synthetic cases. `source` and
+        # `expected` are both read from a hand-written table (`EXCEPTION_HANDLERS`, `CAUGHT`), each
+        # entry a source string and the lines the rule must return on it; neither side is produced by
+        # the call under test, so both are pinned, not instances.
+        ("test_audit.py", "exception_handlers(source) == expected", 1),
+        ("test_audit.py", "handlers_missing_system_exit(source) == expected", 1),
         ("test_drift.py", "len(sleeps) == drift.RETRIES - 1", 1),
         (
             "test_keys.py",
@@ -2316,7 +2322,11 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # the handler guard and the two `run()` tests in `tests/test_audit.py` add six asserts and no
     # matching equality, so the floor moves and the pin does not. `sweep()` read 60 / 2626 with that
     # file at `dbf871c`, before this turn added anything — no lag — and 60 / 2632 after.
-    assert modules >= 60 and asserts >= 2632, (
+    # 2632 -> 2639 on 2026-11-08 (prompt 39), module count unchanged at 60: the handler guard's
+    # extracted functions and their synthetic cases in `tests/test_audit.py`, which also move `PINNED`
+    # from 340 to 342 entries. `sweep()` read 60 / 2632 with that file at `9067602`, before this turn
+    # added anything — no lag — and 60 / 2639 after. Read off `sweep()`.
+    assert modules >= 60 and asserts >= 2639, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
