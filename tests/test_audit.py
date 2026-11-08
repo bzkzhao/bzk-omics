@@ -18,6 +18,7 @@ import pytest
 from bzk import audit
 from bzk.sources import pxd018299_h10 as h10
 from bzk.sources import pxd026748_reconstruction as reconstruction
+from bzk.sources.protein_groups import SUPP_DATA_1
 
 FIXTURES = Path(__file__).parent / "fixtures"
 H10_FILE = "pxd018299_h10_attempt3.json"
@@ -274,3 +275,115 @@ def test_stage4_without_live_says_the_whole_column_reference_was_not_computed() 
 def test_stage4_live_with_no_store_reports_the_failure_instead_of_raising(tmp_path: Path) -> None:
     stage = audit.stage4_imputation(_committed(), tmp_path)
     assert "NOT COMPUTED" in stage.findings["against_whole_deposit_column"]
+
+
+# ── Stage 3's drawn-cell census: classes, gap, and the drawn rule ───────────────────────────────
+
+
+def test_drawn_cell_census_partitions_the_claims_and_measures_the_comparable_gap() -> None:
+    """One claim per class. Only the one-KO-cell claim is comparable: published KO mean 3, measured
+    KO mean (4 + 5) / 2 = 4.5, WT mean 1 in both, so the signed gap is 2 - 3.5 = -1.5."""
+    values = [0.0, 4.0, 5.0, 1.0, 1.0, 1.0]
+    claims = [
+        (values, [False] * 6),
+        (values, [True, False, False, False, False, False]),
+        (values, [True, True, True, False, False, False]),
+        (values, [False, False, False, True, True, True]),
+        (values, [True] * 6),
+    ]
+    got = audit.drawn_cell_census(claims)
+    assert got["published_claims"] == 5
+    assert got["no_drawn_cell"] == 1
+    assert got["some_drawn_both_arms_measured"] == 1
+    assert got["whole_arm_drawn"] == 3
+    assert got["no_drawn_cell"] + got["some_drawn_both_arms_measured"] + got["whole_arm_drawn"] == 5
+    assert got["containing_a_drawn_cell"] == {"count": 4, "of": 5, "fraction": 0.8}
+    assert got["comparable_gap_published_minus_measured_only_log2"] == {
+        "n": 1,
+        "signed_quartiles": [-1.5, -1.5, -1.5],
+        "absolute_median": 1.5,
+        "published_exceeds_measured_only": 0,
+    }
+
+
+def test_stage3_without_live_says_the_drawn_cell_census_was_not_computed() -> None:
+    stage = audit.stage3_census(_committed())
+    assert stage.findings["drawn_cell_census"].startswith("NOT COMPUTED")
+
+
+def test_stage3_live_with_no_store_reports_the_failure_instead_of_raising(tmp_path: Path) -> None:
+    stage = audit.stage3_census(_committed(), tmp_path)
+    assert "NOT COMPUTED" in stage.findings["drawn_cell_census"]
+
+
+_INTENSITY = [f"Intensity {arm}_{i}" for arm in ("KO_IFN", "WT_IFN") for i in (1, 2, 3)]
+
+
+def _sites_table(tmp_path: Path, cells: dict[str, str]) -> Path:
+    """A one-row MaxQuant sites table, id 7: every intensity measured unless `cells` says otherwise."""
+    header = ["id", "Reverse", *_INTENSITY, "Intensity KO_IFN_1___1"]
+    values = {"id": "7", "Reverse": "", **dict.fromkeys(_INTENSITY, "100"), **cells}
+    path = tmp_path / "sites.txt"
+    path.write_text("\t".join(header) + "\n" + "\t".join(values.get(h, "0") for h in header) + "\n")
+    return path
+
+
+def _live_inputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cells: dict[str, str], *, s1: bool = True
+) -> None:
+    """Stub the store: the sites table is the synthetic one, S1 is present or absent by `s1`."""
+    sites = _sites_table(tmp_path, cells)
+    s1_path = tmp_path / "s1.xlsx"
+    s1_path.write_bytes(b"stand-in; _s1_rows is stubbed")
+
+    def verify(_digest: str, *, filename: str, home: Path) -> Path:
+        if filename == SUPP_DATA_1.filename:
+            if not s1:
+                raise FileNotFoundError(f"{filename} is not in {home}")
+            return s1_path
+        return sites
+
+    columns = [f"S1 {name}" for name in _INTENSITY]
+    monkeypatch.setattr(audit, "verify", verify)
+    monkeypatch.setattr(h10, "_s1_rows", lambda _p: (columns, {3: dict.fromkeys(columns, "1.0")}))
+    monkeypatch.setattr(h10, "s1_columns", lambda header: list(header))
+    real_load = audit._load
+    monkeypatch.setattr(
+        audit,
+        "_load",
+        lambda name: (
+            {"rows": [{"deposit_id": "7", "row": 3, "lost_at": None}]}
+            if name == audit.CASCADE
+            else real_load(name)
+        ),
+    )
+
+
+def test_stage3_live_with_s1_absent_reports_it_and_raises_no_system_exit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`_supplement_path` turns this into `SystemExit`, which `except Exception` does not catch."""
+    _live_inputs(tmp_path, monkeypatch, {}, s1=False)
+    census = audit.stage3_census(_committed(), tmp_path).findings["drawn_cell_census"]
+    assert census == {
+        "NOT COMPUTED": f"FileNotFoundError: {SUPP_DATA_1.filename} is not in {tmp_path}"
+    }
+
+
+def test_a_cell_reported_only_at_a_multiplicity_is_provided_not_drawn(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _live_inputs(tmp_path, monkeypatch, {"Intensity KO_IFN_1": "0", "Intensity KO_IFN_1___1": "5"})
+    census = audit.stage3_census(_committed(), tmp_path).findings["drawn_cell_census"]
+    assert census["no_drawn_cell"] == 1
+    assert census["some_drawn_both_arms_measured"] == 0
+
+
+def test_a_cell_reported_at_no_multiplicity_either_is_drawn(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The control for the test above: the same stubs do see a drawn cell when there is one."""
+    _live_inputs(tmp_path, monkeypatch, {"Intensity KO_IFN_1": "0"})
+    census = audit.stage3_census(_committed(), tmp_path).findings["drawn_cell_census"]
+    assert census["no_drawn_cell"] == 0
+    assert census["some_drawn_both_arms_measured"] == 1

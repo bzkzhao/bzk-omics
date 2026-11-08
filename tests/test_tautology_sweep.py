@@ -554,6 +554,16 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         ("test_audit.py", "census['claims_in_tested_population'] == len(rows)", 1),
         ("test_audit.py", "census['tested_claims_with_an_imputed_cell'] == imputed", 1),
         ("test_audit.py", "sorted((p.name for p in FIXTURES.iterdir())) == before", 1),
+        # Classified 2026-11-08 (prompt 37): `census` is the stage-3 wrapper's result; the right
+        # side is the test's own stubbed `FileNotFoundError` text under the wrapper's
+        # `<Type>: <message>` format. The call did not produce it, so it is pinned, not an
+        # instance; naming S1's file is what tells this failure from one the synthetic sites table
+        # could raise first.
+        (
+            "test_audit.py",
+            "census == {'NOT COMPUTED': f'FileNotFoundError: {SUPP_DATA_1.filename} is not in {tmp_path}'}",
+            1,
+        ),
         ("test_drift.py", "len(sleeps) == drift.RETRIES - 1", 1),
         (
             "test_keys.py",
@@ -2298,7 +2308,11 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # `tests/test_maxquant_sites_composition.py` (the sixtieth) and the new cases in
     # `tests/test_analysis_differential.py` and `tests/test_perseus.py`. `sweep()` read 59 / 2599 at
     # `7f5bc70`, before this turn added anything — no lag — and 60 / 2612 after. Read off `sweep()`.
-    assert modules >= 60 and asserts >= 2612, (
+    # 2612 -> 2626 on 2026-11-08 (prompt 37), module count unchanged at 60: stage 3's census tests,
+    # all in `tests/test_audit.py`, a module already counted. `sweep()` read 60 / 2612 with that file
+    # as at `3f2c1b9`, before this turn added anything — no lag — and 60 / 2626 after. Read off
+    # `sweep()`.
+    assert modules >= 60 and asserts >= 2626, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

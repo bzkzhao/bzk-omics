@@ -368,7 +368,7 @@ def stage2_graph(rebuild: bool, home: Path) -> Stage:
     return stage
 
 
-def stage3_census(fixture: dict[str, Any]) -> Stage:
+def stage3_census(fixture: dict[str, Any], home: Path | None = None) -> Stage:
     rows, _, imputed = _per_claim_matrix(fixture)
     cascade = _load(CASCADE)["rows"]
     lost: dict[str, int] = {}
@@ -385,11 +385,15 @@ def stage3_census(fixture: dict[str, Any]) -> Stage:
             "Counts cover the claims that reach the test. Claims lost earlier never enter the "
             "matrix, and the fixture does not record how many of them are wholly drawn."
         ),
+        "drawn_cell_census": (
+            _live_drawn_cell_census(home)
+            if home is not None
+            else "NOT COMPUTED: needs the deposit bytes; run with --live"
+        ),
     }
     stage.not_automated = [
         (
-            "The whole-table census over all published claims (drawn-cell classes, the measured-only "
-            "fold-change comparison) and the count of contrasts with no observed values: produced by "
+            "The count of contrasts with no observed values: produced by "
             "notes/scripts/diagnose_round14.py, needs the raw store, records in "
             "walk/CHECKS-census.md."
         )
@@ -450,6 +454,120 @@ def _live_whole_column_reference(fixture: dict[str, Any], home: Path) -> dict[st
             log2 = log2 - np.nanmedian(log2, axis=0)
         per = fixture["readouts"]["primary"]["readout_c"]["per_sample"]
         return whole_column_reference(log2, anchor, per)
+    except Exception as exc:  # noqa: BLE001 - a missing store must not sink the report
+        return {"NOT COMPUTED": f"{type(exc).__name__}: {exc}"}
+
+
+def drawn_cell_census(claims: list[tuple[list[float], list[bool]]]) -> dict[str, Any]:
+    """Partition the published claims by their drawn cells, and compare the comparable class.
+
+    Each claim is its six published values (KO 1-3, WT 1-3) and six `drawn` flags in the same
+    order. Ported from `notes/scripts/diagnose_round14.py` section EE (the classes) and
+    `notes/scripts/diagnose_round15.py` section II (the signed gap) as written. Reads no file: the
+    drawn rule belongs to the caller (`_live_drawn_cell_census`).
+    """
+    none_drawn = comparable = arm_drawn = 0
+    signed: list[float] = []
+    for values, drawn in claims:
+        if not any(drawn):
+            none_drawn += 1
+        elif all(drawn[:3]) or all(drawn[3:]):
+            arm_drawn += 1
+        else:
+            comparable += 1
+            ko_measured = [v for v, d in zip(values[:3], drawn[:3], strict=True) if not d]
+            wt_measured = [v for v, d in zip(values[3:], drawn[3:], strict=True) if not d]
+            published_fc = np.mean(values[:3]) - np.mean(values[3:])
+            measured_fc = np.mean(ko_measured) - np.mean(wt_measured)
+            signed.append(float(published_fc - measured_fc))
+    total = len(claims)
+    containing = comparable + arm_drawn
+    gap: dict[str, Any] = {"n": len(signed)}
+    if signed:
+        s = np.array(signed)
+        gap |= {
+            "signed_quartiles": [
+                round(float(np.percentile(s, 25)), 3),
+                round(float(np.median(s)), 3),
+                round(float(np.percentile(s, 75)), 3),
+            ],
+            "absolute_median": round(float(np.median(np.abs(s))), 3),
+            "published_exceeds_measured_only": int((s > 0).sum()),
+        }
+    return {
+        "published_claims": total,
+        "no_drawn_cell": none_drawn,
+        "some_drawn_both_arms_measured": comparable,
+        "whole_arm_drawn": arm_drawn,
+        "containing_a_drawn_cell": {
+            "count": containing,
+            "of": total,
+            "fraction": round(containing / total, 3) if total else None,
+        },
+        "comparable_gap_published_minus_measured_only_log2": gap,
+    }
+
+
+def _raw_value(row: list[str], column: dict[str, int], name: str) -> float:
+    text = row[column[name]].strip() if name in column else ""
+    try:
+        return float(text)
+    except ValueError:
+        return 0.0
+
+
+def _cell_provided(row: list[str], column: dict[str, int], name: str) -> bool:
+    """The deposit provides this cell, in the summed column OR at any multiplicity.
+
+    `provided()` of `diagnose_round14.py` section EE and `diagnose_round15.py` section II. A cell
+    not provided is drawn.
+    """
+    if _raw_value(row, column, name) > 0:
+        return True
+    return any(
+        _raw_value(row, column, f"{name}{suffix}") > 0 for suffix in ("___1", "___2", "___3")
+    )
+
+
+def _live_drawn_cell_census(home: Path) -> dict[str, Any]:
+    """Read the hash-verified deposit and S1, apply `drawn_cell_census`; never raises.
+
+    S1 is read through `verify`, not `pxd018299_h10._supplement_path`: that one turns a missing
+    file into `SystemExit`, which is not an `Exception` and would escape the handler below.
+    """
+    try:
+        from bzk.adapters import maxquant
+        from bzk.sources import pxd018299_h10 as h10
+
+        sites_path = verify(
+            PXD018299_SITES.expected_content_hash or "",
+            filename=PXD018299_SITES.filename,
+            home=home,
+        )
+        rows, column = h10.anchor_population(maxquant.read_table(sites_path))
+        index_of = {str(r[column["id"]]).strip(): i for i, r in enumerate(rows)}
+        s1_path = verify(
+            SUPP_DATA_1.expected_content_hash, filename=SUPP_DATA_1.filename, home=home
+        )
+        header, s1 = h10._s1_rows(s1_path)
+        published_columns = h10.s1_columns(header)
+        names = [f"Intensity {arm}_{i}" for arm in (h10.KO_ARM, h10.WT_ARM) for i in h10.REPLICATES]
+        claims: list[tuple[list[float], list[bool]]] = []
+        for claim in _load(CASCADE)["rows"]:
+            row = rows[index_of[str(claim["deposit_id"])]]
+            values = [h10._float_cell(s1[int(claim["row"])].get(n)) for n in published_columns]
+            drawn = [not _cell_provided(row, column, name) for name in names]
+            claims.append((values, drawn))
+        return drawn_cell_census(claims) | {
+            "read": {
+                PXD018299_SITES.filename: f"sha256:{_sha256_path(sites_path)}",
+                SUPP_DATA_1.filename: f"sha256:{_sha256_path(s1_path)}",
+            },
+            "drawn_rule": (
+                "a cell is drawn unless the summed intensity column or any of its ___1/___2/___3 "
+                "multiplicity columns is > 0"
+            ),
+        }
     except Exception as exc:  # noqa: BLE001 - a missing store must not sink the report
         return {"NOT COMPUTED": f"{type(exc).__name__}: {exc}"}
 
@@ -975,7 +1093,7 @@ def run(
     builders: list[Callable[[], Stage]] = [
         lambda: stage1_sources(home, live),
         lambda: stage2_graph(rebuild, home),
-        lambda: stage3_census(fixture),
+        lambda: stage3_census(fixture, home if live else None),
         lambda: stage4_imputation(fixture, home if live else None),
         lambda: stage5_differential(home / "graph.kuzu" if live else None),
         lambda: stage6_sensitivity(fixture, out),
