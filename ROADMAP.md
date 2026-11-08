@@ -12784,8 +12784,41 @@ Rough ordering, not commitments: reference-graph import and RO-Crate export (v0.
 ## Open questions
 
 1. Does v0.1 ship publicly, or is it a private proof that the ontology holds?
+
+   **Answered 2026-11-08: it ships publicly.** The question was never visibility — the repository is
+   already publicly readable and an anonymous clone succeeds — but whether v0.1 is released and
+   licensed as something others may use. It is, **and that makes question 2 load-bearing**: code
+   that is visible under default copyright is unusable by anyone, so a public v0.1 without a licence
+   would satisfy the letter of this answer and none of its point. **It does not move the v0.1
+   exit**, which § *Weeks 7–8* sets as an answer *"across all my datasets"* (l.31): who may reuse
+   the code is a different axis from what the release must hold. **By question 4's test it gates
+   nothing** on the open list.
 2. Licence — Apache 2.0 or AGPL? Bears on whether a commercial fork is acceptable.
+
+   **Answered 2026-11-08: Apache 2.0, with one dependency outstanding.** What it serves is
+   reproducibility for question 3's paper and a release that can be forked; AGPL would protect a
+   commercial position this project is not taking, and some institutions bar it outright. **The
+   asymmetry matters more than the choice.** Tightening later — Apache to AGPL for new versions —
+   needs only the rights holder, while loosening later needs every contributor's consent; and copies
+   already released stay under the terms they were released under, so a permissive release cannot be
+   recalled. That is why the permissive answer is the safe one *while* there is a sole rights holder
+   and no outside contributor, and why it stops being freely reversible once there is one.
+   **Outstanding, and it blocks the licence commit rather than this answer:** whether the University
+   of Oxford or the CAMS Oxford Institute holds a claim on code written during research there.
+   Nothing here is legal advice.
 3. Does a paper come out of this, and if so is the target the tool or the ISGylation biology it enables?
+
+   **Answered 2026-11-08: a paper, and the target is the tool and its method — not the ISGylation
+   biology.** The evidence is the third deposit's result, whose home is
+   `notes/REVIEWER-HANDOFF-2026-11-07.md` §3 — readouts B, C and D, every figure carrying *second
+   attempt, after a registration defect; test identified exploratorily*. Read them there; this entry
+   does not restate them. What they are evidence **about** is how durable a published site-level
+   claim is under re-analysis, which is a tool-and-method result and says nothing about ISGylation.
+   **What it licenses:** the figures `bzk.audit` cannot regenerate become the critical path, because
+   a paper needs them from one command. Their home is the reviewer handoff of 2026-11-07b, §5 item
+   2, and **that list is now three rather than four** — prompt 37 closed the § 1 census. **What it
+   does not license:** any claim about ISGylation biology. Nothing on the open list is preparation
+   for that paper; its route is the first real IP ingestion, which is blocked on the collaborator.
 4. **At which point in his pipeline would the collaborator rather hand something over — search-engine output or Perseus results?** The answer determines whether retaining the raw matrix is essential or merely prudent. Ask at the meeting.
 
    **Tested against the 2026-08-11 dependency redraw and found not to block it — and it had been read the other way first.** The reading that stopped a redraw was that *which adapter is the v0.1 path* depends on this answer, so the axis could not be drawn until he supplied one. **That is wrong, and the test is to run both branches.** If the answer is *Perseus results*, the Perseus adapter needs a real Perseus table carrying a `Difference` and a p-value — from him. If the answer is *search-engine output*, the MaxQuant path is primary, is already ingested from a public deposit, and the Perseus adapter **still** needs that same table before its exit is met. The row is dependent under **both** branches, so the answer moves nothing across the axis: it changes which path he would reach for first, not what he must supply. Every other row on the redraw is likewise unmoved by it — `perseus_s0` waits on parameter values under either answer, and the protein-groups mapping is untouched by it entirely.
