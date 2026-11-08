@@ -466,17 +466,34 @@ def test_refuses_an_undeclared_quantity(mapping: SampleMapping) -> None:
 def test_refuses_when_a_declared_contrast_has_no_columns(mapping: SampleMapping) -> None:
     """A contrast the caller states but the file does not contain is a mismatch, not an empty
     result — silently emitting nothing would read as "Perseus found nothing significant"."""
+    ko_wt = _anchored_contrast("KO", "WT")
     adapter = PerseusAdapter(
         declared=DECLARED,
         contrasts=[
             DeclaredContrast(
-                column_suffix="KO_WT", contrast=_anchored_contrast("KO", "WT"), arms=ARMS
+                column_suffix="KO_WT",
+                contrast=ko_wt,
+                arms=replace(ARMS, contrast_id=str(ko_wt["id"])),
             )
         ],
     )
     with pytest.raises(PerseusError) as exc:
         adapter.parse(TABLE, mapping)
     assert "KO_WT" in str(exc.value)
+
+
+def test_refuses_arms_minted_for_another_contrast() -> None:
+    """ADR-0040: arms belong to a contrast by identity. The same samples, minted for another
+    contrast, would prove the binding over one comparison and attribute every result to this one."""
+    other_node = _anchored_contrast("USP18-/-", "WT")
+    with pytest.raises(PerseusError) as exc:
+        DeclaredContrast(
+            column_suffix="KO_IFN_WT_IFN",
+            contrast=CONTRAST_NODE,
+            arms=replace(ARMS, contrast_id=str(other_node["id"])),
+        )
+    assert str(other_node["id"]) in str(exc.value)
+    assert str(CONTRAST_NODE["id"]) in str(exc.value)
 
 
 def test_refuses_a_file_it_cannot_sniff(adapter: PerseusAdapter, mapping: SampleMapping) -> None:
@@ -1384,7 +1401,11 @@ def test_the_count_is_per_contrast(mapping: SampleMapping, tmp_path: Path) -> No
     """One row, untested under one contrast and tested under the other: a count for the file would
     be wrong the moment a second contrast is declared, which is the hazard P3 chose (i) to avoid."""
     other_node = _anchored_contrast("USP18-/-", "WT")
-    other = DeclaredContrast(column_suffix="KO_WT", contrast=other_node, arms=ARMS)
+    other = DeclaredContrast(
+        column_suffix="KO_WT",
+        contrast=other_node,
+        arms=replace(ARMS, contrast_id=str(other_node["id"])),
+    )
     # P20591 is the placeholder under the first contrast and tested under the second; P19525 is
     # tested under both, so the first contrast still has a row to prove its binding against.
     book = _tsv(

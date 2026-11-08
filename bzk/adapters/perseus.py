@@ -311,6 +311,22 @@ class DeclaredContrast:
     contrast: Mapping[str, object]
     arms: ContrastArms
 
+    def __post_init__(self) -> None:
+        # The arms must be this contrast's, by identity (ADR-0040). `contrast` and `arms` arrive as
+        # two arguments and nothing else relates them: every result is attributed through
+        # `contrast["id"]` while `_prove` binds and recomputes over `arms`, so arms resolved for
+        # another contrast would prove one comparison and attribute its results to a second. The
+        # rule `site_change_set` applies to the same pair (`bzk/analysis/differential.py`).
+        contrast_id = str(self.contrast["id"])
+        if self.arms.contrast_id != contrast_id:
+            raise PerseusError(
+                f"the arms declared for column suffix {self.column_suffix!r} were resolved for "
+                f"Contrast {self.arms.contrast_id!r}, not for the Contrast passed, {contrast_id!r}: "
+                "every result would be attributed to one comparison while its binding is proved "
+                "over another's arm samples. Pass the arms the loader resolved for this contrast "
+                "(LoadedCuration.contrast_arms under the same handle as LoadedCuration.contrast)"
+            )
+
 
 @dataclass(frozen=True)
 class ContrastProof:

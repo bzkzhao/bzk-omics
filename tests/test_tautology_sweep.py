@@ -2326,7 +2326,12 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # extracted functions and their synthetic cases in `tests/test_audit.py`, which also move `PINNED`
     # from 340 to 342 entries. `sweep()` read 60 / 2632 with that file at `9067602`, before this turn
     # added anything — no lag — and 60 / 2639 after. Read off `sweep()`.
-    assert modules >= 60 and asserts >= 2639, (
+    # 2639 -> 2641 on 2026-11-08 (prompt 40), module count unchanged at 60 and `PINNED` unchanged
+    # at 342: the `DeclaredContrast` identity test in `tests/test_perseus.py` adds two `in` asserts
+    # and no matching equality. `sweep()` read 60 / 2639 with that file and
+    # `tests/test_decision_index.py` at `a65b90f`, before this turn added anything — no lag — and
+    # 60 / 2641 after. Read off `sweep()`.
+    assert modules >= 60 and asserts >= 2641, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

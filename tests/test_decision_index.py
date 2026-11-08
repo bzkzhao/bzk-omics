@@ -49,8 +49,8 @@ ARCHITECTURE = ROOT / "ARCHITECTURE.md"
 #: The counts at `fdc8ef3`, pinned so a parser that stops matching fails loudly instead of
 #: comparing two empty sets. A legitimate addition moves these in the same commit — the same
 #: discipline `tests/test_tautology_sweep.py`'s floor carries, and for the same reason.
-EXPECTED_FILES = 38
-EXPECTED_WRITTEN_ROWS = 38
+EXPECTED_FILES = 39
+EXPECTED_WRITTEN_ROWS = 39
 EXPECTED_QUEUED_ROWS = 1
 EXPECTED_SEED_LINES = 18
 EXPECTED_SEED_STRUCK = 17
@@ -70,7 +70,10 @@ EXPECTED_SEED_STRUCK = 17
 #: when bzk accepted it as it stood at `59bb0d2` (D6-revised in place of D6).
 #: 25/9/3 -> 25/10/3 on 2026-10-07: ADR-0039 landed `Proposed`; 25/10/3 -> 26/9/3 the same
 #: day, when bzk accepted it.
-EXPECTED_STATUSES = {"Accepted": 26, "Proposed": 9, "Superseded": 3}
+#: 26/9/3 -> 26/10/3 on 2026-11-08: ADR-0040 landed `Proposed` (prompt 40). `EXPECTED_FILES` and
+#: `EXPECTED_WRITTEN_ROWS` moved 38 -> 39 with it; the queued and seed counts did not, since 0040 is
+#: not in `ARCHITECTURE.md` §5's seed list.
+EXPECTED_STATUSES = {"Accepted": 26, "Proposed": 10, "Superseded": 3}
 
 #: Supersessions recorded on one side only, with the reason each is permitted.
 #:
