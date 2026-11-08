@@ -362,7 +362,9 @@ def _live_inputs(
 def test_stage3_live_with_s1_absent_reports_it_and_raises_no_system_exit(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """`_supplement_path` turns this into `SystemExit`, which `except Exception` does not catch."""
+    """Reported as S1's own `FileNotFoundError`, not as an exit. `_supplement_path` would turn this
+    into `SystemExit`; the wrapper reads S1 through `verify` so the finding names the missing file
+    rather than relying on the handler's width to catch an exit."""
     _live_inputs(tmp_path, monkeypatch, {}, s1=False)
     census = audit.stage3_census(_committed(), tmp_path).findings["drawn_cell_census"]
     assert census == {
@@ -387,3 +389,68 @@ def test_a_cell_reported_at_no_multiplicity_either_is_drawn(
     census = audit.stage3_census(_committed(), tmp_path).findings["drawn_cell_census"]
     assert census["no_drawn_cell"] == 0
     assert census["some_drawn_both_arms_measured"] == 1
+
+
+# ── A helper's exit must not end the report ──────────────────────────────────────────────────────
+
+
+def _caught(handler: Any) -> set[str]:
+    """The names an `except` clause catches; a bare `except:` catches everything."""
+    import ast
+
+    if handler.type is None:
+        return {"BaseException"}
+    types = handler.type.elts if isinstance(handler.type, ast.Tuple) else [handler.type]
+    return {ast.unparse(t).rsplit(".", 1)[-1] for t in types}
+
+
+def test_every_handler_that_catches_exception_also_catches_system_exit() -> None:
+    """`except Exception` does not catch `SystemExit`, and several input helpers turn a missing file
+    into one. A handler that exists to keep the report alive must catch it too, or a helper that
+    exits ends the process instead of being reported. Read by shape, not by line or comment."""
+    import ast
+
+    source = Path(audit.__file__).read_text(encoding="utf-8")
+    handlers = [
+        node
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.ExceptHandler) and "Exception" in _caught(node)
+    ]
+    assert handlers, "no handler catches Exception: the guard is reading the wrong source"
+    offending = [h.lineno for h in handlers if not _caught(h) & {"SystemExit", "BaseException"}]
+    assert not offending, (
+        f"bzk/audit.py line(s) {offending} catch Exception but not SystemExit. `except Exception` "
+        "does not catch SystemExit, so a helper that exits on a missing input would end the "
+        "process instead of being reported. Catch (Exception, SystemExit)."
+    )
+
+
+def _exits(code: object) -> Any:
+    def stub(**_: Any) -> int:
+        raise SystemExit(code)
+
+    return stub
+
+
+def test_a_helper_that_exits_does_not_sink_the_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The `--live` regeneration reaches `raise SystemExit` when a PXD026748 input is missing."""
+    monkeypatch.setattr(h10, "main", _exits("sites.txt is not in the content store"))
+    report = audit.run(tmp_path, live=True, home=tmp_path / "none")
+    reproduction = report["stages"][8]["findings"]["attempt3_reproduction"]
+    assert reproduction["ran"] is False
+    assert reproduction["error"].startswith("SystemExit")
+    assert len(report["stages"]) == 9
+    assert _modes(report)[4] == "FIXTURE"
+
+
+def test_an_interrupt_still_ends_the_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The handler is widened to `SystemExit` only, never to `BaseException`."""
+
+    def interrupt(**_: Any) -> int:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(h10, "main", interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        audit.run(tmp_path, live=True, home=tmp_path / "none")

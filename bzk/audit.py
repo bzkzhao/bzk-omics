@@ -391,13 +391,6 @@ def stage3_census(fixture: dict[str, Any], home: Path | None = None) -> Stage:
             else "NOT COMPUTED: needs the deposit bytes; run with --live"
         ),
     }
-    stage.not_automated = [
-        (
-            "The count of contrasts with no observed values: produced by "
-            "notes/scripts/diagnose_round14.py, needs the raw store, records in "
-            "walk/CHECKS-census.md."
-        )
-    ]
     stage.sources = [f"tests/fixtures/{H10_FIXTURE}", f"tests/fixtures/{CASCADE}"]
     return stage
 
@@ -454,7 +447,7 @@ def _live_whole_column_reference(fixture: dict[str, Any], home: Path) -> dict[st
             log2 = log2 - np.nanmedian(log2, axis=0)
         per = fixture["readouts"]["primary"]["readout_c"]["per_sample"]
         return whole_column_reference(log2, anchor, per)
-    except Exception as exc:  # noqa: BLE001 - a missing store must not sink the report
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 - a missing store, or a helper that exits on one, must not sink the report
         return {"NOT COMPUTED": f"{type(exc).__name__}: {exc}"}
 
 
@@ -533,7 +526,9 @@ def _live_drawn_cell_census(home: Path) -> dict[str, Any]:
     """Read the hash-verified deposit and S1, apply `drawn_cell_census`; never raises.
 
     S1 is read through `verify`, not `pxd018299_h10._supplement_path`: that one turns a missing
-    file into `SystemExit`, which is not an `Exception` and would escape the handler below.
+    file into `SystemExit`. The handler below catches `SystemExit` too, but `verify` raises
+    `FileNotFoundError`, an ordinary `Exception`, so a missing input becomes this finding's value
+    without the wrapper depending on the handler's width to stay alive.
     """
     try:
         from bzk.adapters import maxquant
@@ -568,7 +563,7 @@ def _live_drawn_cell_census(home: Path) -> dict[str, Any]:
                 "multiplicity columns is > 0"
             ),
         }
-    except Exception as exc:  # noqa: BLE001 - a missing store must not sink the report
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 - a missing store, or a helper that exits on one, must not sink the report
         return {"NOT COMPUTED": f"{type(exc).__name__}: {exc}"}
 
 
@@ -656,7 +651,7 @@ def stage5_differential(graph: Path | None = None) -> Stage:
     if graph is not None:
         try:
             read = _read_graph(graph, targets["targets"])
-        except Exception as exc:  # noqa: BLE001 - a locked or absent graph must not sink the report
+        except (Exception, SystemExit) as exc:  # noqa: BLE001 - a locked or absent graph, or a helper that exits on one, must not sink the report
             stage.findings["live_graph"] = f"NOT READ: {type(exc).__name__}: {exc}"
         else:
             fixture_status = {t["gene"]: t["status"] for t in targets["targets"]}
@@ -987,7 +982,7 @@ def stage10_reasons(out: Path, home: Path, drift_live: bool) -> Stage:
                 "written": [str(drift_path), str(unresolved_path)],
                 "receipt": "not updated; run python -m bzk.drift to refresh it",
             }
-        except Exception as exc:  # noqa: BLE001 - network or archive failure must not sink the report
+        except (Exception, SystemExit) as exc:  # noqa: BLE001 - network or archive failure, or a helper that exits on one, must not sink the report
             stage.mode = "FIXTURE"
             stage.findings["drift"] = f"NOT RUN: {type(exc).__name__}: {exc}"
     else:
@@ -1087,7 +1082,7 @@ def run(
                 fresh, reproduction = _regenerate_attempt3(home, Path(tmp))
             if reproduction["return_code"] == 0:
                 fixture, regenerated = fresh, True
-        except Exception as exc:  # noqa: BLE001 - a missing store must not sink the report
+        except (Exception, SystemExit) as exc:  # noqa: BLE001 - a missing store, or a helper that exits on one, must not sink the report
             reproduction = {"ran": False, "error": f"{type(exc).__name__}: {exc}"}
     out.mkdir(parents=True, exist_ok=True)
     builders: list[Callable[[], Stage]] = [

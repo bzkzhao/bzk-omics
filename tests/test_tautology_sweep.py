@@ -2312,7 +2312,11 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # all in `tests/test_audit.py`, a module already counted. `sweep()` read 60 / 2612 with that file
     # as at `3f2c1b9`, before this turn added anything — no lag — and 60 / 2626 after. Read off
     # `sweep()`.
-    assert modules >= 60 and asserts >= 2626, (
+    # 2626 -> 2632 on 2026-11-08 (prompt 38), module count unchanged at 60 and `PINNED` unchanged:
+    # the handler guard and the two `run()` tests in `tests/test_audit.py` add six asserts and no
+    # matching equality, so the floor moves and the pin does not. `sweep()` read 60 / 2626 with that
+    # file at `dbf871c`, before this turn added anything — no lag — and 60 / 2632 after.
+    assert modules >= 60 and asserts >= 2632, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
