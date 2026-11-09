@@ -16,8 +16,10 @@ import kuzu
 import pytest
 
 from bzk import audit
+from bzk.provenance import raw_store
 from bzk.sources import pxd018299_h10 as h10
 from bzk.sources import pxd026748_reconstruction as reconstruction
+from bzk.sources.pride import PXD018299_SITES
 from bzk.sources.protein_groups import SUPP_DATA_1
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -389,6 +391,211 @@ def test_a_cell_reported_at_no_multiplicity_either_is_drawn(
     census = audit.stage3_census(_committed(), tmp_path).findings["drawn_cell_census"]
     assert census["no_drawn_cell"] == 0
     assert census["some_drawn_both_arms_measured"] == 1
+
+
+# ── Stage 4's route 2: the downshift band from published fold changes ───────────────────────────
+
+ROUND16 = Path(__file__).parent.parent / "notes" / "scripts" / "diagnose_round16.py"
+ROUND16_LOG = Path(__file__).parent.parent / "notes" / "logs" / "round16.txt"
+
+#: Two comparable claims, each with one drawn cell, both in the KO arm: claims whose drawn cells
+#: sit in opposite arms give a pooled gap that barely responds to the downshift. Column statistics
+#: are given (mean 20, SD 1 everywhere), so the observed gaps are hand-computable:
+#: A = (18.2 + 21 + 21)/3 - 21 = -0.9333 and B = (21 + 18.3 + 21)/3 - 21 = -0.9, median -0.9167.
+_BAND_CLAIMS: list[tuple[list[float], list[bool], float]] = [
+    ([18.2, 21.0, 21.0, 20.0, 20.0, 20.0], [True, False, False, False, False, False], 1.0),
+    ([21.0, 18.3, 21.0, 20.0, 20.0, 20.0], [False, True, False, False, False, False], 1.0),
+]
+#: 1.8 is scanned FIRST and 1.7 second, deliberately. With a fresh generator per value the first
+#: value's draws are the shared run's, so only the second value's verdict can show whether the
+#: generator is shared. Seed 17 puts 1.8 11.6% inside `2 * spread` and 1.7 13.4% outside it;
+#: a fresh generator per value moves 1.7 to 49% inside, and `4 * spread` moves it to 43% inside.
+_BAND_SCAN = (1.8, 1.7)
+_BAND_SEED = 17
+
+
+def _band(seed: int = _BAND_SEED) -> dict[str, Any]:
+    return audit.downshift_band(_BAND_CLAIMS, [20.0] * 6, [1.0] * 6, _BAND_SCAN, 0.29, seed)
+
+
+def test_downshift_band_keeps_the_consistent_value_and_drops_the_other() -> None:
+    """The band is a strict subset of the scan, and each value reports its own spread.
+
+    Sits about 12% from the consistency boundary on purpose (see `_BAND_SCAN`): that is what lets
+    this case tell a shared generator from a fresh one, at the price of a verdict a change in
+    numpy's generator stream could move.
+    """
+    got = _band()
+    assert got["comparable_claims"] == 2
+    assert got["observed_median_gap"] == -0.917
+    assert got["consistent_band"] == [1.8]
+    assert set(got["consistent_band"]) < set(_BAND_SCAN)
+    assert list(got["scan"]) == ["1.8", "1.7"]
+    assert [v["consistent"] for v in got["scan"].values()] == [True, False]
+    for value in got["scan"].values():
+        assert set(value) == {"predicted_median_gap", "bootstrap_standard_error", "consistent"}
+        assert value["bootstrap_standard_error"] > 0
+    assert got["width_sd_given"] == 0.29
+
+
+def test_downshift_band_is_deterministic_in_its_seed() -> None:
+    assert _band() == _band()
+
+
+def test_the_ported_scan_matches_the_script_it_was_ported_from() -> None:
+    """`LL_*` mirror `diagnose_round16.py` section LL; read the constants back out of it."""
+    import ast
+
+    tree = ast.parse(ROUND16.read_text(encoding="utf-8"))
+    width = next(
+        ast.literal_eval(n.value)
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Assign) and any(getattr(t, "id", None) == "WIDTH" for t in n.targets)
+    )
+    loop = next(
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.For) and getattr(n.target, "id", None) == "downshift"
+    )
+    seeds = [
+        ast.literal_eval(n.args[0])
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "default_rng"
+    ]
+    ranges = [
+        ast.literal_eval(n.args[0])
+        for n in ast.walk(loop)
+        if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "range"
+    ]
+    assert width == audit.LL_WIDTH
+    assert ast.literal_eval(loop.iter) == audit.LL_DOWNSHIFTS
+    assert seeds == [audit.LL_SEED]
+    assert sorted(ranges) == sorted([audit.LL_DRAWS, audit.LL_RESAMPLES])
+
+
+def test_stage4_without_live_says_neither_route_was_computed() -> None:
+    findings = audit.stage4_imputation(_committed()).findings
+    assert findings["downshift_band_from_fold_changes"] == (
+        "NOT COMPUTED: needs the deposit bytes; run with --live"
+    )
+    assert findings["against_whole_deposit_column"] == (
+        "NOT COMPUTED: needs the deposit bytes; run with --live"
+    )
+
+
+def test_stage4_live_with_no_store_reports_both_failures_instead_of_raising(
+    tmp_path: Path,
+) -> None:
+    findings = audit.stage4_imputation(_committed(), tmp_path).findings
+    for key in ("downshift_band_from_fold_changes", "against_whole_deposit_column"):
+        assert set(findings[key]) == {"NOT COMPUTED"}
+        assert findings[key]["NOT COMPUTED"].startswith("FileNotFoundError: ")
+
+
+def test_stage4_live_with_s1_absent_names_the_missing_file_not_an_exit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The exact finding, exception name included. The handler catches `SystemExit` too, so a
+    wrapper reading S1 through `_supplement_path` would still return `NOT COMPUTED` and let nothing
+    escape; only the name inside the finding tells the two apart."""
+    _live_inputs(tmp_path, monkeypatch, {"Intensity KO_IFN_1": "0"}, s1=False)
+    band = audit.stage4_imputation(_committed(), tmp_path).findings[
+        "downshift_band_from_fold_changes"
+    ]
+    assert band == {
+        "NOT COMPUTED": f"FileNotFoundError: {SUPP_DATA_1.filename} is not in {tmp_path}"
+    }
+
+
+@pytest.mark.parametrize(
+    ("cells", "comparable"),
+    [
+        ({"Intensity KO_IFN_1": "0", "Intensity KO_IFN_1___1": "5"}, 0),
+        ({"Intensity KO_IFN_1": "0"}, 1),
+    ],
+    ids=["multiplicity-only-is-provided", "control-drawn"],
+)
+def test_route_2_uses_the_multiplicity_aware_drawn_rule(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cells: dict[str, str], comparable: int
+) -> None:
+    """Route 2's drawn rule is `provided()`, not route 1's summed-column-only `cell()`.
+
+    The two rules disagree on no cell of the PXD018299 deposit, so the real-data test above cannot
+    see which one the wrapper uses; only this synthetic case can. Two fully measured rows join the
+    claim's row so every column has a finite mean and SD.
+    """
+    _live_inputs(tmp_path, monkeypatch, cells)
+    sites = tmp_path / "sites.txt"
+    width = len(sites.read_text().splitlines()[0].split("\t"))
+    measured = ["100"] * (width - 3)
+    sites.write_text(
+        sites.read_text() + "".join("\t".join([i, "", *measured, "0"]) + "\n" for i in ("8", "9"))
+    )
+    seen: list[Any] = []
+
+    def record(claims: Any, *_a: Any, **_k: Any) -> dict[str, Any]:
+        seen.append(claims)
+        return {}
+
+    monkeypatch.setattr(audit, "downshift_band", record)
+    band = audit.stage4_imputation(_committed(), tmp_path).findings[
+        "downshift_band_from_fold_changes"
+    ]
+    assert "NOT COMPUTED" not in band
+    (claims,) = seen
+    assert len(claims) == comparable
+    if comparable:
+        assert claims[0][1] == [True, False, False, False, False, False]
+
+
+def _logged_band() -> dict[str, Any]:
+    """Section LL of the committed log, `notes/logs/round16.txt`, parsed into the band's shape."""
+    import re
+
+    lines = ROUND16_LOG.read_text(encoding="utf-8").splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith("LL —"))
+    end = next(i for i in range(start, len(lines)) if "downshifts consistent" in lines[i])
+    block = lines[start : end + 1]
+    observed = next(
+        re.search(r"over (\d+) claims: ([+-][\d.]+)", x) for x in block if "observed" in x
+    )
+    assert observed is not None
+    scan = {
+        m[1]: (float(m[2]), m[3] == "yes")
+        for x in block
+        if (m := re.fullmatch(r"\s+([\d.]+)\s+([+-][\d.]+)\s+(yes|no)", x))
+    }
+    se = next(float(x.rsplit(":", 1)[1]) for x in block if "bootstrap standard error" in x)
+    band = json.loads(block[-1].rsplit(":", 1)[1])
+    return {
+        "claims": int(observed[1]),
+        "observed": float(observed[2]),
+        "scan": scan,
+        "se": se,
+        "band": band,
+    }
+
+
+def test_route_2_on_the_deposit_reproduces_the_committed_log() -> None:
+    """Against the real bytes, the port reproduces every figure LL printed. The log prints one
+    standard error, the LAST downshift's, so it is compared against 2.5's alone."""
+    try:
+        for digest, filename in (
+            (PXD018299_SITES.expected_content_hash or "", PXD018299_SITES.filename),
+            (SUPP_DATA_1.expected_content_hash, SUPP_DATA_1.filename),
+        ):
+            raw_store.verify(digest, filename=filename, home=raw_store.DEFAULT_HOME)
+    except FileNotFoundError as exc:
+        pytest.skip(f"deposit or S1 not in raw/ — run `python -m bzk.sources.pride` first ({exc})")
+    got = audit._live_downshift_band(raw_store.DEFAULT_HOME)
+    log = _logged_band()
+    assert got["comparable_claims"] == log["claims"]
+    assert got["observed_median_gap"] == log["observed"]
+    assert {k: (v["predicted_median_gap"], v["consistent"]) for k, v in got["scan"].items()} == (
+        log["scan"]
+    )
+    assert got["scan"][str(audit.LL_DOWNSHIFTS[-1])]["bootstrap_standard_error"] == log["se"]
+    assert got["consistent_band"] == log["band"]
 
 
 # ── A helper's exit must not end the report ──────────────────────────────────────────────────────

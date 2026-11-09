@@ -426,6 +426,88 @@ def whole_column_reference(
     return out
 
 
+#: The scan of `notes/scripts/diagnose_round16.py` section LL, as written there: the downshift
+#: values (l.107), the fixed width (l.49), the generator's seed (l.104), the simulated draws per
+#: value (l.109) and the bootstrap resamples (l.120). `tests/test_audit.py` reads these back out
+#: of the script, so the port cannot drift from the run whose log is the committed baseline.
+LL_DOWNSHIFTS = (1.0, 1.2, 1.4, 1.6, 1.7, 1.77, 1.8, 1.9, 2.0, 2.2, 2.5)
+LL_WIDTH = 0.29
+LL_SEED = 0
+LL_DRAWS = 200
+LL_RESAMPLES = 400
+
+
+def downshift_band(
+    claims: list[tuple[list[float], list[bool], float]],
+    column_mean: list[float],
+    column_sd: list[float],
+    downshifts: tuple[float, ...],
+    width: float,
+    seed: int,
+    *,
+    draws: int = LL_DRAWS,
+    resamples: int = LL_RESAMPLES,
+) -> dict[str, Any]:
+    """The downshifts whose simulated fold-change gap is consistent with the published one.
+
+    Each claim is its six published values (KO 1-3, WT 1-3), six `drawn` flags in the same order,
+    and its measured-only fold change. Only comparable claims belong here (some cell drawn, both
+    arms partly measured); the caller selects them. `column_mean` and `column_sd` are per column,
+    in the same order. Ported from `notes/scripts/diagnose_round16.py` section LL, l.101-124, as
+    written: one generator for the whole scan, the draw order unchanged, and the bootstrap spread
+    drawn from that same generator once per downshift value, after that value's simulation.
+
+    `width` is taken as given and never re-derived: it is the wild-type width route 1 recovered,
+    which is one of the reasons the two routes are not independent
+    (`walk/CORRECTION-PXD018299-two-route-independence.md`). Reads no file and prints nothing.
+    """
+    # l.100: the observed gap, published fold change minus measured-only, per claim.
+    observed_gaps = [
+        (np.mean(values[:3]) - np.mean(values[3:])) - measured_fc
+        for values, _, measured_fc in claims
+    ]
+    observed = float(np.median(observed_gaps))
+    rng = np.random.default_rng(seed)
+    scan: dict[str, dict[str, Any]] = {}
+    band: list[float] = []
+    for downshift in downshifts:
+        gaps = []
+        for _ in range(draws):
+            for values, drawn, measured_fc in claims:
+                simulated = list(values)
+                for position, (mean, sd) in enumerate(zip(column_mean, column_sd, strict=True)):
+                    if drawn[position]:
+                        simulated[position] = rng.normal(mean - downshift * sd, width * sd)
+                gaps.append((np.mean(simulated[:3]) - np.mean(simulated[3:])) - measured_fc)
+        predicted = float(np.median(gaps))
+        # The sampling spread of the observed median, from the same generator, at THIS value.
+        spread = float(
+            np.std(
+                [
+                    np.median(rng.choice(observed_gaps, size=len(observed_gaps)))
+                    for _ in range(resamples)
+                ]
+            )
+        )
+        consistent = abs(predicted - observed) <= 2 * spread
+        if consistent:
+            band.append(downshift)
+        scan[str(downshift)] = {
+            "predicted_median_gap": round(predicted, 3),
+            "bootstrap_standard_error": round(spread, 3),
+            "consistent": consistent,
+        }
+    return {
+        "comparable_claims": len(claims),
+        "observed_median_gap": round(observed, 3),
+        "width_sd_given": width,
+        "seed": seed,
+        "scan": scan,
+        "consistent_band": band,
+        "consistency_rule": "|predicted - observed| <= 2 x that downshift's bootstrap SE",
+    }
+
+
 def _live_whole_column_reference(fixture: dict[str, Any], home: Path) -> dict[str, Any]:
     """Read the hash-verified deposit and apply `whole_column_reference`; never raises."""
     try:
@@ -567,6 +649,68 @@ def _live_drawn_cell_census(home: Path) -> dict[str, Any]:
         return {"NOT COMPUTED": f"{type(exc).__name__}: {exc}"}
 
 
+def _live_downshift_band(home: Path) -> dict[str, Any]:
+    """Read the hash-verified deposit and S1, apply `downshift_band`; never raises.
+
+    The column statistics (`diagnose_round16.py` l.78-85) and the claim extraction (l.89-100) are
+    this wrapper's; the scan is the pure function's. S1 is read through `verify`, not
+    `pxd018299_h10._supplement_path`, for the reason `_live_drawn_cell_census` gives.
+    """
+    try:
+        from bzk.adapters import maxquant
+        from bzk.sources import pxd018299_h10 as h10
+
+        sites_path = verify(
+            PXD018299_SITES.expected_content_hash or "",
+            filename=PXD018299_SITES.filename,
+            home=home,
+        )
+        rows, column = h10.anchor_population(maxquant.read_table(sites_path))
+        index_of = {str(r[column["id"]]).strip(): i for i, r in enumerate(rows)}
+        s1_path = verify(
+            SUPP_DATA_1.expected_content_hash, filename=SUPP_DATA_1.filename, home=home
+        )
+        header, s1 = h10._s1_rows(s1_path)
+        published_columns = h10.s1_columns(header)
+        names = [f"Intensity {arm}_{i}" for arm in (h10.KO_ARM, h10.WT_ARM) for i in h10.REPLICATES]
+        # l.78-85: each column's log2 mean and SD over the anchor population, summed column only.
+        column_mean: list[float] = []
+        column_sd: list[float] = []
+        for name in names:
+            values = [math.log2(x) for r in rows if (x := _raw_value(r, column, name)) > 0]
+            column_mean.append(float(np.mean(values)))
+            column_sd.append(float(np.std(values, ddof=1)))
+        # l.89-100. The drawn rule is `_cell_provided`, the multiplicity-aware one: it is route 2's
+        # `provided()` (diagnose_round16.py l.67-70). It is NOT route 1's rule, which reads the
+        # summed column alone (`cell()` in diagnose_imputation_effects.py), so route 2's drawn
+        # cells are a subset of route 1's - the correction's first dependence. Do not reuse this
+        # helper for route 1.
+        claims: list[tuple[list[float], list[bool], float]] = []
+        for claim in _load(CASCADE)["rows"]:
+            row = rows[index_of[str(claim["deposit_id"])]]
+            cells = [h10._float_cell(s1[int(claim["row"])].get(n)) for n in published_columns]
+            drawn = [not _cell_provided(row, column, name) for name in names]
+            # The complement of `drawn_cell_census`'s comparable class, as at l.94.
+            if not any(drawn) or all(drawn[:3]) or all(drawn[3:]):
+                continue
+            ko_measured = [v for v, d in zip(cells[:3], drawn[:3], strict=True) if not d]
+            wt_measured = [v for v, d in zip(cells[3:], drawn[3:], strict=True) if not d]
+            claims.append((cells, drawn, float(np.mean(ko_measured) - np.mean(wt_measured))))
+        return downshift_band(claims, column_mean, column_sd, LL_DOWNSHIFTS, LL_WIDTH, LL_SEED) | {
+            "column_sd": [round(s, 2) for s in column_sd],
+            "read": {
+                PXD018299_SITES.filename: f"sha256:{_sha256_path(sites_path)}",
+                SUPP_DATA_1.filename: f"sha256:{_sha256_path(s1_path)}",
+            },
+            "drawn_rule": (
+                "a cell is drawn unless the summed intensity column or any of its ___1/___2/___3 "
+                "multiplicity columns is > 0"
+            ),
+        }
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 - a missing store, or a helper that exits on one, must not sink the report
+        return {"NOT COMPUTED": f"{type(exc).__name__}: {exc}"}
+
+
 def stage4_imputation(fixture: dict[str, Any], home: Path | None = None) -> Stage:
     block = fixture["readouts"]["primary"]["readout_c"]
     per = block["per_sample"]
@@ -593,27 +737,32 @@ def stage4_imputation(fixture: dict[str, Any], home: Path | None = None) -> Stag
             "width_sd": round(block["whole_matrix"]["width"], 3),
         },
         "reference_distribution": (
-            "per_sample and whole_matrix above are read against the measured deposit values inside "
-            "the claim rows only (readout C). 'against_whole_deposit_column' reads the SAME drawn "
-            "cells against the deposit's whole retained column, the reference walk/FINDINGS.md "
-            "section 2 quotes. The two differ because the reference differs, not the cells."
+            "per_sample and whole_matrix above are this fixture's readout C: the drawn cells read "
+            "against the measured deposit values inside the claim rows only. That is a different "
+            "statistic from either route below and should not be read as walk/FINDINGS.md section "
+            "2's figure; readout C is superseded (walk/CHECKS-PXD018299-imputation-effects.md:75-77)."
         ),
         "against_whole_deposit_column": (
             _live_whole_column_reference(fixture, home)
             if home is not None
             else "NOT COMPUTED: needs the deposit bytes; run with --live"
         ),
+        "downshift_band_from_fold_changes": (
+            _live_downshift_band(home)
+            if home is not None
+            else "NOT COMPUTED: needs the deposit bytes; run with --live"
+        ),
+        "two_routes": (
+            "walk/FINDINGS.md section 2 quotes two recoveries of the downshift. Route 1 is "
+            "'against_whole_deposit_column': the SAME drawn cells as readout C, read against each "
+            "column's whole retained deposit values; its column-by-column table is "
+            "walk/CHECKS-PXD018299-imputation-effects.md:59-66. Route 2 is "
+            "'downshift_band_from_fold_changes': the downshifts whose simulated gap between "
+            "published and measured-only fold changes is consistent with the observed one; its "
+            "figures are in walk/CHECKS-two-route-recovery.md. The two routes are NOT independent "
+            "of each other - walk/CORRECTION-PXD018299-two-route-independence.md gives the account."
+        ),
     }
-    stage.not_automated = [
-        (
-            "The two-route downshift recovery quoted in walk/FINDINGS.md section 2 (drawn cells "
-            "against column statistics; fold-change gap against measured-only part) is produced by "
-            "notes/scripts/diagnose_imputation_effects.py and recorded in "
-            "walk/CHECKS-two-route-recovery.md. It is not in any committed fixture, and the "
-            "per-sample range above (this fixture's readout C) is a different statistic that should "
-            "not be read as that figure."
-        )
-    ]
     stage.limitations.append(
         "Per-sample downshift differs sharply between arms (the WT columns carry most of the "
         "drawn cells), so a single downshift number hides that structure."

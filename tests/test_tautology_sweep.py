@@ -570,6 +570,38 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
         # the call under test, so both are pinned, not instances.
         ("test_audit.py", "exception_handlers(source) == expected", 1),
         ("test_audit.py", "handlers_missing_system_exit(source) == expected", 1),
+        # Classified 2026-11-09 (prompt 41): stage 4's route 2. None is an instance; in each the
+        # two sides have independent origins. `_band() == _band()` is two separate seeded runs,
+        # pinning determinism (cf. `evidence_id(...) == evidence_id(...)` in test_keys.py). The
+        # four `LL_*` / `loop.iter` comparisons read the constants out of
+        # `notes/scripts/diagnose_round16.py` by `ast` against `bzk.audit`'s copies — a mirror
+        # guard; widening `LL_WIDTH` to 0.3 reddens it. The two `log[...]` comparisons set the
+        # live computation against `notes/logs/round16.txt`, a committed file the call did not
+        # write. `band == {...}` is the stage-3 analogue's shape (classified 2026-11-08 above);
+        # reading S1 through `_supplement_path` reddens it on the exception name. `len(claims) ==
+        # comparable` is against a parametrized literal; the summed-column-only drawn rule
+        # reddens it.
+        ("test_audit.py", "_band() == _band()", 1),
+        ("test_audit.py", "ast.literal_eval(loop.iter) == audit.LL_DOWNSHIFTS", 1),
+        (
+            "test_audit.py",
+            "band == {'NOT COMPUTED': f'FileNotFoundError: {SUPP_DATA_1.filename} is not in {tmp_path}'}",
+            1,
+        ),
+        (
+            "test_audit.py",
+            "got['scan'][str(audit.LL_DOWNSHIFTS[-1])]['bootstrap_standard_error'] == log['se']",
+            1,
+        ),
+        ("test_audit.py", "len(claims) == comparable", 1),
+        ("test_audit.py", "seeds == [audit.LL_SEED]", 1),
+        ("test_audit.py", "sorted(ranges) == sorted([audit.LL_DRAWS, audit.LL_RESAMPLES])", 1),
+        ("test_audit.py", "width == audit.LL_WIDTH", 1),
+        (
+            "test_audit.py",
+            "{k: (v['predicted_median_gap'], v['consistent']) for k, v in got['scan'].items()} == log['scan']",
+            1,
+        ),
         ("test_drift.py", "len(sleeps) == drift.RETRIES - 1", 1),
         (
             "test_keys.py",
@@ -2331,7 +2363,11 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # and no matching equality. `sweep()` read 60 / 2639 with that file and
     # `tests/test_decision_index.py` at `a65b90f`, before this turn added anything — no lag — and
     # 60 / 2641 after. Read off `sweep()`.
-    assert modules >= 60 and asserts >= 2641, (
+    # 2641 -> 2669 on 2026-11-09 (prompt 41), module count unchanged at 60: stage 4's route-2
+    # tests in `tests/test_audit.py`, which also move `PINNED` from 342 to 351 entries. `sweep()`
+    # read 60 / 2641 over `tests/` as at `7274b54`, before this turn added anything — no lag — and
+    # 60 / 2669 after. Read off `sweep()`.
+    assert modules >= 60 and asserts >= 2669, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
