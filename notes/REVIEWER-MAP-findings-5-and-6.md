@@ -70,7 +70,7 @@ Eight live figures sit between 20% and 33%:
 | **20.1%** | support changes, default cell | 159/791 | halved | stage 6; `RESULT-…-attempt3.md:47` |
 | **20.1%** | rank-range crossing at rank 1,000 | /751 | — | `draws-and-threshold.md:105` |
 | 20.8% | family floor (round 9) | 156/751 | — | `ceiling-and-floor.md:90` — **superseded, unbannered** |
-| 21.2% | support changes, pre-specified | 159/751 | halved | `HYPOTHESIS.md:81`; `attempt3.md:46` — superseded, kept visible |
+| 21.2% | support changes, pre-specified | 159/751 | halved | `HYPOTHESIS.md:81`; `attempt3.md:46` — the **level** is superseded (restated at 27.8% under the documented rule, `HYPOTHESIS.md:84–85`) and kept visible; the **751 population is not** — it is the registered estimand (D1) |
 | 26.5% | support changes | 210/791 | documented | `collateral-and-pkm.md:25`; `FINDINGS.md:109` |
 | **27.6%** | support changes, twelve-sample population | — | documented | `HYPOTHESIS.md:56` |
 | **27.6%** | rank crossing at the documented calling rate | /751 | documented | `draws-and-threshold.md:104` |
