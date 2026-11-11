@@ -2367,7 +2367,11 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # tests in `tests/test_audit.py`, which also move `PINNED` from 342 to 351 entries. `sweep()`
     # read 60 / 2641 over `tests/` as at `7274b54`, before this turn added anything — no lag — and
     # 60 / 2669 after. Read off `sweep()`.
-    assert modules >= 60 and asserts >= 2669, (
+    # 2669 -> 2711 on 2026-11-11 (prompt 42a), module count unchanged at 60: stages 6 and 7's
+    # first tests in `tests/test_audit.py`, forty-two asserts, none matching, so `PINNED` stays at
+    # 351. `sweep()` read 60 / 2669 at `091263f`, before this turn added anything — no lag — and
+    # 60 / 2711 after. Read off `sweep()`.
+    assert modules >= 60 and asserts >= 2711, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

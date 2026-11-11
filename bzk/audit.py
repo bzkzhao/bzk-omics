@@ -859,8 +859,30 @@ def stage6_sensitivity(fixture: dict[str, Any], out: Path) -> Stage:
                     int(every[i]),
                 ]
             )
+    n_changed = int(changed.sum())
+    n_claims = int(support.shape[0])
+    n_imputed = int(imputed.sum())
+    n_changed_imputed = int((changed & imputed).sum())
     stage = Stage(6, "Stochastic imputation sensitivity", "FIXTURE")
     stage.findings = {
+        "registered_variant": fixture["readouts"]["primary"]["variant"],
+        # The two populations of `readouts.primary.readout_b`, recomputed and named as it names
+        # them. Shares unrounded: each is the same int/int division the fixture stored.
+        "over_all_claims": {
+            "numerator": n_changed,
+            "denominator": n_claims,
+            "share": n_changed / n_claims,
+        },
+        "conditional_on_imputation": {
+            "numerator": n_changed_imputed,
+            "denominator": n_imputed,
+            "share": n_changed_imputed / n_imputed,
+        },
+        # The registered estimand, not a headline: walk/PREREG-PXD018299-H10-attempt3.md:81-82
+        # takes the shares over claims whose row carries an imputed value, and
+        # walk/PREREG-PXD018299-H10.md:186-187 puts the all-claims share under "Reported, never
+        # the headline". The fixture marks no primary; `tests/test_audit.py` guards both lines.
+        "registered_primary": "conditional_on_imputation",
         "claims": len(rows),
         "default_cell": {
             "width_sd": DEFAULT_CELL[0],
@@ -910,9 +932,12 @@ def stage7_propagation(fixture: dict[str, Any]) -> Stage:
             )
     stage = Stage(7, "Multiple-testing propagation", "FIXTURE")
     stage.findings = {
+        "registered_variant": fixture["readouts"]["primary"]["variant"],
         "fully_measured_claims": len(measured),
-        "moved_across_cut_in_family": len(moved),
-        "moved_across_cut_in_default_cell": sum(
+        # Support changes, not cut crossings: the fixture keeps support as 0/1 and stores no
+        # q-values (the note below), so no q-range reading is possible here.
+        "support_changes_in_family": len(moved),
+        "support_changes_in_default_cell": sum(
             1
             for m in moved
             if m["supported_in_default_cell"].split("/")[0]

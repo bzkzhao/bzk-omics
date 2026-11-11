@@ -8,6 +8,7 @@ Cypher is exercised against a shape a producer could emit rather than against ha
 
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from typing import Any
@@ -791,3 +792,125 @@ def test_an_interrupt_still_ends_the_run(tmp_path: Path, monkeypatch: pytest.Mon
     monkeypatch.setattr(h10, "main", interrupt)
     with pytest.raises(KeyboardInterrupt):
         audit.run(tmp_path, live=True, home=tmp_path / "none")
+
+
+# ── Stages 6 and 7 say which variant, and stage 6 which population, they computed ────────────────
+
+
+def test_stages_6_and_7_read_the_variant_from_the_fixture(tmp_path: Path) -> None:
+    """Read from `readouts.primary.variant`, never written: only that home is mutated below, so a
+    stage reading `primary_variant` or the top-level key — or a hand-written label — stays red."""
+    fx = _committed()
+    six = audit.stage6_sensitivity(fx, tmp_path)
+    seven = audit.stage7_propagation(fx)
+    assert six.findings["registered_variant"] == fx["readouts"]["primary"]["variant"]
+    assert seven.findings["registered_variant"] == fx["readouts"]["primary"]["variant"]
+    # The three homes coincide at this fixture; recorded, not assumed. `primary_variant` names its
+    # block's primary, and takes another value in the secondary block.
+    assert (
+        fx["readouts"]["primary"]["variant"]
+        == fx["readouts"]["primary"]["primary_variant"]
+        == fx["primary_variant"]
+        == "joint_half+random_excluding_trivial"
+    )
+    assert (
+        fx["readouts"]["secondary"]["primary_variant"] == "joint_half+exhaustive_excluding_trivial"
+    )
+    mutant = copy.deepcopy(fx)
+    mutant["readouts"]["primary"]["variant"] = "MUTANT"
+    six_m = audit.stage6_sensitivity(mutant, tmp_path)
+    seven_m = audit.stage7_propagation(mutant)
+    assert six_m.findings["registered_variant"] == "MUTANT"
+    assert seven_m.findings["registered_variant"] == "MUTANT"
+    assert mutant["readouts"]["primary"]["primary_variant"] == "joint_half+random_excluding_trivial"
+    assert mutant["primary_variant"] == "joint_half+random_excluding_trivial"
+
+
+def test_stage_6_recomputes_both_populations_of_the_registered_readout(tmp_path: Path) -> None:
+    """Exact equality, shares included: each is the int/int division the fixture stored."""
+    fx = _committed()
+    six = audit.stage6_sensitivity(fx, tmp_path)
+    readout_b = fx["readouts"]["primary"]["readout_b"]
+    assert six.findings["over_all_claims"] == readout_b["over_all_claims"]
+    assert six.findings["conditional_on_imputation"] == readout_b["conditional_on_imputation"]
+    assert (
+        six.findings["changing_somewhere_in_family"]
+        == readout_b["family_categories"]["underdetermined"]
+    )
+    # The marked primary is the population the fixture's own verdict reads.
+    assert six.findings["registered_primary"] == "conditional_on_imputation"
+    assert (
+        six.findings[six.findings["registered_primary"]]["share"] == readout_b["verdict"]["share"]
+    )
+
+
+def test_a_measured_claim_changing_in_the_default_cell_separates_the_two_populations(
+    tmp_path: Path,
+) -> None:
+    """The case the committed fixture cannot make: no fully measured claim changes support in its
+    default cell, so both numerators are 159 and a build counting the all-claims numerator over the
+    imputed rows passes the mirror above. One cell flipped: row 274 (deposit 859, ALDOA, fully
+    measured, already changing elsewhere in the family) at column 160, the first default-cell
+    column. One column only — flipping all twenty gives min == max == 0 and nothing changes."""
+    fx = _committed()
+    assert audit._default_columns(audit._members(fx))[0] == 160
+    assert audit._default_columns(audit._members(fx))[-1] == 179
+    six = audit.stage6_sensitivity(fx, tmp_path)
+    seven = audit.stage7_propagation(fx)
+    assert six.findings["over_all_claims"]["numerator"] == 159
+    assert six.findings["conditional_on_imputation"]["numerator"] == 159
+    assert six.findings["changing_somewhere_in_family"] == 479
+    assert six.findings["supported_in_every_default_draw"] == 631
+    assert six.findings["supported_in_no_default_draw"] == 1
+    assert seven.findings["support_changes_in_family"] == 3
+    assert seven.findings["support_changes_in_default_cell"] == 0
+    assert seven.findings["fully_measured_claims"] == 40
+
+    flipped = copy.deepcopy(fx)
+    row = flipped["readouts"]["primary"]["per_claim_support"]["rows"][274]
+    assert row["deposit_id"] == "859"
+    assert row["gene_names"] == "ALDOA"
+    assert row["row_carries_an_imputed_cell"] is False
+    assert row["support"][160] == 1  # a cell already 0 would void the test
+    row["support"][160] = 0
+    six_f = audit.stage6_sensitivity(flipped, tmp_path)
+    seven_f = audit.stage7_propagation(flipped)
+    assert six_f.findings["over_all_claims"]["numerator"] == 160
+    assert six_f.findings["over_all_claims"]["denominator"] == 791
+    assert six_f.findings["conditional_on_imputation"]["numerator"] == 159
+    assert six_f.findings["conditional_on_imputation"]["denominator"] == 751
+    assert six_f.findings["changing_somewhere_in_family"] == 479
+    assert (
+        six_f.findings["changing_somewhere_in_family"]
+        == flipped["readouts"]["primary"]["readout_b"]["family_categories"]["underdetermined"]
+    )
+    assert six_f.findings["supported_in_every_default_draw"] == 630
+    assert six_f.findings["supported_in_no_default_draw"] == 1
+    assert seven_f.findings["support_changes_in_family"] == 3
+    # The first nonzero this counter has produced in any test or run.
+    assert seven_f.findings["support_changes_in_default_cell"] == 1
+    # Read from `row_carries_an_imputed_cell`, so no support flip can move it: a regression guard.
+    assert seven_f.findings["fully_measured_claims"] == 40
+
+
+def test_registered_variant_is_the_first_finding_of_stages_6_and_7(tmp_path: Path) -> None:
+    fx = _committed()
+    six = audit.stage6_sensitivity(fx, tmp_path)
+    seven = audit.stage7_propagation(fx)
+    assert next(iter(six.findings)) == "registered_variant"
+    assert next(iter(seven.findings)) == "registered_variant"
+
+
+def test_the_marked_primary_is_the_estimand_both_pre_registrations_name() -> None:
+    """`registered_primary` in stage 6 is written, because the fixture marks no primary; these two
+    sentences are its source, so the label is a mirror and carries a guard."""
+    walk = Path(__file__).parent.parent / "walk"
+    attempt3 = " ".join(
+        (walk / "PREREG-PXD018299-H10-attempt3.md").read_text(encoding="utf-8").split()
+    )
+    base = " ".join((walk / "PREREG-PXD018299-H10.md").read_text(encoding="utf-8").split())
+    assert (
+        "These shares are taken over claims whose row carries at least one imputed value."
+        in attempt3
+    )
+    assert "**Reported, never the headline:** - the same share over all claims;" in base
