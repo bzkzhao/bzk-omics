@@ -74,7 +74,8 @@ returns 159 over 791 with a bit-identical share, and is **indistinguishable** un
 §1.4 test 3 closes that with a synthetic fixture rather than by dropping the assertion.
 
 `tests/fixtures/` holds three H10 fixtures, and **only `_attempt3` has `readouts.primary`** — the
-other two raise `KeyError: 'primary'` in `_per_claim_matrix`. So nothing else in the committed data
+other two raise `KeyError` in `_per_claim_matrix` — `_attempt2` on `'primary'`, and the
+base `pxd018299_h10.json` on `'readouts'`, having no readouts block at all. So nothing else in the committed data
 can discriminate these two populations. Confirm that.
 
 **(d) The variant, and where it lives.** `readouts.primary.variant`,
@@ -85,7 +86,10 @@ can discriminate these two populations. Confirm that.
 block. Confirm both values, and confirm `bzk/audit.py` reads none of the three —
 `grep -n variant bzk/audit.py` exits 1 with no output.
 
-**(e) Nothing consumes the keys.** Confirm no file outside `bzk/audit.py` reads
+**(e) Nothing consumes the keys.** `notes/REVIEWER-MAP-findings-5-and-6.md` (landed at
+`191d036`, after this prompt's measurements) quotes several of these key names as a dated
+record of what the stages emitted; it is prose, not a consumer, and §1.3's rename does not
+break it. Setting that file aside, confirm no file outside `bzk/audit.py` reads
 `changing_in_default_cell`, `moved_across_cut_in_family`, `moved_across_cut_in_default_cell`,
 `changing_somewhere_in_family`, `supported_in_no_default_draw`,
 `supported_in_every_default_draw` or `fully_measured_claims` — grep the whole tree, no

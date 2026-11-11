@@ -42,7 +42,9 @@ section.** That is the premise prompt 42 got wrong twice.
 
 ## 2. The collision zone, measured
 
-Stage 6 run against `tests/fixtures/pxd018299_h10_attempt3.json` at `24a44da`:
+Stage 6 run against `tests/fixtures/pxd018299_h10_attempt3.json` at `24a44da`: **The key
+names below are this commit's; prompt 42a renames stage 7's two counters, and a
+dated record is not corrected when the code it recorded moves on.**
 
 ```
 claims 791   family_members 360   default draws 20
@@ -53,9 +55,11 @@ supported_in_every_default     631
 supported_in_no_default_draw     1
 ```
 
-**Stage 6's registered share is 159 of 791 = 20.1%; FINDINGS §5's headline is
+**The share stage 6 reports is 159 of 791 = 20.1%; FINDINGS §5's headline is
 210 of 791 = 26.5%.** Same denominator, same nominal quantity, differing only by
-FDR rule — registered halved against documented. **The denominator cannot
+FDR rule — the registered halved variant against the documented rule. The
+*registered* share is the 751 one (D1); 20.1% is what the stage emits, not what
+any document registers. **The denominator cannot
 separate them. Only the rule can.** Any key registering either figure must name
 the rule.
 
