@@ -73,7 +73,10 @@ EXPECTED_SEED_STRUCK = 17
 #: 26/9/3 -> 26/10/3 on 2026-11-08: ADR-0040 landed `Proposed` (prompt 40). `EXPECTED_FILES` and
 #: `EXPECTED_WRITTEN_ROWS` moved 38 -> 39 with it; the queued and seed counts did not, since 0040 is
 #: not in `ARCHITECTURE.md` §5's seed list.
-EXPECTED_STATUSES = {"Accepted": 26, "Proposed": 10, "Superseded": 3}
+#: 26/10/3 -> 27/9/3 on 2026-11-11: ADR-0040 completed its review round trip and moved to
+#: `Accepted` (two findings, neither touching the decision). `EXPECTED_FILES` and
+#: `EXPECTED_WRITTEN_ROWS` do not move: no record was added.
+EXPECTED_STATUSES = {"Accepted": 27, "Proposed": 9, "Superseded": 3}
 
 #: Supersessions recorded on one side only, with the reason each is permitted.
 #:

@@ -2,14 +2,45 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-11-08 |
+| Reviewed | 2026-11-11 — two findings, both folded in below; the decision unchanged |
 | Supersedes | — |
 | Superseded by | — |
 
 **It supersedes nothing.** `f61f6fd` (prompt 33) answered this question for one producer,
 `site_change_set`, without a record; this one asks it, gives the same answer, and extends it to the
 second producer, the Perseus adapter's `DeclaredContrast`.
+
+## Review
+
+Landed `Proposed` at `d44da28` and reviewed on 2026-11-11. **Two findings, both on claims the
+record makes about other code; neither touched the decision**, which is the ground for the status
+above. Identity remains the reading, and the *Alternatives* argument was re-measured and holds:
+`bzk/curation/loader.py` builds the D4 edges at l.669-672 and the `ContrastArms` at l.685-698 from
+the same `arms` dict, so wherever both reach a producer from one `LoadedCuration`, extension holds
+exactly when identity holds.
+
+### A - the two refusals share a rule, not a wording. Claim struck
+
+The Decision said `DeclaredContrast` refuses "the same rule and the same wording" as
+`site_change_set`. The rule is identical; the message is not, and the exception types differ
+(`ValueError` against `PerseusError`). Measured:
+
+> `site_change_set`: "... attributed to one comparison while **its arm samples belong to another**"
+> `DeclaredContrast`: "... attributed to one comparison while **its binding is proved over
+> another's arm samples**"
+
+The divergence is correct and deliberate - `_prove` is what binds in the adapter, so each message
+names the mechanism of its own site - but the record claimed a sameness that is not there. The
+Decision now claims the rule only.
+
+### B - the construction-site count is a measurement, and this ADR moved it. Clause added
+
+Context reported **eight** construction sites, measured in prompt 40's receipt check on
+2026-11-08. There are **nine** at `768d6d1`: the guard's own test adds one, which Consequences
+already predicts. The figure was labelled with its commit and was not wrong, but an `Accepted`
+record is append-only and a reader measuring today gets nine, so Context now carries both.
 
 ## Context
 
@@ -23,7 +54,7 @@ refuses that pair (`bzk/analysis/differential.py`, the `arms.contrast_id != cont
 
 Measured in prompt 40's receipt check (§0.2, 2026-11-08), confirmed at runtime by wrapping
 `DeclaredContrast.__init__` across the full suite: eight construction sites under `bzk/` and
-`tests/`, two of them mismatched and passing with nothing flagging them —
+`tests/` — nine at `768d6d1`, the guard's own test being the ninth (finding B) — two of them mismatched and passing with nothing flagging them —
 `test_the_count_is_per_contrast` and `test_refuses_when_a_declared_contrast_has_no_columns`. The
 production site, `bzk/sources/pxd055843_perseus.py`, takes both from one `LoadedCuration` under one
 handle. Every real record already agrees: five contrasts across `data/curation/curation_*.json`,
@@ -37,7 +68,8 @@ not mean *these samples are this contrast's arms*.
 
 `DeclaredContrast.__post_init__` refuses a pair that fails this, raising `PerseusError` naming both
 ids and pointing at `LoadedCuration.contrast_arms` under the same handle as
-`LoadedCuration.contrast` — the same rule and the same wording as `site_change_set`'s refusal.
+`LoadedCuration.contrast` — the same rule as `site_change_set`'s refusal. The two messages
+differ, each naming the mechanism of its own site, and so do the exception types (finding A).
 
 ## Consequences
 
