@@ -28,13 +28,17 @@ Every line reference below was opened and read at `24a44da`.
 | 7 | +2.664 frozen | :137 | — | documented | round11/12 | `CHECKS-draws-and-threshold.md:56` | live |
 | 8 | q 0.0144 → 0.0177 | :138 | — | documented | round11/12 | `CHECKS-draws-and-threshold.md:57` | live |
 | 9 | 1 of 40 across the cut | :141 | 40 | documented | round13 | `CHECKS-collateral-and-pkm.md:21–22`; `round13.txt:2–3` | live |
-| 10 | median **0.0015** | :142 | 40 | documented | round13 | `CHECKS-collateral-and-pkm.md:23`; `round13.txt:5` | **two populations share this value — §3** |
+| 10 | median **0.0015** | :142 | 40 | documented | round13 | `CHECKS-collateral-and-pkm.md:23`; `round13.txt:5` | live; restated by round14 over the same 40 — §3 |
 | 11 | 1 in 40, 0.1%–13% | :144 | 40 | documented | round14 | `round14.txt:16–17`; `CHECKS-census.md:68–69` | live |
 
 **§5 draws on four instruments — round9, round10, round11/12, round13; §6 on
 three — round11/12, round13, round14.** Round9 enters §5 only through the condition
-cell at :120, the 133-call figure (`CHECKS-ceiling-and-floor.md:108`), and is separately
-the home of the stage's own pair (`:88–89`). Two roles for one round, not a conflict —
+cell at :120, the 133-call figure (`CHECKS-ceiling-and-floor.md:108`). Separately, its §4
+carries the 751 half of the stage's conditional figure (`:89`, 159 of 751 under the halved rule)
+beside the documented rule's 209 (`:88`); **that file contains no `791`, so it is not the home of
+the stage's 791 figure, and `:88` is not a stage figure at all.** (Corrected 2026-11-12: this line
+called `:88–89` "the home of the stage's own pair", which 42b's revision 2 copied into a §0 item
+that a build would have stopped on.) Two roles for one round, not a conflict —
 an earlier version of this line said §5 had three instruments and that round9 was not
 among them, which contradicted row 4 of the register above. Between them: six rounds
 (11, 12, 13, 14 and the ceiling-and-floor / ceiling-survives runs), five CHECKS
@@ -88,16 +92,23 @@ when it superseded the figure eight minutes later.
 
 ---
 
-## 3. Figure 10: one value, two populations
+## 3. Figure 10: one value, one population — corrected 2026-11-12
+
+**This section said the two readings below were over different populations. They are not.**
+Both scripts compute the figure with the same expression over the same rows:
+`diagnose_round13.py:120` and `diagnose_round14.py:150` both read
+`fully = published & (imputed_count == 0)`, under the same `anchor_population`, `DRAWS` and
+`DEFAULT`, and round14's own header (`diagnose_round14.py:16-18`) introduces the figure as round
+13's. Found by 42b revision 2's adversarial review reading the scripts; the scripts were not run.
 
 | reading | population | home |
 |---|---|---|
 | median q range 0.0015 | the **40 fully measured published claims** | `round13.txt:5`; `collateral-and-pkm.md:23` |
-| median q range 0.0015 | **rows whose own values never move** (not only published) | `round14.txt:12`; `CHECKS-census.md:59–60` |
+| median q range 0.0015 | the same 40, restated as round 14's jitter band | `round14.txt:12`; `CHECKS-census.md:59–60` |
 
-Equal to four decimal places, measured over different populations in different
-rounds. FINDINGS §6:142 uses the round13 reading. A key named
-`median_q_range` alone is ambiguous between the two.
+`round14.txt:12`'s label, "rows whose own values never move", describes the same rows: a fully
+measured row's own values are never drawn. FINDINGS §6:142's figure is round13's; round14 restates
+it, in different words (`median q range 0.0015` does not contain `median 0.0015`).
 
 ---
 
