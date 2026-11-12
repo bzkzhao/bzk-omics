@@ -31,9 +31,12 @@ Every line reference below was opened and read at `24a44da`.
 | 10 | median **0.0015** | :142 | 40 | documented | round13 | `CHECKS-collateral-and-pkm.md:23`; `round13.txt:5` | **two populations share this value — §3** |
 | 11 | 1 in 40, 0.1%–13% | :144 | 40 | documented | round14 | `round14.txt:16–17`; `CHECKS-census.md:68–69` | live |
 
-**§5 draws on three instruments — round10, round11/12, round13; §6 on three —
-round11/12, round13, round14.** Round9 is the home of the stage's own pair
-(`CHECKS-ceiling-and-floor.md:88–89`). Between them: six rounds
+**§5 draws on four instruments — round9, round10, round11/12, round13; §6 on
+three — round11/12, round13, round14.** Round9 enters §5 only through the condition
+cell at :120, the 133-call figure (`CHECKS-ceiling-and-floor.md:108`), and is separately
+the home of the stage's own pair (`:88–89`). Two roles for one round, not a conflict —
+an earlier version of this line said §5 had three instruments and that round9 was not
+among them, which contradicted row 4 of the register above. Between them: six rounds
 (11, 12, 13, 14 and the ceiling-and-floor / ceiling-survives runs), five CHECKS
 documents, two committed logs. **No single ported function regenerates either
 section.** That is the premise prompt 42 got wrong twice.
