@@ -10,8 +10,11 @@ from __future__ import annotations
 
 import copy
 import json
+import re
+import shutil
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import kuzu
 import pytest
@@ -914,3 +917,655 @@ def test_the_marked_primary_is_the_estimand_both_pre_registrations_name() -> Non
         in attempt3
     )
     assert "**Reported, never the headline:** - the same share over all claims;" in base
+
+
+# ── The receipt map: every figure stages 6 and 7 disclaim, held against its sources ──────────────
+
+
+class Violation(NamedTuple):
+    kind: str
+    subject: str
+
+
+_SCRIPT = re.compile(r"diagnose_round\d+[a-z]?\.py")
+
+
+def _round(name: str) -> str:
+    """The text between `round` and the extension: `diagnose_round15b.py` and `round15b.txt`
+    both give `15b`."""
+    return name[name.rindex("round") + len("round") : name.rindex(".")]
+
+
+def _once_in_its_section(text: str, anchor: str, section: int) -> bool:
+    if text.count(anchor) != 1:
+        return False
+    heading = re.search(rf"^## {section}\. ", text, re.MULTILINE)
+    if heading is None:
+        return False
+    after = re.search(r"^## ", text[heading.end() :], re.MULTILINE)
+    end = heading.end() + after.start() if after is not None else len(text)
+    at = text.index(anchor)
+    return heading.start() <= at and at + len(anchor) <= end
+
+
+def _misattributed(entry: audit.ReceiptEntry, home_text: str, root: Path) -> bool:
+    named = {Path(s).name for s in entry.scripts}
+    home_set = set(_SCRIPT.findall(home_text))
+    if not named:  # 3a
+        return True
+    if not named <= home_set:  # 3b
+        return True
+    if len(home_set) > 1 and entry.script_anchor is None:  # 3c
+        return True
+    if len(home_set) > 1 and entry.script_anchor is not None:
+        anchor = entry.script_anchor
+        own = [root / s for s in entry.scripts if (root / s).is_file()]
+        if any(anchor not in p.read_text(encoding="utf-8") for p in own):  # 3d
+            return True
+        others = [root / "notes" / "scripts" / n for n in sorted(home_set - named)]
+        if any(p.is_file() and anchor in p.read_text(encoding="utf-8") for p in others):  # 3e
+            return True
+    return len(home_set) == 1 and entry.script_anchor is not None  # 3f
+
+
+def check_receipts(entries: tuple[audit.ReceiptEntry, ...], root: Path) -> list[Violation]:
+    """Each entry's anchors still occur in their sources, and its instrument agrees with its home.
+
+    Six directions, each kind reported at most once per entry, in direction order; `subject` is the
+    entry's `findings_anchor`. Anchors match as raw substrings, so a reflowed line fails loudly.
+
+    1. `findings_not_unique` — the anchor occurs other than exactly once in `walk/FINDINGS.md`, or
+       its one occurrence is outside the entry's section.
+    2. `home_drift` — the home is missing or lacks `home_anchor`. A missing home skips direction 3.
+    3. `attribution` — the scripts are empty or not all named by the home; or, where the home names
+       several, `script_anchor` is absent, missing from one of the entry's own scripts, or present
+       in a home script the entry does not name; or the home names one and `script_anchor` is set.
+    4. `missing_script` — a named script does not exist.
+    5. `log_drift` — the log is missing, lacks its anchor, or comes from a round no named script
+       is from.
+    6. `absence_false` — an entry without a log, whose `walk/FINDINGS.md` anchor a top-level file
+       in `notes/logs/` contains.
+
+    **What it does not establish.** Direction 3 checks the instrument against the home document,
+    not whether the home is right. A coherent re-attribution passes: `home_anchor` is chosen by the
+    map, not tied to `findings_anchor`, so moving a log-less row's `scripts`, `home` and
+    `home_anchor` together to another home where the new anchor occurs satisfies every direction.
+    Direction 6 establishes absence only in `walk/FINDINGS.md`'s own words, so removing row 11's
+    log goes undetected (its wording occurs in no log); direction 3 still guards its attribution.
+    """
+    findings = (root / "walk" / "FINDINGS.md").read_text(encoding="utf-8")
+    logs_dir = root / "notes" / "logs"
+    logs = sorted(p for p in logs_dir.iterdir() if p.is_file()) if logs_dir.is_dir() else []
+    out: list[Violation] = []
+    for entry in entries:
+        kinds: list[str] = []
+        if not _once_in_its_section(findings, entry.findings_anchor, entry.section):
+            kinds.append("findings_not_unique")
+        home = root / entry.home
+        home_text = home.read_text(encoding="utf-8") if home.is_file() else None
+        if home_text is None or entry.home_anchor not in home_text:
+            kinds.append("home_drift")
+        if home_text is not None and _misattributed(entry, home_text, root):
+            kinds.append("attribution")
+        if any(not (root / s).is_file() for s in entry.scripts):
+            kinds.append("missing_script")
+        if entry.log is not None:
+            log_path, log_anchor = entry.log
+            log = root / log_path
+            rounds = {_round(Path(s).name) for s in entry.scripts}
+            if (
+                not log.is_file()
+                or log_anchor not in log.read_text(encoding="utf-8")
+                or _round(log.name) not in rounds
+            ):
+                kinds.append("log_drift")
+        elif any(entry.findings_anchor in p.read_text(encoding="utf-8") for p in logs):
+            kinds.append("absence_false")
+        out += [Violation(kind, entry.findings_anchor) for kind in kinds]
+    return out
+
+
+_R13 = "notes/scripts/diagnose_round13.py"
+_R11 = "notes/scripts/diagnose_round11.py"
+_R12 = "notes/scripts/diagnose_round12.py"
+_TWO_SCRIPT_HOME = (
+    "Scripts: `notes/scripts/diagnose_round11.py` and `diagnose_round12.py`.\n\nhome anchor\n"
+)
+_BASE_ENTRY = audit.ReceiptEntry(
+    5,
+    "alpha anchor",
+    "the synthetic figure, 20 draws",
+    (_R13,),
+    None,
+    "walk/CHECKS-base.md",
+    "home anchor",
+    ("notes/logs/round13.txt", "log anchor"),
+)
+
+
+def _write(root: Path, rel: str, text: str) -> None:
+    (root / rel).parent.mkdir(parents=True, exist_ok=True)
+    (root / rel).write_text(text, encoding="utf-8")
+
+
+def _receipt_root(root: Path) -> None:
+    """Consistent with `_BASE_ENTRY`: the anchor once, in section 5; a home naming only round 13;
+    rounds 11 to 14's scripts present; a log carrying its anchor and not the findings anchor."""
+    _write(root, "walk/FINDINGS.md", "# F\n\n## 5. Five\n\nalpha anchor here.\n\n## 6. Six\n\nx\n")
+    _write(
+        root, "walk/CHECKS-base.md", "Script: `notes/scripts/diagnose_round13.py`.\n\nhome anchor\n"
+    )
+    for n in (11, 12, 13, 14):
+        _write(root, f"notes/scripts/diagnose_round{n}.py", "print('synthetic')\n")
+    _write(root, "notes/logs/round13.txt", "log anchor\n")
+
+
+def _one_of_two(
+    root: Path, entry: audit.ReceiptEntry, in11: bool, in12: bool
+) -> audit.ReceiptEntry:
+    _write(root, "walk/CHECKS-base.md", _TWO_SCRIPT_HOME)
+    _write(root, _R11, "print('S anchor')\n" if in11 else "print('other')\n")
+    _write(root, _R12, "print('S anchor')\n" if in12 else "print('other')\n")
+    return entry._replace(scripts=(_R11,), script_anchor="S anchor", log=None)
+
+
+Case = Callable[[Path, audit.ReceiptEntry], audit.ReceiptEntry]
+
+
+def _unchanged(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    return e
+
+
+def _no_log(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    return e._replace(log=None)
+
+
+def _no_logs_directory(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    shutil.rmtree(r / "notes" / "logs")
+    return e._replace(log=None)
+
+
+def _anchor_twice(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    _write(r, "walk/FINDINGS.md", "## 5. Five\n\nalpha anchor, alpha anchor\n\n## 6. Six\n")
+    return e
+
+
+def _anchor_absent(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    _write(r, "walk/FINDINGS.md", "## 5. Five\n\nnothing\n\n## 6. Six\n")
+    return e
+
+
+def _anchor_in_the_other_section(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    _write(r, "walk/FINDINGS.md", "## 5. Five\n\nx\n\n## 6. Six\n\nalpha anchor\n")
+    return e
+
+
+def _home_drift(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    _write(r, "walk/CHECKS-base.md", "Script: `notes/scripts/diagnose_round13.py`.\n")
+    return e
+
+
+def _home_absent(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    (r / "walk" / "CHECKS-base.md").unlink()
+    return e
+
+
+def _wrong_instrument(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    return e._replace(scripts=(_R11, _R12), log=None)
+
+
+def _no_scripts(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    return e._replace(scripts=(), log=None)
+
+
+def _right_of_two(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    return _one_of_two(r, e, True, False)
+
+
+def _anchor_in_neither(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    return _one_of_two(r, e, False, False)
+
+
+def _anchor_in_both(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    return _one_of_two(r, e, True, True)
+
+
+def _two_without_anchor(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    return _one_of_two(r, e, True, False)._replace(script_anchor=None)
+
+
+def _stray_anchor(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    _write(r, _R13, "print('S anchor')\n")
+    return e._replace(script_anchor="S anchor")
+
+
+def _missing_script(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    (r / _R13).unlink()
+    return e
+
+
+def _log_content_drift(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    _write(r, "notes/logs/round13.txt", "something else\n")
+    return e
+
+
+def _wrong_log(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    _write(r, "notes/logs/round14.txt", "log anchor\n")
+    return e._replace(log=("notes/logs/round14.txt", "log anchor"))
+
+
+def _log_absent(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    (r / "notes" / "logs" / "round13.txt").unlink()
+    return e
+
+
+def _absence_false(r: Path, e: audit.ReceiptEntry) -> audit.ReceiptEntry:
+    _write(r, "notes/logs/round13.txt", "alpha anchor\n")
+    return e._replace(log=None)
+
+
+#: Each fixture is consistent except in the one property its case names, so each expects one kind.
+RECEIPT_CASES: dict[str, tuple[Case, list[str]]] = {
+    "true, with log": (_unchanged, []),
+    "true, without log": (_no_log, []),
+    "no logs directory": (_no_logs_directory, []),
+    "anchor not unique": (_anchor_twice, ["findings_not_unique"]),
+    "anchor absent": (_anchor_absent, ["findings_not_unique"]),
+    "home drift": (_home_drift, ["home_drift"]),
+    "home absent": (_home_absent, ["home_drift"]),
+    "wrong instrument": (_wrong_instrument, ["attribution"]),
+    "no scripts": (_no_scripts, ["attribution"]),
+    "one of two, right": (_right_of_two, []),
+    "one of two, anchor in neither": (_anchor_in_neither, ["attribution"]),
+    "one of two, anchor in both": (_anchor_in_both, ["attribution"]),
+    "one of two, no anchor": (_two_without_anchor, ["attribution"]),
+    "one script, stray anchor": (_stray_anchor, ["attribution"]),
+    "wrong section": (_anchor_in_the_other_section, ["findings_not_unique"]),
+    "missing script": (_missing_script, ["missing_script"]),
+    "content drift": (_log_content_drift, ["log_drift"]),
+    "wrong log": (_wrong_log, ["log_drift"]),
+    "log absent": (_log_absent, ["log_drift"]),
+    "absence false": (_absence_false, ["absence_false"]),
+}
+
+
+@pytest.mark.parametrize("name", list(RECEIPT_CASES))
+def test_the_receipt_checker_returns_exactly_each_cases_kinds(name: str, tmp_path: Path) -> None:
+    mutate, expected = RECEIPT_CASES[name]
+    _receipt_root(tmp_path)
+    entry = mutate(tmp_path, _BASE_ENTRY)
+    assert [v.kind for v in check_receipts((entry,), tmp_path)] == expected
+
+
+def test_every_receipt_in_the_map_holds_against_the_repository() -> None:
+    assert check_receipts(audit.RECEIPT_MAP, audit.REPO_ROOT) == []
+    # Direction 6 passes vacuously over nothing, so the logs it scans are pinned: a new committed
+    # log is a deliberate edit here.
+    assert sorted(p.name for p in (audit.REPO_ROOT / "notes" / "logs").iterdir()) == [
+        "round13.txt",
+        "round14.txt",
+        "round15.txt",
+        "round15b.txt",
+        "round15c.txt",
+        "round16.txt",
+    ]
+
+
+# ── The notes: stages 6 and 7 name the instrument behind each figure, and quote none ─────────────
+
+_PATH = r"(?:walk|notes|bzk|tests)/[\w./-]*\w\.(?:md|py|txt|json)(?!:\d)"
+_ALLOWED_DIGITS = (
+    _PATH,
+    r"diagnose_round\d+[a-z]?\.py",
+    r"(?:20|100) draws",
+    r"[Ss]ections? [56](?: and [56])?",
+    r"ATP1A1 K605",
+)
+_MARKER_DATE = r"\d{4}-\d{2}-\d{2}"
+_NOTE_KINDS = (
+    "count",
+    "order",
+    "scripts",
+    "section",
+    "home",
+    "log",
+    "figure",
+    "reviewer_pointer",
+    "marker",
+    "rule",
+    "hand_instruments",
+    "keys",
+)
+
+
+def _checks_docs(text: str) -> set[str]:
+    return {f"walk/{m}" for m in re.findall(r"CHECKS-[\w-]+\.md", text)}
+
+
+def _log_paths(text: str) -> set[str]:
+    return {p for p in re.findall(_PATH, text) if p.startswith("notes/logs/")}
+
+
+def _script_names(text: str) -> set[str]:
+    paths = {Path(p).name for p in re.findall(_PATH, text) if p.startswith("notes/scripts/")}
+    return set(_SCRIPT.findall(text)) | paths
+
+
+def _instruments(text: str) -> tuple[set[str], set[str], set[str]]:
+    return _script_names(text), _checks_docs(text), _log_paths(text)
+
+
+def check_note(
+    items: list[str],
+    entries: tuple[audit.ReceiptEntry, ...],
+    stage: int,
+    anchors: tuple[str, ...],
+) -> list[Violation]:
+    """A stage's `not_automated` list: one hand-written item, then one item per entry, in order.
+
+    Each kind is reported at most once per list, `subject` being the first offending item's index
+    (or the stage, for `count`). A `count` violation is returned alone; an item failing `order` is
+    not checked for `scripts`, `section`, `home` or `log`.
+
+    **What it does not establish.** The claims in item 0 — its attributions and rule statements —
+    are unchecked beyond digit and anchor absence, the reviewer pointer, the marker's form, stage
+    7's rule words, the key pointers and item 0's instrument allowance. Digits pass unchecked in
+    path-shaped tokens, a date in stage 6's item 0, draw counts, section numbers and `ATP1A1 K605`,
+    so a wrong draw count is not caught; nor is a figure spelled out in words. The `describes`
+    strings' rule and population claims are checked by nothing.
+    """
+    if len(items) != 1 + len(entries):
+        return [Violation("count", str(stage))]
+    found: dict[str, str] = {}
+
+    def flag(kind: str, index: int) -> None:
+        found.setdefault(kind, str(index))
+
+    for k, entry in enumerate(entries):
+        i = 1 + k
+        item = items[i]
+        if entry.describes not in item:
+            flag("order", i)
+            continue
+        if set(_SCRIPT.findall(item)) != {Path(s).name for s in entry.scripts}:
+            flag("scripts", i)
+        cited = re.findall(r"[Ss]ections? ([56])(?: and ([56]))?", item)
+        if {n for pair in cited for n in pair if n} != {str(entry.section)}:
+            flag("section", i)
+        if _checks_docs(item) != {entry.home}:
+            flag("home", i)
+        logs = _log_paths(item)
+        if entry.log is not None:
+            if logs != {entry.log[0]} or "no committed log" in item:
+                flag("log", i)
+        elif logs or "no committed log" not in item:
+            flag("log", i)
+    for i, item in enumerate(items):
+        if any(a in item for a in anchors):
+            flag("figure", i)
+        stripped = item
+        for pattern in _ALLOWED_DIGITS + ((_MARKER_DATE,) if (stage, i) == (6, 0) else ()):
+            stripped = re.sub(pattern, "", stripped)
+        if re.search(r"\d", stripped):
+            flag("figure", i)
+        if "REVIEWER-MAP" in item:
+            flag("reviewer_pointer", i)
+        if stage == 7 and "withdrawn" in item.lower():
+            flag("marker", i)
+        if stage == 7 and re.search(r"documented|halved", item, re.IGNORECASE):
+            flag("rule", i)
+    head = items[0]
+    if stage == 6 and not re.match(r"Withdrawn and replaced \d{4}-\d{2}-\d{2}: ", head):
+        flag("marker", 0)
+    if stage == 6:
+        end = head.find(". ")
+        clause, rest = (head, "") if end < 0 else (head[:end], head[end:])
+        scripts, docs, logs = _instruments(clause)
+        allowed = scripts <= {"diagnose_round11.py", "diagnose_round12.py"} and docs <= {
+            "walk/CHECKS-draws-and-threshold.md"
+        }
+        if not allowed or logs or any(_instruments(rest)):
+            flag("hand_instruments", 0)
+    elif any(_instruments(head)):
+        flag("hand_instruments", 0)
+    keys = ("registered_variant", "registered_primary") if stage == 6 else ("registered_variant",)
+    if not all(key in head for key in keys):
+        flag("keys", 0)
+    return [Violation(kind, found[kind]) for kind in _NOTE_KINDS if kind in found]
+
+
+# Synthetic entries, written here rather than taken from `RECEIPT_MAP`, so no mutation of the map
+# or of the generator can redden the checker's own cases.
+_E5 = (
+    audit.ReceiptEntry(
+        5,
+        "alpha figure",
+        "share alpha, 20 draws",
+        (_R13,),
+        None,
+        "walk/CHECKS-collateral-and-pkm.md",
+        "alpha home",
+        ("notes/logs/round13.txt", "alpha log"),
+    ),
+    audit.ReceiptEntry(
+        5,
+        "beta figure",
+        "count beta, 100 draws",
+        ("notes/scripts/diagnose_round10.py",),
+        None,
+        "walk/CHECKS-ceiling-survives.md",
+        "beta home",
+        None,
+    ),
+    audit.ReceiptEntry(
+        5,
+        "gamma figure",
+        "count gamma, 20 draws",
+        ("notes/scripts/diagnose_round9.py",),
+        None,
+        "walk/CHECKS-ceiling-and-floor.md",
+        "gamma home",
+        None,
+    ),
+)
+_E6 = (
+    audit.ReceiptEntry(
+        6,
+        "delta figure",
+        "ATP1A1 K605's delta, 20 draws",
+        (_R12,),
+        "delta script",
+        "walk/CHECKS-draws-and-threshold.md",
+        "delta home",
+        None,
+    ),
+    audit.ReceiptEntry(
+        6,
+        "epsilon figure",
+        "share epsilon, 20 draws",
+        ("notes/scripts/diagnose_round14.py",),
+        None,
+        "walk/CHECKS-census.md",
+        "epsilon home",
+        ("notes/logs/round14.txt", "epsilon log"),
+    ),
+)
+_ANCHORS = ("alpha figure", "a quiet anchor phrase", "delta script", "epsilon log")
+
+_HEAD6 = (
+    "Withdrawn and replaced 2026-11-13: the note this replaces named "
+    "notes/scripts/diagnose_round11.py and diagnose_round12.py, recorded in "
+    "walk/CHECKS-draws-and-threshold.md. Neither of this stage's populations is a section 5 "
+    "figure; see 'registered_variant' and 'registered_primary'."
+)
+_HEAD7 = (
+    "The fixture keeps support as binary and stores no q-values, so the figures are not reproduced; "
+    "see 'registered_variant'."
+)
+_ITEMS6 = [
+    _HEAD6,
+    (
+        "walk/FINDINGS.md section 5, share alpha, 20 draws: script notes/scripts/diagnose_round13.py; "
+        "home walk/CHECKS-collateral-and-pkm.md; log notes/logs/round13.txt."
+    ),
+    (
+        "walk/FINDINGS.md section 5, count beta, 100 draws: script notes/scripts/diagnose_round10.py; "
+        "home walk/CHECKS-ceiling-survives.md; no committed log."
+    ),
+    (
+        "walk/FINDINGS.md section 5, count gamma, 20 draws: script notes/scripts/diagnose_round9.py; "
+        "home walk/CHECKS-ceiling-and-floor.md; no committed log."
+    ),
+]
+_ITEMS7 = [
+    _HEAD7,
+    (
+        "walk/FINDINGS.md section 6, ATP1A1 K605's delta, 20 draws: script "
+        "notes/scripts/diagnose_round12.py; home walk/CHECKS-draws-and-threshold.md; no committed log."
+    ),
+    (
+        "walk/FINDINGS.md section 6, share epsilon, 20 draws: script "
+        "notes/scripts/diagnose_round14.py; home walk/CHECKS-census.md; log notes/logs/round14.txt."
+    ),
+]
+
+
+def _with(items: list[str], index: int, old: str, new: str) -> list[str]:
+    assert old in items[index], (index, old)
+    return [x.replace(old, new) if i == index else x for i, x in enumerate(items)]
+
+
+NOTE_CASES: dict[str, tuple[int, list[str], list[str]]] = {
+    "stage 6, correct": (6, _ITEMS6, []),
+    "stage 7, correct": (7, _ITEMS7, []),
+    "count, one appended": (6, [*_ITEMS6, _ITEMS6[3]], ["count"]),
+    "order, two swapped": (6, [_ITEMS6[0], _ITEMS6[2], _ITEMS6[1], _ITEMS6[3]], ["order"]),
+    "scripts, another script": (6, _with(_ITEMS6, 2, "round10.py", "round11.py"), ["scripts"]),
+    "section, the other section": (6, _with(_ITEMS6, 2, "section 5", "section 6"), ["section"]),
+    "section, both sections": (6, _with(_ITEMS6, 2, "section 5", "sections 5 and 6"), ["section"]),
+    "home, another home": (
+        6,
+        _with(_ITEMS6, 2, "CHECKS-ceiling-survives", "CHECKS-census"),
+        ["home"],
+    ),
+    "log, another log": (6, _with(_ITEMS6, 1, "round13.txt", "round14.txt"), ["log"]),
+    "log, also no committed log": (
+        6,
+        _with(_ITEMS6, 1, "round13.txt.", "round13.txt; no committed log."),
+        ["log"],
+    ),
+    "figure, a digit-free anchor": (
+        6,
+        _with(_ITEMS6, 0, "see 'registered", "a quiet anchor phrase; see 'registered"),
+        ["figure"],
+    ),
+    "figure, a population size": (
+        6,
+        _with(_ITEMS6, 0, "Neither of", "Of 791 claims, neither of"),
+        ["figure"],
+    ),
+    "figure, binary as digits": (7, _with(_ITEMS7, 0, "as binary", "as 0/1"), ["figure"]),
+    "figure, a line reference": (
+        6,
+        _with(_ITEMS6, 0, "a section 5 figure", "a walk/FINDINGS.md:109 figure"),
+        ["figure"],
+    ),
+    "reviewer_pointer, the path": (
+        7,
+        _with(
+            _ITEMS7,
+            0,
+            "are not reproduced",
+            "are not reproduced (notes/REVIEWER-MAP-findings-5-and-6.md)",
+        ),
+        ["reviewer_pointer"],
+    ),
+    "reviewer_pointer, the token": (
+        7,
+        _with(_ITEMS7, 0, "are not reproduced", "are not reproduced (REVIEWER-MAP)"),
+        ["reviewer_pointer"],
+    ),
+    "marker, an em dash for the colon": (
+        6,
+        _with(_ITEMS6, 0, "2026-11-13: ", "2026-11-13 — "),
+        ["marker"],
+    ),
+    "marker, Withdrawn in stage 7": (
+        7,
+        _with(_ITEMS7, 0, "The fixture", "Withdrawn: the fixture"),
+        ["marker"],
+    ),
+    "marker, withdrawn in stage 7": (
+        7,
+        _with(_ITEMS7, 0, "are not reproduced", "are withdrawn and not reproduced"),
+        ["marker"],
+    ),
+    "rule, documented": (
+        7,
+        _with(_ITEMS7, 0, "stores no", "under the documented rule stores no"),
+        ["rule"],
+    ),
+    "rule, Documented": (
+        7,
+        _with(_ITEMS7, 0, "stores no", "under the Documented rule stores no"),
+        ["rule"],
+    ),
+    "hand_instruments, round13 in the withdrawn clause": (
+        6,
+        _with(_ITEMS6, 0, "and diagnose_round12.py", "and diagnose_round13.py"),
+        ["hand_instruments"],
+    ),
+    "hand_instruments, round11 after the withdrawn clause": (
+        6,
+        _with(_ITEMS6, 0, "is a section 5", "is a diagnose_round11.py section 5"),
+        ["hand_instruments"],
+    ),
+    "hand_instruments, a CHECKS document in stage 7": (
+        7,
+        _with(_ITEMS7, 0, "are not reproduced", "are not reproduced (CHECKS-census.md)"),
+        ["hand_instruments"],
+    ),
+    "keys, stage 6 without registered_primary": (
+        6,
+        _with(_ITEMS6, 0, " and 'registered_primary'", ""),
+        ["keys"],
+    ),
+}
+
+
+@pytest.mark.parametrize("name", list(NOTE_CASES))
+def test_the_note_checker_returns_exactly_each_cases_kinds(name: str) -> None:
+    stage, items, expected = NOTE_CASES[name]
+    entries = _E5 if stage == 6 else _E6
+    assert [v.kind for v in check_note(items, entries, stage, _ANCHORS)] == expected
+
+
+def _every_anchor() -> tuple[str, ...]:
+    out: list[str] = []
+    for e in audit.RECEIPT_MAP:
+        out += [e.findings_anchor, e.home_anchor]
+        out += [e.script_anchor] if e.script_anchor is not None else []
+        out += [e.log[1]] if e.log is not None else []
+    return tuple(out)
+
+
+def test_both_notes_name_their_instruments_and_quote_no_figure(tmp_path: Path) -> None:
+    fx = _committed()
+    six = audit.stage6_sensitivity(fx, tmp_path)
+    seven = audit.stage7_propagation(fx)
+    fives = tuple(e for e in audit.RECEIPT_MAP if e.section == 5)
+    sixes = tuple(e for e in audit.RECEIPT_MAP if e.section == 6)
+    assert check_note(six.not_automated, fives, 6, _every_anchor()) == []
+    assert check_note(seven.not_automated, sixes, 7, _every_anchor()) == []
+    assert len(six.not_automated) == 9
+    assert len(seven.not_automated) == 6
+
+
+def test_no_anchor_reaches_the_report(tmp_path: Path) -> None:
+    """The writer escapes non-ASCII, and round 11's script anchor carries an em dash, so the JSON
+    is re-serialised unescaped before it is searched."""
+    audit.run(tmp_path, live=False, home=tmp_path / "none")
+    markdown = (tmp_path / "audit_PXD018299.md").read_text(encoding="utf-8")
+    report = json.loads((tmp_path / "audit_PXD018299.json").read_text(encoding="utf-8"))
+    serialised = json.dumps(report, ensure_ascii=False)
+    assert not any(a in markdown or a in serialised for a in _every_anchor())

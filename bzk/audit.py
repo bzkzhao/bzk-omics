@@ -9,6 +9,11 @@ committed fixture or from the pinned deposit bytes. The prose figures in `walk/F
 inputs, and where a stage's headline figure cannot be derived from what is committed the stage says
 `NOT_AUTOMATED` and names the script that produced it — it does not quote the figure (single-source
 rule, `CLAUDE.md`).
+`RECEIPT_MAP` holds phrases from `walk/FINDINGS.md`, its CHECKS homes, the committed logs and the
+scripts as guard data for stages 6 and 7's notes, and the note checker in `tests/test_audit.py`
+asserts that no such phrase reaches either note; the draw counts and section numbers those notes
+carry, the correction marker's date and the round numbers inside paths are stated conditions, not
+derived figures.
 
 **Two modes per stage, always labelled.** `FIXTURE`: derived from `tests/fixtures/*.json`, which
 needs no network and no raw store. `LIVE`: re-derived from the pinned bytes under `~/.bzk-omics/raw`
@@ -37,7 +42,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import numpy as np
 
@@ -60,6 +65,189 @@ CASCADE = "pxd018299_published_cascade.json"
 # :121-123). Duplicated as three literals only because importing that module pulls the whole
 # reconstruction stack; `tests/test_audit.py` asserts the three still agree with the source.
 DEFAULT_CELL = (0.3, 1.8, "per_sample")
+
+
+class ReceiptEntry(NamedTuple):
+    """One figure of `walk/FINDINGS.md` sections 5 and 6, and the instrument that produced it.
+
+    `describes` renders into stages 6 and 7's notes. Every other string field is guard data and
+    never renders: `findings_anchor`, `home_anchor`, `script_anchor` and the log's anchor are
+    phrases the receipt checker finds in their sources. `log` is the log's path and its anchor, so
+    "no committed log" is one `None` and cannot be half-filled. `script_anchor` is required exactly
+    where the home names more than one script, and picks which of them produced the figure.
+    """
+
+    section: int
+    findings_anchor: str
+    describes: str
+    scripts: tuple[str, ...]
+    script_anchor: str | None
+    home: str
+    home_anchor: str
+    log: tuple[str, str] | None
+
+
+# Which instrument produced each figure of walk/FINDINGS.md sections 5 and 6, in the order those
+# sections print them. Kept here because a note must identify the figures it disclaims, and the
+# figures live in prose that cannot be imported. The anchor fields are guard data and never render:
+# only `describes`, the paths and the section reach the report. The receipt checker in
+# `tests/test_audit.py` asserts every anchor still occurs in its source and every instrument agrees
+# with its home; the note checker there asserts no anchor reaches either note. Derived from
+# `notes/REVIEWER-MAP-findings-5-and-6.md` §1, a dated measurement record, and from then on held
+# against the primary sources rather than against that record. It is the only maintained copy of
+# the figure -> home -> log pairing.
+RECEIPT_MAP: tuple[ReceiptEntry, ...] = (
+    ReceiptEntry(
+        5,
+        "210 of 791",
+        "share of all published claims whose support changes across draws, documented rule, "
+        "20 draws",
+        ("notes/scripts/diagnose_round13.py",),
+        None,
+        "walk/CHECKS-collateral-and-pkm.md",
+        "210 of 791",
+        ("notes/logs/round13.txt", "210 of 791"),
+    ),
+    ReceiptEntry(
+        5,
+        "38.3%",
+        "share of claims with an imputed value whose support changes, documented rule, 100 draws",
+        ("notes/scripts/diagnose_round11.py",),
+        "S and T — both headlines as functions of the draw count",
+        "walk/CHECKS-draws-and-threshold.md",
+        "38.3%",
+        None,
+    ),
+    ReceiptEntry(
+        5,
+        "13.7%",
+        "floor of support-change instability across the FDR rule family, over claims with an "
+        "imputed value, 20 draws",
+        ("notes/scripts/diagnose_round10.py",),
+        None,
+        "walk/CHECKS-ceiling-survives.md",
+        "**13.7%** (103 of 751)",
+        None,
+    ),
+    ReceiptEntry(
+        5,
+        "133 calls",
+        "difference in calls between the halved and documented rules, 20 draws",
+        ("notes/scripts/diagnose_round9.py",),
+        None,
+        "walk/CHECKS-ceiling-and-floor.md",
+        "133 calls",
+        None,
+    ),
+    ReceiptEntry(
+        5,
+        "3 are supported in every draw",
+        "called-but-unpublished claims supported in every draw, 20 draws",
+        ("notes/scripts/diagnose_round10.py",),
+        None,
+        "walk/CHECKS-ceiling-survives.md",
+        "**3** (supported in all 20 draws)",
+        None,
+    ),
+    ReceiptEntry(
+        5,
+        "6 are supported in none",
+        "published-but-uncalled claims supported in no draw, 20 draws",
+        ("notes/scripts/diagnose_round10.py",),
+        None,
+        "walk/CHECKS-ceiling-survives.md",
+        "**6** (supported in no draw)",
+        None,
+    ),
+    ReceiptEntry(
+        5,
+        "9 claims of 791",
+        "structural disagreement with the published list, 20 draws",
+        ("notes/scripts/diagnose_round10.py",),
+        None,
+        "walk/CHECKS-ceiling-survives.md",
+        "9 of 791 claims",
+        None,
+    ),
+    # The home states no "4" by itself: the figure is this row's last two cells summed, 2
+    # structural misses plus 2 structural extras, so the anchor is the whole 100-draw row of the
+    # home's §1 table, which occurs there once.
+    ReceiptEntry(
+        5,
+        "4 at 100 draws",
+        "structural disagreement with the published list, 100 draws",
+        ("notes/scripts/diagnose_round11.py",),
+        "S and T — both headlines as functions of the draw count",
+        "walk/CHECKS-draws-and-threshold.md",
+        "| 100 | **38.3%** | **2** | **2** |",
+        None,
+    ),
+    ReceiptEntry(
+        6,
+        "+2.664",
+        "ATP1A1 K605's statistic, frozen across 20 draws",
+        ("notes/scripts/diagnose_round12.py",),
+        "id 889: measured in all six columns",
+        "walk/CHECKS-draws-and-threshold.md",
+        "+2.664 to +2.664",
+        None,
+    ),
+    ReceiptEntry(
+        6,
+        "0.0144 and 0.0177",
+        "ATP1A1 K605's q range, 20 draws",
+        ("notes/scripts/diagnose_round12.py",),
+        "id 889: measured in all six columns",
+        "walk/CHECKS-draws-and-threshold.md",
+        "0.0144 to 0.0177",
+        None,
+    ),
+    ReceiptEntry(
+        6,
+        "one is moved across the cut",
+        "fully measured claims whose q range spans the cut, 20 draws",
+        ("notes/scripts/diagnose_round13.py",),
+        None,
+        "walk/CHECKS-collateral-and-pkm.md",
+        "of those, q range spans the 0.01 cut",
+        ("notes/logs/round13.txt", "their q ranges span the 0.01 cut: 1"),
+    ),
+    ReceiptEntry(
+        6,
+        "median 0.0015",
+        "median q range of the fully measured claims, 20 draws",
+        ("notes/scripts/diagnose_round13.py",),
+        None,
+        "walk/CHECKS-collateral-and-pkm.md",
+        "median 0.0015",
+        ("notes/logs/round13.txt", "median 0.0015"),
+    ),
+    ReceiptEntry(
+        6,
+        "0.1% to 13%",
+        "interval on the rate at which fully measured claims cross the cut, 20 draws",
+        ("notes/scripts/diagnose_round14.py",),
+        None,
+        "walk/CHECKS-census.md",
+        "0.1% to 13%",
+        ("notes/logs/round14.txt", "0.1% to 13%"),
+    ),
+)
+
+
+def _receipt_item(entry: ReceiptEntry) -> str:
+    """One `not_automated` item: the figure's description and where it was produced. No anchor."""
+    noun = "script" if len(entry.scripts) == 1 else "scripts"
+    log = f"log {entry.log[0]}" if entry.log is not None else "no committed log"
+    return (
+        f"walk/FINDINGS.md section {entry.section}, {entry.describes}: {noun} "
+        f"{', '.join(entry.scripts)}; home {entry.home}; {log}."
+    )
+
+
+def _receipt_items(section: int) -> list[str]:
+    entries = [e for e in RECEIPT_MAP if e.section == section]
+    return [_receipt_item(e) for e in entries]
 
 
 @dataclass
@@ -900,12 +1088,21 @@ def stage6_sensitivity(fixture: dict[str, Any], out: Path) -> Stage:
     }
     stage.not_automated = [
         (
-            "walk/FINDINGS.md section 5 quotes a changing-support count under 'Perseus's documented "
-            "FDR rule at the recovered imputation parameters, 20 paired draws'. That is the output of "
-            "notes/scripts/diagnose_round11.py / diagnose_round12.py (walk/CHECKS-draws-and-threshold.md), "
-            "a different instrument from the registered attempt-3 family computed here, and it is "
-            "not reproduced by this fixture. Do not quote the two interchangeably."
-        )
+            "Withdrawn and replaced 2026-11-13: the note this replaces attributed the "
+            "changing-support count quoted in walk/FINDINGS.md section 5 to "
+            "notes/scripts/diagnose_round11.py and diagnose_round12.py, recorded in "
+            "walk/CHECKS-draws-and-threshold.md, which is not the instrument that produced it. "
+            "Neither population this stage reports is a section 5 figure, and none of section "
+            "5's figures is reproduced by this fixture. 'over_all_claims' is over all published "
+            "claims, the population of the section 5 headline, so only the rule separates them: "
+            "the headline was computed under Perseus's documented FDR rule, and this stage "
+            "computes the variant the 'registered_variant' key names. 'conditional_on_imputation', "
+            "the population the 'registered_primary' key marks, is over claims with an imputed "
+            "value, a different population from the headline's, and is computed under the same "
+            "registered variant. Do not quote either as the headline. The items below name the "
+            "instrument behind each section 5 figure."
+        ),
+        *_receipt_items(5),
     ]
     stage.sources = [f"tests/fixtures/{H10_FIXTURE}"]
     return stage
@@ -951,10 +1148,14 @@ def stage7_propagation(fixture: dict[str, Any]) -> Stage:
     }
     stage.not_automated = [
         (
-            "q-value ranges per claim (e.g. the ATP1A1 K605 range in walk/FINDINGS.md section 6) are "
-            "not stored in the fixture, which keeps support as 0/1. Source: "
-            "notes/scripts/diagnose_round12.py, walk/CHECKS-draws-and-threshold.md."
-        )
+            "walk/FINDINGS.md section 6's figures are read from per-claim statistics and q-values "
+            "across draws, and this fixture cannot produce them: it keeps each claim's support as "
+            "binary and stores no q-values. What this stage computes instead is support changes "
+            "under the variant the 'registered_variant' key names. No FDR rule is named for section 6's "
+            "figures, because none of the documents behind section 6 states the rule they were "
+            "computed under. The items below name the instrument behind each section 6 figure."
+        ),
+        *_receipt_items(6),
     ]
     stage.sources = [f"tests/fixtures/{H10_FIXTURE}"]
     return stage

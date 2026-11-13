@@ -602,6 +602,33 @@ PINNED: frozenset[tuple[str, str, int]] = frozenset(
             "{k: (v['predicted_median_gap'], v['consistent']) for k, v in got['scan'].items()} == log['scan']",
             1,
         ),
+        # Classified 2026-11-13 (prompt 42b): the receipt checker's synthetic cases. **Not an
+        # instance; the two sides have independent origins.** The left is `check_receipts` run
+        # over a root built in `tmp_path` by `_receipt_root` and one named case function; the right
+        # is `expected`, a hand-written literal in `RECEIPT_CASES` beside that function. Neither
+        # produced the other. **Measured:** clause 3b disabled (`if not named <= home_set:  # 3b`
+        # -> `if False:  # 3b`, read back before the run, `__pycache__` deleted and
+        # `PYTHONDONTWRITEBYTECODE=1` set) reddens exactly `[wrong instrument]`, at this assertion,
+        # with `assert [] == ['attribution']`; each of the six directions and the other five
+        # clauses reddens its own cases the same way. **Occurrences measured off `sweep()`: one.**
+        # **Written in its natural form and not reshaped:** binding the call first
+        # (`got = check_receipts(...)`) would hide it from both passes, which is the reshaping
+        # recorded at the `test_agent_config_references.py` entry above.
+        ("test_audit.py", "[v.kind for v in check_receipts((entry,), tmp_path)] == expected", 1),
+        # Classified 2026-11-13 (prompt 42b): the note checker's synthetic cases, the same shape.
+        # **Not an instance.** The left is `check_note` over hand-written items and synthetic
+        # entries (`_ITEMS6`/`_ITEMS7`, `_E5`/`_E6`, none built from `RECEIPT_MAP` or the
+        # generator); the right is `expected`, a hand-written literal in `NOTE_CASES`. **Measured:**
+        # `rule` disabled (the closing comprehension filtered with `and kind != "rule"`, read back,
+        # cache defeated as above) reddens exactly `[rule, documented]` and `[rule, Documented]`,
+        # at this assertion, with `assert [] == ['rule']`; every other kind, `figure`'s anchor
+        # clause alone and `hand_instruments`' position rule alone redden their own cases the same
+        # way. **Occurrences measured off `sweep()`: one.** Not reshaped, for the reason above.
+        (
+            "test_audit.py",
+            "[v.kind for v in check_note(items, entries, stage, _ANCHORS)] == expected",
+            1,
+        ),
         ("test_drift.py", "len(sleeps) == drift.RETRIES - 1", 1),
         (
             "test_keys.py",
@@ -2371,7 +2398,11 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # first tests in `tests/test_audit.py`, forty-two asserts, none matching, so `PINNED` stays at
     # 351. `sweep()` read 60 / 2669 at `091263f`, before this turn added anything — no lag — and
     # 60 / 2711 after. Read off `sweep()`.
-    assert modules >= 60 and asserts >= 2711, (
+    # 2711 -> 2721 on 2026-11-13 (prompt 42b), module count unchanged at 60: the receipt and note
+    # checkers in `tests/test_audit.py`, ten asserts, two of them matching, so `PINNED` moves from
+    # 351 to 353 entries as forecast. `sweep()` read 60 / 2711 at `e853079`, before this turn added
+    # anything — no lag — and 60 / 2721 after. Read off `sweep()`.
+    assert modules >= 60 and asserts >= 2721, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )
