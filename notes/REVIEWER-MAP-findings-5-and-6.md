@@ -25,11 +25,19 @@ Every line reference below was opened and read at `24a44da`.
 
 | # | figure | at | denom. | FDR rule | instrument | home | status |
 |---|---|---|---|---|---|---|---|
-| 7 | +2.664 frozen | :137 | — | documented | round11/12 | `CHECKS-draws-and-threshold.md:56` | live |
-| 8 | q 0.0144 → 0.0177 | :138 | — | documented | round11/12 | `CHECKS-draws-and-threshold.md:57` | live |
-| 9 | 1 of 40 across the cut | :141 | 40 | documented | round13 | `CHECKS-collateral-and-pkm.md:21–22`; `round13.txt:2–3` | live |
-| 10 | median **0.0015** | :142 | 40 | documented | round13 | `CHECKS-collateral-and-pkm.md:23`; `round13.txt:5` | live; restated by round14 over the same 40 — §3 |
-| 11 | 1 in 40, 0.1%–13% | :144 | 40 | documented | round14 | `round14.txt:16–17`; `CHECKS-census.md:68–69` | live |
+| 7 | +2.664 frozen | :137 | — | unstated* | round11/12 | `CHECKS-draws-and-threshold.md:56` | live |
+| 8 | q 0.0144 → 0.0177 | :138 | — | unstated* | round11/12 | `CHECKS-draws-and-threshold.md:57` | live |
+| 9 | 1 of 40 across the cut | :141 | 40 | unstated* | round13 | `CHECKS-collateral-and-pkm.md:21–22`; `round13.txt:2–3` | live |
+| 10 | median **0.0015** | :142 | 40 | unstated* | round13 | `CHECKS-collateral-and-pkm.md:23`; `round13.txt:5` | live; restated by round14 over the same 40 — §3 |
+| 11 | 1 in 40, 0.1%–13% | :144 | 40 | unstated* | round14 | `round14.txt:16–17`; `CHECKS-census.md:68–69` | live |
+
+\* **Corrected 2026-11-13.** These five cells read "documented". No §6 source states the rule:
+`walk/FINDINGS.md` §6 (:134–151) does not, and neither do the ATP1A1 section of
+`CHECKS-draws-and-threshold.md` (§3, :49–75), `CHECKS-collateral-and-pkm.md` or `CHECKS-census.md`.
+The cells recorded an inference, not a stated fact. The inference is likely right: rounds 11–14 use
+the unscaled null count, which is round 9's documented scale (`CHECKS-ceiling-and-floor.md:26`).
+But it is a reading of the instruments, not something any home states. Raised by the 42b build
+(`4ba12ff`), whose stage 7 note accordingly names no rule.
 
 **§5 draws on four instruments — round9, round10, round11/12, round13; §6 on
 three — round11/12, round13, round14.** Round9 enters §5 only through the condition
