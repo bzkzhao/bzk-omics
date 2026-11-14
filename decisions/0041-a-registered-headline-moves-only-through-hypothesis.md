@@ -2,8 +2,9 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-11-13 |
+| Reviewed | 2026-11-14 — nine findings; two corrections to the Landing verification (V9's counts, V1's scope), seven notes; the decision and its reading unchanged |
 | Supersedes | — |
 | Superseded by | — |
 
@@ -13,6 +14,81 @@ and applies the answer to H10's headline, which two CHECKS documents have moved:
 - `walk/CHECKS-convention-resolved.md:5-7` moved its **level** ("this supersedes the *level*"), and
   HYPOTHESIS v10 took that up the same evening (`HYPOTHESIS.md:84-85`).
 - `walk/CHECKS-collateral-and-pkm.md` moved its **denominator**, and no version took that up.
+
+## Review
+
+Landed `Proposed` at `0a0e3d5` and reviewed on 2026-11-14. **Nine findings: two correct the
+Landing verification, seven are measurements and notes. None touches the decision**, which is the
+ground for the status above. Every item the landing said it had not reached was measured (C–G), and
+each holds as the record states it.
+
+### A — V9's counts reproduce on no committed state. Counts restated
+
+V9 said the grep "returns 66 hits. This record holds 44", with the measured state given as
+`b8b8cf2`. At `b8b8cf2` it returns 21, because the record is not yet in `decisions/`. At `0a0e3d5`
+it returns 84, of which the record holds 62. 66 / 44 counted an uncommitted intermediate state. The
+22 hits outside the record reproduce and read as V9 classifies them. The verdict holds; V9 and the
+section's preamble are corrected in place.
+
+### B — V1's coverage claim is scoped to the record above the Landing verification. Phrase changed
+
+Every reference above the section sits in C0–C13. The section itself cites
+`walk/PREREG-PXD018299-H10-attempt3.md:45`, `walk/CHECKS-convention-resolved.md:46`, and
+`decisions/0028-…:16`, `:20` and `decisions/0032-…:408` without command output; each was read and
+holds. V1 now says "above this section".
+
+### C — "Neither chain cites the other on it": holds
+
+`HYPOTHESIS.md` never names `walk/CHECKS-collateral-and-pkm.md` or `walk/CHECKS-census.md`, and its
+791 mentions cite no `walk/` document on the denominator. A grep for "hypothesis" or "v10" over the
+collateral, census and FINDINGS documents returns nothing.
+
+### D — "v10 took that up the same evening": holds, and the clock says why no version took up the denominator
+
+On 2026-09-22: `912d629` (`walk/CHECKS-convention-resolved.md`) at 22:02, `1019744` (HYPOTHESIS v10)
+at 22:07, `c21f1da` (`walk/CHECKS-collateral-and-pkm.md`) at 22:57, `dee8fec` (`walk/CHECKS-census.md`)
+at 23:05. The denominator move came fifty minutes after v10, and no HYPOTHESIS version has been cut
+since: the five later commits touching the file all sit within v10. So no version took it up because
+none existed to; nothing declined it.
+
+### E — Consequences item 7's direction-6 sentence: holds, measured
+
+In a scratch copy, the 209-of-751 `RECEIPT_MAP` entry with a FINDINGS §5 row carrying it:
+- with `log=None`, the receipt test fails with exactly `Violation(kind='absence_false', subject='209
+  of 751')`;
+- with round 13's log, as item 7 specifies, both checkers pass and only the stage 6 item count fails,
+  9 → 10, as item 7 predicts;
+- with home `walk/CHECKS-convention-resolved.md` and no log, it fails `attribution` and
+  `absence_false`.
+
+Directions 3 and 5 share the work with direction 6: together they force a home naming
+`diagnose_round13.py`. Swapping the map's first two §5 entries leaves `tests/test_audit.py` green,
+confirming that the map's order is unguarded, as item 7 says.
+
+### F — Alternative B's "v10 stated neither direction nor timing": holds
+
+v10's §0 (`HYPOTHESIS.md:37-67`) states its trigger and gives both values, but never says which way
+the level moved or that the restatement followed the data. For the record: the precedent moved the
+headline up, toward "recurs"; the denominator move goes down.
+
+### G — The reviewer IDs say what the record cites them for
+
+W3, W12 and P4 (`notes/REVIEWER-DEFECTS.md`) and D1 and D2 (`notes/REVIEWER-MAP-findings-5-and-6.md`)
+each match. W3's status cell pointed at the removed draft; the reviewer corrected it (`258c096`).
+
+### H — The reading's delegation citation is H10's own
+
+`HYPOTHESIS.md:918-919` is H10's delegation to its reconstruction pre-registration; other hypotheses
+delegate elsewhere (`:795`, `:933`, `:942-945`), and H10's default cell is fixed in HYPOTHESIS itself
+(`:904-905`). The reading's sentence holds for H10. Left as written.
+
+### I — Consequences items 4, 6 and 7: no contradiction, two gaps for the follow-on prompt
+
+- Item 6 lists the "published claims" instances without a membership rule. Two of them
+  (`walk/CHECKS-census.md:62`, `walk/FINDINGS.md:109`) label a numerator rather than the 791. The
+  follow-on prompt states the rule before writing any guard.
+- Item 4 allows 26.5% below row 2. If the follow-on takes that option, the existing 210-of-791
+  `RECEIPT_MAP` entry moves too, and the map's order against §5 is unguarded (E).
 
 ## Context
 
@@ -204,8 +280,9 @@ record.
 Landed `Proposed` by prompt 43 on 2026-11-14, from `notes/drafts/` at `b8b8cf2`. 0041 was free:
 `decisions/` held 0001–0040 without 0018. The decision text above is unchanged from the draft.
 Each entry gives the command, its output, and a verdict. **No entry is corrected:** all nine
-hold. The measured state is the landing commit's parent (`b8b8cf2`). It cites the same lines as
-`aec062e`, where the line references were measured (V1).
+hold. The measured state is the landing commit's parent (`b8b8cf2`), **except V9, which needs the
+record in `decisions/` and was measured on the landed tree** (corrected at review, finding A). It
+cites the same lines as `aec062e`, where the line references were measured (V1).
 
 ### V1 — every line reference in the record
 
@@ -220,7 +297,8 @@ git diff --stat aec062e -- HYPOTHESIS.md walk bzk tests/test_audit.py notes/logs
 The C0–C13 quotes of prompt 43 §0(c) were taken again on the landed tree and on `b8b8cf2`. The two
 captures, 158 lines each, are byte-identical (`cmp`), and §0 had found every row as cited.
 
-**Coverage.** Every line reference in the record falls inside a C row's range, and none is left
+**Coverage.** Every line reference ~~in the record~~ **above this section** (corrected at review,
+finding B) falls inside a C row's range, and none is left
 uncovered:
 - `HYPOTHESIS.md:43-44`, `:904-905`, `:904-907` and `:908-909` sit inside C5 or C6;
 - `walk/CHECKS-membership-and-corrections.md:9-10` and `:12-13` sit inside C10's `:8-13`;
@@ -416,7 +494,10 @@ The third query returns 55 hits. Only those whose label calls the 791 "published
 git grep -n -i -E "headline|pre-regist|PREREG" decisions/
 ```
 
-The command returns 66 hits. This record holds 44. The rest, per file:
+~~The command returns 66 hits. This record holds 44.~~ **Corrected at review (finding A):** on the
+landed tree (`0a0e3d5`) the command returns 84 hits, of which this record holds 62 (44 above this
+section, 18 in it); at `b8b8cf2` it returns 21. 66 / 44 counted a state no commit holds. The 22 hits
+outside this record reproduce. The rest, per file:
 
 ```text
       2 decisions/0028-the-anchor-curation-record-is-one-supersession.md
