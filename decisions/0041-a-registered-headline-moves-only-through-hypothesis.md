@@ -199,6 +199,244 @@ denominator, and it left two chains disagreeing, with neither citing the other.
 pre-registrations name the primary, so declining to name one would depart from them without a
 record.
 
+## Landing verification
+
+Landed `Proposed` by prompt 43 on 2026-11-14, from `notes/drafts/` at `b8b8cf2`. 0041 was free:
+`decisions/` held 0001–0040 without 0018. The decision text above is unchanged from the draft.
+Each entry gives the command, its output, and a verdict. **No entry is corrected:** all nine
+hold. The measured state is the landing commit's parent (`b8b8cf2`). It cites the same lines as
+`aec062e`, where the line references were measured (V1).
+
+### V1 — every line reference in the record
+
+```
+git diff --stat aec062e -- HYPOTHESIS.md walk bzk tests/test_audit.py notes/logs
+```
+
+```text
+(no output)
+```
+
+The C0–C13 quotes of prompt 43 §0(c) were taken again on the landed tree and on `b8b8cf2`. The two
+captures, 158 lines each, are byte-identical (`cmp`), and §0 had found every row as cited.
+
+**Coverage.** Every line reference in the record falls inside a C row's range, and none is left
+uncovered:
+- `HYPOTHESIS.md:43-44`, `:904-905`, `:904-907` and `:908-909` sit inside C5 or C6;
+- `walk/CHECKS-membership-and-corrections.md:9-10` and `:12-13` sit inside C10's `:8-13`;
+- `walk/CHECKS-census.md:121` and `:119` sit inside C9's `:119-122`.
+
+**Holds.**
+
+### V2 — "Both figures are far above the 5% 'recurs' threshold"
+
+```
+sed -n '182,184p' walk/PREREG-PXD018299-H10.md
+```
+
+```text
+- **Recurs:** at least 5%.
+- **Absent:** at most 1%.
+- **Indeterminate:** between the two.
+```
+
+27.8% is about 5.6 times the threshold, and 26.5% about 5.3 times. **Holds.**
+
+### V3 — "HYPOTHESIS does not change … It reports no 26.5% figure"
+
+```
+grep -cF "26.5" HYPOTHESIS.md
+```
+
+```text
+0
+```
+
+C5 (`:43-46`) states 27.8% (209 of 751). C6 (`:908-909`) lists the share over all claims as
+"Reported, and never the headline". **Holds.**
+
+### V4 — row 2 is over the 751 with no numerator in its home; row 3 is 103 of 751
+
+```
+sed -n '15,19p' walk/CHECKS-draws-and-threshold.md
+grep -cE "751|791" walk/CHECKS-draws-and-threshold.md
+sed -n '119,120p' notes/scripts/diagnose_round11.py
+sed -n '70p' walk/CHECKS-ceiling-survives.md
+```
+
+```text
+| draws | unstable, of claims with an imputed value | structural misses | structural extras |
+|---|---|---|---|
+| 20 | 27.8% | 6 | 3 |
+| 50 | 34.1% | 5 | 3 |
+| 100 | **38.3%** | **2** | **2** |
+0
+    with_imputed = published & (imputed_count > 0)
+    unstable = with_imputed & (counts > 0) & (counts < draws)
+| floor across the rule family | **13.7%** (103 of 751) | unstable at every scaling from 0.25 to 2.0; no choice within the family removes it |
+```
+
+**Holds.**
+- Row 2's home prints neither a numerator nor a denominator. Its population is the column header's
+  "claims with an imputed value".
+- The script's denominator (`with_imputed`) does not depend on the draw count. So row 2 is over the
+  same population as the 20-draw row, which the record's other homes give as 209 of 751.
+
+### V5 — "All three of its pre-registrations", attempt 2 by inheritance
+
+```
+sed -n '6,13p' walk/PREREG-PXD018299-H10-attempt2.md
+grep -c -i -E "751|791|imputed value|denominator|over all claims|headline" walk/PREREG-PXD018299-H10-attempt2.md
+```
+
+```text
+**What it supersedes.** It replaces only what it names in §1–§3 of
+`walk/PREREG-PXD018299-H10.md` (attempt 1, `0e4dc6b`). Everything else there
+still governs attempt 2 unchanged:
+- the population and exposure (§2);
+- the unstated steps (§3);
+- the family (§5);
+- readouts A to D (§6);
+- expectations X1–X3 and X6–X8 (§7);
+0
+```
+
+**Holds.**
+- Attempt 2 states no denominator of its own and carries attempt 1's §6 over unchanged.
+- C1 confirms attempt 3: `:6-8` keeps attempts 1 and 2 governing, `:81-82` takes the shares over
+  claims with an imputed value, `:76` reads the verdict from the primary, and `:70` lists the share
+  over all claims under readout B.
+- C4 confirms attempt 1: `:186-187` lists the all-claims share under "Reported, never the headline".
+
+### V6 — stage 6 computes attempt 3's halved variant; `registered_primary` marks `conditional_on_imputation`
+
+The command runs on the committed fixtures only. It was run from the repository root, and
+`audit-out/` and `audit.json` were deleted afterwards.
+
+```
+uv run python -m bzk.audit --out audit-out --json > audit.json
+uv run python -c "import json; s = [x for x in json.load(open('audit.json'))['stages'] if x['stage'] == 6][0]['findings']; [print(k + ':', json.dumps(s[k])) for k in ('registered_variant', 'registered_primary', 'over_all_claims', 'conditional_on_imputation')]"
+```
+
+```text
+registered_variant: "joint_half+random_excluding_trivial"
+registered_primary: "conditional_on_imputation"
+over_all_claims: {"numerator": 159, "denominator": 791, "share": 0.20101137800252844}
+conditional_on_imputation: {"numerator": 159, "denominator": 751, "share": 0.21171770972037285}
+```
+
+**Holds.**
+- `joint_half` + `random_excluding_trivial` is attempt 3's primary
+  (`walk/PREREG-PXD018299-H10-attempt3.md:45`).
+- 159 of 751 = 21.2% is the halved rule's figure, which v10 superseded as the level
+  (`walk/CHECKS-convention-resolved.md:46`; `HYPOTHESIS.md:43-46`).
+
+### V7 — stage 6's note and `RECEIPT_MAP` change with §5
+
+```
+grep -n "section 5 headline\|the headline's" bzk/audit.py
+grep -c "209 of 751" bzk/audit.py
+```
+
+```text
+1097:            "claims, the population of the section 5 headline, so only the rule separates them: "
+1101:            "value, a different population from the headline's, and is computed under the same "
+0
+```
+
+**Holds.** The note names the all-claims population as the headline's (`:1097`). No map entry
+anchors 27.8% (209 of 751).
+
+### V8 — every site *Consequences* must reach is named in it
+
+```
+git grep -n -F -e "26.5%" -e "210 of 791" -e "210/791" -e "right denominator" -e "denominator was wrong" -e "superseded as the headline" -- "*.md" "*.py" "*.txt"
+git grep -n -i -F "all published claims" -- "*.md" "*.py" "*.txt"
+git grep -n -F -e "of 791" -e "791 claims" -- "*.md" "*.py"
+```
+
+The output below excludes this record's own hits and gives file and line only. The first two
+queries return:
+
+```text
+bzk/audit.py :102 :103 :108 :109
+walk/CHECKS-census.md :70 :119
+walk/CHECKS-collateral-and-pkm.md :13 :25 :29
+walk/FINDINGS.md :109
+notes/logs/round13.txt :1 :7
+notes/scripts/diagnose_round13.py :119 :131
+notes/scripts/diagnose_round14.py :19
+notes/prompts/22-walk-two-route-independence.md :149
+notes/prompts/42a-stages-6-and-7-name-their-rule.md :174
+notes/prompts/42b-the-notes-name-their-instruments.md :142 :344 :377 :641
+notes/prompts/43-land-adr-0041.md :56 :57 :58 :61 :138 :139 :144
+notes/REVIEWER-DEFECTS.md :37
+notes/REVIEWER-HANDOFF-2026-11-12.md :130 :150
+notes/REVIEWER-MAP-findings-5-and-6.md :17 :74 :89 :155 :163 :180 :214
+```
+
+The third query returns 55 hits. Only those whose label calls the 791 "published claims" are kept.
+- **Kept:**
+  - `bzk/audit.py:102`, `:108`, `:109`, the entry described at `:103`;
+  - `walk/CHECKS-census.md:64-66`, cells under the `:62` header "published claims inside it";
+  - `walk/CHECKS-collateral-and-pkm.md:25`;
+  - `walk/FINDINGS.md:109`;
+  - reviewer and prompt hits, as listed above.
+- **Dropped:** every other hit labels the 791 as testable claims, all claims, claims supported, or
+  the registered population. "9 of 791" (`walk/FINDINGS.md:131`,
+  `walk/CHECKS-ceiling-survives.md:55`, `:69`, `bzk/audit.py:164`, `:169`) is dropped too: there
+  "published" qualifies the list, not the 791.
+
+**Classified:**
+- *Named in Consequences:*
+  - `walk/CHECKS-collateral-and-pkm.md:13`, `:25`, `:29` (items 2, 6);
+  - `walk/CHECKS-census.md:62` (with its cells `:64-66`), `:70`, `:119` (items 3, 6);
+  - `walk/FINDINGS.md:109` (items 4, 6);
+  - `bzk/audit.py:103` (item 6), whose entry's anchors are `:102`, `:108`, `:109`. Item 7 names
+    the map, and the receipt checker guards those anchors.
+  - `bzk/audit.py:1096-1097` (items 6, 7) is not hit by these queries, because "published" and
+    "claims" fall on two lines. Item 6 names it.
+- *Reports the figure without calling it H10's result, so it stays under (b):* no hit.
+- *Execution record:* `notes/logs/round13.txt:1`, `:7`; `notes/scripts/diagnose_round13.py:119`,
+  `:131`; `notes/scripts/diagnose_round14.py:19`.
+- *Prompt:* `notes/prompts/22-*`, `42a-*`, `42b-*`, `43-*`.
+- *Dated reviewer record:* `notes/REVIEWER-MAP-findings-5-and-6.md`,
+  `notes/REVIEWER-HANDOFF-2026-11-12.md`, and `notes/REVIEWER-DEFECTS.md:37` (W3, whose closing
+  item 9 names).
+
+**No hit falls outside the five classes. Holds.**
+- Nothing in `walk/`, `bzk/` or `HYPOTHESIS.md` changed between `aec062e` and the landing (V1). So
+  item 6's "complete at `aec062e`" is this measurement.
+- A rewording that avoids all three queries would escape this sweep. The class is unguarded, as
+  item 6 states.
+
+### V9 — "It supersedes nothing"
+
+```
+git grep -n -i -E "headline|pre-regist|PREREG" decisions/
+```
+
+The command returns 66 hits. This record holds 44. The rest, per file:
+
+```text
+      2 decisions/0028-the-anchor-curation-record-is-one-supersession.md
+      2 decisions/0029-how-an-experiment-id-reaches-the-contrast-mints.md
+      1 decisions/0032-what-the-perseus-adapter-reads-and-whether-the-platform-converts.md
+      1 decisions/0033-frame-is-a-coverage-repair.md
+      2 decisions/0036-ip-ms-as-role-tagged-observations.md
+      2 decisions/0037-every-digest-id-encodes-its-anchors.md
+     11 decisions/0038-contrast-arms-are-declared-and-bound-at-the-loader.md
+      1 decisions/README.md
+```
+
+**Holds.**
+- `decisions/README.md`'s hit is this record's own Written row.
+- In the other 21 hits:
+  - 0028 `:16` and `:20` use "headline(s)" as a verb about that record's own counts;
+  - 0032 `:408` concerns I9's "headline sentence";
+  - the rest are those records' own pre-registered measurements.
+- None cites a `walk/PREREG-*` or decides who may move a hypothesis's registered headline.
+
 ## Open questions
 
 1. **Does (a) cover a withdrawal, not only a moved headline?** Reviewer defect P4 is the case.
