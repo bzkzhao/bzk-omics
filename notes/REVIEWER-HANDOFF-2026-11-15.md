@@ -99,12 +99,10 @@ and checked the banners and every post-banner line number by reading.
 
 **Reviewer work, then builds:**
 
-5. **Finish the register.** `notes/REVIEWER-DEFECTS.md` §4 says itself it is "not yet complete":
-   the open items of handoffs 2026-10-10 §6–§7 and 2026-11-07b §5 are not folded in (stale `claude/*`
-   branches, the `pxd055843_perseus.py` docstring, no export printing `protein_adjusted`, the sweep
-   floor moving only by hand, and others). Until it is complete, any "how much is left" count is a
-   floor. **Do this first** — it is the same lesson as the 11-12 handoff's item 4: an item not in the
-   register is invisible to the next prompt.
+5. **Finish the register. Done the same day:** R14–R32 fold in every open item of handoffs
+   2026-10-10 §6–§7 and 2026-11-07b §5, and §4a records six found closed. Eleven of the new items are
+   marked "Carried", not re-measured; a prompt that touches one measures it first. R31 (ROADMAP
+   questions) and R32 (the PI's questions) join items 1–4 above as decisions outside the reviewer.
 6. **Cheap `walk/` corrections, batched by file.** Each is a banner or a FINDINGS line, in the house
    form:
    - R1: the two unbannered supersessions (`CHECKS-ceiling-and-floor.md:90`,
@@ -134,10 +132,12 @@ Counted from `notes/REVIEWER-DEFECTS.md` at `1c68a4b`:
 | `walk/` (W1–W12) | 12 | 2 (W1, W3) | 10 |
 | platform (P1–P9) | 9 | 0 (P9 partly) | 9 |
 | environment (D30) | 1 | 1 | 0 |
-| raised since (R1–R13) | 13 | 0 | 13 |
-| **total** | **35** | **3** | **32** |
+| raised since (R1–R32) | 32 | 0 | 32 |
+| **total** | **54** | **3** | **51** |
 
-**This is a floor, not the total** (item 5). The figure that matters more: the item the project's
+Six further items from the old handoffs were found already closed (register §4a) and are not
+counted. **The register is now complete** as far as the handoffs record; anything not in it was
+never written down. The figure that matters more: the item the project's
 central H10 result depended on, W3, is closed, and FINDINGS §5 is now consistent with the
 registration. Most of what remains is either a banner, a test, or a bzk decision; very little of it
 moves a published figure.

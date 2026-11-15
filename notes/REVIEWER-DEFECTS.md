@@ -70,11 +70,16 @@ Each item's text is prompt 22's, verbatim, except W1, which prompt 22 states as 
 ## 4. Raised since `3a165a4`, until now held only in handoffs
 
 Each of these lived only in a reviewer handoff's prose or in a build report. They are numbered here
-so a prompt can cite them. **This section is not yet complete.** It folds in handoff 2026-11-12 §6,
-the 42b build, and three items confirmed open from handoff 2026-11-07b §5. The remaining open items
-of handoffs 2026-10-10 §6–§7 and 2026-11-07b §5 are not yet folded in. These include the stale
-`claude/*` branches, the `pxd055843_perseus.py` docstring, no export printing `protein_adjusted`,
-and "the sweep floor moves only by hand".
+so a prompt can cite them. R1–R11 fold in handoff 2026-11-12 §6, the 42b build, and three items
+from handoff 2026-11-07b §5. R12–R13 come from prompt 44. **R14–R32 complete the fold-in on
+2026-11-15**: every open item of handoffs 2026-10-10 §6–§7 and 2026-11-07b §5. Those two lists carry
+forward the earlier handoffs' open items ("unchanged and still open"), so the earlier handoffs are
+covered through them. Six items they list were found closed and are recorded in §4a so they are not
+raised again.
+
+**Status column.** "Verified open at `1c68a4b`" means the reviewer re-measured it on 2026-11-15.
+"Carried" means it is copied from the named handoff and was **not** re-measured; a prompt that
+touches it measures it first.
 
 | # | item | source |
 |---|---|---|
@@ -88,11 +93,47 @@ and "the sweep floor moves only by hand".
 | R8 | Two branches of 42b's note checker have no synthetic case. `rule`'s `halved` alternative is untested: the cases use only "documented" and "Documented". `log`'s branch for a log-less entry (`tests/test_audit.py:1301`) is untested: both log cases hit the logged-entry branch (`:1299`). | 42b build report (not committed); verified against the code |
 | R9 | `walk/FINDINGS.md:3` still says "**Two deposits**", though §10a is a third. | handoff 11-07b §5 item 5; confirmed open |
 | R10 | `tests/test_tautology_sweep.py:10-11` claims "every equality, in every assert, in every `.py` file" must appear in `PINNED`. Literal displays, bound subscripts and non-equality comparisons do not register, so the docstring over-claims. | handoff 11-07b §5; confirmed open |
-| R11 | ADR-0032 is still `Proposed` (`decisions/0032-*.md:5`). | handoff 11-07b §5 item 4; 10-10 §6(C); confirmed open |
+| R11 | ADR-0032 is still `Proposed` (`decisions/0032-*.md:5`). Its review owes two inputs: ADR-0038 D6-revised (c), and `f61f6fd`'s §2.3, which changed what the Perseus adapter reads. | handoff 11-07b §5 item 4; 10-10 §6(C); confirmed open |
 | R12 | ADR-0041 *Consequences* item 6 says "The enumeration is complete at `aec062e`". It is false: `walk/RESULT-PXD018299-H10-attempt3.md:126-127` and `walk/RESULT-PXD018299-H10-attempt2.md:91` also call the 791 "published claims". Its V8 also missed four execution-record lines. The ADR is `Accepted` and append-only, so it stands uncorrected; `walk/CORRECTION-PXD018299-H10-headline.md` records the two lines (listed, not edited) and the V8 misses. Closes if a later ADR or correction supersedes item 6's sentence, or by a decision to leave it as recorded. | prompt 44 review, round 6; raised by the build, `cfb1aa7` report item 5 |
 | R13 | The "published claims" label class is not closed for `walk/` in general. The guard added at `cfb1aa7` reads only FINDINGS, the `RECEIPT_MAP` describes and stages 6–7's notes; a new CHECKS or RESULT document can add an instance and nothing catches it. Its measured limits (header and cells on separate lines; a percentage with no 791; a wrapped phrase) are pinned in `UNCAUGHT_791`. | `cfb1aa7` report, close point 3 |
+| R14 | Stale `claude/*` branches on the remote. **25** at `1c68a4b` (`git ls-remote --heads origin \| grep -c claude/`); 17 at 10-10, 20 at 11-07b. `CLAUDE.md` says work lands on `main`. | 10-10 §6 Housekeeping; 11-07b §5. Verified open at `1c68a4b` |
+| R15 | `bzk/sources/pxd055843_perseus.py`'s module docstring does not say untested rows mint no result. Stale since `4724046`. Its 51-line docstring contains neither "untested" nor "mint". | 10-10 §6 Housekeeping. Verified open at `1c68a4b` |
+| R16 | No export module prints `protein_adjusted`, so I4's "every view and export" is enforced by the UI alone. Latent: it becomes a defect the day an export of `DifferentialResult` is written, and the label must go with it. | 10-10 §6 Housekeeping. Carried; a grep at `1c68a4b` finds no results export in `bzk/` |
+| R17 | The tautology-sweep floor moves only by hand. `cfb1aa7` moved it 2721 → 2726 by hand, as every build has. (The 10-05 "stale floor" half is closed: the floor now matches `sweep()`.) | 11-07b §5 item 5. Verified open at `1c68a4b` |
+| R18 | F-d. Unknown keys inside curation `mapping` entries are dropped silently. ADR-0038 D1 refuses them in *contrast* entries only (`bzk/curation/loader.py`, `_check_contrast_entry_keys`). The live instance is PXD018299's `note` keys; a strict fix must decide whether `note` becomes a recognised key. | 10-05 §7; 10-08 §7. Verified open at `1c68a4b` |
+| R19 | F-b, generalised. No pre-existing `determined` row has its condition enforced (`Sample.cell_line`, `model_system`, `timepoint_h`, the `Analysis` and `Imputation` rows). I15's seed check is one-directional: a stochastic method needs a seed (`bzk/ontology/invariants.py:563`), but nothing refuses a seed on a deterministic method. | 10-05 §7. The I15 half verified open at `1c68a4b`; the rest carried |
+| R20 | `_literal_reads` (`tests/test_analysis_record.py:150`) is blind to a key read off `json.loads(...)["contrast"]`. | 10-08 §7; 10-09 §7. Carried |
+| R21 | `write_cells` over-reports (ADR-0038 M11). | 10-09 §7; 10-10 §7. Carried |
+| R22 | The protein-groups adapter drops a family it cannot reach from the mapping keys, silently (ADR-0038 M8). An I11 question; the first IP ingestion (PXD018299 `ISG15_interactome`) must answer it. | 10-10 §6(B), §7. Carried |
+| R23 | The `uniprot:` key check tests the prefix only, not the accession's form. (Called "R6" in handoffs 10-05 to 10-10; renumbered here because R6 above is a different item.) | 10-05 §7. Carried |
+| R24 | A background-enrichment concordance basis value is missing. | 10-09 §7; 10-10 §7. Carried; its referent is in the handoffs, not re-located |
+| R25 | The D2/D3 invariant-level check is missing (prompt 28's sample-role and bait rules are enforced below the invariant layer). | 10-09 §7; 10-10 §7. Carried |
+| R26 | I22 relies on the curation loader being the only `Contrast` minter, and `ContrastArms.contrast_id` is a claim, not a proof: hand-built arms can state any id. | 10-10 §7; 11-07b §5. Carried |
+| R27 | The untested derivation assumes one external analysis per `Dataset`. Unguarded. | 10-10 §5, §7. Carried |
+| R28 | Four FINDINGS figures `bzk.audit` cannot regenerate: §1 census, §2 two-route downshift, §5 changing-support count, §6 q-ranges. 42b's `RECEIPT_MAP` names each figure's instrument but does not regenerate it; whether `bzk/audit_pxd032267.py` moved any of the four is unmeasured. | 11-07b §5 item 2. Carried |
+| R29 | Attempt 2 marked its own tree dirty. | 11-07 §5.4; 11-07b §5 item 5. Carried |
+| R30 | S1: were Fig. 2f's labelled points chosen by hand? The remaining half of the S1 item. A question about the paper, not the code. | 11-07 §9; 11-07b §5 item 3. Carried |
+| R31 | **bzk's decision.** ROADMAP open questions 1 and 3: public or private v0.1; a paper on the tool or on the biology. Blocks nothing; sets how urgent R28 is. | 11-07b §5 item 1. Carried |
+| R32 | **The PI's questions, blocking PXD055843.** (1) The imputation seed for S1 (I15); (2) where S1's 27 untested rows come from; (3) s0 for S1's test. Recorded in `data/curation/analysis_PXD055843_siUSP24_IFN_vs_siC_IFN.json` and `curation_PXD055843.json` `unresolved`, except (2). | 10-10 §7; 11-07b §5 item 6. Carried |
+
+### 4a. Found closed during the fold-in
+
+Listed so they are not raised again. Each was checked at `1c68a4b`.
+
+| item, as the handoff stated it | closed by | evidence |
+|---|---|---|
+| The one-composition-site rule has no guard (10-10 §6(A)1) | prompt 33 | `tests/test_maxquant_sites_composition.py`, `CAUGHT` / `UNCAUGHT` |
+| `site_change_set` does not check its arms belong to its contrast (10-10 §6(A)2) | ADR-0040 | `bzk/analysis/differential.py:70`, docstring "Arms resolved for a different contrast are refused too" |
+| A blank or non-numeric statistics cell raises a bare `ValueError` (10-10 §6(A)3) | prompt 33 | `bzk/adapters/perseus.py`, `_statistic` raises `PerseusError` naming line, column and cell |
+| `DeclaredContrast` carries an unrelated contrast and arms (11-07b §5) | ADR-0040 | `bzk/adapters/perseus.py:315-327` refuses a mismatched `contrast_id` |
+| The drift checker reports failed fetches as drift (10-05 §3.2) | — | `bzk/drift.py:266-267` routes a non-`ok` status to `unchecked` |
+| A `NaN` Difference reads as tested (11-07b §5) | prompt 33 | `test_a_nan_difference_no_longer_reads_as_tested` |
 
 ## 5. Not here
+
+**Roadmap work, not defects:** PXD018299's `ISG15_interactome` ingestion and PXD055843's ingestion
+live in `ROADMAP.md`. Their blockers are R22 and R32. **By design:** neither arms check relates
+`arms` or `contrast` to `dataset` (11-07b §5).
 
 The reviewer map's defects D1–D3 (`notes/REVIEWER-MAP-findings-5-and-6.md` §5) are FINDINGS §5 and
 §6 specifics. D1 is W3, D2 overlaps W12, and D3 was closed by 42b (`4ba12ff`). They stay in the map,
