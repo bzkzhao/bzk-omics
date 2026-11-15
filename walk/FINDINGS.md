@@ -106,9 +106,10 @@ parameters, over 20 paired draws:
 
 | | |
 |---|---|
-| published claims whose support changes across draws | **210 of 791 (26.5%)** |
-| the same at 100 draws | 38.3% |
-| floor across the whole FDR rule family, at 20 draws | 13.7% |
+| claims with an imputed value whose support changes across draws | **209 of 751 (27.8%)** |
+| the same at 100 draws | 38.3% of 751 |
+| floor across the whole FDR rule family, at 20 draws | 13.7% (103 of 751) |
+| of all 791 testable claims, those whose support changes across draws (reported beside row 1, never in its place) | 210 of 791 (26.5%) |
 
 **Four conditions must hold for this to speak about the paper's own claims. Two
 are met and two are not:**

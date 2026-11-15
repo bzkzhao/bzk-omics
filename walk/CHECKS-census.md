@@ -1,5 +1,19 @@
 # CHECKS — the census: 95% of published fold changes contain a drawn value
 
+> **Correction (2026-11-15).** §5's sentence that the instability figure
+> *"remains the registered result and the answer to H10"*, said of 26.5%, is
+> **withdrawn**: false as stated. 26.5% was never registered as H10's result:
+> H10's preregistration lists the share over all claims as reported, never the
+> headline, and H10's headline is 27.8%, over claims with an imputed value. The
+> *"selection instability"* row of the table under *"What this changes about the
+> headline"* gives that all-claims share, which is not H10's result. **Every
+> figure in this document is unaffected, and so is §5's point that the census
+> should lead.** Three labels call the testable claims published claims, where
+> 798 claims are published and the population is the testable ones: §2's column
+> header *"published claims inside it"*, *"about 0.6% of all published claims"*,
+> and §5's *"26.5% of published claims change support across re-draws"*. See
+> `walk/CORRECTION-PXD018299-H10-headline.md`.
+
 **Run 2026-09-22 on bzk's machine.** Script: `notes/scripts/diagnose_round14.py`,
 output `notes/logs/round14.txt`. Not an independent path: the same instruments
 the registered runs use. **Attempt 3's registered verdict stands.**

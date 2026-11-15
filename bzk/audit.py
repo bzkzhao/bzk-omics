@@ -99,14 +99,14 @@ class ReceiptEntry(NamedTuple):
 RECEIPT_MAP: tuple[ReceiptEntry, ...] = (
     ReceiptEntry(
         5,
-        "210 of 791",
-        "share of all published claims whose support changes across draws, documented rule, "
-        "20 draws",
+        "209 of 751",
+        "share of claims with an imputed value whose support changes across draws, documented "
+        "rule, 20 draws",
         ("notes/scripts/diagnose_round13.py",),
         None,
         "walk/CHECKS-collateral-and-pkm.md",
-        "210 of 791",
-        ("notes/logs/round13.txt", "210 of 791"),
+        "209 of 751",
+        ("notes/logs/round13.txt", "209 of 751"),
     ),
     ReceiptEntry(
         5,
@@ -128,6 +128,17 @@ RECEIPT_MAP: tuple[ReceiptEntry, ...] = (
         "walk/CHECKS-ceiling-survives.md",
         "**13.7%** (103 of 751)",
         None,
+    ),
+    ReceiptEntry(
+        5,
+        "210 of 791",
+        "share of all testable claims whose support changes across draws, documented rule, "
+        "20 draws",
+        ("notes/scripts/diagnose_round13.py",),
+        None,
+        "walk/CHECKS-collateral-and-pkm.md",
+        "210 of 791",
+        ("notes/logs/round13.txt", "210 of 791"),
     ),
     ReceiptEntry(
         5,
@@ -1066,10 +1077,11 @@ def stage6_sensitivity(fixture: dict[str, Any], out: Path) -> Stage:
             "denominator": n_imputed,
             "share": n_changed_imputed / n_imputed,
         },
-        # The registered estimand, not a headline: walk/PREREG-PXD018299-H10-attempt3.md:81-82
-        # takes the shares over claims whose row carries an imputed value, and
-        # walk/PREREG-PXD018299-H10.md:186-187 puts the all-claims share under "Reported, never
-        # the headline". The fixture marks no primary; `tests/test_audit.py` guards both lines.
+        # The registered estimand and H10's headline population (HYPOTHESIS.md:904-907).
+        # walk/PREREG-PXD018299-H10-attempt3.md:81-82 takes the shares over claims whose row
+        # carries an imputed value, and walk/PREREG-PXD018299-H10.md:186-187 puts the all-claims
+        # share under "Reported, never the headline". The fixture marks no primary;
+        # `tests/test_audit.py` guards both PREREG lines.
         "registered_primary": "conditional_on_imputation",
         "claims": len(rows),
         "default_cell": {
@@ -1093,14 +1105,15 @@ def stage6_sensitivity(fixture: dict[str, Any], out: Path) -> Stage:
             "notes/scripts/diagnose_round11.py and diagnose_round12.py, recorded in "
             "walk/CHECKS-draws-and-threshold.md, which is not the instrument that produced it. "
             "Neither population this stage reports is a section 5 figure, and none of section "
-            "5's figures is reproduced by this fixture. 'over_all_claims' is over all published "
-            "claims, the population of the section 5 headline, so only the rule separates them: "
-            "the headline was computed under Perseus's documented FDR rule, and this stage "
-            "computes the variant the 'registered_variant' key names. 'conditional_on_imputation', "
-            "the population the 'registered_primary' key marks, is over claims with an imputed "
-            "value, a different population from the headline's, and is computed under the same "
-            "registered variant. Do not quote either as the headline. The items below name the "
-            "instrument behind each section 5 figure."
+            "5's figures is reproduced by this fixture. 'conditional_on_imputation', the "
+            "population the 'registered_primary' key marks, is over claims with an imputed "
+            "value: the population of the section 5 headline, so only the rule separates them. "
+            "The headline was computed under Perseus's documented FDR rule, and this stage "
+            "computes the variant the 'registered_variant' key names. 'over_all_claims' is over "
+            "all testable claims, the population of the share section 5 reports alongside the "
+            "headline and never as it, and is computed under the same variant. Do not quote "
+            "either as the headline. The items below name the instrument behind each section 5 "
+            "figure."
         ),
         *_receipt_items(5),
     ]

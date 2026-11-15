@@ -2402,7 +2402,11 @@ def test_the_pinned_multiset_has_not_changed_unreviewed() -> None:
     # checkers in `tests/test_audit.py`, ten asserts, two of them matching, so `PINNED` moves from
     # 351 to 353 entries as forecast. `sweep()` read 60 / 2711 at `e853079`, before this turn added
     # anything — no lag — and 60 / 2721 after. Read off `sweep()`.
-    assert modules >= 60 and asserts >= 2721, (
+    # 2721 -> 2726 on 2026-11-15 (prompt 44), module count unchanged at 60: the 791 label guard in
+    # `tests/test_audit.py`, five asserts, none matching, so `PINNED` stays at 353 as forecast.
+    # `sweep()` read 60 / 2721 at `15baed0`, before this turn added anything — no lag — and
+    # 60 / 2726 after. Read off `sweep()`.
+    assert modules >= 60 and asserts >= 2726, (
         f"the surface shrank to {modules} modules / {asserts} asserts — a sweep over a surface "
         "that quietly stopped covering the tests is the defect this module exists to catch"
     )

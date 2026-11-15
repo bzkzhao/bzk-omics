@@ -1272,7 +1272,9 @@ def check_note(
     7's rule words, the key pointers and item 0's instrument allowance. Digits pass unchecked in
     path-shaped tokens, a date in stage 6's item 0, draw counts, section numbers and `ATP1A1 K605`,
     so a wrong draw count is not caught; nor is a figure spelled out in words. The `describes`
-    strings' rule and population claims are checked by nothing.
+    strings' rule and population claims are checked by nothing, except that neither they nor any
+    item of either note may match `PUBLISHED_CLAIMS` ("published claim" or "published claims" as
+    words, so "unpublished claims" passes; the label guard below).
     """
     if len(items) != 1 + len(entries):
         return [Violation("count", str(stage))]
@@ -1557,7 +1559,7 @@ def test_both_notes_name_their_instruments_and_quote_no_figure(tmp_path: Path) -
     sixes = tuple(e for e in audit.RECEIPT_MAP if e.section == 6)
     assert check_note(six.not_automated, fives, 6, _every_anchor()) == []
     assert check_note(seven.not_automated, sixes, 7, _every_anchor()) == []
-    assert len(six.not_automated) == 9
+    assert len(six.not_automated) == 10
     assert len(seven.not_automated) == 6
 
 
@@ -1569,3 +1571,81 @@ def test_no_anchor_reaches_the_report(tmp_path: Path) -> None:
     report = json.loads((tmp_path / "audit_PXD018299.json").read_text(encoding="utf-8"))
     serialised = json.dumps(report, ensure_ascii=False)
     assert not any(a in markdown or a in serialised for a in _every_anchor())
+
+
+# ── The 791 are testable, not published: the label guard (ADR-0041 item 6) ──────────────────────
+#
+# 798 claims are published and 791 reach the test (HYPOTHESIS.md:1018), so a label calling a figure
+# over the 791 "published claims" names the wrong population. The guard reads walk/FINDINGS.md,
+# the `RECEIPT_MAP` describes and the two notes. It never reads HYPOTHESIS.md, which uses "published
+# claims" correctly beside 791 figures (`CAUGHT_791`'s last case), nor the dated CHECKS documents,
+# which keep their text under a banner (walk/CORRECTION-PXD018299-H10-headline.md).
+
+#: "published claim" or "published claims" as words: "called-but-unpublished claims" passes.
+PUBLISHED_CLAIMS = re.compile(r"\bpublished claims?\b")
+_ALL_PUBLISHED = "all published claims"
+_N791 = re.compile(r"\b791\b")
+
+
+def mislabels_791(text: str) -> list[str]:
+    """Every line of `text` that says "all published claims", or says "published claim(s)" beside
+    the number 791. Case-sensitive, line by line: its measured limits are `UNCAUGHT_791`'s last
+    three cases."""
+    return [
+        line
+        for line in text.splitlines()
+        if _ALL_PUBLISHED in line or (PUBLISHED_CLAIMS.search(line) and _N791.search(line))
+    ]
+
+
+#: Lines the guard must catch, one hit each. The last is a correct line — the shape of
+#: HYPOTHESIS.md:1018 — and the guard's known false positive, which is why it never reads HYPOTHESIS.
+CAUGHT_791 = {
+    "a table row over the 791": "| published claims whose support changes | 210 of 791 |",
+    "a share over the 791": "share of published claims, 5/791",
+    "the 791 named as published": "the 791 published claims",
+    "all published claims": "and the band holds about 0.6% of all published claims.",
+    "known false positive": "798 published claims; 751 of 791 testable",
+}
+
+#: Lines the guard must pass. The first two are correct; the rest are its measured limits,
+#: mislabels it does not catch.
+UNCAUGHT_791 = {
+    "walk/FINDINGS.md section 5 row 4": (
+        "| of all 791 testable claims, those whose support changes across draws (reported beside "
+        "row 1, never in its place) | 210 of 791 (26.5%) |"
+    ),
+    "unpublished": "| called-but-unpublished claims supported in every draw | 9 of 791 |",
+    "limit: header and cells on separate lines": (
+        "| band | published claims inside it |\n| ±0.0015 | 5 of 791 |"
+    ),
+    "limit: a percentage with no 791": "26.5% of published claims change support",
+    "limit: the phrase wrapped across lines": (
+        "'over_all_claims' is over all published\nclaims, the population"
+    ),
+}
+
+
+@pytest.mark.parametrize("text", list(CAUGHT_791.values()), ids=list(CAUGHT_791))
+def test_the_791_label_guard_catches(text: str) -> None:
+    assert len(mislabels_791(text)) == 1
+
+
+@pytest.mark.parametrize("text", list(UNCAUGHT_791.values()), ids=list(UNCAUGHT_791))
+def test_the_791_label_guard_does_not_catch(text: str) -> None:
+    assert mislabels_791(text) == []
+
+
+def test_findings_labels_no_figure_over_the_791_as_published() -> None:
+    assert not mislabels_791((audit.REPO_ROOT / "walk" / "FINDINGS.md").read_text(encoding="utf-8"))
+
+
+def test_no_receipt_describes_calls_its_population_published_claims() -> None:
+    assert not [e.describes for e in audit.RECEIPT_MAP if PUBLISHED_CLAIMS.search(e.describes)]
+
+
+def test_neither_note_calls_a_population_published_claims(tmp_path: Path) -> None:
+    fx = _committed()
+    items = audit.stage6_sensitivity(fx, tmp_path).not_automated
+    items += audit.stage7_propagation(fx).not_automated
+    assert not [item for item in items if PUBLISHED_CLAIMS.search(item)]

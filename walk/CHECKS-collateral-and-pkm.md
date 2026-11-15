@@ -1,5 +1,21 @@
 # CHECKS — the collateral channel measured, PKM resolved, and 2,341 ruled out
 
+> **Correction (2026-11-15).** The claim that 27.8% *"is superseded as the
+> headline"*, in §1's closing paragraph, is **withdrawn**: false as stated. No
+> HYPOTHESIS version moved H10's registered denominator, and H10's
+> preregistration lists the share over all claims as reported, never the
+> headline. H10's headline remains 27.8%, over claims with an imputed value.
+> §1's heading's first clause, *"The denominator was wrong"*, and the sentence
+> *"26.5% is the figure with the right denominator"* are **not withdrawn**: the
+> record restates them as a proposal to move the headline, declined for the
+> current headline by ADR-0041. The heading's second clause, *"the collateral
+> channel is narrow"*, and *"kept as the conditional rate"* are unaffected.
+> **Every figure in this document is unaffected**: 26.5% stands as the share
+> over all testable claims. One label in §1's table, *"instability over all
+> published claims"*, calls the testable claims published claims: 798 claims are
+> published, and that row's population is the testable ones. See
+> `walk/CORRECTION-PXD018299-H10-headline.md`.
+
 **Run 2026-09-22 on bzk's machine.** Script: `notes/scripts/diagnose_round13.py`,
 output `notes/logs/round13.txt`. Not an independent path: the same instruments
 the registered runs use. **Attempt 3's registered verdict stands.** From this
