@@ -1,13 +1,14 @@
 # How much of a published PTM claim set is fixed by its methods?
 
-**Two deposits, reconstructed from their raw data: PXD018299 (Pinto-Fernández
-et al., *Br J Cancer* 2021) and PXD026748 (Munnur et al., *Nat Immunol* 2021).**
+**Three deposits, reconstructed from their raw data: PXD018299 (Pinto-Fernández
+et al., *Br J Cancer* 2021), PXD026748 (Munnur et al., *Nat Immunol* 2021) and,
+in §10a, PXD032267 (Yerra et al., *J Clin Invest* 2023).**
 
-Neither paper states how it imputed its missing values. On both, a substantial
-minority of published claims sit close enough to the significance line that the
-imputation's random draw decides them. On the first — the only one that
-published its post-imputation matrix — something stronger can be measured: what
-the published numbers themselves are made of.
+Neither of the first two papers states how it imputed its missing values. On
+both, a substantial minority of published claims sit close enough to the
+significance line that the imputation's random draw decides them. On the first
+— the only one of the two that published its post-imputation matrix — something
+stronger can be measured: what the published numbers themselves are made of.
 
 **What goes in this document:** a result appears here if it survives without our
 reconstruction of the paper's pipeline, or if it is needed to defend a result
@@ -168,7 +169,7 @@ things: a published post-imputation matrix, a deposit at the same grain, and a
 join that validates on measured cells. Most published PTM analyses supply the
 second and not the first.
 
-## 8. Two negatives that cost real tests
+## 8. A negative that cost a real test, and a count that reproduces
 
 **A supplementary table headed "LFQ intensity" whose values match nothing
 deposited.** Correlating each of its six columns against all fourteen deposited
@@ -177,10 +178,11 @@ all three wild-type columns pointing at a knockout sample). 17 of its 323 claims
 name protein groups the deposit does not contain. Our copy is content-hashed and
 reproduced the other supplements exactly.
 
-**The paper's stated count of 2,341 identified peptides cannot be reproduced.**
-Fifty-four filter combinations over localisation and score give 1,171 to 2,359
-distinct modified peptides, and none is 2,341. On this axis the published record
-is exhausted, which is now evidenced rather than assumed.
+**The paper's stated count of 2,341 equals the deposited site table's row
+count**, before any filter, reverse decoys and contaminants included. Whether
+the paper's word "peptides" denotes these site rows is not settled here. An
+earlier version of this section reported the count as unreproducible
+(`walk/CORRECTION-PXD018299-2341.md`).
 
 ## 9. A defeater class that bites machine consumers directly
 

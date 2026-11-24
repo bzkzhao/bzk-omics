@@ -1,5 +1,18 @@
 # CHECKS — the draw count, the nine read, and a shared-threshold mechanism
 
+> **Correction (2026-11-24).** The MOESM5 row of §6's table says its *"values are
+> log2 ratios, not intensities"*. That is **withdrawn**: false as stated, because
+> the reasoning was defective; it states as found what was never confirmed.
+> Successor: unknown. The measurement is held in
+> `walk/CHECKS-gap-and-protein-grain.md` §2 and is not restated here. §6's
+> observation that *"MOESM5's header disagrees with its content"* is unaffected,
+> and is now supported by that measurement. Neither the two unopened
+> supplements' contents nor the conclusion on the threshold and the population
+> changes.
+>
+> *Other homes, not edited.* `walk/CHECKS-gap-and-protein-grain.md` §2, whose
+> banner withdraws the same claim; and round 15c's script, line 8.
+
 **Run 2026-09-22 on bzk's machine.** Scripts:
 `notes/scripts/diagnose_round11.py` and `diagnose_round12.py`. Not an
 independent path: the same instruments the registered runs use. **Attempt 3's

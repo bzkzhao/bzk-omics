@@ -14,6 +14,44 @@
 > and §5's *"26.5% of published claims change support across re-draws"*. See
 > `walk/CORRECTION-PXD018299-H10-headline.md`.
 
+> **Correction (2026-11-24).** The paper's 2,341 equals the deposited site
+> table's row count before any filter, reverse decoys and contaminants included.
+> Two claims of this document are **withdrawn**, with that successor:
+> - §3's heading clause *narrowed from "wrong unit" to "unreproducible filter"*,
+>   and the paragraph from *"`walk/CHECKS-collateral-and-pkm.md` §3 is
+>   superseded."* through *"No combination tried lands on 2,341."*, on **the axis
+>   inference**: readings of distinct modified-peptide ids were taken to show that
+>   no reading of the file is the paper's figure, which is a row count. No
+>   combination on that axis does land on 2,341; the sentence is true of that axis
+>   and withdrawn as a statement about the paper's figure. The paragraph has two
+>   further defects: it classifies as *superseded* a claim that is now withdrawn,
+>   and it misquotes collateral §3, which says the count *"lives at a unit we do
+>   not have"*.
+> - In §4, the clause that regeneration *"would explain the 23-row gap between
+>   2,318 rows and the stated 2,341, and would be a defeater instance of a kind
+>   this project has no example of"*, on **the misnamed reading**: 2,318 is round
+>   13's count of the rows left after the 23 reverse decoys, so there is no gap,
+>   and once the 23 are named as decoys both sides of the comparison are rows.
+>
+> §3's *"all rows"* label is over the same 2,318 rows: named here, not changed.
+> §3's arithmetic placing the paper's 2,341 between two peptide-id readings is
+> true as arithmetic and is the premise of the first withdrawal: named here, not
+> edited. §3's *Also narrowed* paragraph stands whole: the site-keyed mapping is
+> unaffected, and its reading that the paper's prose calls site-level rows
+> "peptides" is one the successor is consistent with and does not confirm. §4's
+> raw-store statement, and its question whether the deposited table was
+> regenerated after the analysis, which *"cannot be answered from what is
+> held"*, are unaffected and matter more now: the row-count match does not
+> establish that the deposited table is the one the paper analysed. Every count
+> in this document is unaffected. See `walk/CORRECTION-PXD018299-2341.md`.
+>
+> *Other homes, not edited.* Execution records: round 11's script, line 18;
+> round 13's script, lines 22-26, 157, 164 and 184; round 13's log, lines 24-25;
+> round 14's script, lines 22-25, 165 and 174; round 14's log, line 21; round
+> 15's script, lines 21-24, 181, 199, 202 and 210; round 15's log, lines 20, 30
+> and 31-32; the S1 provenance script, line 7. And `walk/FINDINGS.md` §8, which
+> is edited.
+
 **Run 2026-09-22 on bzk's machine.** Script: `notes/scripts/diagnose_round14.py`,
 output `notes/logs/round14.txt`. Not an independent path: the same instruments
 the registered runs use. **Attempt 3's registered verdict stands.**

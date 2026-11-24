@@ -1,5 +1,30 @@
 # CHECKS — the ceiling survives, and the reconstruction agrees to within the draw
 
+> **Correction (2026-11-24).** Two claims about §4's rank-crossing row:
+> - The rank-crossing figure, 247 of 751 claims, is **superseded** by
+>   `walk/CHECKS-draws-and-threshold.md` §5, which gives two reasons: the figure
+>   inherited the rule through its reference point, and it used a ranking over
+>   both directions while the cut counted only one. Successor: the rank-spread
+>   distribution itself, as that §5 gives it, with the crossing share quotable
+>   only at the documented rule's calling rate. The label is the source's, kept
+>   knowingly: the second reason is a defect in the instrument rather than a
+>   disfavoured choice and would support **withdrawn** under the vocabulary, but
+>   this banner keeps draws §5's own *"Superseded"* rather than reclassify a
+>   figure in a document it does not edit.
+> - Its justification, *"needs no rule, no s0, no population argument"*, and the
+>   reading *"Rank movement is the measure that survives every unresolved
+>   question about the convention"*, are **withdrawn**: false as stated, because
+>   the reasoning was defective. The figure inherited the rule through its
+>   reference point, so it was not rule-free. Successor: the rank-spread
+>   distribution, as `walk/CHECKS-draws-and-threshold.md` §5 gives it.
+> - Unaffected: §4's structural-discordance row, its documented-rule row, and the
+>   two-sense caveat on the family-wide floor.
+>
+> *Other homes, not edited.* Round 10's script, lines 23 and 165, which carry the
+> same justification as an execution record: line 23 reads "no rule, no s0 and no
+> population argument", and line 165 reads "no rule, no s0 threshold and no
+> population argument".
+
 **Run 2026-09-22 on bzk's machine.** Script: `notes/scripts/diagnose_round10.py`.
 Not an independent path: the same instruments the registered runs use.
 **Attempt 3's registered verdict stands.**

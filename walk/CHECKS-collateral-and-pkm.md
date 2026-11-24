@@ -16,6 +16,36 @@
 > published, and that row's population is the testable ones. See
 > `walk/CORRECTION-PXD018299-H10-headline.md`.
 
+> **Correction (2026-11-24).** The paper's 2,341 equals the deposited site
+> table's row count before any filter, reverse decoys and contaminants included.
+> §3's conclusion that it cannot be reconstructed is **withdrawn**, in three
+> parts on two grounds:
+> - §3's table label *"rows in the table"*, on **the misnamed reading**: its
+>   2,318 is the rows left after the 23 reverse decoys. The label is named here,
+>   not changed.
+> - §3's heading entire, *"The paper's 2,341 cannot be reconstructed, because it
+>   is a different unit"*, and the paragraph from *"None is 2,341."* through *"It
+>   would need `modificationSpecificPeptides.txt`,"*, on **the unit inference**:
+>   the paper's figure was inferred to live at a unit the table does not carry,
+>   and it is the table's own row count.
+> - The *Reading*, from *"This is a clean negative"* through *"on the other
+>   deposit,"*, on **the unit inference**.
+>
+> Two further claims are false for the same reason and are named here, not
+> edited: the title's *"2,341 ruled out"*; and §5's listing of *"the paper's own
+> peptide-count constraint"* among things tested and exhausted, a constraint in
+> fact met **as a row count**. Unaffected: that the raw store does not hold
+> `modificationSpecificPeptides.txt`; the note on the other deposit, where
+> expanded rows reproduced its stated 2,143 exactly; §5's remaining-routes list;
+> and every count in this document. See `walk/CORRECTION-PXD018299-2341.md`.
+>
+> *Other homes, not edited.* Execution records: round 11's script, line 18;
+> round 13's script, lines 22-26, 157, 164 and 184; round 13's log, lines 24-25;
+> round 14's script, lines 22-25, 165 and 174; round 14's log, line 21; round
+> 15's script, lines 21-24, 181, 199, 202 and 210; round 15's log, lines 20, 30
+> and 31-32; the S1 provenance script, line 7. And `walk/FINDINGS.md` §8, which
+> is edited.
+
 **Run 2026-09-22 on bzk's machine.** Script: `notes/scripts/diagnose_round13.py`,
 output `notes/logs/round13.txt`. Not an independent path: the same instruments
 the registered runs use. **Attempt 3's registered verdict stands.** From this

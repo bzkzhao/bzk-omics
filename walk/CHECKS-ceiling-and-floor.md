@@ -1,5 +1,20 @@
 # CHECKS — the ceiling, the misses, and what the instability figure supports
 
+> **Correction (2026-11-24).** Two classifications on one figure:
+> - The figure, 156 of 751 claims unstable under both rules, is **superseded** by
+>   `walk/CHECKS-ceiling-survives.md` §4, which takes the floor across the whole
+>   rule family and reports 103 of 751. The reason is given there: the round-9
+>   figure *"was an intersection over two points of the family rather than the
+>   whole of it"*. The computation was correct under that two-point choice.
+> - The claim built on it, *"20.8% is a floor no choice of convention removes"*,
+>   is **withdrawn**: false as stated, because the reasoning was defective. A
+>   choice of convention does remove it: taking the whole family rather than two
+>   of its points lowers the floor. Successor: the family-wide floor as
+>   `walk/CHECKS-ceiling-survives.md` §4 gives it, with its two-sense caveat.
+>
+> *Other homes, not edited.* §5's sentence stating what the evidence supports,
+> which ends *"with a floor of 20.8%"*, below this banner.
+
 **Run 2026-09-22 on bzk's machine.** Script: `notes/scripts/diagnose_round9.py`.
 Not an independent path: the same instruments the registered runs use.
 **Attempt 3's registered verdict stands.** One further claim of this project's
