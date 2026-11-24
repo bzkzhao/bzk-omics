@@ -49,8 +49,8 @@ ARCHITECTURE = ROOT / "ARCHITECTURE.md"
 #: The counts at `fdc8ef3`, pinned so a parser that stops matching fails loudly instead of
 #: comparing two empty sets. A legitimate addition moves these in the same commit — the same
 #: discipline `tests/test_tautology_sweep.py`'s floor carries, and for the same reason.
-EXPECTED_FILES = 40
-EXPECTED_WRITTEN_ROWS = 40
+EXPECTED_FILES = 41
+EXPECTED_WRITTEN_ROWS = 41
 EXPECTED_QUEUED_ROWS = 1
 EXPECTED_SEED_LINES = 18
 EXPECTED_SEED_STRUCK = 17
@@ -82,7 +82,11 @@ EXPECTED_SEED_STRUCK = 17
 #: 27/10/3 -> 28/9/3 on 2026-11-14: ADR-0041 completed its review round trip and moved to
 #: `Accepted` (nine findings, two correcting its Landing verification, none touching the
 #: decision). `EXPECTED_FILES` and `EXPECTED_WRITTEN_ROWS` do not move: no record was added.
-EXPECTED_STATUSES = {"Accepted": 28, "Proposed": 9, "Superseded": 3}
+#: 28/9/3 -> 28/10/3 on 2026-11-24: ADR-0042 landed `Proposed` (prompt 46), answering ADR-0041's
+#: Open question 1 and amending the scope of its (a). `EXPECTED_FILES` and `EXPECTED_WRITTEN_ROWS`
+#: moved 40 -> 41 with it; the queued and seed counts did not, since 0042 is not in
+#: `ARCHITECTURE.md` §5's seed list.
+EXPECTED_STATUSES = {"Accepted": 28, "Proposed": 10, "Superseded": 3}
 
 #: Supersessions recorded on one side only, with the reason each is permitted.
 #:
